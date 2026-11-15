@@ -242,6 +242,14 @@
   .chips button.add { border-style: dashed; color: var(--accent); }
   .card input[type=number] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; outline: none; }
 
+  /* ---------- Lorebooks ---------- */
+  .pick-sel { font: inherit; font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; }
+  .entry { margin-top: 10px; }
+  .entry > summary .ek { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .entry > summary .tag { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; margin-left: 8px; background: var(--accent-soft); color: var(--accent); flex: none; }
+  .entry > summary .tag.off { background: var(--line); color: var(--ink-soft); }
+  .chips button.global { border-style: dashed; }
+
   /* ---------- Chat settings tabs ---------- */
   .tabbar { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); max-width: 640px; width: 100%; margin: 0 auto; }
   .tabbar button { flex: 1; padding: 8px 6px; border-radius: 10px; border: 0; background: none; font-size: 14px; color: var(--ink-soft); cursor: pointer; }
@@ -426,6 +434,7 @@
     <button type="button" id="goChats">Chats</button>
     <button type="button" id="goChars">Characters</button>
     <button type="button" id="goPersonas">Personas</button>
+    <button type="button" id="goLore">Lorebooks</button>
     <button type="button" id="goAlbums">Albums</button>
     <button type="button" id="goSettings">Settings</button>
   </nav>
@@ -447,6 +456,32 @@
     <div class="items" id="personaList"></div>
   </div></div>
   <div class="selbar" id="personaSel" hidden><span></span><button class="btn" type="button" data-act="move">Move</button><button class="btn danger" type="button" data-act="delete">Delete</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
+</section>
+
+<section id="lorebooks" class="view" aria-label="Lorebooks">
+  <div class="page-head"><button class="back" data-close="lorebooks" type="button">‹ Back</button><h1>Lorebooks</h1><span></span></div>
+  <div class="page-body"><div class="page-inner">
+    <div class="create linkrow" style="gap:8px"><button type="button" id="newLore" style="flex:2">+ Create new lorebook</button><button type="button" id="importLore" style="flex:1">Import</button></div>
+    <input type="file" id="loreFile" accept=".json,application/json,image/png,.png" hidden>
+    <div class="hint" style="margin:0 4px 12px">World info for your stories: places, people, rules. Each entry has keywords; it is only sent to the AI when a keyword comes up in the recent messages, so it doesn't fill up the context. Link a lorebook to a character (in the character editor), to a chat (Chat settings → Prompt), or use it everywhere.</div>
+    <div class="items" id="loreList"></div>
+  </div></div>
+</section>
+
+<section id="lorebook" class="view" aria-label="Lorebook">
+  <div class="page-head"><button class="back" data-close="lorebook" type="button">‹ Lorebooks</button><h1 id="loreTitle"></h1><button class="act" id="loreMenu" type="button" aria-label="Lorebook options">•••</button></div>
+  <div class="page-body"><div class="page-inner">
+    <div class="card">
+      <label class="f" for="lbName">Name</label>
+      <input id="lbName" type="text" autocomplete="off">
+      <div class="line"><span>Use in every chat</span><input type="checkbox" class="tgl" id="lbGlobal"></div>
+      <div class="line"><span>Look for keywords in the last</span>
+        <select id="lbDepth" class="pick-sel"><option value="2">2 messages</option><option value="4">4 messages</option><option value="6">6 messages</option><option value="10">10 messages</option><option value="20">20 messages</option></select></div>
+      <div class="hint" id="lbUsedBy"></div>
+    </div>
+    <div class="create" style="margin-top:6px"><button type="button" id="lbAdd">+ Add entry</button></div>
+    <div id="lbEntries"></div>
+  </div></div>
 </section>
 
 <section id="albums" class="view" aria-label="Albums">
@@ -528,6 +563,7 @@
 <div id="sendMenu" hidden>
   <button type="button" data-act="enhance">✨ Enhance my message</button>
   <button type="button" data-act="write">✍️ Write for me</button>
+  <button type="button" data-act="continue">➡️ Continue the last reply</button>
   <button type="button" data-act="prompts" class="small">Edit these prompts</button>
 </div>
 
@@ -626,6 +662,11 @@
         <button class="btn" type="button" id="csPromptClear">Use global prompt</button>
       </div>
     </div>
+    <p class="group-title">Lorebooks for this chat</p>
+    <div class="card">
+      <div class="chips" id="csLore"></div>
+      <div class="hint" id="csLoreHint"></div>
+    </div>
     <p class="group-title">Forbidden words for this chat</p>
     <div class="card">
       <textarea id="csForbidden" placeholder="One per line or comma separated"></textarea>
@@ -694,6 +735,12 @@
         <div class="tabs" id="edTabs"></div>
         <textarea id="edFirst" style="margin-top:10px" placeholder="The character's opening line."></textarea>
         <div class="hint" id="edFirstHint">Use {{char}} and {{user}} as placeholders.</div>
+      </details>
+
+      <details class="edf" data-for="char" data-f="lore" open>
+        <summary>Lorebooks <span style="font-weight:400">(optional)</span></summary>
+        <div class="chips" id="edLore" style="margin-top:4px"></div>
+        <div class="hint" id="edLoreHint">Linked lorebooks are used in every chat with this character.</div>
       </details>
 
       <details class="edf" data-for="char" data-f="ex" open>
@@ -938,6 +985,8 @@ const saveChats = () => { store.set('chats', chats); renderChats(); };
 const msgsKey = id => 'msgs.' + id;
 let folders = store.get('folders', []);   // { id, kind: 'char'|'persona', name }
 let albums = store.get('albums', []);     // { id, name, images: [imageId] }  image data in IndexedDB as alb_<id>
+let lorebooks = store.get('lorebooks', []); // { id, name, global, depth, entries: [{ id, title, keys, content, always, on }] }
+const saveLore = () => store.set('lorebooks', lorebooks);
 const saveFolders = () => store.set('folders', folders);
 const saveAlbums = () => store.set('albums', albums);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -1102,7 +1151,34 @@ const fill = (t, c, p) => (t || '').replace(/\{\{char\}\}/gi, cn(c)).replace(/\{
 // First message options (older characters have a single firstMessage)
 const greetingsOf = c => (c?.firstMessages?.length ? c.firstMessages : [c?.firstMessage]).filter(x => x?.trim());
 
-function systemFor(c, p, memory) {
+// Lorebooks in use: global ones + the character's + this chat's
+function activeBooks(c, chat) {
+  const ids = new Set([...(c?.lorebooks || []), ...(chat?.lorebooks || [])]);
+  return lorebooks.filter(b => b.global || ids.has(b.id));
+}
+const LORE_BUDGET = 3000; // ~tokens of world info per request
+const escRe = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function keyHit(text, key) {
+  key = key.trim(); if (!key) return false;
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${escRe(key)}($|[^\\p{L}\\p{N}])`, 'iu').test(text);
+}
+// Entries whose keywords appear in the recent messages (or that are always on)
+function loreFor(c, p, chat, hist) {
+  const out = [], seen = new Set(); let used = 0;
+  for (const b of activeBooks(c, chat)) {
+    const text = hist.slice(-(b.depth || 4)).map(m => m.content || '').join('\n');
+    for (const e of b.entries || []) {
+      if (e.on === false || !e.content?.trim() || seen.has(e.id)) continue;
+      const hit = e.always || (e.keys || '').split(',').some(k => keyHit(text, k));
+      if (!hit) continue;
+      const t = fill(e.content.trim(), c, p), cost = t.length / 4;
+      if (used + cost > LORE_BUDGET) continue;
+      used += cost; seen.add(e.id); out.push(t);
+    }
+  }
+  return out.join('\n\n');
+}
+function systemFor(c, p, memory, lore) {
   const f = t => fill((t || '').trim(), c, p);
   const parts = [f(cur?.chat.prompt?.trim() || cfg.systemPrompt)];
   let ch = `--- Character: ${cn(c)} ---\nYou are ${cn(c)}. Stay in character.`;
@@ -1110,6 +1186,7 @@ function systemFor(c, p, memory) {
   if (f(c.scenario)) ch += `\n\nScenario:\n${f(c.scenario)}`;
   parts.push(ch);
   if (p) parts.push(`--- User: ${p.name} ---\nYou are talking with ${p.name}.${f(p.personality) ? `\n\n${f(p.personality)}` : ''}`);
+  if (lore) parts.push(`--- World info (facts about this story; use when relevant) ---\n${lore}`);
   if (f(memory)) parts.push(`--- Memory (things to remember in this chat) ---\n${f(memory)}`);
   if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
   const banned = [cfg.forbidden, cur?.chat.forbidden].join('\n').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
@@ -1176,7 +1253,7 @@ async function buildMessages(c, p, hist, memory) {
       note = ''; break;
     }
   }
-  const system = { role: 'system', content: systemFor(c, p, memory) + (note ? `\n\n--- Author's note ---\n${note}` : '') };
+  const system = { role: 'system', content: systemFor(c, p, memory, loreFor(c, p, cur?.chat, hist)) + (note ? `\n\n--- Author's note ---\n${note}` : '') };
   // Context size: drop the oldest messages until it fits (~4 characters per token, ~800 per image)
   const limit = gen().contextSize;
   if (limit) {
@@ -1638,6 +1715,30 @@ async function attachImage(s, hist, msg, into, bubble, imgPrompt) {
     showImage(fig, src);
   } catch (e) { fig.remove(); if (!isAbort(e) && here()) addBubble('err', 'Image failed: ' + e.message); }
 }
+// Continue: the AI carries on writing its reply from where it stopped
+async function continueReply(i) {
+  if (busy || !ready()) return;
+  const s = cur, hist = history, m = hist[i];
+  if (!m || m.role !== 'assistant') return;
+  const bubble = [...$('log').querySelectorAll('.msg.ai')].find(b => +b.dataset.i === i); if (!bubble) return;
+  const before = m.content || '';
+  const join = r => {
+    const t = visible(r);
+    const sep = !t || /\s$/.test(before) || /^[\s,.;:!?)\]'"”’…*_-]/.test(t) ? '' : ' ';
+    return before + sep + t;
+  };
+  setBusy(true);
+  bubble.querySelector('.alts')?.remove();
+  try {
+    const ask = '[Continue your last message exactly where it stopped. Do not repeat anything you already wrote and do not start over; write only what comes next.]';
+    const messages = [...await buildMessages(s.c, s.p, hist.slice(0, i + 1), s.chat.memory), { role: 'user', content: ask }];
+    const out = await streamChat(messages, r => { setText(bubble, join(r)); });
+    const full = join(visible(out, true)).trimEnd();
+    m.content = full; if (m.alts) m.alts[m.sel || 0].content = full;
+    saveMsgs(s.chat, hist);
+  } catch (e) { if (!isAbort(e)) toast('Could not continue: ' + e.message); }
+  finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
+}
 // Long press → Create image on a reply
 async function imageForReply(i) {
   if (busy || !ready()) return;
@@ -1692,7 +1793,7 @@ function showMsgMenu(el) {
   const i = +el.dataset.i, m = history[i]; if (!m) return;
   hideMsgMenu();
   const acts = m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], ['delete', 'Delete']]
-    : [['image', 'Create image'], ['copy', 'Copy'], ['delete', 'Delete']];
+    : [...(i === history.length - 1 ? [['continue', 'Continue']] : []), ['image', 'Create image'], ['copy', 'Copy'], ['delete', 'Delete']];
   const box = $('msgMenu'); box.innerHTML = '';
   for (const [a, label] of acts) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.textContent = label;
@@ -1731,6 +1832,7 @@ $('msgMenu').onclick = e => {
   if (act === 'regen') resendFrom(i - 1, history[i - 1].content);
   if (act === 'delete') deleteMessage(i);
   if (act === 'image') imageForReply(i);
+  if (act === 'continue') continueReply(i);
   if (act === 'rewrite') rewriteOpening();
 };
 // Deletes message i and everything after it
@@ -1895,6 +1997,8 @@ function closeView(id) {
   if (id === 'chars' || id === 'personas') { endSelect(); closeSwipe(); }
   if (id === 'albums') closeSwipe();
   if (id === 'album') albumSel = null;
+  if (id === 'lorebooks') closeSwipe();
+  if (id === 'lorebook') renderLoreList();
 }
 for (const b of document.querySelectorAll('[data-close]')) b.onclick = () => closeView(b.dataset.close);
 
@@ -2268,7 +2372,7 @@ const edItems = () => edit.kind === 'char' ? chars : personas;
 
 function openEditor(kind, id) {
   const it = (kind === 'char' ? chars : personas).find(x => x.id === id) || null;
-  edit = { kind, id: it?.id || null, img: undefined };
+  edit = { kind, id: it?.id || null, img: undefined, lore: new Set(it?.lorebooks || []), pendingLore: null };
   const noun = kind === 'char' ? 'character' : 'persona';
   $('edTitle').textContent = (it ? 'Edit ' : 'New ') + noun;
   for (const el of document.querySelectorAll('#editor [data-for]')) el.hidden = el.dataset.for !== kind;
@@ -2289,8 +2393,13 @@ function openEditor(kind, id) {
   $('edNoImg').hidden = !it?.img;
   $('edDelete').hidden = !it || kind === 'char'; // characters are deleted from their profile
   $('edCard').hidden = kind !== 'char';
+  renderEdLore();
   $('editor').querySelector('.page-body').scrollTop = 0;
   openView('editor');
+}
+function renderEdLore() {
+  loreChips($('edLore'), edit.lore, id => { edit.lore.has(id) ? edit.lore.delete(id) : edit.lore.add(id); renderEdLore(); });
+  if (edit.pendingLore) { const b = document.createElement('button'); b.type = 'button'; b.className = 'on'; b.textContent = `${edit.pendingLore.name} (from card)`; b.onclick = () => { edit.pendingLore = null; renderEdLore(); }; $('edLore').append(b); }
 }
 function renderTabs() {
   const box = $('edTabs'); box.innerHTML = '';
@@ -2368,6 +2477,8 @@ async function saveEditor() {
     edit.greets[edit.gi] = $('edFirst').value;
     it.firstMessages = edit.greets.map(g => g.trim()).filter(Boolean);
     delete it.firstMessage;
+    if (edit.pendingLore) { lorebooks.unshift(edit.pendingLore); saveLore(); edit.lore.add(edit.pendingLore.id); edit.pendingLore = null; }
+    it.lorebooks = [...edit.lore].filter(id => lorebooks.some(b => b.id === id));
   }
   if (edit.img !== undefined) {
     if (it.img) { idb.del(it.img).catch(() => {}); avatarCache.delete(it.img); delete it.img; }
@@ -2398,12 +2509,14 @@ async function importCardInto(f) {
     $('edName').value = c.name; $('edDesc').value = c.description; $('edPers').value = c.personality;
     $('edScen').value = c.scenario; $('edAiFirst').checked = c.aiFirst; $('edEx').value = c.examples; $('edChatName').value = c.chatName;
     edit.greets = c.firstMessages.length ? c.firstMessages : ['']; edit.gi = 0; $('edFirst').value = edit.greets[0]; renderTabs();
+    const book = loreFromJson(card, `${c.name || 'Character'} lore`);
+    if (book) { edit.pendingLore = book; renderEdLore(); }
     syncFirst(); autosizeAll($('editor'));
     if (isPng) {
       edit.img = await readImage(f);
       const th = $('edThumb'); th.style.backgroundImage = `url("${edit.img}")`; th.textContent = ''; $('edNoImg').hidden = false;
     }
-    toast(`Imported ${c.name || 'character'}. Check the fields, then Save.`);
+    toast(`Imported ${c.name || 'character'}${book ? ` with a lorebook (${book.entries.length} entries)` : ''}. Check the fields, then Save.`);
   } catch (e) { toast('Could not read that card: ' + (e.message || e)); }
 }
 
@@ -2439,6 +2552,152 @@ $('goChars').onclick = () => openView('chars');
 $('goPersonas').onclick = () => openView('personas');
 $('goSettings').onclick = () => openSettings();
 $('goAlbums').onclick = () => { renderAlbums(); openView('albums'); };
+$('goLore').onclick = () => { renderLoreList(); openView('lorebooks'); };
+
+// ---------- Lorebooks ----------
+let loreId = null;
+const newEntry = () => ({ id: uid(), title: '', keys: '', content: '', always: false, on: true });
+function loreUsers(b) {
+  const cs = chars.filter(c => c.lorebooks?.includes(b.id)).map(c => c.name);
+  const n = chats.filter(ch => ch.lorebooks?.includes(b.id)).length;
+  return b.global ? 'Used in every chat' : [cs.length ? 'Linked to ' + cs.join(', ') : '', n ? `${n} chat${n === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || 'Not linked yet';
+}
+function renderLoreList() {
+  const list = $('loreList'); list.innerHTML = ''; openSwipe = null;
+  if (!lorebooks.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.textContent = 'No lorebooks yet.'; return list.append(e); }
+  for (const b of lorebooks) {
+    const w = document.createElement('div'); w.className = 'swipe';
+    const acts = document.createElement('div'); acts.className = 'swipe-acts';
+    const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'rm'; rm.textContent = 'Delete';
+    rm.onclick = () => { closeSwipe(); deleteLore(b); };
+    acts.append(rm);
+    const it = document.createElement('button'); it.type = 'button'; it.className = 'item';
+    const ic = document.createElement('div'); ic.className = 'folder-icon'; ic.textContent = '📖';
+    const info = document.createElement('div'); info.className = 'info';
+    const h = document.createElement('h3'); h.textContent = b.name || 'Untitled';
+    const pp = document.createElement('p'); pp.textContent = `${b.entries.length} entr${b.entries.length === 1 ? 'y' : 'ies'} · ${loreUsers(b)}`;
+    info.append(h, pp); it.append(ic, info); w.append(acts, it);
+    gestures(w, it, () => openLore(b.id), null, 84);
+    list.append(w);
+  }
+}
+function deleteLore(b) {
+  if (!confirm(`Delete the lorebook "${b.name}"? Characters and chats that use it lose it.`)) return false;
+  lorebooks = lorebooks.filter(x => x.id !== b.id); saveLore();
+  for (const c of chars) if (c.lorebooks?.includes(b.id)) c.lorebooks = c.lorebooks.filter(x => x !== b.id);
+  for (const ch of chats) if (ch.lorebooks?.includes(b.id)) ch.lorebooks = ch.lorebooks.filter(x => x !== b.id);
+  saveChars(); store.set('chats', chats); renderLoreList(); return true;
+}
+$('newLore').onclick = () => {
+  const b = { id: uid(), name: 'New lorebook', global: false, depth: 4, entries: [newEntry()] };
+  lorebooks.unshift(b); saveLore(); renderLoreList(); openLore(b.id);
+  setTimeout(() => { $('lbName').focus(); $('lbName').select(); }, 350);
+};
+function openLore(id) { loreId = id; renderLore(); $('lorebook').querySelector('.page-body').scrollTop = 0; openView('lorebook'); }
+function renderLore() {
+  const b = lorebooks.find(x => x.id === loreId); if (!b) return;
+  $('loreTitle').textContent = b.name || 'Lorebook';
+  $('lbName').value = b.name || ''; $('lbGlobal').checked = !!b.global; $('lbDepth').value = String(b.depth || 4);
+  $('lbUsedBy').textContent = loreUsers(b) + '. Entries marked "Always on" are always sent.';
+  const box = $('lbEntries'); box.innerHTML = '';
+  b.entries.forEach((e, n) => {
+    const d = document.createElement('details'); d.className = 'card fold entry'; d.open = !e.content && !e.keys;
+    const sm = document.createElement('summary'); sm.className = 'sub';
+    const label = () => {
+      sm.innerHTML = '';
+      const k = document.createElement('span'); k.className = 'ek'; k.textContent = e.title || e.keys || (e.always ? 'Always on' : 'New entry'); sm.append(k);
+      if (e.always) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'always'; sm.append(t); }
+      if (e.on === false) { const t = document.createElement('span'); t.className = 'tag off'; t.textContent = 'off'; sm.append(t); }
+    };
+    label();
+    const field = (lab, key, tag, ph) => {
+      const l = document.createElement('label'); l.className = 'f'; l.textContent = lab;
+      const i = document.createElement(tag); if (tag === 'input') i.type = 'text'; i.value = e[key] || ''; i.placeholder = ph;
+      i.oninput = () => { e[key] = i.value; saveLore(); if (key !== 'content') label(); };
+      d.append(l, i); return i;
+    };
+    d.append(sm);
+    field('Title (optional)', 'title', 'input', 'e.g. The lighthouse');
+    field('Keywords', 'keys', 'input', 'lighthouse, Old Tom, the cliffs');
+    const ta = field('Content', 'content', 'textarea', 'What the AI should know when a keyword comes up. {{char}} and {{user}} work here.');
+    const line = (lab, key, val) => {
+      const r = document.createElement('div'); r.className = 'line';
+      const sp = document.createElement('span'); sp.textContent = lab;
+      const t = document.createElement('input'); t.type = 'checkbox'; t.className = 'tgl'; t.checked = val;
+      t.onchange = () => { e[key] = t.checked; saveLore(); label(); };
+      r.append(sp, t); d.append(r);
+    };
+    line('Always on (no keyword needed)', 'always', !!e.always);
+    line('Enabled', 'on', e.on !== false);
+    const acts = document.createElement('div'); acts.className = 'actions';
+    const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete entry';
+    del.onclick = () => { if (!confirm('Delete this entry?')) return; b.entries.splice(b.entries.indexOf(e), 1); saveLore(); renderLore(); };
+    acts.append(del); d.append(acts);
+    d.addEventListener('toggle', () => { if (d.open) autosizeAll(d); });
+    box.append(d);
+  });
+  requestAnimationFrame(() => autosizeAll(box));
+}
+$('lbName').oninput = () => { const b = lorebooks.find(x => x.id === loreId); if (!b) return; b.name = $('lbName').value; $('loreTitle').textContent = b.name || 'Lorebook'; saveLore(); renderLoreList(); };
+$('lbGlobal').onchange = () => { const b = lorebooks.find(x => x.id === loreId); if (!b) return; b.global = $('lbGlobal').checked; saveLore(); renderLore(); renderLoreList(); };
+$('lbDepth').onchange = () => { const b = lorebooks.find(x => x.id === loreId); if (!b) return; b.depth = +$('lbDepth').value; saveLore(); };
+$('lbAdd').onclick = () => {
+  const b = lorebooks.find(x => x.id === loreId); if (!b) return;
+  b.entries.push(newEntry()); saveLore(); renderLore();
+  const all = $('lbEntries').querySelectorAll('.entry'); const last = all[all.length - 1];
+  last.open = true; last.scrollIntoView({ block: 'center', behavior: 'smooth' }); setTimeout(() => last.querySelectorAll('input')[1]?.focus(), 300);
+};
+$('loreMenu').onclick = () => {
+  const b = lorebooks.find(x => x.id === loreId); if (!b) return;
+  showSheet(b.name || 'Lorebook', [
+    { label: 'Export (SillyTavern format)', onClick: () => exportLore(b) },
+    { label: 'Delete lorebook', onClick: () => { if (deleteLore(b)) closeView('lorebook'); } },
+  ]);
+};
+
+// Import: SillyTavern world info, character_book (V2/Chub), or a whole character card
+function loreFromJson(j, fallbackName) {
+  const d = j?.data || j;
+  const book = d?.character_book || j?.character_book || (j?.entries ? j : null);
+  if (!book) return null;
+  const raw = Array.isArray(book.entries) ? book.entries : Object.values(book.entries || {});
+  const entries = raw.map(x => ({
+    id: uid(), title: x.comment || x.name || '',
+    keys: [...(x.keys || x.key || []), ...(x.secondary_keys || [])].map(k => String(k).trim()).filter(Boolean).join(', '),
+    content: htmlToText(x.content || ''), always: !!x.constant, on: !(x.enabled === false || x.disable === true),
+  })).filter(e => e.content || e.keys);
+  if (!entries.length) return null;
+  return { id: uid(), name: book.name || fallbackName || 'Imported lorebook', global: false, depth: Math.min(20, book.scan_depth || 4), entries };
+}
+$('importLore').onclick = () => $('loreFile').click();
+$('loreFile').onchange = async () => {
+  const f = $('loreFile').files[0]; $('loreFile').value = ''; if (!f) return;
+  try {
+    const isPng = new Uint8Array(await f.slice(0, 8).arrayBuffer()).join() === PNG_SIG.join();
+    const j = isPng ? readCardPng(await f.arrayBuffer()) : JSON.parse(await f.text());
+    const b = loreFromJson(j, f.name.replace(/\.(json|png)$/i, ''));
+    if (!b) throw new Error('No lorebook entries found in this file.');
+    lorebooks.unshift(b); saveLore(); renderLoreList(); toast(`Imported ${b.entries.length} entr${b.entries.length === 1 ? 'y' : 'ies'}`);
+  } catch (e) { toast('Could not import: ' + e.message); }
+};
+async function exportLore(b) {
+  const entries = {};
+  b.entries.forEach((e, i) => { entries[i] = { uid: i, key: (e.keys || '').split(',').map(k => k.trim()).filter(Boolean), keysecondary: [], comment: e.title || '', content: e.content || '', constant: !!e.always, disable: e.on === false, order: 100, position: 0, selective: false }; });
+  const blob = new Blob([JSON.stringify({ name: b.name, entries }, null, 2)], { type: 'application/json' });
+  try { await shareFile(`${(b.name || 'lorebook').replace(/[^\p{L}\p{N} _-]/gu, '').trim() || 'lorebook'}.json`, blob); }
+  catch (e) { if (!(isAbort(e) || /cancel/i.test(e?.message || ''))) toast('Export failed: ' + e.message); }
+}
+// Lorebook chips (character editor / chat settings): tap to link or unlink
+function loreChips(box, selected, onToggle) {
+  box.innerHTML = '';
+  if (!lorebooks.length) { const h = document.createElement('div'); h.className = 'hint'; h.textContent = 'No lorebooks yet. Create them on the title screen → Lorebooks.'; return box.append(h); }
+  for (const b of lorebooks) {
+    const btn = document.createElement('button'); btn.type = 'button';
+    if (b.global) { btn.className = 'on global'; btn.textContent = `${b.name} (everywhere)`; btn.disabled = true; }
+    else { btn.className = selected.has(b.id) ? 'on' : ''; btn.textContent = b.name || 'Untitled'; btn.onclick = () => { onToggle(b.id); }; }
+    box.append(btn);
+  }
+}
 
 // ---------- Character cards (PNG with embedded chara_card_v2 JSON, the format SillyTavern/Chub/JanitorAI use) ----------
 const PNG_SIG = [137, 80, 78, 71, 13, 10, 26, 10];
@@ -2511,6 +2770,12 @@ async function exportCard(c) {
       first_mes: c.aiFirst ? '' : (gs[0] || ''), mes_example: c.examples || '',
       creator_notes: stripLinks(c.description), system_prompt: '', post_history_instructions: '',
       alternate_greetings: c.aiFirst ? [] : gs.slice(1), tags: [], creator: '', character_version: '',
+      ...(() => {
+        const books = lorebooks.filter(b => c.lorebooks?.includes(b.id));
+        if (!books.length) return {};
+        const entries = books.flatMap(b => b.entries).map((e, i) => ({ id: i, keys: (e.keys || '').split(',').map(k => k.trim()).filter(Boolean), content: e.content || '', enabled: e.on !== false, constant: !!e.always, comment: e.title || '', insertion_order: 100, extensions: {} }));
+        return { character_book: { name: books.map(b => b.name).join(' + '), entries, extensions: {} } };
+      })(),
       extensions: { greenroom: { version: 2, description: c.description || '', personality: c.personality || '', chatName: c.chatName || '', firstMessages: gs, aiFirst: !!c.aiFirst, images } },
     } };
     // Base image: the character's picture, or a plain one with their initial
@@ -2693,6 +2958,7 @@ function openChatSettings() {
   renderProxyBoxes(); syncChatGen();
   $('csAutoPics').checked = cur.chat.autoPics !== false;
   $('csForbidden').value = cur.chat.forbidden || '';
+  renderCsLore();
   $('csPrompt').value = cur.chat.prompt || '';
   $('csPrompt').placeholder = cfg.systemPrompt ? 'Empty: the global system prompt is used.' : 'No global system prompt set.';
   setCsTab(0);
@@ -2837,6 +3103,18 @@ $('memory').addEventListener('input', () => syncSummary());
 $('memFold').open = store.get('memFoldOpen', true);
 $('memFold').addEventListener('toggle', () => { store.set('memFoldOpen', $('memFold').open); if ($('memFold').open) autosizeAll($('memFold')); });
 $('sumFold').addEventListener('toggle', () => { if ($('sumFold').open) autosizeAll($('sumFold')); });
+
+function renderCsLore() {
+  if (!cur) return;
+  const sel = new Set(cur.chat.lorebooks || []);
+  loreChips($('csLore'), sel, id => {
+    sel.has(id) ? sel.delete(id) : sel.add(id);
+    cur.chat.lorebooks = [...sel]; if (!sel.size) delete cur.chat.lorebooks;
+    store.set('chats', chats); renderCsLore();
+  });
+  const fromChar = lorebooks.filter(b => cur.c.lorebooks?.includes(b.id) && !b.global).map(b => b.name);
+  $('csLoreHint').textContent = (fromChar.length ? `Also used here through ${cn(cur.c)}: ${fromChar.join(', ')}. ` : '') + 'Tap to use a lorebook in this chat only.';
+}
 
 // Tabs: tap or swipe sideways
 let csTab = 0;
@@ -3294,6 +3572,7 @@ $('sendMenu').onclick = e => {
   const act = e.target.closest('button')?.dataset.act; if (!act) return;
   hideSendMenu();
   if (act === 'prompts') return openHelpers();
+  if (act === 'continue') { const i = history.length - 1; return history[i]?.role === 'assistant' ? continueReply(i) : toast('There is no reply to continue yet'); }
   const key = act === 'enhance' ? 'enhancePrompt' : 'writePrompt';
   if (!cfg[key]?.trim()) { toast('Save the prompt first, then use the button'); return openHelpers(key); }
   runHelper(act, input.value);
