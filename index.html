@@ -265,6 +265,7 @@
   .tokbar .warn { color: var(--accent); }
 
   /* ---------- Search, pins, timestamps, backgrounds ---------- */
+  #chatimgs .page-inner { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   input.search { width: 100%; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--field); color: var(--ink); font: inherit; font-size: 16px; outline: none; -webkit-appearance: none; }
   input.search:focus { border-color: var(--accent); }
   .srow { display: block; width: 100%; text-align: left; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); cursor: pointer; }
@@ -277,6 +278,13 @@
   .msg.flash { animation: flash 1.8s ease; border-radius: 12px; }
   @keyframes flash { 0%, 45% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent); background-color: color-mix(in srgb, var(--accent) 10%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
   #chat.has-bg { background: linear-gradient(color-mix(in srgb, var(--bg) var(--bgdim, 40%), transparent), color-mix(in srgb, var(--bg) var(--bgdim, 40%), transparent)), var(--chatbg) center / cover no-repeat, var(--bg); }
+
+  /* ---------- Thinking ---------- */
+  details.think { margin: 0 0 8px; font: 13px 'Inter', system-ui, sans-serif; color: var(--ink-soft); -webkit-text-fill-color: var(--ink-soft); text-shadow: none; }
+  details.think > summary { display: inline-flex; gap: 8px; padding: 4px 12px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  details.think.live > summary { animation: thinkPulse 1.4s ease-in-out infinite; }
+  @keyframes thinkPulse { 50% { opacity: .5; } }
+  details.think .tbody { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--line); max-height: 320px; overflow-y: auto; line-height: 1.5; }
 
   /* ---------- Alternative replies ---------- */
   .alts { display: flex; align-items: center; gap: 2px; margin-top: 4px; font: 12px 'Inter', system-ui, sans-serif; color: var(--ink-soft); opacity: .55;
@@ -461,7 +469,7 @@
 <section id="chars" class="view" aria-label="Characters">
   <div class="page-head"><button class="back" data-close="chars" type="button">‹ Back</button><h1>Characters</h1><span></span></div>
   <div class="page-body"><div class="page-inner">
-    <div class="create"><button type="button" id="newChar">+ Create new character</button></div>
+    <div class="create linkrow" style="gap:8px"><button type="button" id="newChar" style="flex:2">+ Create new character</button><button type="button" id="genChar" style="flex:1">Generate</button></div>
     <div class="items" id="charList"></div>
   </div></div>
   <div class="selbar" id="charSel" hidden><span></span><button class="btn" type="button" data-act="move">Move</button><button class="btn danger" type="button" data-act="delete">Delete</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
@@ -614,10 +622,6 @@
 <section id="chatimgs" class="view" aria-label="Images in this chat">
   <div class="page-head"><button class="back" data-close="chatimgs" type="button">‹ Chat</button><h1 id="ciTitle"></h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
-    <div class="actions" style="margin-top:0">
-      <button class="btn" type="button" id="ciCard">Character card</button>
-      <button class="btn" type="button" id="ciEdit">Edit character</button>
-    </div>
     <input type="search" class="search" id="ciSearch" placeholder="Search this chat" autocomplete="off">
     <div class="items" id="ciResults" style="margin-top:8px"></div>
     <p class="group-title" id="ciPinTitle">Pinned messages</p>
@@ -659,7 +663,8 @@
     </div>
   </div>
   <div class="page-inner cs-pane" data-t="1" hidden>
-    <p class="group-title">Background</p>
+    <details class="sec" id="bgFold">
+    <summary class="group-title">Background</summary>
     <div class="card">
       <div class="pick">
         <div class="thumb" id="bgThumb" role="button" aria-label="Choose a background image" style="aspect-ratio:9/16;width:84px">+</div>
@@ -673,8 +678,11 @@
       <input type="range" id="bgDim" min="0" max="0.9" step="0.05"></div>
       <div class="hint">Shown behind this chat only. Dim it a bit so the text stays easy to read.</div>
     </div>
-    <p class="group-title">Theme for this chat</p>
+    </details>
+    <details class="sec" id="themeFold">
+    <summary class="group-title">Theme for this chat</summary>
     <div id="chatThemeHost"></div>
+    </details>
     <p class="group-title">Style for this chat</p>
     <div class="hint" id="chatLookState" style="margin:-4px 4px 10px"></div>
     <div id="chatLookHost"></div>
@@ -689,11 +697,9 @@
       <div class="hint">When the character says it sends a picture ("here's a pic of…"). Off: a 📷 appears under that reply instead; tap it to make the picture. Pictures you ask for are always made.</div>
     </div>
     <p class="group-title">Generation for this chat</p>
-    <div class="card">
-      <div class="line"><span>Temperature</span><span style="display:flex;gap:8px;align-items:center"><output id="csTempOut"></output>
-        <button class="btn" type="button" id="csTempReset" style="padding:5px 10px;font-size:13px">Global</button></span></div>
-      <input type="range" id="csTemp" min="0" max="2" step="0.05">
-      <label class="f" for="csCtx">Context size (tokens)</label>
+    <div class="card" id="cPresetBox"></div>
+    <div class="card" style="margin-top:10px">
+      <label class="f" for="csCtx" style="margin-top:4px">Context size (tokens)</label>
       <input id="csCtx" type="number" inputmode="numeric" min="0" step="1000">
       <div class="hint">Empty uses the global setting.</div>
     </div>
@@ -733,6 +739,20 @@
       <button class="btn" type="button" id="profExport">Export card</button>
       <button class="btn danger" type="button" id="profDelete">Delete</button>
     </div>
+  </div></div>
+</section>
+
+<section id="gen" class="view" aria-label="Generate a character">
+  <div class="page-head"><button class="back" data-close="gen" type="button">‹ Back</button><h1>Generate a character</h1><span></span></div>
+  <div class="page-body"><div class="page-inner">
+    <div class="card">
+      <label class="f" for="genIdea">Describe the character in a few words</label>
+      <textarea id="genIdea" placeholder="e.g. a grumpy pirate captain with a soft spot for stray cats"></textarea>
+      <div class="line"><span>Also make a picture</span><input type="checkbox" class="tgl" id="genImg" checked></div>
+      <div class="hint" id="genHint">Uses your global proxy for the text and your global image proxy for the picture. Everything lands in the character editor, so you can change it before saving.</div>
+    </div>
+    <div class="save-bar"><button class="btn primary" type="button" id="genGo">Generate</button></div>
+    <div class="hint" id="genStatus" style="text-align:center;margin-top:12px"></div>
   </div></div>
 </section>
 
@@ -830,11 +850,13 @@
 
     <details class="sec" data-sec="generation">
     <summary class="group-title">Generation</summary>
-    <div class="card">
-      <div class="line"><span>Temperature</span><output data-out="temperature"></output></div>
-      <input type="range" data-k="temperature" min="0" max="2" step="0.05">
-      <div class="hint">Lower is more focused and predictable, higher is more creative and random.</div>
-      <label class="f" for="contextSize">Context size (tokens)</label>
+    <div class="card" id="gPresetBox"></div>
+    <div class="card" style="margin-top:10px">
+      <div class="line"><span>Show the AI's thinking</span><input type="checkbox" class="tgl" data-k="showThinking"></div>
+      <div class="hint">Reasoning models think before they answer. When on, that shows as a folded "Thought for …" above the reply. It is never sent back to the AI.</div>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <label class="f" for="contextSize" style="margin-top:4px">Context size (tokens)</label>
       <input id="contextSize" data-k="contextSize" type="number" inputmode="numeric" min="0" step="1000" placeholder="No limit">
       <div class="hint">The oldest messages are left out once a chat gets longer than this (roughly 4 characters per token). Set it a bit below your model's limit. Empty = send everything.</div>
     </div>
@@ -1013,7 +1035,7 @@ const LOOK_DEFAULTS = {
 const DEFAULTS = {
   proxyUrl: '', apiKey: '', model: '',
   imgUrl: '', imgKey: '', imgModel: '',
-  systemPrompt: '', forbidden: '', temperature: 0.9, contextSize: '',
+  systemPrompt: '', forbidden: '', contextSize: '', showThinking: true, presets: [], presetId: '',
   proxies: [], proxyId: '', imgProxies: [], imgProxyId: '',
   ...LOOK_DEFAULTS,
 };
@@ -1234,6 +1256,8 @@ function systemFor(c, p, memory, lore) {
   if (p) parts.push(`--- User: ${p.name} ---\nYou are talking with ${p.name}.${f(p.personality) ? `\n\n${f(p.personality)}` : ''}`);
   if (lore) parts.push(`--- World info (facts about this story; use when relevant) ---\n${lore}`);
   if (f(memory)) parts.push(`--- Memory (things to remember in this chat) ---\n${f(memory)}`);
+  const maxT = gen().maxTokens;
+  if (maxT) parts.push(`--- Reply length ---\nKeep every reply under about ${Math.max(20, Math.round(maxT * 0.7))} words so it is never cut off, and always finish your last sentence.`);
   if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
   const banned = [cfg.forbidden, cur?.chat.forbidden].join('\n').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
   if (banned.length) parts.push(`--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.`);
@@ -1449,6 +1473,19 @@ function addStamp(el, m) {
   s.textContent = [m.pinned ? 'Pinned' : '', m.t ? stamp(m.t) : ''].filter(Boolean).join(' · ');
   el.append(s);
 }
+// Folded "Thought for 12s" above a reply (reasoning models)
+function setThink(bubble, text, done, secs) {
+  if (cfg.showThinking === false || !text) return;
+  let d = bubble.querySelector(':scope > details.think');
+  if (!d) {
+    d = document.createElement('details'); d.className = 'think';
+    d.append(document.createElement('summary'), Object.assign(document.createElement('div'), { className: 'tbody' }));
+    bubble.prepend(d);
+  }
+  d.classList.toggle('live', !done);
+  d.querySelector('summary').textContent = done ? `Thought for ${secs || 1}s` : 'Thinking…';
+  d.querySelector('.tbody').textContent = text;
+}
 function addFileChip(bubble, file) {
   const c = document.createElement('div'); c.className = 'fbub';
   c.textContent = file.name;
@@ -1479,6 +1516,7 @@ function render() {
     if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => src ? showImage(f, src) : f.remove()).catch(() => f.remove()); }
     if (m.file) addFileChip(b, m.file);
     if (m.role === 'user') addStamp(b, m);
+    if (m.role === 'assistant' && m.thinking) setThink(b, m.thinking, true, m.thinkSecs);
     if (m.role === 'assistant') addAltNav(b, m, i);
   }
   for (const n of notes) $('log').append(n);
@@ -1666,10 +1704,17 @@ function proxyFor(kind) {
 const clean = pr => ({ url: (pr.url || '').trim(), key: (pr.key || '').trim(), model: (pr.model || '').trim() });
 const api = () => clean(proxyFor('chat'));
 const imgApi = () => clean(proxyFor('img'));
-const gen = () => ({
-  temperature: +(cur?.chat.temperature ?? cfg.temperature ?? 0.9),
-  contextSize: parseInt(cur?.chat.contextSize || cfg.contextSize, 10) || 0,
-});
+// Generation presets; the open chat may pick its own, otherwise the globally active one
+const presetFor = () => cfg.presets.find(x => x.id === cur?.chat.presetId) || cfg.presets.find(x => x.id === cfg.presetId) || {};
+const numOr = v => v === '' || v == null || isNaN(+v) ? undefined : +v;
+const gen = () => {
+  const pr = presetFor();
+  return {
+    temperature: numOr(pr.temperature) ?? 0.9, maxTokens: numOr(pr.maxTokens), topP: numOr(pr.topP), topK: numOr(pr.topK), minP: numOr(pr.minP),
+    repPenalty: numOr(pr.repPenalty), freqPenalty: numOr(pr.freqPenalty), presPenalty: numOr(pr.presPenalty),
+    contextSize: parseInt(cur?.chat.contextSize || cfg.contextSize, 10) || 0,
+  };
+};
 function ready() {
   const a = api();
   if (a.url && a.model) return true;
@@ -1686,18 +1731,41 @@ function setBusy(on) {
   if (!on && !matchMedia('(pointer: coarse)').matches) $('input').focus(); // no auto keyboard on phones
 }
 
-async function streamChat(messages, onText) {
-  const a = api();
-  const res = await fetch(endpoint(a.url), {
-    method: 'POST', headers: authHeaders(a.key), signal: abortCtl?.signal,
-    body: JSON.stringify({ model: a.model, messages, stream: true, temperature: gen().temperature })
-  });
+// Thinking of the last request (reasoning models): { text, secs }
+let lastThink = { text: '', secs: 0 };
+// "<think>…</think>" at the start of the content counts as thinking too
+function splitThink(raw) {
+  const m = raw.match(/^\s*<think(?:ing)?>([\s\S]*?)(<\/think(?:ing)?>|$)/i);
+  if (!m) return { think: '', text: raw };
+  return { think: m[1], text: m[2] ? raw.slice(m[0].length).replace(/^\s+/, '') : '' };
+}
+// opts: { onThink(text, done), free: true = no max length (summaries, generators) }
+async function streamChat(messages, onText, opts = {}) {
+  const a = api(), g = gen();
+  const body = { model: a.model, messages, stream: true, temperature: g.temperature };
+  if (!opts.free && g.maxTokens) body.max_tokens = g.maxTokens;
+  if (g.topP !== undefined) body.top_p = g.topP;
+  if (g.topK !== undefined) body.top_k = g.topK;
+  if (g.minP !== undefined) body.min_p = g.minP;
+  if (g.repPenalty !== undefined) body.repetition_penalty = g.repPenalty;
+  if (g.freqPenalty !== undefined) body.frequency_penalty = g.freqPenalty;
+  if (g.presPenalty !== undefined) body.presence_penalty = g.presPenalty;
+  const res = await fetch(endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), signal: abortCtl?.signal, body: JSON.stringify(body) });
   if (!res.ok) throw await httpError(res);
-  const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '', reply = '';
+  const reader = res.body.getReader(); const dec = new TextDecoder();
+  let buf = '', reply = '', raw = '', thinkField = '', t0 = 0, t1 = 0;
+  const thinking = () => [thinkField, splitThink(raw).think].filter(Boolean).join('\n').trim();
+  lastThink = { text: '', secs: 0 };
   // Stopped halfway: keep what was written so far
-  try { await readStream(); } catch (e) { if (isAbort(e) && reply) return reply; throw e; }
-  if (!reply) throw new Error('Received an empty response.');
+  try { await readStream(); } catch (e) { if (isAbort(e) && reply) { finishThink(); return reply; } throw e; }
+  finishThink();
+  if (!reply) throw new Error(lastThink.text ? 'The model only returned its thinking, no reply. Try again or raise the max reply length.' : 'Received an empty response.');
   return reply;
+  function finishThink() {
+    const t = thinking();
+    lastThink = { text: t, secs: t ? Math.max(1, Math.round(((t1 || Date.now()) - t0) / 1000)) : 0 };
+    if (t) opts.onThink?.(t, true, lastThink.secs);
+  }
   async function readStream() {
   while (true) {
     const { done, value } = await reader.read();
@@ -1712,8 +1780,17 @@ async function streamChat(messages, onText) {
       try {
         const j = JSON.parse(data);
         if (j.error) throw new Error(errorText(j));
-        const delta = j.choices?.[0]?.delta?.content ?? '';
-        if (delta) { reply += delta; onText(reply); }
+        const d = j.choices?.[0]?.delta || {};
+        const rz = d.reasoning ?? d.reasoning_content ?? (Array.isArray(d.reasoning_details) ? d.reasoning_details.map(x => x.text || x.summary || '').join('') : '') ?? '';
+        if (rz) { if (!t0) t0 = Date.now(); thinkField += rz; opts.onThink?.(thinking(), false); }
+        const delta = d.content ?? '';
+        if (delta) {
+          raw += delta;
+          const sp = splitThink(raw);
+          if (sp.think) { if (!t0) t0 = Date.now(); opts.onThink?.(thinking(), false); }
+          if (sp.text && !t1) t1 = Date.now();
+          if (sp.text !== reply) { reply = sp.text; onText(reply); }
+        }
       } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
     }
   }
@@ -1724,11 +1801,13 @@ async function streamChat(messages, onText) {
 // into: an existing reply that gets this as an extra alternative instead of a new message
 async function aiTurn(s, hist, messages, bubble, into) {
   const here = () => cur?.chat.id === s.chat.id;
-  const reply = await streamChat(messages, r => { setText(bubble, visible(r)); if (here() && !into) scrollDown(); });
+  const reply = await streamChat(messages, r => { setText(bubble, visible(r)); if (here() && !into) scrollDown(); },
+    { onThink: (t, done, secs) => setThink(bubble, t, done, secs) });
   let imgPrompt = tagPrompt(reply);
   let msg = { role: 'assistant', content: visible(reply, true), t: Date.now() };
+  if (lastThink.text) { msg.thinking = lastThink.text; msg.thinkSecs = lastThink.secs; }
   setText(bubble, msg.content);
-  if (into) { ensureAlts(into); into.alts.push({ content: msg.content }); selectAlt(into, into.alts.length - 1); msg = into.alts[into.sel]; }
+  if (into) { ensureAlts(into); into.alts.push({ content: msg.content, thinking: msg.thinking, thinkSecs: msg.thinkSecs }); selectAlt(into, into.alts.length - 1); msg = into.alts[into.sel]; }
   else hist.push(msg);
   saveMsgs(s.chat, hist);
   const idx = hist.indexOf(into || msg);
@@ -1750,7 +1829,7 @@ async function describeImage(s, userText, replyText) {
   const out = await streamChat([
     { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
     { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p).slice(0, 2000)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText.slice(0, 1500)}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), but also a pet, food, a place or anything else; only include ${cn(c)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
-  ], () => {});
+  ], () => {}, { free: true });
   return out.replace(TAG, '').trim().slice(0, 1500);
 }
 // Generates an image for a reply and stores it on that reply (or the selected alternative)
@@ -1947,11 +2026,11 @@ async function resendFrom(i, text) {
 }
 
 // ---------- Alternative replies: ‹ › under every reply of the character ----------
-function ensureAlts(m) { if (!m.alts) { m.alts = [{ content: m.content, img: m.img, imgPrompt: m.imgPrompt }]; m.sel = 0; } }
+function ensureAlts(m) { if (!m.alts) { m.alts = [{ content: m.content, img: m.img, imgPrompt: m.imgPrompt, thinking: m.thinking, thinkSecs: m.thinkSecs }]; m.sel = 0; } }
 function selectAlt(m, k) {
   m.sel = k; const a = m.alts[k];
   m.content = a.content;
-  for (const f of ['img', 'imgPrompt']) { if (a[f]) m[f] = a[f]; else delete m[f]; }
+  for (const f of ['img', 'imgPrompt', 'thinking', 'thinkSecs']) { if (a[f]) m[f] = a[f]; else delete m[f]; }
 }
 const imagesOf = m => [m.img, ...(m.alts || []).map(a => a.img)].filter((x, i, arr) => x && arr.indexOf(x) === i);
 function addAltNav(bubble, m, i) {
@@ -2648,6 +2727,58 @@ async function openSharedFile(url) {
 })();
 
 $('newChar').onclick = () => openEditor('char');
+$('genChar').onclick = () => {
+  $('genStatus').textContent = '';
+  $('genImg').checked = imageEnabled(); $('genImg').disabled = !imageEnabled();
+  openView('gen'); setTimeout(() => $('genIdea').focus(), 350);
+};
+// Character generator: the AI writes a whole card (and optionally a picture) from a few words
+$('genGo').onclick = async () => {
+  const idea = $('genIdea').value.trim();
+  if (!idea) return toast('Describe the character first');
+  if (busy || !ready()) return;
+  const status = $('genStatus'), go = $('genGo');
+  go.disabled = true; setBusy(true);
+  try {
+    status.textContent = 'Writing the character…';
+    const ask = `Create a character for a roleplay chat from this idea: "${idea}".
+Reply with only a JSON object (no markdown fences) with these keys:
+"name": the full name,
+"chatName": a short name used in the chat (first name or nickname),
+"description": 2-4 sentences introducing the character, shown on the character list,
+"personality": a detailed character definition for the AI that plays them: physical appearance, personality traits, background, way of speaking, likes and dislikes. Use {{char}} for the character and {{user}} for the user where natural,
+"scenario": the situation in which the roleplay starts, involving {{user}},
+"firstMessages": an array of 2 different opening messages written in character, roleplay style with *actions* and "dialogue",
+"examples": a short example dialogue as lines starting with {{user}}: and {{char}}:,
+"appearance": one paragraph in English describing only how the character looks and the art style, for an image generator.`;
+    const out = await streamChat([
+      { role: 'system', content: 'You design characters for a roleplay chat app. You always answer with a single valid JSON object and nothing else.' },
+      { role: 'user', content: ask },
+    ], r => { status.textContent = `Writing the character… (${r.length.toLocaleString()} characters)`; }, { free: true });
+    const json = out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1);
+    let c;
+    try { c = JSON.parse(json); } catch { throw new Error('The AI did not return a usable character. Try again, or try another model.'); }
+    let img = null;
+    if ($('genImg').checked && imageEnabled() && (c.appearance || c.personality)) {
+      status.textContent = 'Making the picture…';
+      try { img = await generateImage(String(c.appearance || c.personality).slice(0, 1500) + '\nA character portrait.', {}, c.name, ''); }
+      catch (e) { if (isAbort(e)) throw e; toast('Picture failed: ' + e.message); }
+    }
+    $('gen').classList.remove('open');
+    openEditor('char');
+    $('edName').value = c.name || ''; $('edChatName').value = c.chatName || '';
+    $('edDesc').value = c.description || ''; $('edPers').value = c.personality || '';
+    $('edScen').value = c.scenario || ''; $('edEx').value = Array.isArray(c.examples) ? c.examples.join('\n') : (c.examples || '');
+    const gs = (Array.isArray(c.firstMessages) ? c.firstMessages : [c.firstMessages || c.firstMessage]).filter(x => typeof x === 'string' && x.trim());
+    edit.greets = gs.length ? gs : ['']; edit.gi = 0; $('edFirst').value = edit.greets[0]; renderTabs();
+    syncFirst(); autosizeAll($('editor'));
+    if (img) { edit.img = img; const th = $('edThumb'); th.style.backgroundImage = `url("${img}")`; th.textContent = ''; $('edNoImg').hidden = false; }
+    $('genIdea').value = ''; status.textContent = '';
+    toast(`Here is ${c.name || 'your character'}. Change anything you like, then Save.`);
+  } catch (e) {
+    status.textContent = isAbort(e) ? 'Stopped.' : 'Something went wrong: ' + e.message;
+  } finally { go.disabled = false; setBusy(false); }
+};
 $('newPersona').onclick = () => openEditor('persona');
 $('goChats').onclick = () => { renderChats(); openView('chats'); };
 $('goChars').onclick = () => openView('chars');
@@ -3086,6 +3217,60 @@ const PROXY_HINT = {
 function renderProxyBoxes() {
   renderProxyBox($('gProxyBox'), 'chat', 'global'); renderProxyBox($('gImgBox'), 'img', 'global');
   if (cur) { renderProxyBox($('cProxyBox'), 'chat', 'chat'); renderProxyBox($('cImgBox'), 'img', 'chat'); }
+  renderPresetBox($('gPresetBox'), 'global'); if (cur) renderPresetBox($('cPresetBox'), 'chat');
+}
+// Presets: tap one to make it active; every field empty = the model's own default
+const PRESET_FIELDS = [
+  ['maxTokens', 'Max reply length (tokens)', '1', 'e.g. 400', 'Replies stop at this length. The AI is also told to stay within it and finish its sentences, so replies don\'t get cut off.'],
+  ['topP', 'Top-p', '0.01', '0 – 1', 'Only picks from the most likely words that add up to this share. Lower = safer word choice.'],
+  ['topK', 'Top-k', '1', 'e.g. 40', 'Only picks from this many of the most likely words.'],
+  ['minP', 'Min-p', '0.01', '0 – 1', 'Skips words that are much less likely than the best one.'],
+  ['repPenalty', 'Repetition penalty', '0.01', 'e.g. 1.1', 'Above 1 makes repeating itself less likely.'],
+  ['freqPenalty', 'Frequency penalty', '0.1', '-2 – 2', 'Discourages using the same words often.'],
+  ['presPenalty', 'Presence penalty', '0.1', '-2 – 2', 'Encourages bringing up new things.'],
+];
+function renderPresetBox(box, scope) {
+  const list = cfg.presets, chat = scope === 'chat' ? cur?.chat : null;
+  const selId = chat ? (list.some(x => x.id === chat.presetId) && chat.presetId !== cfg.presetId ? chat.presetId : '') : cfg.presetId;
+  const select = id => { if (chat) { if (id) chat.presetId = id; else delete chat.presetId; store.set('chats', chats); } else { cfg.presetId = id; saveCfg(); } renderProxyBoxes(); };
+  box.innerHTML = '';
+  const chips = document.createElement('div'); chips.className = 'chips';
+  const chip = (label, on, fn, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; b.onclick = fn; chips.append(b); };
+  if (chat) { const g = list.find(x => x.id === cfg.presetId); chip('Global' + (g ? ` (${g.name || 'unnamed'})` : ''), !selId, () => select('')); }
+  for (const pr of list) { if (chat && pr.id === cfg.presetId) continue; chip(pr.name || 'Unnamed', pr.id === selId, () => select(pr.id)); }
+  chip('+ New', false, () => { const base = presetFor(); const pr = { ...base, id: uid(), name: `Preset ${list.length + 1}` }; list.push(pr); saveCfg(); select(pr.id); }, 'add');
+  box.append(chips);
+  const pr = list.find(x => x.id === selId);
+  if (!pr) { const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '12px'; h.textContent = chat ? 'This chat uses the global preset. Pick another to use it in this chat only.' : 'No preset yet. Tap + New.'; return box.append(h); }
+  const lab = (t, f) => { const l = document.createElement('label'); l.className = 'f'; l.textContent = t; if (f) l.htmlFor = f; box.append(l); };
+  lab('Name'); const nm = document.createElement('input'); nm.type = 'text'; nm.value = pr.name || ''; nm.oninput = () => { pr.name = nm.value; saveCfg(); }; nm.onchange = () => renderProxyBoxes(); box.append(nm);
+  const tl = document.createElement('div'); tl.className = 'line'; const ts = document.createElement('span'); ts.textContent = 'Temperature'; const to = document.createElement('output'); tl.append(ts, to); box.append(tl);
+  const tr = document.createElement('input'); tr.type = 'range'; tr.min = 0; tr.max = 2; tr.step = 0.05; tr.value = numOr(pr.temperature) ?? 0.9; to.textContent = (+tr.value).toFixed(2);
+  tr.oninput = () => { pr.temperature = +tr.value; to.textContent = (+tr.value).toFixed(2); saveCfg(); }; box.append(tr);
+  const th = document.createElement('div'); th.className = 'hint'; th.textContent = 'Lower is more focused and predictable, higher is more creative and random.'; box.append(th);
+  const more = document.createElement('details'); more.className = 'edf'; more.open = PRESET_FIELDS.some(([k]) => numOr(pr[k]) !== undefined);
+  const sm = document.createElement('summary'); sm.textContent = 'More settings'; more.append(sm);
+  for (const [k, label, step, ph, hint] of PRESET_FIELDS) {
+    const l = document.createElement('label'); l.className = 'f'; l.textContent = label;
+    const i = document.createElement('input'); i.type = 'number'; i.step = step; i.inputMode = 'decimal'; i.placeholder = ph + ' (empty = model default)'; i.value = pr[k] ?? '';
+    i.oninput = () => { const v = i.value.trim(); if (v === '') delete pr[k]; else pr[k] = v; saveCfg(); };
+    const h = document.createElement('div'); h.className = 'hint'; h.textContent = hint;
+    more.append(l, i, h);
+  }
+  box.append(more);
+  if (chat) { const n = document.createElement('div'); n.className = 'hint'; n.style.marginTop = '10px'; n.textContent = 'Presets are shared with Settings and other chats.'; box.append(n); }
+  if (list.length > 1) {
+    const acts = document.createElement('div'); acts.className = 'actions';
+    const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete this preset';
+    del.onclick = () => {
+      if (!confirm(`Delete "${pr.name || 'this preset'}"? Chats that use it switch to the global one.`)) return;
+      list.splice(list.indexOf(pr), 1);
+      if (cfg.presetId === pr.id) cfg.presetId = list[0]?.id || '';
+      for (const ch of chats) if (ch.presetId === pr.id) delete ch.presetId;
+      saveCfg(); store.set('chats', chats); renderProxyBoxes();
+    };
+    acts.append(del); box.append(acts);
+  }
 }
 function renderProxyBox(box, kind, scope) {
   const list = proxyList(kind), k = proxyKey(kind), chat = scope === 'chat' ? cur?.chat : null;
@@ -3140,20 +3325,14 @@ function renderProxyBox(box, kind, scope) {
 
 // Chat generation settings
 function syncChatGen() {
-  const t = cur?.chat.temperature;
-  $('csTemp').value = t ?? cfg.temperature;
-  $('csTempOut').textContent = (+(t ?? cfg.temperature)).toFixed(2) + (t === undefined ? ' (global)' : '');
-  $('csTempReset').hidden = t === undefined;
   $('csCtx').value = cur?.chat.contextSize || '';
   $('csCtx').placeholder = cfg.contextSize ? `Global: ${cfg.contextSize}` : 'Global: no limit';
 }
-$('csTemp').oninput = () => { if (!cur) return; cur.chat.temperature = +$('csTemp').value; store.set('chats', chats); syncChatGen(); };
 $('csAutoPics').onchange = () => {
   if (!cur) return;
   if ($('csAutoPics').checked) delete cur.chat.autoPics; else cur.chat.autoPics = false;
   store.set('chats', chats); render();
 };
-$('csTempReset').onclick = () => { if (!cur) return; delete cur.chat.temperature; store.set('chats', chats); syncChatGen(); };
 $('csCtx').oninput = () => { if (!cur) return; const v = $('csCtx').value.trim(); if (v) cur.chat.contextSize = v; else delete cur.chat.contextSize; store.set('chats', chats); };
 $('csForbidden').addEventListener('input', () => { if (!cur) return; cur.chat.forbidden = $('csForbidden').value; if (!cur.chat.forbidden.trim()) delete cur.chat.forbidden; store.set('chats', chats); });
 
@@ -3193,7 +3372,7 @@ $('sumBtn').onclick = async () => {
   setBusy(true); $('sumBtn').textContent = 'Summarizing…'; syncSummary();
   try {
     const out = await streamChat([{ role: 'system', content: fill(cfg.summaryPrompt, s.c, s.p) }, { role: 'user', content: ask }],
-      r => { if (cur === s) { $('memory').value = r; autosize($('memory')); } });
+      r => { if (cur === s) { $('memory').value = r; autosize($('memory')); } }, { free: true });
     s.chat.memory = out.trim(); s.chat.summarizedUpTo = upTo; store.set('chats', chats);
     if (cur === s) { $('memory').value = s.chat.memory; autosize($('memory')); }
     toast('Summary written to Memory');
@@ -3204,6 +3383,10 @@ $('sumBtn').onclick = async () => {
 };
 $('memory').addEventListener('input', () => syncSummary());
 $('memFold').open = store.get('memFoldOpen', true);
+for (const [id, key] of [['bgFold', 'bgFoldOpen'], ['themeFold', 'themeFoldOpen']]) {
+  $(id).open = store.get(key, false);
+  $(id).addEventListener('toggle', () => store.set(key, $(id).open));
+}
 $('memFold').addEventListener('toggle', () => { store.set('memFoldOpen', $('memFold').open); if ($('memFold').open) autosizeAll($('memFold')); });
 $('sumFold').addEventListener('toggle', () => { if ($('sumFold').open) autosizeAll($('sumFold')); });
 
@@ -3269,7 +3452,7 @@ function syncControls() {
     else if (document.activeElement !== el) el.value = v;
   }
   const g = k => L[sk(k)];
-  const outs = { temperature: (+cfg.temperature).toFixed(2), fs: g('fs') + 'px', fw: g('fw'), lh: (+g('lh')).toFixed(2), ls: (+g('ls')).toFixed(2) + 'em', angle: g('angle') + '°' };
+  const outs = { fs: g('fs') + 'px', fw: g('fw'), lh: (+g('lh')).toFixed(2), ls: (+g('ls')).toFixed(2) + 'em', angle: g('angle') + '°' };
   for (const o of document.querySelectorAll('[data-out]')) o.textContent = outs[o.dataset.out];
   for (const b of $('fonts').children) b.classList.toggle('on', b.dataset.font === L[fontKey()]);
   $('colorControls').hidden = g('colorMode') === 'theme';
@@ -3511,8 +3694,7 @@ $('chatSearch').addEventListener('input', () => {
     list.append(msgRow(m, i, q, `${cn(c)} · ${speaker(m, c, p, ch)}`, () => { openChat(ch.id); setTimeout(() => gotoMsg(i), 60); }));
   }
 });
-$('ciCard').onclick = () => cur && openProfile(cur.c.id);
-$('ciEdit').onclick = () => cur && openEditor('char', cur.c.id);
+
 (() => {
   let x0 = 0, y0 = 0, on = false;
   const sc = $('scroller');
@@ -3978,6 +4160,20 @@ $('composer').onsubmit = e => {
   }
   if (moved) store.set('chats', chats);
   if ('activePersona' in cfg) { delete cfg.activePersona; saveCfg(); }
+  // Temperature used to be a single setting (globally, and optionally per chat)
+  if (!cfg.presets.length) {
+    const d = { id: uid(), name: 'Default', temperature: cfg.temperature ?? 0.9 };
+    cfg.presets.push(d); cfg.presetId = d.id;
+    const byTemp = new Map();
+    for (const ch of chats) if (ch.temperature !== undefined) {
+      if (+ch.temperature !== +d.temperature) {
+        if (!byTemp.has(+ch.temperature)) { const x = { id: uid(), name: `Temperature ${(+ch.temperature).toFixed(2)}`, temperature: +ch.temperature }; cfg.presets.push(x); byTemp.set(+ch.temperature, x.id); }
+        ch.presetId = byTemp.get(+ch.temperature);
+      }
+      delete ch.temperature;
+    }
+    delete cfg.temperature; saveCfg(); store.set('chats', chats);
+  }
   // Proxies used to be single fields (globally, and optionally per chat)
   let pm = false;
   for (const [kind, u, kk, m] of [['chat', 'proxyUrl', 'apiKey', 'model'], ['img', 'imgUrl', 'imgKey', 'imgModel']]) {
