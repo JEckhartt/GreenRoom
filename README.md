@@ -17,6 +17,7 @@ A character chat app: create characters and chat with them. Built on the Nearly 
    - Swipe a character or persona left for **Move** (to a folder, or a new one) and **Delete**
    - Long press to select several, then move or delete them together
 6. **Chats**: all chats grouped per character, with the persona each was played as. Tap a character to unfold its chats; open, delete, or jump to the character card.
+   - Long press one of your messages for **Edit** (then Send), **Resend** or **Copy**. Resending removes the messages after it and asks the AI again
    - In a chat, tap the character at the top for **Chat settings**: a memory field sent with every message of that chat, and a style for just that chat (overrides the global customization)
 7. **Albums**: collect images. Tap one to copy its link (`gr://img/…`); paste it in a character's description and the image shows on the character card. Exported cards carry those images along.
 

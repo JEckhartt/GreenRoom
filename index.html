@@ -167,6 +167,20 @@
   summary .tgt { margin: 0 auto 0 6px; }
   body.kb-open form#composer { padding-bottom: 10px; }
 
+  /* ---------- Message menu / editing ---------- */
+  .msg.me { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .msg.me.held { transform: scale(.97); transition: transform .15s; }
+  #msgMenu { position: fixed; z-index: 32; display: flex; gap: 2px; padding: 4px; border-radius: 14px; background: rgba(30,30,30,.92);
+    box-shadow: 0 8px 24px -8px rgba(0,0,0,.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  #msgMenu button { border: 0; background: none; color: #fff; font-size: 15px; padding: 9px 14px; border-radius: 10px; cursor: pointer; }
+  #msgMenu button:active { background: rgba(255,255,255,.15); }
+  .msg.me.editing { width: 85%; padding: 8px; }
+  .msg.me.editing textarea { display: block; width: 100%; min-height: 60px; resize: none; overflow: hidden; border: 0; outline: none; background: none; color: var(--ink);
+    font-family: var(--me-font); font-size: 16px; line-height: var(--u-lh); padding: 4px 6px; -webkit-user-select: text; user-select: text; }
+  .edit-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+  .edit-acts .btn { padding: 7px 14px; font-size: 14px; }
+  .edit-acts .btn.primary { background: var(--accent); color: #fff; border: 0; }
+
   /* ---------- Bottom sheet ---------- */
   #sheet { position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.35); display: flex; align-items: flex-end; justify-content: center;
     opacity: 0; visibility: hidden; transition: opacity .2s, visibility 0s .2s; }
@@ -360,6 +374,8 @@
     <button id="send" type="submit" aria-label="Send">↑</button>
   </form>
 </section>
+
+<div id="msgMenu" hidden><button type="button" data-act="edit">Edit</button><button type="button" data-act="resend">Resend</button><button type="button" data-act="copy">Copy</button></div>
 
 <section id="chatset" class="view" aria-label="Chat settings">
   <div class="page-head"><button class="back" data-close="chatset" type="button">‹ Chat</button><h1>Chat settings</h1><span></span></div>
@@ -887,8 +903,9 @@ function render() {
     const e = document.createElement('div'); e.className = 'empty'; e.textContent = busy ? '' : `Say hi to ${cur?.c.name || ''}.`;
     $('log').appendChild(e);
   }
-  for (const m of history) {
+  for (const [i, m] of history.entries()) {
     const b = addBubble(m.role === 'user' ? 'me' : 'ai', m.content);
+    b.dataset.i = i;
     if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => src ? showImage(f, src) : f.remove()).catch(() => f.remove()); }
   }
 }
@@ -1007,13 +1024,76 @@ async function send(text) {
   const s = cur, hist = history;
   setBusy(true);
   hist.push({ role: 'user', content: text }); saveMsgs(s.chat, hist);
-  addBubble('me', text);
+  addBubble('me', text).dataset.i = hist.length - 1;
   const bubble = addBubble('ai', '');
   try { await aiTurn(s, hist, buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
   catch (e) {
     if (!bubble.textContent) { bubble.remove(); hist.pop(); saveMsgs(s.chat, hist); }
     if (cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message);
   } finally { setBusy(false); }
+}
+
+// ---------- Long press on your own message: Edit / Resend / Copy ----------
+let menuFor = null;
+function hideMsgMenu() { $('msgMenu').hidden = true; menuFor?.classList.remove('held'); menuFor = null; }
+function showMsgMenu(el) {
+  hideMsgMenu();
+  menuFor = el; el.classList.add('held'); navigator.vibrate?.(12);
+  const m = $('msgMenu'); m.hidden = false;
+  const r = el.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+  const top = r.top - h - 8 > 60 ? r.top - h - 8 : r.bottom + 8;
+  m.style.top = top + 'px';
+  m.style.left = Math.max(12, Math.min(innerWidth - w - 12, r.right - w)) + 'px';
+  m.querySelector('[data-act=resend]').disabled = m.querySelector('[data-act=edit]').disabled = busy;
+}
+(() => {
+  let timer = null, x0 = 0, y0 = 0;
+  const log = $('log');
+  log.addEventListener('pointerdown', e => {
+    const el = e.target.closest('.msg.me'); if (!el || el.classList.contains('editing')) return;
+    x0 = e.clientX; y0 = e.clientY;
+    timer = setTimeout(() => showMsgMenu(el), 480);
+  });
+  log.addEventListener('pointermove', e => { if (timer && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) { clearTimeout(timer); timer = null; } });
+  for (const ev of ['pointerup', 'pointercancel']) log.addEventListener(ev, () => { clearTimeout(timer); timer = null; });
+  log.addEventListener('contextmenu', e => { if (e.target.closest('.msg.me')) e.preventDefault(); });
+  document.addEventListener('pointerdown', e => { if (menuFor && !e.target.closest('#msgMenu')) hideMsgMenu(); }, true);
+  $('scroller').addEventListener('scroll', () => menuFor && hideMsgMenu(), { passive: true });
+})();
+$('msgMenu').onclick = e => {
+  const act = e.target.dataset?.act, el = menuFor; if (!act || !el) return;
+  hideMsgMenu();
+  const i = +el.dataset.i, m = history[i]; if (!m) return;
+  if (act === 'copy') navigator.clipboard?.writeText(m.content).then(() => toast('Copied'), () => toast('Could not copy'));
+  if (act === 'resend') resendFrom(i, m.content);
+  if (act === 'edit') editMessage(el, i);
+};
+function editMessage(el, i) {
+  el.classList.add('editing'); el.textContent = '';
+  const t = document.createElement('textarea'); t.value = history[i].content;
+  const acts = document.createElement('div'); acts.className = 'edit-acts';
+  const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = 'Cancel';
+  const send = document.createElement('button'); send.type = 'button'; send.className = 'btn primary'; send.textContent = 'Send';
+  acts.append(cancel, send); el.append(t, acts);
+  const fit = () => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; };
+  t.addEventListener('input', fit); fit();
+  t.focus(); t.setSelectionRange(t.value.length, t.value.length);
+  cancel.onclick = () => render();
+  send.onclick = () => { const v = t.value.trim(); if (v) resendFrom(i, v); };
+}
+// Replaces message i with text, drops everything after it, and asks the AI again
+async function resendFrom(i, text) {
+  if (busy || !ready()) return;
+  const s = cur, hist = history, later = hist.length - i - 1;
+  if (later > 1 && !confirm(`Resend from here? The ${later} messages after it will be removed.`)) return render();
+  for (const m of hist.splice(i + 1)) if (m.img) idb.del(m.img).catch(() => {});
+  hist[i].content = text;
+  saveMsgs(s.chat, hist); render(); scrollDown();
+  setBusy(true);
+  const bubble = addBubble('ai', '');
+  try { await aiTurn(s, hist, buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
+  catch (e) { bubble.remove(); if (cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message); }
+  finally { setBusy(false); }
 }
 
 async function writeOpening() {
