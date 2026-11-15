@@ -7,7 +7,7 @@ A character chat app: create characters and chat with them. Built on the Nearly 
 2. The app opens on the title screen: **Chats**, **Characters**, **Personas**, **Albums**, **Settings**.
 3. In **Settings** (full-screen page):
    - **Proxy**: save several (name, URL, API key, model) and tap one to make it active. OpenAI-compatible; `/chat/completions` is appended automatically
-   - **Image proxy**: same, for images. Only used when you explicitly ask for an image. With chat-style image models the character's image is sent as a style reference
+   - **Image proxy**: same, for images. **Generate images** off (or off per chat) makes it a normal roleplay: the character describes pictures in words. Only used when you explicitly ask for an image. With chat-style image models the character's image is sent as a style reference
    - **Generation**: presets with temperature, max reply length (the AI is also told to stay within it), top-p, top-k, min-p and repetition/frequency/presence penalties (empty = model default); show or hide the thinking of reasoning models; context size (oldest messages are left out beyond it)
    - **Prompt**: your system prompt, sent with every message, and forbidden words the AI is told never to use
    - **Backup**: export / import everything as one file

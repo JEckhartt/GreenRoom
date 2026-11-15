@@ -485,7 +485,7 @@
 <section id="chars" class="view" aria-label="Characters">
   <div class="page-head"><button class="back" data-close="chars" type="button">‹ Back</button><h1>Characters</h1><span></span></div>
   <div class="page-body"><div class="page-inner">
-    <div class="create linkrow" style="gap:8px"><button type="button" id="newChar" style="flex:2">+ Create new character</button><button type="button" id="genChar" style="flex:1">Generate</button><button type="button" id="chubChar" style="flex:1">Chub</button></div>
+    <div class="create linkrow" style="gap:8px"><button type="button" id="newChar" style="flex:2">+ Create new character</button><button type="button" id="genChar" style="flex:1">Generate</button></div>
     <div class="items" id="charList"></div>
   </div></div>
   <div class="selbar" id="charSel" hidden><span></span><button class="btn" type="button" data-act="move">Move</button><button class="btn danger" type="button" data-act="delete">Delete</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
@@ -707,8 +707,12 @@
     <p class="group-title">Proxy for this chat</p>
     <div class="card" id="cProxyBox"></div>
     <p class="group-title">Image proxy for this chat</p>
+    <div class="card" style="margin-bottom:10px">
+      <div class="line" style="padding-top:12px"><span>Generate images in this chat</span><input type="checkbox" class="tgl" id="csGenImg"></div>
+      <div class="hint" id="csGenImgHint"></div>
+    </div>
     <div class="card" id="cImgBox"></div>
-    <div class="card" style="margin-top:10px">
+    <div class="card" style="margin-top:10px" id="csAutoPicsCard">
       <div class="line" style="padding-top:12px"><span>Character sends pictures on its own</span><input type="checkbox" class="tgl" id="csAutoPics"></div>
       <div class="hint">When the character says it sends a picture ("here's a pic of…"). Off: a 📷 appears under that reply instead; tap it to make the picture. Pictures you ask for are always made.</div>
     </div>
@@ -796,6 +800,7 @@ Empty = use the global setting.</div>
         <div class="btns">
           <button class="btn" type="button" id="edCard">Import character card</button>
           <button class="btn" type="button" id="edChub">Import from Chub link</button>
+          <button class="btn" type="button" id="edGenImg">Generate image</button>
           <button class="btn danger" type="button" id="edNoImg">Remove</button>
         </div>
       </div>
@@ -814,6 +819,8 @@ Empty = use the global setting.</div>
       <details class="edf" data-for="char" data-f="desc" open>
         <summary>Description</summary>
         <textarea id="edDesc" placeholder="Shown on the character list. Not sent to the AI."></textarea>
+        <div class="actions" style="margin-top:8px"><button class="btn" type="button" id="edGenDesc">Generate description</button></div>
+        <div class="hint">Written by the AI from the personality, scenario and first message.</div>
       </details>
 
       <details class="edf" data-f="pers" open>
@@ -877,6 +884,10 @@ Empty = use the global setting.</div>
 
     <details class="sec" data-sec="image-proxy">
     <summary class="group-title">Image proxy</summary>
+    <div class="card" style="margin-bottom:10px">
+      <div class="line" style="padding-top:12px"><span>Generate images</span><input type="checkbox" class="tgl" data-k="genImages"></div>
+      <div class="hint">Off: no real pictures; when you ask for one, the character describes it in words instead. Can be changed per chat.</div>
+    </div>
     <div class="card" id="gImgBox"></div>
     </details>
 
@@ -1074,7 +1085,7 @@ const LOOK_DEFAULTS = {
 const DEFAULTS = {
   proxyUrl: '', apiKey: '', model: '',
   imgUrl: '', imgKey: '', imgModel: '',
-  systemPrompt: '', forbidden: '', contextSize: '', showThinking: true, presets: [], presetId: '',
+  systemPrompt: '', forbidden: '', contextSize: '', genImages: true, showThinking: true, presets: [], presetId: '',
   proxies: [], proxyId: '', imgProxies: [], imgProxyId: '',
   ...LOOK_DEFAULTS,
 };
@@ -1250,7 +1261,10 @@ darkMQ.addEventListener?.('change', applyLook);
 // ---------- Prompt ----------
 const TAG = /\[\[?\s*(?:image|img|photo|picture|pic|selfie)\s*:\s*([^\]]+?)\s*\]\]?|<image>\s*([\s\S]+?)\s*<\/image>/gi;
 const tagPrompt = t => { const m = [...t.matchAll(TAG)].pop(); return m ? (m[1] || m[2] || '').trim() : ''; };
-const imageEnabled = () => { const a = imgApi(); return !!(a.url && a.model); };
+// An image proxy is set up / pictures are generated in this chat (Settings, overridable per chat)
+const imageProxyOk = (chat = cur?.chat) => { const a = imgApi(chat); return !!(a.url && a.model); };
+const imagesOn = (chat = cur?.chat) => (chat?.genImages ?? cfg.genImages) !== false;
+const imageEnabled = (chat = cur?.chat) => imagesOn(chat) && imageProxyOk(chat);
 const personaOf = chat => personas.find(p => p.id === chat.personaId) || null;
 const userName = p => p?.name || 'User';
 const cn = c => (c.chatName || '').trim() || c.name;   // name used inside chats
@@ -1300,7 +1314,8 @@ function systemFor(c, p, memory, lore, chat = cur?.chat) {
   if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
   const banned = [cfg.forbidden, chat?.forbidden].join('\n').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
   if (banned.length) parts.push(`--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.`);
-  if (imageEnabled()) parts.push('--- Images ---\nYou can send the user pictures. Only when the latest message from the user explicitly asks you for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never add the tag otherwise, not even when pictures were sent earlier in the chat.');
+  if (!imagesOn(chat)) parts.push('--- Pictures ---\nYou cannot send real pictures in this chat. When the user asks for a picture, photo or selfie, describe it vividly in words as part of your reply, as if showing it (for example: *sends you a photo: …*).');
+  if (imageEnabled(chat)) parts.push('--- Images ---\nYou can send the user pictures. Only when the latest message from the user explicitly asks you for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never add the tag otherwise, not even when pictures were sent earlier in the chat.');
   return parts.filter(Boolean).join('\n\n');
 }
 
@@ -1327,6 +1342,7 @@ const SENDS_IMG = new RegExp([
   String.raw`\*[^*\n]{0,40}\b(shows?|holds? up)\b[^*\n]{0,15}\b(you|u|je)\b[^*\n]{0,25}\b${PIC}\b[^*\n]{0,60}\*`,
 ].join('|'), 'i');
 const replySendsImage = t => !!t && SENDS_IMG.test(t);
+const DESCRIBE_NOTE = '\n\n[Note from the app: the user is asking for a picture. Pictures are off in this chat, so describe it vividly in words in your reply.]';
 const IMG_NOTE = '\n\n[Note from the app: the user is asking for a picture. Reply in character and end your message with [[image: detailed English description of the picture]].]';
 async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
   const withImg = hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES);
@@ -1347,9 +1363,10 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
   }
   // Nudge on the newest user message when it asks for a picture
   const lastUser = hist.at(-1)?.role === 'user' ? msgs.at(-1) : null;
-  if (lastUser && imageEnabled() && wantsImage(hist.at(-1))) {
-    if (Array.isArray(lastUser.content)) lastUser.content = lastUser.content.map(x => x.type === 'text' ? { ...x, text: x.text + IMG_NOTE } : x);
-    else lastUser.content += IMG_NOTE;
+  const note0 = lastUser && wantsImage(hist.at(-1)) ? (imageEnabled(chat) ? IMG_NOTE : !imagesOn(chat) ? DESCRIBE_NOTE : '') : '';
+  if (note0) {
+    if (Array.isArray(lastUser.content)) lastUser.content = lastUser.content.map(x => x.type === 'text' ? { ...x, text: x.text + note0 } : x);
+    else lastUser.content += note0;
   }
   // Author's note: added to the user message closest to its depth (1 = the latest)
   let note = chat?.authorNote?.trim() && !chat.authorOff ? fill(chat.authorNote.trim(), c, p) : '';
@@ -1742,7 +1759,7 @@ function proxyFor(kind, chat = cur?.chat) {
 }
 const clean = pr => ({ url: (pr.url || '').trim(), key: (pr.key || '').trim(), model: (pr.model || '').trim() });
 const api = (chat = cur?.chat) => clean(proxyFor('chat', chat));
-const imgApi = () => clean(proxyFor('img'));
+const imgApi = (chat = cur?.chat) => clean(proxyFor('img', chat));
 // Generation presets; the open chat may pick its own, otherwise the globally active one
 const presetFor = (chat = cur?.chat) => cfg.presets.find(x => x.id === chat?.presetId) || cfg.presets.find(x => x.id === cfg.presetId) || {};
 const numOr = v => v === '' || v == null || isNaN(+v) ? undefined : +v;
@@ -1851,6 +1868,7 @@ async function aiTurn(s, hist, messages, bubble, into) {
   saveMsgs(s.chat, hist);
   const idx = hist.indexOf(into || msg);
   bubble.dataset.i = idx;
+  if (!imagesOn(s.chat)) return; // pictures off: the reply describes them in words
   // An image when the user's latest message asks for one, or when the character says it sends one now.
   // A tag on its own (without either) is ignored: models tend to copy them.
   const asked = wantsImage(hist[idx - 1]) || (s.chat.autoPics !== false && replySendsImage(msg.content));
@@ -1975,7 +1993,7 @@ function showMsgMenu(el) {
   hideMsgMenu();
   const pin = ['pin', m.pinned ? 'Unpin' : 'Pin'], branch = ['branch', 'Branch from here'];
   const acts = m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], pin, branch, ['delete', 'Delete']]
-    : [['image', 'Create image'], ['copy', 'Copy'], pin, branch, ['delete', 'Delete']];
+    : [...(imagesOn() ? [['image', 'Create image']] : []), ['copy', 'Copy'], pin, branch, ['delete', 'Delete']];
   const box = $('msgMenu'); box.innerHTML = '';
   for (const [a, label] of acts) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.textContent = label;
@@ -2090,7 +2108,7 @@ function addAltNav(bubble, m, i) {
     nav.append(go);
   }
   // Auto pictures off: the character "sent" one, tap the camera to make it
-  if (cur && cur.chat.autoPics === false && !m.img && replySendsImage(m.content)) {
+  if (cur && imagesOn() && cur.chat.autoPics === false && !m.img && replySendsImage(m.content)) {
     const cam = document.createElement('button'); cam.type = 'button'; cam.className = 'cam'; cam.disabled = busy;
     cam.setAttribute('aria-label', 'Make this picture');
     cam.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>';
@@ -2754,6 +2772,61 @@ $('edDelete').onclick = () => { if (edit.kind === 'persona' && deleteItems('pers
 
 $('edCard').onclick = () => $('edCardFile').click();
 
+// Generate description: a short intro for the character list, from what is filled in
+$('edGenDesc').onclick = async () => {
+  const pers = $('edPers').value.trim(), scen = $('edScen').value.trim();
+  edit.greets[edit.gi] = $('edFirst').value;
+  const first = $('edAiFirst').checked ? '' : (edit.greets.find(g => g.trim()) || '').trim();
+  if (!pers && !scen && !first) return toast('Fill in the personality first');
+  if (busy || !ready()) return;
+  const btn = $('edGenDesc'), before = $('edDesc').value;
+  btn.disabled = true; btn.textContent = 'Writing…'; setBusy(true);
+  try {
+    const name = $('edName').value.trim() || 'the character';
+    const out = await streamChat([
+      { role: 'system', content: 'You write short, inviting introductions for characters in a roleplay chat app. Output only the introduction.' },
+      { role: 'user', content: `Write the description shown on the character list for ${name}: 2 to 4 sentences that tell people who ${name} is and make them want to start a chat. Don't reveal everything. Use the name, not {{char}}.
+
+Personality:
+${pers || '(none)'}${scen ? `
+
+Scenario:
+${scen}` : ''}${first ? `
+
+First message:
+${first}` : ''}` },
+    ], r => { $('edDesc').value = r.trim(); autosize($('edDesc')); }, { free: true });
+    $('edDesc').value = out.trim(); autosize($('edDesc')); renderCounts();
+  } catch (e) { $('edDesc').value = before; autosize($('edDesc')); if (!isAbort(e)) toast('Could not write a description: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Generate description'; setBusy(false); }
+};
+// Generate image: a portrait from the personality and description
+$('edGenImg').onclick = async () => {
+  const pers = $('edPers').value.trim(), desc = edit.kind === 'char' ? $('edDesc').value.trim() : '';
+  if (!pers && !desc) return toast('Fill in the personality first');
+  if (!imageProxyOk()) return toast('No image proxy is set up (Settings → Image proxy)');
+  if (busy || !ready()) return;
+  const btn = $('edGenImg'); btn.disabled = true; btn.textContent = 'Making image…'; setBusy(true);
+  try {
+    const name = $('edName').value.trim() || (edit.kind === 'char' ? 'the character' : 'the person');
+    const prompt = (await streamChat([
+      { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
+      { role: 'user', content: `Write a portrait prompt for ${name}. Describe only what can be seen: face, hair, eyes, body, clothing, expression, pose, setting, lighting and an art style that fits.
+
+Personality:
+${pers || '(none)'}${desc ? `
+
+Description:
+${desc}` : ''}` },
+    ], () => {}, { free: true })).trim().slice(0, 1500);
+    const src = await generateImage(prompt, {}, name, '');
+    edit.img = src;
+    const th = $('edThumb'); th.style.backgroundImage = `url("${src}")`; th.textContent = ''; $('edNoImg').hidden = false;
+    toast('Image ready. Save to keep it.');
+  } catch (e) { if (!isAbort(e)) toast('Could not make an image: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Generate image'; setBusy(false); }
+};
+
 // Chub: a character link → the card PNG on Chub's image server (all data is embedded in it)
 function chubPath(link) {
   const t = String(link || '').trim();
@@ -2834,16 +2907,10 @@ async function openSharedFile(url) {
 })();
 
 $('newChar').onclick = () => openEditor('char');
-$('chubChar').onclick = async () => {
-  let clip = '';
-  try { clip = await navigator.clipboard.readText(); } catch {}
-  const link = prompt('Paste a Chub character link', chubPath(clip) ? clip : '');
-  if (!link) return;
-  openEditor('char'); importChub(link);
-};
+
 $('genChar').onclick = () => {
   $('genStatus').textContent = '';
-  $('genImg').checked = imageEnabled(); $('genImg').disabled = !imageEnabled();
+  $('genImg').checked = imageProxyOk(); $('genImg').disabled = !imageProxyOk();
   openView('gen'); setTimeout(() => $('genIdea').focus(), 350);
 };
 // Character generator: the AI writes a whole card (and optionally a picture) from a few words
@@ -2873,7 +2940,7 @@ Reply with only a JSON object (no markdown fences) with these keys:
     let c;
     try { c = JSON.parse(json); } catch { throw new Error('The AI did not return a usable character. Try again, or try another model.'); }
     let img = null;
-    if ($('genImg').checked && imageEnabled() && (c.appearance || c.personality)) {
+    if ($('genImg').checked && imageProxyOk() && (c.appearance || c.personality)) {
       status.textContent = 'Making the picture…';
       try { img = await generateImage(String(c.appearance || c.personality).slice(0, 1500) + '\nA character portrait.', {}, c.name, ''); }
       catch (e) { if (isAbort(e)) throw e; toast('Picture failed: ' + e.message); }
@@ -3304,6 +3371,7 @@ function openChatSettings() {
   syncSummary();
   renderProxyBoxes(); syncChatGen();
   $('csAutoPics').checked = cur.chat.autoPics !== false;
+  syncGenImg();
   $('csForbidden').value = cur.chat.forbidden || '';
   $('csReach').checked = !!cur.chat.reachOut; $('csReachAfter').value = String(cur.chat.reachAfter || 180); syncReachRows();
   syncBgControls();
@@ -3473,6 +3541,17 @@ function syncChatGen() {
   $('csCtx').value = cur?.chat.contextSize || '';
   $('csCtx').placeholder = cfg.contextSize ? `Global: ${cfg.contextSize}` : 'Global: no limit';
 }
+function syncGenImg() {
+  if (!cur) return;
+  const on = imagesOn(), own = cur.chat.genImages !== undefined;
+  $('csGenImg').checked = on;
+  $('csAutoPicsCard').hidden = !on;
+  const h = $('csGenImgHint'); h.innerHTML = '';
+  h.append((on ? 'Pictures are made with the image proxy below.' : 'Off: no real pictures; the character describes them in words instead.') + ' ');
+  if (own) { const b = document.createElement('a'); b.href = '#'; b.textContent = 'Follow Settings again'; b.style.color = 'var(--accent)'; b.onclick = e => { e.preventDefault(); delete cur.chat.genImages; store.set('chats', chats); syncGenImg(); render(); }; h.append(b); }
+  else h.append(`Follows Settings (${cfg.genImages === false ? 'off' : 'on'}) until you change it here.`);
+}
+$('csGenImg').onchange = () => { if (!cur) return; cur.chat.genImages = $('csGenImg').checked; store.set('chats', chats); syncGenImg(); render(); };
 $('csAutoPics').onchange = () => {
   if (!cur) return;
   if ($('csAutoPics').checked) delete cur.chat.autoPics; else cur.chat.autoPics = false;
