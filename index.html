@@ -991,13 +991,18 @@ function systemFor(c, p, memory) {
   if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
   const banned = [cfg.forbidden, cur?.chat.forbidden].join('\n').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
   if (banned.length) parts.push(`--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.`);
-  if (imageEnabled()) parts.push('--- Images ---\nYou can send images, but only when the user explicitly asks you for an image, picture, photo or drawing. Then reply briefly and naturally, and append [[image: a detailed description of the image to generate, in English]] at the very end of that message. The image appears below your message. Never do this unless explicitly asked; the tag is hidden from the user.');
+  if (imageEnabled()) parts.push('--- Images ---\nYou can send the user pictures. Whenever the user asks for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never send pictures unless asked.');
   return parts.filter(Boolean).join('\n\n');
 }
 
 // User images are sent as image content (the model must be able to see images); only the
 // last few are sent in full to keep requests small, older ones become a short note.
 const SEND_IMAGES = 4;
+// Does a message ask the character for a picture? (English + Dutch)
+const IMG_WORD = /\b(pics?|pictures?|photos?|selfies?|images?|drawings?|draw|sketch|portrait|snapshot|foto'?s?|fotootjes?|selfie|afbeelding(en)?|plaatjes?|tekening(en)?|teken)\b/i;
+const IMG_VERB = /\b(send|show|share|take|snap|draw|make|give|see|got|have|can i|could i|stuur|laat|maak|teken|zien|geef|heb je|mag ik)\b/i;
+const asksForImage = t => !!t && IMG_WORD.test(t) && IMG_VERB.test(t);
+const IMG_NOTE = '\n\n[Note from the app: the user is asking for a picture. Reply in character and end your message with [[image: detailed English description of the picture]].]';
 async function buildMessages(c, p, hist, memory) {
   const withImg = hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES);
   const msgs = [];
@@ -1008,6 +1013,12 @@ async function buildMessages(c, p, hist, memory) {
         ? [{ type: 'image_url', image_url: { url: src } }, { type: 'text', text: m.content || '(image)' }]
         : `${m.content}\n[an image was attached here]`.trim() });
     } else msgs.push({ role: m.role, content: m.imgPrompt ? `${m.content}\n[[image: ${m.imgPrompt}]]` : m.content });
+  }
+  // Nudge on the newest user message when it asks for a picture
+  const lastUser = hist.at(-1)?.role === 'user' ? msgs.at(-1) : null;
+  if (lastUser && imageEnabled() && asksForImage(hist.at(-1).content)) {
+    if (Array.isArray(lastUser.content)) lastUser.content = lastUser.content.map(x => x.type === 'text' ? { ...x, text: x.text + IMG_NOTE } : x);
+    else lastUser.content += IMG_NOTE;
   }
   const system = { role: 'system', content: systemFor(c, p, memory) };
   // Context size: drop the oldest messages until it fits (~4 characters per token, ~800 per image)
@@ -1278,16 +1289,36 @@ async function streamChat(messages, onText) {
 async function aiTurn(s, hist, messages, bubble, into) {
   const here = () => cur?.chat.id === s.chat.id;
   const reply = await streamChat(messages, r => { setText(bubble, visible(r)); if (here() && !into) scrollDown(); });
-  const imgPrompt = [...reply.matchAll(TAG)].pop()?.[1] || '';
+  let imgPrompt = [...reply.matchAll(TAG)].pop()?.[1] || '';
   let msg = { role: 'assistant', content: visible(reply, true) };
   setText(bubble, msg.content);
   if (into) { ensureAlts(into); into.alts.push({ content: msg.content }); selectAlt(into, into.alts.length - 1); msg = into.alts[into.sel]; }
   else hist.push(msg);
   saveMsgs(s.chat, hist);
-  bubble.dataset.i = hist.indexOf(into || msg);
-  if (!imgPrompt) return;
+  const idx = hist.indexOf(into || msg);
+  bubble.dataset.i = idx;
+  // The user asked for a picture but the model forgot the tag: describe it separately
+  const asked = asksForImage(hist[idx - 1]?.role === 'user' ? hist[idx - 1].content : '');
+  if (!imgPrompt && asked) {
+    if (!imageEnabled()) { if (here()) addBubble('err', 'You asked for a picture, but no image proxy is active. Add one in Settings → Image proxy (or in this chat\'s settings).'); return; }
+    try { imgPrompt = await describeImage(s, hist[idx - 1].content, msg.content); } catch (e) { if (here()) addBubble('err', 'Could not work out the picture: ' + e.message); return; }
+  }
+  if (imgPrompt) await attachImage(s, hist, msg, into, bubble, imgPrompt);
+}
+// Asks the chat model for an image-generator prompt for a reply
+async function describeImage(s, userText, replyText) {
+  const { c, p } = s;
+  const out = await streamChat([
+    { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
+    { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p).slice(0, 2000)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText.slice(0, 1500)}"\n\nDescribe the picture ${cn(c)} sends now: subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
+  ], () => {});
+  return out.replace(TAG, '').trim().slice(0, 1500);
+}
+// Generates an image for a reply and stores it on that reply (or the selected alternative)
+async function attachImage(s, hist, msg, into, bubble, imgPrompt) {
+  const here = () => cur?.chat.id === s.chat.id;
   const fig = addFigure(bubble);
-  if (!imageEnabled()) { fig.remove(); if (here()) addBubble('err', 'Image requested, but no image proxy is set up in Settings.'); return; }
+  if (!imageEnabled()) { fig.remove(); if (here()) addBubble('err', 'Image requested, but no image proxy is active (Settings → Image proxy).'); return; }
   try {
     const ref = s.c.img ? await idb.get(s.c.img).catch(() => null) : null;
     const src = await generateImage(imgPrompt, ref, cn(s.c), fill(s.c.personality, s.c, s.p));
@@ -1298,6 +1329,23 @@ async function aiTurn(s, hist, messages, bubble, into) {
     saveMsgs(s.chat, hist);
     showImage(fig, src);
   } catch (e) { fig.remove(); if (here()) addBubble('err', 'Image failed: ' + e.message); }
+}
+// Long press → Create image on a reply
+async function imageForReply(i) {
+  if (busy || !ready()) return;
+  if (!imageEnabled()) return toast('No image proxy is active (Settings → Image proxy)');
+  const s = cur, hist = history, m = hist[i]; if (!m) return;
+  const bubble = [...$('log').querySelectorAll('.msg.ai')].find(b => +b.dataset.i === i); if (!bubble) return;
+  setBusy(true);
+  try {
+    const prompt = await describeImage(s, hist[i - 1]?.role === 'user' ? hist[i - 1].content : '', m.content);
+    let target = m;
+    if (m.alts) target = m.alts[m.sel || 0];
+    if (target.img) idb.del(target.img).catch(() => {});
+    bubble.querySelector('figure')?.remove();
+    await attachImage(s, hist, target, m.alts ? m : null, bubble, prompt);
+  } catch (e) { toast('Could not create an image: ' + e.message); }
+  finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
 }
 
 async function send(text, img) {
@@ -1329,7 +1377,7 @@ function showMsgMenu(el) {
   const i = +el.dataset.i, m = history[i]; if (!m) return;
   hideMsgMenu();
   const acts = m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], ['delete', 'Delete']]
-    : [['copy', 'Copy'], ['delete', 'Delete']];
+    : [['image', 'Create image'], ['copy', 'Copy'], ['delete', 'Delete']];
   const box = $('msgMenu'); box.innerHTML = '';
   for (const [a, label] of acts) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.textContent = label;
@@ -1367,6 +1415,7 @@ $('msgMenu').onclick = e => {
   if (act === 'edit') editMessage(el, i);
   if (act === 'regen') resendFrom(i - 1, history[i - 1].content);
   if (act === 'delete') deleteMessage(i);
+  if (act === 'image') imageForReply(i);
   if (act === 'rewrite') rewriteOpening();
 };
 // Deletes message i and everything after it
