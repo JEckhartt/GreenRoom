@@ -264,6 +264,20 @@
   .tokbar b { color: var(--ink); font-weight: 600; }
   .tokbar .warn { color: var(--accent); }
 
+  /* ---------- Search, pins, timestamps, backgrounds ---------- */
+  input.search { width: 100%; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--field); color: var(--ink); font: inherit; font-size: 16px; outline: none; -webkit-appearance: none; }
+  input.search:focus { border-color: var(--accent); }
+  .srow { display: block; width: 100%; text-align: left; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); cursor: pointer; }
+  .srow .who { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink-soft); margin-bottom: 3px; }
+  .srow .snip { font-size: 14px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .srow mark { background: var(--accent-soft); color: inherit; border-radius: 3px; padding: 0 1px; }
+  .ts { font: 11px 'Inter', system-ui, sans-serif; color: var(--ink-soft); opacity: .7; -webkit-text-fill-color: var(--ink-soft); text-shadow: none; }
+  .msg.me .ts { display: block; text-align: right; margin-top: 4px; }
+  .alts .ts { margin-left: 8px; }
+  .msg.flash { animation: flash 1.8s ease; border-radius: 12px; }
+  @keyframes flash { 0%, 45% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent); background-color: color-mix(in srgb, var(--accent) 10%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
+  #chat.has-bg { background: linear-gradient(color-mix(in srgb, var(--bg) var(--bgdim, 40%), transparent), color-mix(in srgb, var(--bg) var(--bgdim, 40%), transparent)), var(--chatbg) center / cover no-repeat, var(--bg); }
+
   /* ---------- Alternative replies ---------- */
   .alts { display: flex; align-items: center; gap: 2px; margin-top: 4px; font: 12px 'Inter', system-ui, sans-serif; color: var(--ink-soft); opacity: .55;
     -webkit-text-fill-color: var(--ink-soft); text-shadow: none; }
@@ -294,7 +308,7 @@
   details.edf > summary { padding: 14px 0 0; font-size: 13px; color: var(--ink-soft); font-weight: 500; }
   details.edf[open] > summary { padding-bottom: 8px; }
   details.edf:not([open]) { padding-bottom: 4px; }
-  #msgMenu { position: fixed; z-index: 32; display: flex; gap: 2px; padding: 4px; border-radius: 14px; background: rgba(30,30,30,.92);
+  #msgMenu { position: fixed; z-index: 32; display: flex; flex-wrap: wrap; max-width: calc(100vw - 24px); gap: 2px; padding: 4px; border-radius: 14px; background: rgba(30,30,30,.92);
     box-shadow: 0 8px 24px -8px rgba(0,0,0,.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
   #msgMenu button { border: 0; background: none; color: #fff; font-size: 15px; padding: 9px 14px; border-radius: 10px; cursor: pointer; }
   #msgMenu button:active { background: rgba(255,255,255,.15); }
@@ -510,6 +524,7 @@
 <section id="chats" class="view" aria-label="Chats">
   <div class="page-head"><button class="back" data-close="chats" type="button">‹ Back</button><h1>Chats</h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <input type="search" class="search" id="chatSearch" placeholder="Search all chats" autocomplete="off" style="margin-bottom:12px">
     <div class="items" id="chatList"></div>
   </div></div>
 </section>
@@ -603,7 +618,12 @@
       <button class="btn" type="button" id="ciCard">Character card</button>
       <button class="btn" type="button" id="ciEdit">Edit character</button>
     </div>
+    <input type="search" class="search" id="ciSearch" placeholder="Search this chat" autocomplete="off">
+    <div class="items" id="ciResults" style="margin-top:8px"></div>
+    <p class="group-title" id="ciPinTitle">Pinned messages</p>
+    <div class="items" id="ciPins"></div>
     <p class="group-title">Images in this chat</p>
+    <div class="hint" style="margin:-4px 4px 10px">Tap an image to go to its message; long press for more.</div>
     <div class="grid" id="chatImgGrid"></div>
   </div></div>
 </section>
@@ -639,6 +659,20 @@
     </div>
   </div>
   <div class="page-inner cs-pane" data-t="1" hidden>
+    <p class="group-title">Background</p>
+    <div class="card">
+      <div class="pick">
+        <div class="thumb" id="bgThumb" role="button" aria-label="Choose a background image" style="aspect-ratio:9/16;width:84px">+</div>
+        <div class="btns">
+          <button class="btn" type="button" id="bgPick">Upload image</button>
+          <button class="btn danger" type="button" id="bgRm">Remove</button>
+        </div>
+      </div>
+      <input type="file" id="bgFile" accept="image/*" hidden>
+      <div id="bgDimRow"><div class="line"><span>Dim the image</span><output id="bgDimOut"></output></div>
+      <input type="range" id="bgDim" min="0" max="0.9" step="0.05"></div>
+      <div class="hint">Shown behind this chat only. Dim it a bit so the text stays easy to read.</div>
+    </div>
     <p class="group-title">Theme for this chat</p>
     <div id="chatThemeHost"></div>
     <p class="group-title">Style for this chat</p>
@@ -1404,6 +1438,17 @@ function addFigure(bubble) {
   bubble.appendChild(f); scrollDown();
   return f;
 }
+// "14:05" today, otherwise "3 Nov, 14:05"
+function stamp(t) {
+  const d = new Date(t), now = new Date(), hm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toDateString() === now.toDateString() ? hm : `${d.toLocaleDateString([], { day: 'numeric', month: 'short', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) })}, ${hm}`;
+}
+function addStamp(el, m) {
+  if (!m.t && !m.pinned) return;
+  const s = document.createElement('span'); s.className = 'ts';
+  s.textContent = [m.pinned ? 'Pinned' : '', m.t ? stamp(m.t) : ''].filter(Boolean).join(' · ');
+  el.append(s);
+}
 function addFileChip(bubble, file) {
   const c = document.createElement('div'); c.className = 'fbub';
   c.textContent = file.name;
@@ -1433,6 +1478,7 @@ function render() {
     b.dataset.i = i;
     if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => src ? showImage(f, src) : f.remove()).catch(() => f.remove()); }
     if (m.file) addFileChip(b, m.file);
+    if (m.role === 'user') addStamp(b, m);
     if (m.role === 'assistant') addAltNav(b, m, i);
   }
   for (const n of notes) $('log').append(n);
@@ -1680,7 +1726,7 @@ async function aiTurn(s, hist, messages, bubble, into) {
   const here = () => cur?.chat.id === s.chat.id;
   const reply = await streamChat(messages, r => { setText(bubble, visible(r)); if (here() && !into) scrollDown(); });
   let imgPrompt = tagPrompt(reply);
-  let msg = { role: 'assistant', content: visible(reply, true) };
+  let msg = { role: 'assistant', content: visible(reply, true), t: Date.now() };
   setText(bubble, msg.content);
   if (into) { ensureAlts(into); into.alts.push({ content: msg.content }); selectAlt(into, into.alts.length - 1); msg = into.alts[into.sel]; }
   else hist.push(msg);
@@ -1736,7 +1782,7 @@ async function continueReply(i) {
   const before = m.content || '';
   const join = r => {
     const t = visible(r);
-    const sep = !t || /\s$/.test(before) || /^[\s,.;:!?)\]'"”’…*_-]/.test(t) ? '' : ' ';
+    const sep = !t || /\s$/.test(before) || /^[\s,.;:!?)\]…]/.test(t) ? '' : ' ';
     return before + sep + t;
   };
   setBusy(true);
@@ -1774,7 +1820,7 @@ async function send(text, img, forceImage, doc) {
   const s = cur, hist = history;
   setBusy(true);
   for (const n of $('log').querySelectorAll('.msg.err')) n.remove();
-  const msg = { role: 'user', content: text };
+  const msg = { role: 'user', content: text, t: Date.now() };
   if (forceImage) msg.wantsImage = true;
   if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); }
   if (doc) { msg.file = { name: doc.name, key: 'file_' + uid(), chars: doc.text.length }; await idb.put(msg.file.key, doc.text).catch(() => { delete msg.file; toast('Could not store the file'); }); }
@@ -1784,6 +1830,7 @@ async function send(text, img, forceImage, doc) {
   const mine = addBubble('me', text); mine.dataset.i = hist.length - 1;
   if (msg.img) showImage(addFigure(mine), img);
   if (msg.file) addFileChip(mine, msg.file);
+  addStamp(mine, msg);
   const bubble = addBubble('ai', '');
   const sendMsgs = await buildMessages(s.c, s.p, hist, s.chat.memory);
   if (usedOnce) { s.chat.authorOff = true; store.set('chats', chats); syncTools(); }
@@ -1808,8 +1855,9 @@ function hideMsgMenu() { $('msgMenu').hidden = true; menuFor?.classList.remove('
 function showMsgMenu(el) {
   const i = +el.dataset.i, m = history[i]; if (!m) return;
   hideMsgMenu();
-  const acts = m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], ['delete', 'Delete']]
-    : [['image', 'Create image'], ['copy', 'Copy'], ['delete', 'Delete']];
+  const pin = ['pin', m.pinned ? 'Unpin' : 'Pin'], branch = ['branch', 'Branch from here'];
+  const acts = m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], pin, branch, ['delete', 'Delete']]
+    : [['image', 'Create image'], ['copy', 'Copy'], pin, branch, ['delete', 'Delete']];
   const box = $('msgMenu'); box.innerHTML = '';
   for (const [a, label] of acts) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.textContent = label;
@@ -1842,6 +1890,8 @@ $('msgMenu').onclick = e => {
   const act = e.target.dataset?.act, el = menuFor; if (!act || !el) return;
   hideMsgMenu();
   const i = +el.dataset.i, m = history[i]; if (!m) return;
+  if (act === 'pin') { if (m.pinned) delete m.pinned; else m.pinned = true; saveMsgs(cur.chat, history); render(); toast(m.pinned ? 'Pinned. Find it by swiping left.' : 'Unpinned'); }
+  if (act === 'branch') branchFrom(i);
   if (act === 'copy') navigator.clipboard?.writeText(m.content).then(() => toast('Copied'), () => toast('Could not copy'));
   if (act === 'resend') resendFrom(i, m.content);
   if (act === 'edit') editMessage(el, i);
@@ -1929,6 +1979,7 @@ function addAltNav(bubble, m, i) {
     cam.onclick = () => imageForReply(i);
     nav.append(cam);
   }
+  addStamp(nav, m);
   bubble.append(nav);
 }
 const openingAsk = (c, p) => `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.]`;
@@ -1978,7 +2029,7 @@ function openChat(id) {
   $('profile').classList.remove('open'); // the chat view sits below the profile
   history = store.get(msgsKey(id), []);
   applyLook();
-  renderChatHead(); render(); openView('chat'); syncTools();
+  renderChatHead(); render(); openView('chat'); syncTools(); applyChatBg();
   if (!history.length) startChat();
 }
 // A chat you never wrote anything in isn't worth keeping
@@ -1993,7 +2044,7 @@ function startChat() {
   const gs = greetingsOf(c);
   if (gs.length) {
     const alts = gs.map(g => ({ content: fill(g.trim(), c, p) }));
-    history.push({ role: 'assistant', content: alts[0].content, alts, sel: 0 }); saveMsgs(cur.chat, history); render();
+    history.push({ role: 'assistant', content: alts[0].content, alts, sel: 0, t: Date.now() }); saveMsgs(cur.chat, history); render();
   }
 }
 function renderChatHead() {
@@ -2003,7 +2054,35 @@ function renderChatHead() {
   $('chatAs').textContent = pn ? 'as ' + pn : '';
   setThumb($('chatAv'), c);
 }
+async function applyChatBg() {
+  const el = $('chat'), ch = cur?.chat;
+  const src = ch?.bg ? await idb.get(ch.bg).catch(() => null) : null;
+  if (cur?.chat !== ch) return;
+  el.classList.toggle('has-bg', !!src);
+  if (src) { el.style.setProperty('--chatbg', `url("${src}")`); el.style.setProperty('--bgdim', Math.round((ch.bgDim ?? 0.4) * 100) + '%'); }
+  else el.style.removeProperty('--chatbg');
+}
+async function syncBgControls() {
+  const ch = cur?.chat; if (!ch) return;
+  const src = ch.bg ? await idb.get(ch.bg).catch(() => null) : null;
+  const th = $('bgThumb'); th.style.backgroundImage = src ? `url("${src}")` : ''; th.textContent = src ? '' : '+';
+  $('bgRm').hidden = !src; $('bgDimRow').hidden = !src;
+  $('bgDim').value = ch.bgDim ?? 0.4; $('bgDimOut').textContent = Math.round((ch.bgDim ?? 0.4) * 100) + '%';
+}
+$('bgPick').onclick = $('bgThumb').onclick = () => $('bgFile').click();
+$('bgFile').onchange = async () => {
+  const f = $('bgFile').files[0]; $('bgFile').value = ''; if (!f || !cur) return;
+  try {
+    const data = await readImage(f, 1600), ch = cur.chat;
+    if (ch.bg) idb.del(ch.bg).catch(() => {});
+    ch.bg = 'bg_' + uid(); await idb.put(ch.bg, data); store.set('chats', chats);
+    syncBgControls(); applyChatBg();
+  } catch (e) { toast(e.message); }
+};
+$('bgRm').onclick = () => { const ch = cur?.chat; if (!ch?.bg) return; idb.del(ch.bg).catch(() => {}); delete ch.bg; store.set('chats', chats); syncBgControls(); applyChatBg(); };
+$('bgDim').oninput = () => { if (!cur) return; cur.chat.bgDim = +$('bgDim').value; store.set('chats', chats); $('bgDimOut').textContent = Math.round(cur.chat.bgDim * 100) + '%'; applyChatBg(); };
 function deleteChat(id) {
+  const gone = chats.find(x => x.id === id); if (gone?.bg) idb.del(gone.bg).catch(() => {});
   if (cur?.chat.id === id) { cur = null; history = []; $('chat').classList.remove('open'); }
   for (const m of store.get(msgsKey(id), [])) for (const k of imagesOf(m)) idb.del(k).catch(() => {});
   store.del(msgsKey(id));
@@ -2014,7 +2093,8 @@ function deleteChat(id) {
 function openView(id) { $(id).classList.add('open'); requestAnimationFrame(() => autosizeAll($(id))); }
 function closeView(id) {
   document.activeElement?.blur(); $(id).classList.remove('open');
-  if (id === 'chat') { leaveChat(); setAttached(null); setDoc(null); clearHelper(); hideSendMenu(); hidePlus(); $('anPanel').hidden = true; }
+  if (id === 'chats') { $('chatSearch').value = ''; }
+  if (id === 'chat') { $('chat').classList.remove('has-bg'); leaveChat(); setAttached(null); setDoc(null); clearHelper(); hideSendMenu(); hidePlus(); $('anPanel').hidden = true; }
   if (id === 'settings') applyLook();
   if (id === 'chars' || id === 'personas') { endSelect(); closeSwipe(); }
   if (id === 'albums') closeSwipe();
@@ -2106,7 +2186,7 @@ function renderChats() {
         const av = document.createElement('span'); av.className = 'av'; setThumb(av, p || { name: ch.personaName || '–' });
         const txt = document.createElement('div');
         const who = document.createElement('div'); who.className = 'who';
-        const nm = document.createElement('span'); nm.textContent = 'as ' + (p?.name || ch.personaName || 'no persona');
+        const nm = document.createElement('span'); nm.textContent = 'as ' + (p?.name || ch.personaName || 'no persona') + (ch.branchOf ? ' · branch' : '');
         const tm = document.createElement('time'); tm.textContent = when(ch.updated);
         who.append(nm, tm);
         const snip = document.createElement('div'); snip.className = 'snip'; snip.textContent = stripMd(ch.preview);
@@ -2980,6 +3060,7 @@ function openChatSettings() {
   renderProxyBoxes(); syncChatGen();
   $('csAutoPics').checked = cur.chat.autoPics !== false;
   $('csForbidden').value = cur.chat.forbidden || '';
+  syncBgControls();
   renderCsLore();
   $('csPrompt').value = cur.chat.prompt || '';
   $('csPrompt').placeholder = cfg.systemPrompt ? 'Empty: the global system prompt is used.' : 'No global system prompt set.';
@@ -3308,20 +3389,128 @@ document.addEventListener('pointerdown', e => {
 }, true);
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
 
-// ---------- Swipe right-to-left in a chat: all images in it ----------
-function openChatImages() {
-  const keys = history.flatMap(imagesOf);
-  const grid = $('chatImgGrid'); grid.innerHTML = '';
-  if (!keys.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.style.gridColumn = '1 / -1'; e.textContent = 'No images in this chat yet.'; grid.append(e); }
-  keys.forEach((k, i) => {
-    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Image ' + (i + 1));
-    idb.get(k).then(src => { if (src) b.style.backgroundImage = `url("${src}")`; }).catch(() => {});
-    b.onclick = async () => { const src = await idb.get(k).catch(() => null); if (src) openLightbox(src, { keys, i }); };
-    grid.append(b);
+// ---------- Branching: a new chat that continues from message i ----------
+async function branchFrom(i) {
+  if (busy || !cur) return;
+  const src = cur.chat, msgs = JSON.parse(JSON.stringify(history.slice(0, i + 1)));
+  const map = new Map();
+  const copyKey = async k => {
+    if (!k) return k;
+    if (!map.has(k)) map.set(k, (async () => { const v = await idb.get(k).catch(() => null); if (v == null) return undefined; const nk = k.split('_')[0] + '_' + uid(); await idb.put(nk, v); return nk; })());
+    return map.get(k);
+  };
+  for (const m of msgs) {
+    if (m.img) m.img = await copyKey(m.img);
+    if (m.alts) for (const a of m.alts) if (a.img) a.img = await copyKey(a.img);
+    if (m.file) m.file.key = await copyKey(m.file.key);
+    delete m.pinned;
+  }
+  const copy = { ...JSON.parse(JSON.stringify(src)), id: uid(), created: Date.now(), updated: Date.now(), branchOf: src.id, preview: lastText(msgs) };
+  if (copy.bg) copy.bg = await copyKey(copy.bg);
+  copy.summarizedUpTo = Math.min(src.summarizedUpTo || 0, msgs.length);
+  chats.push(copy); store.set(msgsKey(copy.id), msgs); saveChats();
+  openChat(copy.id); toast('Branched into a new chat. The original is unchanged.');
+}
+
+// Scroll to message i in the open chat and make it light up
+function gotoMsg(i) {
+  for (const v of ['chatimgs', 'chatset']) $(v).classList.remove('open');
+  if (lb.classList.contains('open')) closeLightbox();
+  requestAnimationFrame(() => {
+    const el = $('log').querySelector(`.msg[data-i="${i}"]`); if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    setTimeout(() => el.classList.remove('flash'), 1900);
   });
+}
+// A search result / pinned message row; q highlights the match
+function msgRow(m, i, q, extra, onTap) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'srow';
+  const who = document.createElement('div'); who.className = 'who';
+  const a = document.createElement('span'); a.textContent = extra;
+  const t = document.createElement('span'); t.textContent = m.t ? stamp(m.t) : '';
+  who.append(a, t);
+  const snip = document.createElement('div'); snip.className = 'snip';
+  const text = stripMd(m.content || '') || (m.img ? '[image]' : m.file ? `[${m.file.name}]` : '');
+  const at = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
+  if (at < 0) snip.textContent = text.slice(0, 220);
+  else {
+    const from = Math.max(0, at - 60);
+    snip.append((from ? '…' : '') + text.slice(from, at));
+    const mk = document.createElement('mark'); mk.textContent = text.slice(at, at + q.length); snip.append(mk);
+    snip.append(text.slice(at + q.length, at + q.length + 140));
+  }
+  b.append(who, snip); b.onclick = onTap;
+  return b;
+}
+const speaker = (m, c, p, ch) => m.role === 'user' ? (p?.name || ch?.personaName || 'You') : cn(c);
+
+// ---------- Swipe right-to-left in a chat: card, search, pins, images ----------
+function openChatImages() {
+  $('ciSearch').value = ''; $('ciResults').innerHTML = '';
+  renderPanel();
   $('ciTitle').textContent = cur ? cn(cur.c) : '';
+  $('chatimgs').querySelector('.page-body').scrollTop = 0;
   openView('chatimgs');
 }
+function renderPanel() {
+  if (!cur) return;
+  // pinned messages
+  const pins = history.map((m, i) => [m, i]).filter(([m]) => m.pinned);
+  $('ciPinTitle').hidden = !pins.length;
+  $('ciPins').replaceChildren(...pins.map(([m, i]) => msgRow(m, i, '', speaker(m, cur.c, cur.p, cur.chat), () => gotoMsg(i))));
+  // images: every version of every message, with the message they belong to
+  const items = [];
+  history.forEach((m, i) => { for (const k of imagesOf(m)) items.push({ k, i }); });
+  const grid = $('chatImgGrid'); grid.innerHTML = '';
+  if (!items.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.style.gridColumn = '1 / -1'; e.textContent = 'No images in this chat yet.'; grid.append(e); }
+  const keys = items.map(x => x.k);
+  items.forEach(({ k, i }, n) => {
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Image ' + (n + 1));
+    idb.get(k).then(src => { if (src) b.style.backgroundImage = `url("${src}")`; }).catch(() => {});
+    pressable(b, () => gotoMsg(i), () => {
+      navigator.vibrate?.(12);
+      showSheet('Image', [
+        { label: 'View full screen', onClick: async () => { const src = await idb.get(k).catch(() => null); if (src) openLightbox(src, { keys, i: n }); } },
+        { label: 'Go to message', onClick: () => gotoMsg(i) },
+        { label: 'Delete from chat', onClick: () => deleteChatImage(i, k) },
+      ]);
+    });
+    grid.append(b);
+  });
+}
+function deleteChatImage(i, k) {
+  const m = history[i]; if (!m || !confirm('Delete this image from the chat? The message stays.')) return;
+  if (m.img === k) { delete m.img; delete m.imgPrompt; }
+  for (const a of m.alts || []) if (a.img === k) { delete a.img; delete a.imgPrompt; }
+  idb.del(k).catch(() => {});
+  saveMsgs(cur.chat, history); render(); renderPanel();
+}
+$('ciSearch').addEventListener('input', () => {
+  const q = $('ciSearch').value.trim(), box = $('ciResults'); box.innerHTML = '';
+  if (q.length < 2 || !cur) return;
+  const hits = history.map((m, i) => [m, i]).filter(([m]) => stripMd(m.content || '').toLowerCase().includes(q.toLowerCase()));
+  if (!hits.length) { const e = document.createElement('div'); e.className = 'hint'; e.style.margin = '0 4px'; e.textContent = 'Nothing found.'; return box.append(e); }
+  for (const [m, i] of hits.slice(-60).reverse()) box.append(msgRow(m, i, q, speaker(m, cur.c, cur.p, cur.chat), () => gotoMsg(i)));
+});
+
+// ---------- Search across all chats (Chats screen) ----------
+$('chatSearch').addEventListener('input', () => {
+  const q = $('chatSearch').value.trim();
+  if (q.length < 2) return renderChats();
+  const list = $('chatList'); list.innerHTML = '';
+  const hits = [];
+  for (const ch of [...chats].sort((a, b) => b.updated - a.updated)) {
+    const c = chars.find(x => x.id === ch.charId); if (!c || !ch.preview) continue;
+    store.get(msgsKey(ch.id), []).forEach((m, i) => { if (stripMd(m.content || '').toLowerCase().includes(q.toLowerCase())) hits.push({ ch, c, m, i }); });
+    if (hits.length > 150) break;
+  }
+  if (!hits.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.textContent = 'Nothing found.'; return list.append(e); }
+  for (const { ch, c, m, i } of hits.slice(0, 150)) {
+    const p = personaOf(ch);
+    list.append(msgRow(m, i, q, `${cn(c)} · ${speaker(m, c, p, ch)}`, () => { openChat(ch.id); setTimeout(() => gotoMsg(i), 60); }));
+  }
+});
 $('ciCard').onclick = () => cur && openProfile(cur.c.id);
 $('ciEdit').onclick = () => cur && openEditor('char', cur.c.id);
 (() => {
