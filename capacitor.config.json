@@ -1,0 +1,9 @@
+{
+  "appId": "app.greenroom.chat",
+  "appName": "GreenRoom",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#f6ede6"
+  }
+}

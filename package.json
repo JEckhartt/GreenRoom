@@ -1,0 +1,19 @@
+{
+  "name": "greenroom",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node -e \"require('fs').mkdirSync('www',{recursive:true});require('fs').copyFileSync('index.html','www/index.html')\"",
+    "ios": "npm run build && npx cap sync ios && npx cap open ios"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2"
+  },
+  "dependencies": {
+    "@capacitor-community/media": "^9.1.0",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/ios": "^8.6.2",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/status-bar": "^8.0.4"
+  }
+}
