@@ -119,10 +119,37 @@
   #toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px); z-index: 40; background: rgba(30,30,30,.9); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); display: flex; gap: 8px; align-items: flex-end; }
-  #input { flex: 1; resize: none; max-height: 180px; min-height: 46px; padding: 12px 16px; border-radius: 22px; border: 1px solid var(--line); background: var(--field); color: var(--ink); font: inherit; font-family: var(--me-font); outline: none; }
-  #input:focus { border-color: var(--accent); }
-  #send { height: 46px; min-width: 46px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; font-size: 20px; cursor: pointer; }
+  form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 6px 16px calc(14px + env(safe-area-inset-bottom)); display: flex; }
+  .field { flex: 1; display: flex; align-items: flex-end; border: 1px solid var(--line); border-radius: 22px; background: var(--field); transition: border-color .15s; }
+  .field:focus-within { border-color: var(--accent); }
+  #input { flex: 1; min-width: 0; resize: none; max-height: 180px; min-height: 44px; padding: 11px 6px 11px 16px; border: 0; border-radius: 22px; background: none; color: var(--ink); font: inherit; font-family: var(--me-font); outline: none; }
+  #toolsRow { max-width: 760px; width: 100%; margin: 0 auto; padding: 6px 16px 0; display: flex; align-items: flex-end; gap: 8px; }
+  #chipsRow { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+  #attachPv { position: relative; width: 56px; height: 56px; border-radius: 12px; background: var(--accent-soft) center / cover no-repeat; border: 1px solid var(--line); }
+  #attachPv button, .fchip button { width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(30,30,30,.85); color: #fff; font-size: 11px; cursor: pointer; flex: none; }
+  #attachPv button { position: absolute; top: -7px; right: -7px; }
+  .fchip { display: flex; align-items: center; gap: 8px; max-width: 75%; padding: 6px 6px 6px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--field); font-size: 13px; }
+  .fchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .anchip { border: 1px dashed var(--accent); color: var(--accent); background: none; border-radius: 999px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  #plusBtn { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--field); color: var(--ink-soft); font-size: 22px; font-weight: 300; line-height: 1; display: grid; place-items: center; cursor: pointer; transition: transform .2s, color .2s; padding: 0 0 2px; }
+  #plusBtn.open { transform: rotate(45deg); color: var(--accent); border-color: var(--accent); }
+  #plusBtn.has { color: var(--accent); }
+  #plusMenu { position: fixed; z-index: 32; display: flex; flex-direction: column; padding: 4px; border-radius: 14px; background: rgba(30,30,30,.94); box-shadow: 0 8px 24px -8px rgba(0,0,0,.4); min-width: 220px; }
+  #plusMenu button { display: flex; align-items: center; gap: 10px; border: 0; background: none; color: #fff; font-size: 15px; padding: 11px 12px; border-radius: 10px; text-align: left; cursor: pointer; }
+  #plusMenu button small { color: rgba(255,255,255,.55); font-size: 12px; margin-left: auto; }
+  #plusMenu button:active { background: rgba(255,255,255,.15); }
+  #anPanel { max-width: 760px; width: 100%; margin: 0 auto; padding: 8px 16px 0; animation: anIn .22s cubic-bezier(.2,.8,.2,1); }
+  @keyframes anIn { from { opacity: 0; transform: translateY(14px); } }
+  .anbox { border: 1px solid var(--accent); border-radius: 16px; background: var(--card); padding: 10px 12px; }
+  .anrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); }
+  .anrow b { color: var(--ink); font-size: 14px; }
+  .anrow button { border: 0; background: none; color: var(--accent); font-weight: 600; font-size: 14px; cursor: pointer; }
+  .anrow select { font: inherit; font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; }
+  #anText { display: block; width: 100%; min-height: 64px; max-height: 160px; margin: 6px 0; resize: none; border: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; outline: none; }
+  .fbub { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 5px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 7%, transparent); font: 13px 'Inter', system-ui, sans-serif; }
+  .msg.me .txt:not(:empty) ~ .fbub { margin-top: 8px; }
+  #send { flex: none; width: 34px; height: 34px; margin: 0 5px 5px 0; border-radius: 50%; border: 0; background: var(--accent); color: #fff; cursor: pointer; display: grid; place-items: center; padding: 0; }
+  #send svg.i-send { width: 17px; height: 17px; }
   #send .i-stop, #send.stop .i-send { display: none; }
   #send.stop .i-stop { display: block; margin: auto; }
   #send.stop { background: var(--ink); color: var(--bg); }
@@ -251,11 +278,6 @@
   .msg.me figure.gen { margin: 0; }
   .msg.me .txt:not(:empty) + figure.gen { margin-top: 8px; }
   .msg.me figure.gen img { max-width: min(100%, 260px); }
-  #attachBar { max-width: 760px; width: 100%; margin: 0 auto; padding: 8px 16px 0; display: flex; }
-  #attachBar .pv { position: relative; width: 64px; height: 64px; border-radius: 12px; background: var(--accent-soft) center / cover no-repeat; border: 1px solid var(--line); }
-  #attachBar button { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: rgba(30,30,30,.85); color: #fff; font-size: 12px; cursor: pointer; }
-  #attach { height: 46px; min-width: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--field); color: var(--ink-soft); cursor: pointer; display: grid; place-items: center; }
-  #attach.has { color: var(--accent); border-color: var(--accent); }
   details.edf { border-top: 1px solid var(--line); margin-top: 14px; }
   details.edf > summary { padding: 14px 0 0; font-size: 13px; color: var(--ink-soft); font-weight: 500; }
   details.edf[open] > summary { padding-bottom: 8px; }
@@ -461,16 +483,48 @@
   </div>
   <main id="scroller"><div id="log"></div></main>
   <div id="helpBar" hidden><span id="helpState"></span><button type="button" id="helpRetry">Retry</button><button type="button" id="helpUndo">Delete</button></div>
-  <div id="attachBar" hidden><div class="pv" id="attachPv"><button type="button" id="attachRm" aria-label="Remove image">✕</button></div></div>
+  <div id="anPanel" hidden>
+    <div class="anbox">
+      <div class="anrow"><b>Author's note</b><button type="button" id="anClose" aria-label="Close author's note">Done</button></div>
+      <textarea id="anText" placeholder="e.g. Keep replies under 150 words. It is midnight and raining. Never speak for {{user}}."></textarea>
+      <div class="anrow">
+        <label for="anDepth">Placed</label>
+        <select id="anDepth">
+          <option value="1">with your latest message</option>
+          <option value="2">2 messages back</option>
+          <option value="3">3 messages back</option>
+          <option value="4">4 messages back</option>
+          <option value="6">6 messages back</option>
+          <option value="10">10 messages back</option>
+        </select>
+      </div>
+      <div class="hint" style="margin-top:4px">Sent with every message of this chat, close to the newest messages, so it keeps working in long chats. Hidden from the chat.</div>
+    </div>
+  </div>
+  <div id="toolsRow">
+    <div id="chipsRow">
+      <div class="pv" id="attachPv" hidden><button type="button" id="attachRm" aria-label="Remove image">✕</button></div>
+      <div class="fchip" id="fileChip" hidden><span id="fileName"></span><button type="button" id="fileRm" aria-label="Remove file">✕</button></div>
+      <button type="button" class="anchip" id="anChip" hidden>📝 Author's note</button>
+    </div>
+    <button id="plusBtn" type="button" aria-label="Add">+</button>
+  </div>
+  <input type="file" id="attachFile" accept="image/*" hidden>
+  <input type="file" id="attachDoc" accept=".txt,.md,.markdown,.json,.csv,.tsv,.xml,.html,.htm,.yaml,.yml,.log,.srt,.pdf,text/*,application/pdf,application/json" hidden>
   <form id="composer">
-    <button id="attach" type="button" aria-label="Add an image"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
-    <input type="file" id="attachFile" accept="image/*" hidden>
+    <div class="field">
     <textarea id="input" rows="1" placeholder="Say something…" autocomplete="off"></textarea>
     <button id="send" type="submit" aria-label="Send"><svg class="i-send" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg><svg class="i-stop" width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="currentColor"/></svg></button>
+    </div>
   </form>
 </section>
 
 <div id="msgMenu" hidden></div>
+<div id="plusMenu" hidden>
+  <button type="button" data-act="image"><span>🖼️</span>Upload image</button>
+  <button type="button" data-act="file"><span>📄</span>Upload file <small>text, PDF…</small></button>
+  <button type="button" data-act="note"><span>📝</span>Author's note</button>
+</div>
 <div id="sendMenu" hidden>
   <button type="button" data-act="enhance">✨ Enhance my message</button>
   <button type="button" data-act="write">✍️ Write for me</button>
@@ -1092,12 +1146,18 @@ async function buildMessages(c, p, hist, memory) {
   const withImg = hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES);
   const msgs = [];
   for (const m of hist) {
+    let text = m.content;
+    if (m.role === 'user' && m.file) {
+      const doc = await idb.get(m.file.key).catch(() => null);
+      text = `${text || ''}\n\n[Attached file "${m.file.name}"]\n${doc ? doc.slice(0, MAX_DOC) + (doc.length > MAX_DOC ? '\n[…file cut off here]' : '') : '(file content missing)'}`.trim();
+    }
     if (m.role === 'user' && m.img) {
       const src = withImg.includes(m) ? await idb.get(m.img).catch(() => null) : null;
       msgs.push({ role: 'user', content: src
-        ? [{ type: 'image_url', image_url: { url: src } }, { type: 'text', text: m.content || '(image)' }]
-        : `${m.content}\n[an image was attached here]`.trim() });
-    } else msgs.push({ role: m.role, content: m.content }); // old image tags are left out: the model would copy them
+        ? [{ type: 'image_url', image_url: { url: src } }, { type: 'text', text: text || '(image)' }]
+        : `${text}\n[an image was attached here]`.trim() });
+    } else if (m.role === 'user' && m.file) msgs.push({ role: 'user', content: text });
+    else msgs.push({ role: m.role, content: m.content }); // old image tags are left out: the model would copy them
   }
   // Nudge on the newest user message when it asks for a picture
   const lastUser = hist.at(-1)?.role === 'user' ? msgs.at(-1) : null;
@@ -1105,7 +1165,18 @@ async function buildMessages(c, p, hist, memory) {
     if (Array.isArray(lastUser.content)) lastUser.content = lastUser.content.map(x => x.type === 'text' ? { ...x, text: x.text + IMG_NOTE } : x);
     else lastUser.content += IMG_NOTE;
   }
-  const system = { role: 'system', content: systemFor(c, p, memory) };
+  // Author's note: added to the user message closest to its depth (1 = the latest)
+  let note = cur?.chat.authorNote?.trim() ? fill(cur.chat.authorNote.trim(), c, p) : '';
+  if (note) {
+    const depth = cur.chat.authorDepth || 1;
+    for (let i = msgs.length - depth; i >= 0; i--) {
+      if (msgs[i]?.role !== 'user') continue;
+      const add = `\n\n[Author's note: ${note}]`, m = msgs[i];
+      m.content = Array.isArray(m.content) ? m.content.map(x => x.type === 'text' ? { ...x, text: x.text + add } : x) : m.content + add;
+      note = ''; break;
+    }
+  }
+  const system = { role: 'system', content: systemFor(c, p, memory) + (note ? `\n\n--- Author's note ---\n${note}` : '') };
   // Context size: drop the oldest messages until it fits (~4 characters per token, ~800 per image)
   const limit = gen().contextSize;
   if (limit) {
@@ -1244,6 +1315,11 @@ function addFigure(bubble) {
   bubble.appendChild(f); scrollDown();
   return f;
 }
+function addFileChip(bubble, file) {
+  const c = document.createElement('div'); c.className = 'fbub';
+  c.textContent = `📄 ${file.name}`;
+  bubble.append(c);
+}
 function showImage(fig, src) {
   const img = new Image(); img.alt = ''; img.src = src;
   img.onload = scrollDown;
@@ -1267,6 +1343,7 @@ function render() {
     const b = addBubble(m.role === 'user' ? 'me' : 'ai', m.content);
     b.dataset.i = i;
     if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => src ? showImage(f, src) : f.remove()).catch(() => f.remove()); }
+    if (m.file) addFileChip(b, m.file);
     if (m.role === 'assistant') addAltNav(b, m, i);
   }
   for (const n of notes) $('log').append(n);
@@ -1579,7 +1656,7 @@ async function imageForReply(i) {
   finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
 }
 
-async function send(text, img, forceImage) {
+async function send(text, img, forceImage, doc) {
   if (!ready()) return;
   const s = cur, hist = history;
   setBusy(true);
@@ -1587,9 +1664,11 @@ async function send(text, img, forceImage) {
   const msg = { role: 'user', content: text };
   if (forceImage) msg.wantsImage = true;
   if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); }
+  if (doc) { msg.file = { name: doc.name, key: 'file_' + uid(), chars: doc.text.length }; await idb.put(msg.file.key, doc.text).catch(() => { delete msg.file; toast('Could not store the file'); }); }
   hist.push(msg); saveMsgs(s.chat, hist);
   const mine = addBubble('me', text); mine.dataset.i = hist.length - 1;
   if (msg.img) showImage(addFigure(mine), img);
+  if (msg.file) addFileChip(mine, msg.file);
   const bubble = addBubble('ai', '');
   try { await aiTurn(s, hist, await buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
   catch (e) {
@@ -1775,7 +1854,7 @@ function openChat(id) {
   $('profile').classList.remove('open'); // the chat view sits below the profile
   history = store.get(msgsKey(id), []);
   applyLook();
-  renderChatHead(); render(); openView('chat');
+  renderChatHead(); render(); openView('chat'); syncTools();
   if (!history.length) startChat();
 }
 // A chat you never wrote anything in isn't worth keeping
@@ -1811,7 +1890,7 @@ function deleteChat(id) {
 function openView(id) { $(id).classList.add('open'); requestAnimationFrame(() => autosizeAll($(id))); }
 function closeView(id) {
   document.activeElement?.blur(); $(id).classList.remove('open');
-  if (id === 'chat') { leaveChat(); setAttached(null); clearHelper(); hideSendMenu(); }
+  if (id === 'chat') { leaveChat(); setAttached(null); setDoc(null); clearHelper(); hideSendMenu(); hidePlus(); $('anPanel').hidden = true; }
   if (id === 'settings') applyLook();
   if (id === 'chars' || id === 'personas') { endSelect(); closeSwipe(); }
   if (id === 'albums') closeSwipe();
@@ -3270,13 +3349,107 @@ function clearHelper() { helper = null; $('helpBar').hidden = true; }
 $('helpRetry').onclick = () => helper && runHelper(helper.mode, helper.original);
 $('helpUndo').onclick = () => { if (!helper) return; input.value = helper.original; input.dispatchEvent(new Event('input')); clearHelper(); };
 
-let attached = null; // data URL of the image waiting to be sent
+let attached = null;    // data URL of the image waiting to be sent
+let attachedDoc = null; // { name, text } of the file waiting to be sent
+function syncTools() {
+  $('attachPv').hidden = !attached;
+  $('fileChip').hidden = !attachedDoc;
+  $('anChip').hidden = !cur?.chat.authorNote?.trim() || !$('anPanel').hidden;
+  $('plusBtn').classList.toggle('has', !!(attached || attachedDoc));
+}
 function setAttached(src) {
   attached = src;
-  $('attachBar').hidden = !src; $('attach').classList.toggle('has', !!src);
   $('attachPv').style.backgroundImage = src ? `url("${src}")` : '';
+  syncTools();
 }
-$('attach').onclick = () => $('attachFile').click();
+function setDoc(doc) {
+  attachedDoc = doc;
+  $('fileName').textContent = doc ? `📄 ${doc.name}` : '';
+  syncTools();
+}
+
+// + menu above the text field
+function hidePlus() { $('plusMenu').hidden = true; $('plusBtn').classList.remove('open'); }
+$('plusBtn').onclick = () => {
+  if (!$('plusMenu').hidden) return hidePlus();
+  const m = $('plusMenu'); m.hidden = false; $('plusBtn').classList.add('open');
+  const r = $('plusBtn').getBoundingClientRect();
+  m.style.top = Math.max(12, r.top - m.offsetHeight - 8) + 'px';
+  m.style.left = Math.max(12, r.right - m.offsetWidth) + 'px';
+};
+document.addEventListener('pointerdown', e => { if (!$('plusMenu').hidden && !e.target.closest('#plusMenu, #plusBtn')) hidePlus(); }, true);
+$('plusMenu').onclick = e => {
+  const act = e.target.closest('button')?.dataset.act; if (!act) return;
+  hidePlus();
+  if (act === 'image') $('attachFile').click();
+  if (act === 'file') $('attachDoc').click();
+  if (act === 'note') openNote();
+};
+
+// Files: text formats are read directly, PDFs through pdf.js (loaded on first use)
+const DOC_TEXT = /\.(txt|md|markdown|json|csv|tsv|xml|html?|ya?ml|log|srt|ini)$/i;
+const MAX_DOC = 60000; // characters sent to the AI per file
+let pdfLib = null;
+function loadPdfLib() {
+  if (pdfLib) return pdfLib;
+  return pdfLib = new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(window.pdfjsLib); };
+    sc.onerror = () => { pdfLib = null; rej(new Error('Could not load the PDF reader. Check your internet connection.')); };
+    document.head.append(sc);
+  });
+}
+async function readDoc(f) {
+  if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') {
+    const lib = await loadPdfLib();
+    const doc = await lib.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
+    const pages = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      const tc = await (await doc.getPage(i)).getTextContent();
+      pages.push(tc.items.map(x => x.str + (x.hasEOL ? '\n' : '')).join(''));
+    }
+    const t = pages.join('\n\n').replace(/[ \t]+\n/g, '\n').trim();
+    if (!t) throw new Error('No text found in this PDF (it may be scanned pages).');
+    return t;
+  }
+  if (f.type.startsWith('text/') || f.type.includes('json') || DOC_TEXT.test(f.name)) {
+    const t = await f.text();
+    return /\.html?$/i.test(f.name) || f.type === 'text/html' ? htmlToText(t) : t;
+  }
+  throw new Error('This kind of file can\'t be read. Use text, Markdown, JSON, CSV, HTML or PDF.');
+}
+$('attachDoc').onchange = async () => {
+  const f = $('attachDoc').files[0]; $('attachDoc').value = '';
+  if (!f) return;
+  toast('Reading ' + f.name + '…');
+  try {
+    const text = await readDoc(f);
+    setDoc({ name: f.name, text });
+    toast(text.length > MAX_DOC ? `Added. Only the first ${MAX_DOC.toLocaleString()} characters are sent.` : 'File added');
+  } catch (e) { toast(e.message); }
+};
+$('fileRm').onclick = () => setDoc(null);
+
+// Author's note: per chat, placed close to the newest messages
+function openNote() {
+  if (!cur) return;
+  $('anText').value = cur.chat.authorNote || '';
+  $('anDepth').value = String(cur.chat.authorDepth || 1);
+  $('anPanel').hidden = false; syncTools();
+  requestAnimationFrame(() => { $('anText').style.height = 'auto'; $('anText').style.height = Math.min(160, $('anText').scrollHeight) + 'px'; });
+}
+function closeNote() { $('anPanel').hidden = true; document.activeElement?.blur(); syncTools(); }
+$('anClose').onclick = closeNote;
+$('anChip').onclick = openNote;
+$('anText').addEventListener('input', () => {
+  if (!cur) return;
+  const t = $('anText'); t.style.height = 'auto'; t.style.height = Math.min(160, t.scrollHeight) + 'px';
+  if (t.value.trim()) cur.chat.authorNote = t.value; else delete cur.chat.authorNote;
+  store.set('chats', chats);
+});
+$('anDepth').onchange = () => { if (!cur) return; cur.chat.authorDepth = +$('anDepth').value; store.set('chats', chats); };
+
 $('attachFile').onchange = async () => {
   const f = $('attachFile').files[0]; $('attachFile').value = '';
   if (!f) return;
@@ -3287,10 +3460,10 @@ $('composer').onsubmit = e => {
   e.preventDefault();
   if (busy) { if (e.submitter === $('send')) abortCtl?.abort(); return; }
   const t = input.value.trim();
-  if ((!t && !attached) || busy) return;
-  const img = attached;
-  input.value = ''; input.style.height = 'auto'; setAttached(null); clearHelper();
-  send(t, img);
+  if ((!t && !attached && !attachedDoc) || busy) return;
+  const img = attached, doc = attachedDoc;
+  input.value = ''; input.style.height = 'auto'; setAttached(null); setDoc(null); clearHelper();
+  send(t, img, false, doc);
 };
 
 // ---------- Boot ----------
