@@ -4,18 +4,19 @@ A character chat app: create characters and chat with them. Built on the Nearly 
 
 ## Usage
 1. Open `index.html` in your browser (or host it statically).
-2. The app opens on the title screen: **Characters**, **Personas**, **Settings**.
+2. The app opens on the title screen: **Chats**, **Characters**, **Personas**, **Settings**.
 3. In **Settings** (full-screen page):
    - **Proxy**: chat endpoint URL (OpenAI-compatible, `/chat/completions` appended automatically), API key, model
    - **Image proxy**: URL, API key, model. Only used when you explicitly ask for an image
    - **Prompt**: your system prompt, sent with every message
-   - **Customization**: theme, accent color, fonts, text styling
-4. **Personas**: who *you* are. Image, name, personality. Mark one as your persona and characters will know you as them.
-5. **Characters**: create one with image, name, description (list only, never sent to the AI), personality, scenario, first message (or let the AI write the opening) and example dialogue. Tap a character to chat.
+   - **Customization**: theme, accent color, and separately for AI text and your text: font, size, weight, spacing, italic, underline, glow, color/gradient, and a color for "text between quotes"
+4. **Personas**: who *you* are. Image, name, personality.
+5. **Characters**: image, name, description (list only, never sent to the AI), personality, scenario, first message (or let the AI write the opening) and example dialogue. Tap a character for **Character profile** (full card, edit, delete) or **Chat** (pick a persona, starts a new chat).
+6. **Chats**: all chats grouped per character, with the persona each was played as. Tap a character to unfold its chats; open, delete, or jump to the character card.
 
-Each character has its own chat history. Edit a character from the chat header; restart or delete it from the editor. `{{char}}` and `{{user}}` placeholders work in the system prompt and character fields.
+`{{char}}` and `{{user}}` placeholders work in the system prompt and character fields. A chat you leave without writing anything is discarded.
 
-What the AI receives: system prompt, then the character's personality + scenario, then your active persona, then example dialogue, then the chat.
+What the AI receives: system prompt, then the character's personality + scenario, then the chat's persona, then example dialogue, then the chat.
 
 Everything is stored locally (`localStorage` for text, IndexedDB for images).
 

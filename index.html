@@ -40,6 +40,9 @@
     --ai-font: 'Fraunces', Georgia, serif; --me-font: 'Inter', system-ui, sans-serif;
     --fs: 18px; --fw: 300; --lh: 1.6; --ls: 0em; --fst: normal; --deco: none;
     --c1: #d9553b; --c2: #7b3fe4; --angle: 135deg; --glowc: var(--accent);
+    --u-fs: 16px; --u-fw: 400; --u-lh: 1.55; --u-ls: 0em; --u-fst: normal; --u-deco: none;
+    --u-c1: #00c6ff; --u-c2: #0072ff; --u-angle: 135deg; --u-glowc: var(--accent);
+    --q: #e8a33d; --u-q: #e8a33d; --kb: 0px;
   }
 
   * { box-sizing: border-box; }
@@ -70,6 +73,20 @@
     text-decoration: var(--deco); text-underline-offset: .22em; text-decoration-thickness: from-font;
   }
   .msg.ai .txt:empty { display: none; }
+  .msg.me .txt {
+    font-family: var(--me-font); font-size: var(--u-fs); font-weight: var(--u-fw);
+    line-height: var(--u-lh); letter-spacing: var(--u-ls); font-style: var(--u-fst);
+    text-decoration: var(--u-deco); text-underline-offset: .22em; text-decoration-thickness: from-font;
+  }
+  body[data-ucolor="solid"] .msg.me .txt { color: var(--u-c1); text-decoration-color: var(--u-c1); }
+  body[data-ucolor="gradient"] .msg.me .txt {
+    background: linear-gradient(var(--u-angle), var(--u-c1), var(--u-c2));
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent; -webkit-text-fill-color: transparent; text-decoration-color: var(--u-c1);
+  }
+  body.uglow .msg.me .txt { text-shadow: 0 0 16px color-mix(in srgb, var(--u-glowc) 55%, transparent); }
+  body.qon .msg.ai .q { color: var(--q); -webkit-text-fill-color: var(--q); }
+  body.uqon .msg.me .q { color: var(--u-q); -webkit-text-fill-color: var(--u-q); }
   body[data-color="solid"] .msg.ai .txt { color: var(--c1); text-decoration-color: var(--c1); }
   body[data-color="gradient"] .msg.ai .txt {
     background: linear-gradient(var(--angle), var(--c1), var(--c2));
@@ -105,7 +122,7 @@
   #send:disabled { opacity: .45; cursor: default; }
 
   /* ---------- Settings page ---------- */
-  .view { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: flex; flex-direction: column;
+  .view { position: fixed; inset: 0; bottom: var(--kb); z-index: 20; background: var(--bg); display: flex; flex-direction: column;
     transform: translateX(100%); visibility: hidden; transition: transform .3s cubic-bezier(.2,.8,.2,1), visibility 0s .3s; }
   .view.open { transform: none; visibility: visible; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
   .page-head .act { justify-self: end; background: none; border: 0; color: var(--accent); font-size: 17px; font-weight: 600; padding: 6px 4px; cursor: pointer; }
@@ -143,7 +160,46 @@
   /* ---------- Chat head ---------- */
   .chat-who { display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 56vw; font-family: var(--ai-font); font-size: 19px; }
   .chat-who span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .chat-who .av { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--accent-soft) center / cover no-repeat; display: grid; place-items: center; color: var(--accent); font-size: 15px; position: relative; }
+  .av { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--accent-soft) center / cover no-repeat; display: grid; place-items: center; color: var(--accent); font-size: 15px; font-family: 'Fraunces', Georgia, serif; position: relative; }
+  .who-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+  .who-txt small { font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: var(--ink-soft); }
+  .who-txt small:empty { display: none; }
+  summary .tgt { margin: 0 auto 0 6px; }
+  body.kb-open form#composer { padding-bottom: 10px; }
+
+  /* ---------- Bottom sheet ---------- */
+  #sheet { position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.35); display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; visibility: hidden; transition: opacity .2s, visibility 0s .2s; }
+  #sheet.open { opacity: 1; visibility: visible; transition: opacity .2s; }
+  #sheet .panel { width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; background: var(--bg); border-radius: 22px 22px 0 0;
+    padding: 6px 16px calc(16px + env(safe-area-inset-bottom)); transform: translateY(40px); transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+  #sheet.open .panel { transform: none; }
+  #sheet h2 { font-size: 14px; font-weight: 600; color: var(--ink-soft); text-align: center; margin: 12px 0 14px; }
+  .opt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); font-size: 17px; text-align: left; cursor: pointer; }
+  .opt + .opt { margin-top: 8px; }
+  .opt.cancel { justify-content: center; margin-top: 14px; background: none; color: var(--ink-soft); }
+
+  /* ---------- Chats ---------- */
+  .group { border: 1px solid var(--line); border-radius: 16px; background: var(--card); overflow: hidden; }
+  .group > .item { border: 0; border-radius: 0; background: none; align-items: center; }
+  .thumb.sm { width: 60px; font-size: 24px; }
+  .chev { flex: none; width: 9px; height: 9px; border-right: 2px solid var(--ink-soft); border-bottom: 2px solid var(--ink-soft); transform: rotate(-45deg); transition: transform .2s; margin: 0 6px; }
+  .group.open .chev { transform: rotate(45deg); }
+  .sublist { border-top: 1px solid var(--line); padding: 2px 12px 6px; }
+  .link { background: none; border: 0; color: var(--accent); font-size: 15px; font-weight: 600; padding: 12px 0; cursor: pointer; }
+  .crow { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .crow .go { flex: 1; min-width: 0; display: flex; gap: 10px; align-items: center; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
+  .crow .go > div { flex: 1; min-width: 0; }
+  .crow .who { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 600; }
+  .crow time { flex: none; font-size: 12px; font-weight: 400; color: var(--ink-soft); }
+  .crow .snip { font-size: 14px; color: var(--ink-soft); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .crow .del { flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: none; color: var(--accent); cursor: pointer; display: grid; place-items: center; }
+
+  /* ---------- Character profile ---------- */
+  .hero { width: 100%; aspect-ratio: 3 / 4; max-height: 62vh; margin-top: 12px; border-radius: 18px; background: var(--accent-soft) center / cover no-repeat;
+    display: grid; place-items: center; font-family: 'Fraunces', Georgia, serif; font-size: 90px; color: var(--accent); cursor: zoom-in; }
+  .prof-name { font-family: 'Fraunces', Georgia, serif; font-size: 32px; font-weight: 400; margin: 18px 4px 12px; }
+  .prof-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.5; margin-top: 2px; }
   .chat-who .av.live::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; animation: pulse 1.4s ease-out infinite; }
   .page-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: max(10px, env(safe-area-inset-top)) 12px 10px; border-bottom: 1px solid var(--line); }
   .page-head h1 { margin: 0; font-size: 17px; font-weight: 600; }
@@ -169,7 +225,7 @@
   .card input[type=text], .card input[type=url], .card input[type=password], .card textarea {
     width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; outline: none; }
   .card input:focus, .card textarea:focus { border-color: var(--accent); }
-  .card textarea { min-height: 110px; resize: vertical; }
+  .card textarea { min-height: 110px; resize: none; overflow: hidden; }
   .card textarea.big { min-height: 240px; line-height: 1.45; }
   .hint { font-size: 12px; color: var(--ink-soft); margin-top: 5px; }
 
@@ -210,6 +266,7 @@
 <section id="home" aria-label="GreenRoom">
   <h1 class="logo"><span class="pulse"></span>GreenRoom</h1>
   <nav class="menu">
+    <button type="button" id="goChats">Chats</button>
     <button type="button" id="goChars">Characters</button>
     <button type="button" id="goPersonas">Personas</button>
     <button type="button" id="goSettings">Settings</button>
@@ -232,17 +289,38 @@
   </div></div>
 </section>
 
+<section id="chats" class="view" aria-label="Chats">
+  <div class="page-head"><button class="back" data-close="chats" type="button">‹ Back</button><h1>Chats</h1><span></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <div class="items" id="chatList"></div>
+  </div></div>
+</section>
+
 <section id="chat" class="view" aria-label="Chat">
   <div class="page-head">
     <button class="back" data-close="chat" type="button">‹ Back</button>
-    <div class="chat-who"><span class="av" id="chatAv"></span><span id="chatName"></span></div>
-    <button class="act" id="editChar" type="button">Edit</button>
+    <div class="chat-who"><span class="av" id="chatAv"></span><span class="who-txt"><span id="chatName"></span><small id="chatAs"></small></span></div>
+    <button class="act" id="chatProfile" type="button">Profile</button>
   </div>
   <main id="scroller"><div id="log"></div></main>
   <form id="composer">
     <textarea id="input" rows="1" placeholder="Say something…" autocomplete="off"></textarea>
     <button id="send" type="submit" aria-label="Send">↑</button>
   </form>
+</section>
+
+<section id="profile" class="view" aria-label="Character profile">
+  <div class="page-head"><button class="back" data-close="profile" type="button">‹ Back</button><h1>Character</h1><span></span></div>
+  <div class="page-body"><div class="page-inner">
+    <div class="hero" id="profHero"></div>
+    <h2 class="prof-name" id="profName"></h2>
+    <div id="profSecs"></div>
+    <div class="save-bar"><button class="btn primary" type="button" id="profChat">Chat</button></div>
+    <div class="actions">
+      <button class="btn" type="button" id="profEdit">Edit</button>
+      <button class="btn danger" type="button" id="profDelete">Delete</button>
+    </div>
+  </div></div>
 </section>
 
 <section id="editor" class="view" aria-label="Editor">
@@ -283,15 +361,9 @@
         <textarea id="edEx" placeholder="{{user}}: Hi.&#10;{{char}}: …"></textarea>
         <div class="hint">Shows the AI how the character talks. Not part of the conversation.</div>
       </div>
-
-      <div data-for="persona">
-        <div class="line"><span>Use as my persona</span><input type="checkbox" class="tgl" id="edActive"></div>
-        <div class="hint">The characters you chat with will know you as this persona.</div>
-      </div>
     </div>
     <div class="save-bar"><button class="btn primary" type="button" id="edSave2">Save</button></div>
     <div class="actions">
-      <button class="btn" type="button" id="edRestart">Restart chat</button>
       <button class="btn danger" type="button" id="edDelete">Delete</button>
     </div>
   </div></div>
@@ -303,6 +375,7 @@
   <div class="bar bottom"><button type="button" id="lbSave">Save to Photos</button></div>
 </div>
 <div id="toast"></div>
+<div id="sheet"><div class="panel"><h2 id="sheetTitle"></h2><div id="sheetOpts"></div><button class="opt cancel" type="button" id="sheetCancel">Cancel</button></div></div>
 
 <section id="settings" class="view" aria-label="Settings">
   <div class="page-head">
@@ -350,8 +423,12 @@
     <details class="sec" data-sec="customization">
     <summary class="group-title">Customization</summary>
     <div class="preview" id="preview">
-      <div class="msg me">Can't sleep. Talk to me?</div>
-      <div class="msg ai"><span class="txt">Of course. I was just thinking about how rain sounds different at night.</span></div>
+      <div class="seg" id="styleTarget">
+        <button type="button" data-v="ai" class="on">Style AI text</button>
+        <button type="button" data-v="me">Style your text</button>
+      </div>
+      <div class="msg me"><span class="txt" data-rich>Can't sleep. "Talk to me?"</span></div>
+      <div class="msg ai"><span class="txt" data-rich>"Of course." The rain always sounds different at night, doesn't it?</span></div>
     </div>
 
     <details class="card fold" data-sec="look-appearance">
@@ -369,17 +446,12 @@
     </details>
 
     <details class="card fold" data-sec="look-fonts">
-      <summary class="sub">Fonts</summary>
-      <label class="f">Apply to</label>
-      <div class="seg" id="fontTarget">
-        <button type="button" data-v="aiFont" class="on">AI</button>
-        <button type="button" data-v="meFont">You</button>
-      </div>
+      <summary class="sub">Font <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></summary>
       <div class="fonts" id="fonts"></div>
     </details>
 
     <details class="card fold" data-sec="look-ai-text">
-      <summary class="sub">AI text</summary>
+      <summary class="sub">Text style <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></summary>
       <div class="line"><span>Size</span><output data-out="fs"></output></div>
       <input type="range" data-k="fs" min="13" max="28" step="1">
       <div class="line"><span>Boldness</span><output data-out="fw"></output></div>
@@ -394,7 +466,7 @@
     </details>
 
     <details class="card fold" data-sec="look-ai-text-color">
-      <summary class="sub">AI text color</summary>
+      <summary class="sub">Text color <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></summary>
       <div class="seg" data-k="colorMode" style="margin-top:10px">
         <button type="button" data-v="theme">Theme</button>
         <button type="button" data-v="solid">Solid</button>
@@ -411,6 +483,15 @@
           <input type="range" data-k="angle" min="0" max="360" step="5">
           <div class="presets" id="presets"></div>
         </div>
+      </div>
+    </details>
+
+    <details class="card fold" data-sec="look-quotes">
+      <summary class="sub">Quoted text <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></summary>
+      <div class="line"><span>Own color for "text between quotes"</span><input type="checkbox" class="tgl" data-k="qOn"></div>
+      <div data-q>
+        <div class="line"><span>Quote color</span><input type="color" data-k="qColor"></div>
+        <div class="presets" id="qPresets"></div>
       </div>
       <div class="actions"><button class="btn" type="button" id="resetLook">Reset customization</button></div>
     </details>
@@ -470,24 +551,28 @@ const LOOK_DEFAULTS = {
   theme: 'original', accent: '', aiBubble: false,
   aiFont: 'Fraunces', meFont: 'Inter',
   fs: 18, fw: 300, lh: 1.6, ls: 0, italic: false, underline: false, glow: false,
-  colorMode: 'theme', c1: '#ff7a59', c2: '#c13584', angle: 135,
+  colorMode: 'theme', c1: '#ff7a59', c2: '#c13584', angle: 135, qOn: false, qColor: '#e8a33d',
+  u_fs: 16, u_fw: 400, u_lh: 1.55, u_ls: 0, u_italic: false, u_underline: false, u_glow: false,
+  u_colorMode: 'theme', u_c1: '#00c6ff', u_c2: '#0072ff', u_angle: 135, u_qOn: false, u_qColor: '#e8a33d',
 };
 const DEFAULTS = {
   proxyUrl: '', apiKey: '', model: '',
   imgUrl: '', imgKey: '', imgModel: '',
-  systemPrompt: '', activePersona: '',
+  systemPrompt: '',
   ...LOOK_DEFAULTS,
 };
 let cfg = { ...DEFAULTS, ...store.get('cfg', {}) };
 let chars = store.get('chars', []);
 let personas = store.get('personas', []);
-let current = null;   // character whose chat is open
-let history = [];     // that chat's messages
+let chats = store.get('chats', []);  // { id, charId, personaId, personaName, created, updated, preview }
+let cur = null;       // open chat: { chat, c (character), p (persona or null) }
+let history = [];     // its messages
 let busy = false;
 const saveCfg = () => store.set('cfg', cfg);
 const saveChars = () => store.set('chars', chars);
 const savePersonas = () => store.set('personas', personas);
-const chatKey = id => 'chat.' + id;
+const saveChats = () => { store.set('chats', chats); renderChats(); };
+const msgsKey = id => 'msgs.' + id;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // ---------- Image storage (IndexedDB; localStorage is too small for images) ----------
@@ -532,6 +617,19 @@ function applyLook() {
   document.body.dataset.color = cfg.colorMode;
   document.body.classList.toggle('glow', cfg.glow);
   document.body.classList.toggle('ai-bubble', cfg.aiBubble);
+  s.setProperty('--u-fs', cfg.u_fs + 'px');
+  s.setProperty('--u-fw', cfg.u_fw);
+  s.setProperty('--u-lh', cfg.u_lh);
+  s.setProperty('--u-ls', cfg.u_ls + 'em');
+  s.setProperty('--u-fst', cfg.u_italic ? 'italic' : 'normal');
+  s.setProperty('--u-deco', cfg.u_underline ? 'underline' : 'none');
+  s.setProperty('--u-c1', cfg.u_c1); s.setProperty('--u-c2', cfg.u_c2); s.setProperty('--u-angle', cfg.u_angle + 'deg');
+  if (cfg.u_colorMode === 'theme') s.removeProperty('--u-glowc'); else s.setProperty('--u-glowc', cfg.u_c1);
+  s.setProperty('--q', cfg.qColor); s.setProperty('--u-q', cfg.u_qColor);
+  document.body.dataset.ucolor = cfg.u_colorMode;
+  document.body.classList.toggle('uglow', cfg.u_glow);
+  document.body.classList.toggle('qon', cfg.qOn);
+  document.body.classList.toggle('uqon', cfg.u_qOn);
   matchNative();
 }
 
@@ -547,12 +645,12 @@ darkMQ.addEventListener?.('change', applyLook);
 // ---------- Prompt ----------
 const TAG = /\[\[image:\s*([^\]]+?)\s*\]\]/gi;
 const imageEnabled = () => !!(cfg.imgUrl.trim() && cfg.imgModel.trim());
-const activePersona = () => personas.find(p => p.id === cfg.activePersona) || null;
-const userName = () => activePersona()?.name || 'User';
-const fill = (t, c) => (t || '').replace(/\{\{char\}\}/gi, c.name).replace(/\{\{user\}\}/gi, userName());
+const personaOf = chat => personas.find(p => p.id === chat.personaId) || null;
+const userName = p => p?.name || 'User';
+const fill = (t, c, p) => (t || '').replace(/\{\{char\}\}/gi, c.name).replace(/\{\{user\}\}/gi, userName(p));
 
-function systemFor(c) {
-  const p = activePersona(), f = t => fill((t || '').trim(), c);
+function systemFor(c, p) {
+  const f = t => fill((t || '').trim(), c, p);
   const parts = [f(cfg.systemPrompt)];
   let ch = `--- Character: ${c.name} ---\nYou are ${c.name}. Stay in character.`;
   if (f(c.personality)) ch += `\n\nPersonality:\n${f(c.personality)}`;
@@ -564,9 +662,9 @@ function systemFor(c) {
   return parts.filter(Boolean).join('\n\n');
 }
 
-function buildMessages(c, hist) {
+function buildMessages(c, p, hist) {
   const msgs = hist.map(m => ({ role: m.role, content: m.imgPrompt ? `${m.content}\n[[image: ${m.imgPrompt}]]` : m.content }));
-  return [{ role: 'system', content: systemFor(c) }, ...msgs];
+  return [{ role: 'system', content: systemFor(c, p) }, ...msgs];
 }
 
 function visible(t, final) {
@@ -588,13 +686,27 @@ function addBubble(role, text) {
   $('log').querySelector('.empty')?.remove();
   const el = document.createElement('div');
   el.className = 'msg ' + role;
-  if (role === 'ai') { const t = document.createElement('span'); t.className = 'txt'; t.textContent = text; el.appendChild(t); }
-  else el.textContent = text;
+  if (role === 'err') el.textContent = text;
+  else { const t = document.createElement('span'); t.className = 'txt'; rich(t, text); el.appendChild(t); }
   $('log').appendChild(el);
   scrollDown();
   return el;
 }
-const setText = (bubble, text) => { bubble.querySelector('.txt').textContent = text; };
+const setText = (bubble, text) => rich(bubble.querySelector('.txt'), text);
+
+// Text with "quoted" parts wrapped so they can get their own color
+const QUOTE = /“[^”\n]*(?:”|$)|"[^"\n]*(?:"|$)/gm;
+function rich(el, text) {
+  el.textContent = '';
+  let i = 0;
+  for (const m of text.matchAll(QUOTE)) {
+    if (!m[0]) continue;
+    if (m.index > i) el.append(text.slice(i, m.index));
+    const q = document.createElement('span'); q.className = 'q'; q.textContent = m[0]; el.append(q);
+    i = m.index + m[0].length;
+  }
+  if (i < text.length) el.append(text.slice(i));
+}
 
 function addFigure(bubble) {
   const f = document.createElement('figure'); f.className = 'gen';
@@ -612,7 +724,7 @@ function showImage(fig, src) {
 function render() {
   $('log').innerHTML = '';
   if (!history.length) {
-    const e = document.createElement('div'); e.className = 'empty'; e.textContent = busy ? '' : `Say hi to ${current?.name || ''}.`;
+    const e = document.createElement('div'); e.className = 'empty'; e.textContent = busy ? '' : `Say hi to ${cur?.c.name || ''}.`;
     $('log').appendChild(e);
   }
   for (const m of history) {
@@ -693,15 +805,14 @@ async function streamChat(messages, onText) {
   return reply;
 }
 
-// Runs one AI turn for character c; hist is that chat's array (stays valid if the user switches chats)
-async function aiTurn(c, hist, messages, bubble) {
-  const key = chatKey(c.id), here = () => current?.id === c.id;
-  let reply = '';
-  reply = await streamChat(messages, r => { reply = r; setText(bubble, visible(r)); if (here()) scrollDown(); });
+// Runs one AI turn in chat s ({chat, c, p}); hist is that chat's array, so it stays valid if the user switches chats
+async function aiTurn(s, hist, messages, bubble) {
+  const here = () => cur?.chat.id === s.chat.id;
+  const reply = await streamChat(messages, r => { setText(bubble, visible(r)); if (here()) scrollDown(); });
   const imgPrompt = [...reply.matchAll(TAG)].pop()?.[1] || '';
   const msg = { role: 'assistant', content: visible(reply, true) };
   setText(bubble, msg.content);
-  hist.push(msg); store.set(key, hist);
+  hist.push(msg); saveMsgs(s.chat, hist);
   if (!imgPrompt) return;
   const fig = addFigure(bubble);
   if (!imageEnabled()) { fig.remove(); if (here()) addBubble('err', 'Image requested, but no image proxy is set up in Settings.'); return; }
@@ -709,63 +820,223 @@ async function aiTurn(c, hist, messages, bubble) {
     const src = await generateImage(imgPrompt);
     const id = 'img_' + uid();
     await idb.put(id, src).catch(() => {});
-    msg.img = id; msg.imgPrompt = imgPrompt; store.set(key, hist);
+    msg.img = id; msg.imgPrompt = imgPrompt; saveMsgs(s.chat, hist);
     showImage(fig, src);
   } catch (e) { fig.remove(); if (here()) addBubble('err', 'Image failed: ' + e.message); }
 }
 
 async function send(text) {
   if (!ready()) return;
-  const c = current, hist = history;
+  const s = cur, hist = history;
   setBusy(true);
-  hist.push({ role: 'user', content: text }); store.set(chatKey(c.id), hist);
+  hist.push({ role: 'user', content: text }); saveMsgs(s.chat, hist);
   addBubble('me', text);
   const bubble = addBubble('ai', '');
-  try { await aiTurn(c, hist, buildMessages(c, hist), bubble); }
+  try { await aiTurn(s, hist, buildMessages(s.c, s.p, hist), bubble); }
   catch (e) {
-    if (!bubble.textContent) { bubble.remove(); hist.pop(); store.set(chatKey(c.id), hist); }
-    if (current?.id === c.id) addBubble('err', 'Something went wrong: ' + e.message);
+    if (!bubble.textContent) { bubble.remove(); hist.pop(); saveMsgs(s.chat, hist); }
+    if (cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message);
   } finally { setBusy(false); }
 }
 
 async function writeOpening() {
   if (!ready()) return;
-  const c = current, hist = history;
+  const s = cur, hist = history, { c, p } = s;
   setBusy(true); render();
   const bubble = addBubble('ai', '');
-  const ask = `[Write ${c.name}'s opening message to start the roleplay with ${userName()}. Stay fully in character, based on ${c.name}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.]`;
-  try { await aiTurn(c, hist, [...buildMessages(c, []), { role: 'user', content: ask }], bubble); }
-  catch (e) { bubble.remove(); if (current?.id === c.id) { render(); addBubble('err', 'Could not write an opening: ' + e.message); } }
+  const ask = `[Write ${c.name}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${c.name}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.]`;
+  try { await aiTurn(s, hist, [...buildMessages(c, p, []), { role: 'user', content: ask }], bubble); }
+  catch (e) { bubble.remove(); if (cur?.chat.id === s.chat.id) { render(); addBubble('err', 'Could not write an opening: ' + e.message); } }
   finally { setBusy(false); }
 }
 
+const lastText = h => (h.at(-1)?.content || '').slice(0, 200);
+function saveMsgs(chat, hist) {
+  store.set(msgsKey(chat.id), hist);
+  chat.updated = Date.now(); chat.preview = lastText(hist);
+  saveChats();
+}
+function newChat(charId, personaId) {
+  const p = personas.find(x => x.id === personaId);
+  const chat = { id: uid(), charId, personaId: p?.id || '', personaName: p?.name || '', created: Date.now(), updated: Date.now(), preview: '' };
+  chats.push(chat); store.set('chats', chats);
+  openChat(chat.id);
+}
 function openChat(id) {
-  current = chars.find(c => c.id === id); if (!current) return;
-  history = store.get(chatKey(id), []);
+  const chat = chats.find(x => x.id === id), c = chat && chars.find(x => x.id === chat.charId);
+  if (!c) return;
+  if (cur && cur.chat.id !== id) leaveChat();
+  cur = { chat, c, p: personaOf(chat) };
+  $('profile').classList.remove('open'); // the chat view sits below the profile
+  history = store.get(msgsKey(id), []);
   renderChatHead(); render(); openView('chat');
   if (!history.length) startChat();
 }
+// A chat you never wrote anything in isn't worth keeping
+function leaveChat() {
+  const s = cur; cur = null;
+  if (s && !busy && !history.some(m => m.role === 'user')) deleteChat(s.chat.id);
+}
 function startChat() {
-  if (current.aiFirst) return writeOpening();
-  if (current.firstMessage?.trim()) { history.push({ role: 'assistant', content: fill(current.firstMessage.trim(), current) }); store.set(chatKey(current.id), history); render(); }
+  const { c, p } = cur;
+  if (c.aiFirst) return writeOpening();
+  if (c.firstMessage?.trim()) { history.push({ role: 'assistant', content: fill(c.firstMessage.trim(), c, p) }); saveMsgs(cur.chat, history); render(); }
 }
 function renderChatHead() {
-  $('chatName').textContent = current.name;
-  setThumb($('chatAv'), current);
+  const { chat, c, p } = cur;
+  $('chatName').textContent = c.name;
+  const pn = p?.name || chat.personaName;
+  $('chatAs').textContent = pn ? 'as ' + pn : '';
+  setThumb($('chatAv'), c);
 }
-async function clearChat(id) {
-  for (const m of store.get(chatKey(id), [])) if (m.img) idb.del(m.img).catch(() => {});
-  try { localStorage.removeItem('greenroom.' + chatKey(id)); } catch {}
-  if (current?.id === id) { history = []; render(); }
+function deleteChat(id) {
+  if (cur?.chat.id === id) { cur = null; history = []; $('chat').classList.remove('open'); }
+  for (const m of store.get(msgsKey(id), [])) if (m.img) idb.del(m.img).catch(() => {});
+  try { localStorage.removeItem('greenroom.' + msgsKey(id)); } catch {}
+  chats = chats.filter(x => x.id !== id); saveChats();
 }
 
 // ---------- Views ----------
-function openView(id) { $(id).classList.add('open'); }
+function openView(id) { $(id).classList.add('open'); requestAnimationFrame(() => autosizeAll($(id))); }
 function closeView(id) {
   document.activeElement?.blur(); $(id).classList.remove('open');
-  if (id === 'chat') current = null;
+  if (id === 'chat') leaveChat();
 }
 for (const b of document.querySelectorAll('[data-close]')) b.onclick = () => closeView(b.dataset.close);
+
+// ---------- Bottom sheet ----------
+function showSheet(title, opts) {
+  $('sheetTitle').textContent = title;
+  $('sheetOpts').replaceChildren(...opts.map(o => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'opt';
+    if (o.av !== undefined) { const a = document.createElement('span'); a.className = 'av'; setThumb(a, o.av || { name: '–' }); b.append(a); }
+    b.append(o.label);
+    b.onclick = () => { hideSheet(); o.onClick(); };
+    return b;
+  }));
+  $('sheet').classList.add('open');
+}
+function hideSheet() { $('sheet').classList.remove('open'); }
+$('sheetCancel').onclick = hideSheet;
+$('sheet').onclick = e => { if (e.target === $('sheet')) hideSheet(); };
+
+function charActions(c) {
+  showSheet(c.name, [
+    { label: 'Character profile', onClick: () => openProfile(c.id) },
+    { label: 'Chat', onClick: () => pickPersona(c) },
+  ]);
+}
+function pickPersona(c) {
+  showSheet(`Chat with ${c.name} as…`, [
+    ...personas.map(p => ({ label: p.name, av: p, onClick: () => newChat(c.id, p.id) })),
+    { label: 'No persona', av: null, onClick: () => newChat(c.id, '') },
+  ]);
+}
+
+// ---------- Chats overview ----------
+const expanded = new Set();
+const when = t => {
+  const d = new Date(t), now = new Date();
+  return d.toDateString() === now.toDateString()
+    ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+};
+const trashSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>';
+
+function renderChats() {
+  const list = $('chatList'); list.innerHTML = '';
+  const by = new Map();
+  for (const ch of chats) {
+    if (!ch.preview || !chars.some(c => c.id === ch.charId)) continue;
+    if (!by.has(ch.charId)) by.set(ch.charId, []);
+    by.get(ch.charId).push(ch);
+  }
+  if (!by.size) {
+    const e = document.createElement('div'); e.className = 'list-empty';
+    e.textContent = 'No chats yet. Start one from Characters.';
+    return list.appendChild(e);
+  }
+  const groups = [...by].map(([id, cs]) => [chars.find(c => c.id === id), cs.sort((a, b) => b.updated - a.updated)])
+    .sort((a, b) => b[1][0].updated - a[1][0].updated);
+  for (const [c, cs] of groups) {
+    const g = document.createElement('div'); g.className = 'group' + (expanded.has(c.id) ? ' open' : '');
+    const head = document.createElement('button'); head.type = 'button'; head.className = 'item';
+    const th = document.createElement('div'); th.className = 'thumb sm'; setThumb(th, c);
+    const info = document.createElement('div'); info.className = 'info';
+    const h = document.createElement('h3'); h.textContent = c.name;
+    const names = [...new Set(cs.map(ch => personaOf(ch)?.name || ch.personaName || 'no persona'))];
+    const meta = document.createElement('p'); meta.textContent = `${cs.length} chat${cs.length > 1 ? 's' : ''} · as ${names.join(', ')}`;
+    const chev = document.createElement('span'); chev.className = 'chev';
+    info.append(h, meta); head.append(th, info, chev);
+    head.onclick = () => { expanded.has(c.id) ? expanded.delete(c.id) : expanded.add(c.id); renderChats(); };
+    g.append(head);
+    if (expanded.has(c.id)) {
+      const sub = document.createElement('div'); sub.className = 'sublist';
+      const link = document.createElement('button'); link.type = 'button'; link.className = 'link';
+      link.textContent = 'View character card ›'; link.onclick = () => openProfile(c.id);
+      sub.append(link);
+      for (const ch of cs) {
+        const p = personaOf(ch);
+        const row = document.createElement('div'); row.className = 'crow';
+        const go = document.createElement('button'); go.type = 'button'; go.className = 'go';
+        const av = document.createElement('span'); av.className = 'av'; setThumb(av, p || { name: ch.personaName || '–' });
+        const txt = document.createElement('div');
+        const who = document.createElement('div'); who.className = 'who';
+        const nm = document.createElement('span'); nm.textContent = 'as ' + (p?.name || ch.personaName || 'no persona');
+        const tm = document.createElement('time'); tm.textContent = when(ch.updated);
+        who.append(nm, tm);
+        const snip = document.createElement('div'); snip.className = 'snip'; snip.textContent = ch.preview;
+        txt.append(who, snip); go.append(av, txt);
+        go.onclick = () => openChat(ch.id);
+        const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.innerHTML = trashSvg;
+        del.setAttribute('aria-label', 'Delete chat');
+        del.onclick = () => { if (confirm(`Delete this chat with ${c.name}?`)) deleteChat(ch.id); };
+        row.append(go, del); sub.append(row);
+      }
+      g.append(sub);
+    }
+    list.appendChild(g);
+  }
+}
+
+// ---------- Character profile ----------
+let profileId = null;
+function openProfile(id) {
+  profileId = id; if (!renderProfile()) return;
+  $('profile').querySelector('.page-body').scrollTop = 0;
+  openView('profile');
+}
+function renderProfile() {
+  const c = chars.find(x => x.id === profileId); if (!c) return false;
+  setThumb($('profHero'), c);
+  $('profName').textContent = c.name;
+  const secs = [['Description', c.description], ['Personality', c.personality], ['Scenario', c.scenario],
+    ['First message', c.aiFirst ? 'Written by the AI at the start of every chat.' : c.firstMessage], ['Example dialogue', c.examples]];
+  $('profSecs').replaceChildren(...secs.filter(([, v]) => v?.trim()).map(([t, v]) => {
+    const card = document.createElement('div'); card.className = 'card';
+    const l = document.createElement('div'); l.className = 'f'; l.style.margin = '14px 0 6px'; l.textContent = t;
+    const b = document.createElement('div'); b.className = 'prof-body'; b.textContent = v;
+    card.append(l, b); return card;
+  }));
+  return true;
+}
+$('profHero').onclick = async () => {
+  const c = chars.find(x => x.id === profileId);
+  const src = c?.img && await idb.get(c.img).catch(() => null);
+  if (src) openLightbox(src);
+};
+$('profChat').onclick = () => { const c = chars.find(x => x.id === profileId); if (c) pickPersona(c); };
+$('profEdit').onclick = () => openEditor('char', profileId);
+$('profDelete').onclick = () => {
+  const c = chars.find(x => x.id === profileId); if (!c) return;
+  if (!confirm(`Delete ${c.name}? All chats with ${c.name} are deleted too.`)) return;
+  for (const ch of chats.filter(x => x.charId === c.id)) deleteChat(ch.id);
+  chars.splice(chars.indexOf(c), 1);
+  if (c.img) { idb.del(c.img).catch(() => {}); avatarCache.delete(c.img); }
+  saveChars(); renderList('char'); renderChats();
+  closeView('profile');
+};
+$('chatProfile').onclick = () => cur && openProfile(cur.c.id);
 
 // ---------- Character & persona lists ----------
 const avatarCache = new Map();
@@ -792,10 +1063,9 @@ function renderList(kind) {
     const th = document.createElement('div'); th.className = 'thumb'; setThumb(th, it);
     const info = document.createElement('div'); info.className = 'info';
     const h = document.createElement('h3'); h.textContent = it.name;
-    if (kind === 'persona' && it.id === cfg.activePersona) { const g = document.createElement('span'); g.className = 'badge'; g.textContent = 'Active'; h.appendChild(g); }
     const p = document.createElement('p'); p.textContent = (kind === 'char' ? it.description : it.personality) || '';
     info.append(h, p); b.append(th, info);
-    b.onclick = () => kind === 'char' ? openChat(it.id) : openEditor('persona', it.id);
+    b.onclick = () => kind === 'char' ? charActions(it) : openEditor('persona', it.id);
     list.appendChild(b);
   }
 }
@@ -819,18 +1089,17 @@ function openEditor(kind, id) {
   $('edFirst').value = it?.firstMessage || '';
   $('edAiFirst').checked = !!it?.aiFirst;
   $('edEx').value = it?.examples || '';
-  $('edActive').checked = it ? cfg.activePersona === it.id : !activePersona();
   syncFirst();
+  autosizeAll($('editor'));
   setThumb($('edThumb'), it || { name: '+' }); if (!it) $('edThumb').textContent = '+';
   $('edNoImg').hidden = !it?.img;
-  $('edDelete').hidden = !it;
-  $('edRestart').hidden = !(it && kind === 'char');
+  $('edDelete').hidden = !it || kind === 'char'; // characters are deleted from their profile
   $('editor').querySelector('.page-body').scrollTop = 0;
   openView('editor');
 }
 function syncFirst() {
   const ai = $('edAiFirst').checked;
-  $('edFirst').hidden = ai;
+  $('edFirst').hidden = ai; if (!ai) autosize($('edFirst'));
   $('edFirstHint').textContent = ai
     ? 'Every new chat starts with an opening the AI writes from the personality, scenario and system prompt.'
     : 'Use {{char}} and {{user}} as placeholders.';
@@ -878,64 +1147,60 @@ async function saveEditor() {
   if (edit.kind === 'char') {
     Object.assign(it, { description: $('edDesc').value.trim(), scenario: $('edScen').value.trim(),
       firstMessage: $('edFirst').value.trim(), aiFirst: $('edAiFirst').checked, examples: $('edEx').value.trim() });
-  } else {
-    if ($('edActive').checked) cfg.activePersona = it.id;
-    else if (cfg.activePersona === it.id) cfg.activePersona = '';
-    saveCfg();
   }
   if (edit.img !== undefined) {
     if (it.img) { idb.del(it.img).catch(() => {}); avatarCache.delete(it.img); delete it.img; }
     if (edit.img) { const key = 'av_' + uid(); try { await idb.put(key, edit.img); it.img = key; } catch { toast('Could not store the image'); } }
   }
   edit.kind === 'char' ? saveChars() : savePersonas();
-  renderList(edit.kind);
-  if (current?.id === it.id) renderChatHead();
+  renderList(edit.kind); renderChats();
+  if (edit.kind === 'char' && profileId === it.id) renderProfile();
+  if (cur && (cur.c.id === it.id || cur.p?.id === it.id)) renderChatHead();
   closeView('editor');
 }
 $('edSave').onclick = $('edSave2').onclick = saveEditor;
 
-$('edDelete').onclick = async () => {
-  const items = edItems(), it = items.find(x => x.id === edit.id); if (!it) return;
-  if (!confirm(`Delete ${it.name}?` + (edit.kind === 'char' ? ' Their chat is deleted too.' : ''))) return;
-  items.splice(items.indexOf(it), 1);
+$('edDelete').onclick = () => {
+  const it = personas.find(x => x.id === edit.id); if (!it || edit.kind !== 'persona') return;
+  if (!confirm(`Delete ${it.name}? Chats with this persona are kept.`)) return;
+  personas.splice(personas.indexOf(it), 1);
   if (it.img) { idb.del(it.img).catch(() => {}); avatarCache.delete(it.img); }
-  if (edit.kind === 'char') { await clearChat(it.id); saveChars(); if (current?.id === it.id) closeView('chat'); }
-  else { if (cfg.activePersona === it.id) { cfg.activePersona = ''; saveCfg(); } savePersonas(); }
-  renderList(edit.kind);
+  savePersonas(); renderList('persona'); renderChats();
   closeView('editor');
-};
-$('edRestart').onclick = async () => {
-  const it = chars.find(x => x.id === edit.id); if (!it) return;
-  if (!confirm(`Restart the chat with ${it.name}? All messages are deleted.`)) return;
-  await clearChat(it.id);
-  closeView('editor');
-  if (current?.id === it.id) startChat();
-  toast('Chat restarted');
 };
 
 $('newChar').onclick = () => openEditor('char');
 $('newPersona').onclick = () => openEditor('persona');
-$('editChar').onclick = () => current && openEditor('char', current.id);
+$('goChats').onclick = () => { renderChats(); openView('chats'); };
 $('goChars').onclick = () => openView('chars');
 $('goPersonas').onclick = () => openView('personas');
 $('goSettings').onclick = () => openSettings();
 
 // ---------- Settings page ----------
-let fontTarget = 'aiFont';
+// The text-style controls edit either the AI's or the user's text; user keys are stored with a u_ prefix
+const STYLE_KEYS = ['fs', 'fw', 'lh', 'ls', 'italic', 'underline', 'glow', 'colorMode', 'c1', 'c2', 'angle', 'qOn', 'qColor'];
+const QUOTE_COLORS = ['#e8a33d', '#f2c94c', '#ff7a59', '#eb5757', '#bb6bd9', '#56ccf2', '#27ae60', '#9aa0a6'];
+let styleTarget = 'ai';
+const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
+const fontKey = () => styleTarget === 'me' ? 'meFont' : 'aiFont';
 
 function syncControls() {
   for (const el of document.querySelectorAll('#settings [data-k]')) {
-    const k = el.dataset.k, v = cfg[k];
+    const k = el.dataset.k, v = cfg[sk(k)];
     if (el.classList.contains('seg')) for (const b of el.children) b.classList.toggle('on', b.dataset.v === v);
     else if (el.type === 'checkbox') el.checked = !!v;
     else if (el.type === 'color') el.value = k === 'accent' ? (v || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#d9553b') : v;
     else if (document.activeElement !== el) el.value = v;
   }
-  const outs = { fs: cfg.fs + 'px', fw: cfg.fw, lh: (+cfg.lh).toFixed(2), ls: (+cfg.ls).toFixed(2) + 'em', angle: cfg.angle + '°' };
+  const g = k => cfg[sk(k)];
+  const outs = { fs: g('fs') + 'px', fw: g('fw'), lh: (+g('lh')).toFixed(2), ls: (+g('ls')).toFixed(2) + 'em', angle: g('angle') + '°' };
   for (const o of document.querySelectorAll('[data-out]')) o.textContent = outs[o.dataset.out];
-  for (const b of $('fonts').children) b.classList.toggle('on', b.dataset.font === cfg[fontTarget]);
-  $('colorControls').hidden = cfg.colorMode === 'theme';
-  for (const g of document.querySelectorAll('[data-grad]')) g.hidden = cfg.colorMode !== 'gradient';
+  for (const b of $('fonts').children) b.classList.toggle('on', b.dataset.font === cfg[fontKey()]);
+  $('colorControls').hidden = g('colorMode') === 'theme';
+  for (const el of document.querySelectorAll('[data-grad]')) el.hidden = g('colorMode') !== 'gradient';
+  for (const el of document.querySelectorAll('[data-q]')) el.hidden = !g('qOn');
+  $('gradbar').style.background = `linear-gradient(90deg, ${g('c1')}, ${g('c2')})`;
+  for (const t of document.querySelectorAll('#settings .tgt')) t.textContent = styleTarget === 'me' ? '· you' : '· AI';
 }
 
 function update(k, v) {
@@ -948,33 +1213,40 @@ function buildSettings() {
   for (const name of Object.keys(FONTS)) {
     const b = document.createElement('button');
     b.type = 'button'; b.dataset.font = name; b.textContent = name; b.style.fontFamily = FONTS[name].css;
-    b.onclick = () => update(fontTarget, name);
+    b.onclick = () => update(fontKey(), name);
     $('fonts').appendChild(b);
   }
   // gradient presets
   for (const [a, c, ang] of GRADIENTS) {
     const b = document.createElement('button');
     b.type = 'button'; b.style.background = `linear-gradient(${ang}deg, ${a}, ${c})`; b.setAttribute('aria-label', 'Gradient preset');
-    b.onclick = () => { cfg.c1 = a; cfg.c2 = c; update('angle', ang); };
+    b.onclick = () => { cfg[sk('c1')] = a; cfg[sk('c2')] = c; update(sk('angle'), ang); };
     $('presets').appendChild(b);
+  }
+  for (const col of QUOTE_COLORS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.style.background = col; b.setAttribute('aria-label', 'Quote color ' + col);
+    b.onclick = () => update(sk('qColor'), col);
+    $('qPresets').appendChild(b);
   }
   // generic bindings
   for (const el of document.querySelectorAll('#settings [data-k]')) {
     const k = el.dataset.k;
-    if (el.classList.contains('seg')) el.onclick = e => { const v = e.target.dataset?.v; if (v) update(k, v); };
-    else if (el.type === 'checkbox') el.onchange = () => update(k, el.checked);
-    else if (el.type === 'range') el.oninput = () => update(k, Number(el.value));
-    else el.oninput = () => update(k, el.type === 'color' ? el.value : el.value);
+    if (el.classList.contains('seg')) el.onclick = e => { const v = e.target.dataset?.v; if (v) update(sk(k), v); };
+    else if (el.type === 'checkbox') el.onchange = () => update(sk(k), el.checked);
+    else if (el.type === 'range') el.oninput = () => update(sk(k), Number(el.value));
+    else el.oninput = () => update(sk(k), el.value);
   }
   for (const k of ['proxyUrl', 'apiKey', 'model', 'imgUrl', 'imgKey', 'imgModel'])
     $(k).addEventListener('change', () => update(k, $(k).value.trim()));
 
-  $('fontTarget').onclick = e => {
+  $('styleTarget').onclick = e => {
     const v = e.target.dataset?.v; if (!v) return;
-    fontTarget = v;
-    for (const b of $('fontTarget').children) b.classList.toggle('on', b.dataset.v === v);
+    styleTarget = v;
+    for (const b of $('styleTarget').children) b.classList.toggle('on', b.dataset.v === v);
     syncControls();
   };
+  for (const t of document.querySelectorAll('#preview [data-rich]')) rich(t, t.textContent);
   $('accentReset').onclick = () => update('accent', '');
   $('resetLook').onclick = () => { if (confirm('Reset all customization?')) { Object.assign(cfg, LOOK_DEFAULTS); update('theme', cfg.theme); } };
 }
@@ -985,7 +1257,7 @@ function initFolds() {
   for (const d of document.querySelectorAll('#settings details[data-sec]')) {
     const k = d.dataset.sec;
     d.open = k in saved ? saved[k] : (k === 'proxy' && !(cfg.proxyUrl && cfg.model));
-    d.addEventListener('toggle', () => { const f = store.get('folds', {}); f[k] = d.open; store.set('folds', f); });
+    d.addEventListener('toggle', () => { const f = store.get('folds', {}); f[k] = d.open; store.set('folds', f); if (d.open) autosizeAll(d); });
   }
 }
 
@@ -998,6 +1270,7 @@ function openSettings() {
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (lb.classList.contains('open')) return closeLightbox();
+  if ($('sheet').classList.contains('open')) return hideSheet();
   const top = [...document.querySelectorAll('.view.open')].pop();
   if (top) closeView(top.id);
 });
@@ -1010,6 +1283,51 @@ document.addEventListener('pointerdown', e => {
   a.blur();
 }, true);
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+
+// ---------- Text fields grow to show everything ----------
+function autosize(t) {
+  if (!t.offsetParent) return; // hidden; sized when shown
+  t.style.height = 'auto';
+  t.style.height = (t.scrollHeight + 2) + 'px';
+}
+function autosizeAll(root) { for (const t of root.querySelectorAll('.card textarea')) autosize(t); }
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.matches?.('.card textarea')) { autosize(t); if (t.selectionEnd === t.value.length) reveal(t, true); }
+});
+
+// ---------- Keyboard: views end above it, the focused field is scrolled into sight ----------
+function reveal(el, caretAtEnd) {
+  if (!el?.matches?.('input, textarea')) return;
+  const box = el.closest('.page-body, main'); if (!box) return;
+  const r = el.getBoundingClientRect(), b = box.getBoundingClientRect(), pad = 16;
+  if (r.bottom <= b.bottom - pad && r.top >= b.top + pad) return;
+  if (caretAtEnd || r.height > b.height - 2 * pad && el.selectionEnd === el.value.length) {
+    if (r.bottom > b.bottom - pad) box.scrollTop += r.bottom - b.bottom + pad;
+  } else if (r.bottom > b.bottom - pad) box.scrollTop += Math.min(r.bottom - b.bottom + pad, r.top - b.top - pad);
+  else box.scrollTop -= b.top + pad - r.top;
+}
+function setKb(h) {
+  h = Math.max(0, Math.round(h || 0));
+  document.documentElement.style.setProperty('--kb', h + 'px');
+  document.body.classList.toggle('kb-open', h > 0);
+  if (h > 0) setTimeout(() => {
+    const a = document.activeElement;
+    if (a?.id === 'input') scrollDown(); else reveal(a);
+  }, 80);
+}
+document.addEventListener('focusin', () => setTimeout(() => {
+  const a = document.activeElement; if (a?.id !== 'input') reveal(a);
+}, 350));
+const KB = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.Keyboard;
+if (KB?.addListener) {
+  KB.addListener('keyboardWillShow', i => setKb(i.keyboardHeight));
+  KB.addListener('keyboardWillHide', () => setKb(0));
+} else if (window.visualViewport) {
+  const vv = visualViewport;
+  const f = () => setKb(innerHeight - vv.height - vv.offsetTop);
+  vv.addEventListener('resize', f); vv.addEventListener('scroll', f);
+}
 // ---------- Image viewer: pinch / pan / double-tap zoom ----------
 const lb = $('lightbox'), lbImg = lb.querySelector('img');
 const Z = { s: 1, tx: 0, ty: 0 };
@@ -1152,11 +1470,29 @@ $('composer').onsubmit = e => {
 };
 
 // ---------- Boot ----------
+// Earlier versions kept one chat per character under chat.<characterId> and had one "active" persona
+(function migrate() {
+  let moved = false;
+  for (const c of chars) {
+    const old = store.get('chat.' + c.id, null);
+    if (!old) continue;
+    if (old.length) {
+      const p = personas.find(x => x.id === cfg.activePersona);
+      const ch = { id: uid(), charId: c.id, personaId: p?.id || '', personaName: p?.name || '', created: Date.now(), updated: Date.now(), preview: lastText(old) };
+      chats.push(ch); store.set(msgsKey(ch.id), old);
+    }
+    try { localStorage.removeItem('greenroom.chat.' + c.id); } catch {}
+    moved = true;
+  }
+  if (moved) store.set('chats', chats);
+  if ('activePersona' in cfg) { delete cfg.activePersona; saveCfg(); }
+})();
 buildSettings();
 initFolds();
 applyLook();
 renderList('char');
 renderList('persona');
+renderChats();
 document.addEventListener('deviceready', matchNative);
 setTimeout(matchNative, 300);
 </script>
