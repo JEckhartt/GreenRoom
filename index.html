@@ -198,8 +198,21 @@
   #lbCount { pointer-events: none; color: #fff; font-size: 14px; align-self: center; opacity: .8; }
 
   /* ---------- Message menu / editing ---------- */
-  .msg.me { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-  .msg.me.held { transform: scale(.97); transition: transform .15s; }
+  .msg.me, .msg.ai { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .msg.held { transform: scale(.97); transition: transform .15s; }
+  .msg.me .txt:empty { display: none; }
+  .msg.me figure.gen { margin: 0; }
+  .msg.me .txt:not(:empty) + figure.gen { margin-top: 8px; }
+  .msg.me figure.gen img { max-width: min(100%, 260px); }
+  #attachBar { max-width: 760px; width: 100%; margin: 0 auto; padding: 8px 16px 0; display: flex; }
+  #attachBar .pv { position: relative; width: 64px; height: 64px; border-radius: 12px; background: var(--accent-soft) center / cover no-repeat; border: 1px solid var(--line); }
+  #attachBar button { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: rgba(30,30,30,.85); color: #fff; font-size: 12px; cursor: pointer; }
+  #attach { height: 46px; min-width: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--field); color: var(--ink-soft); cursor: pointer; display: grid; place-items: center; }
+  #attach.has { color: var(--accent); border-color: var(--accent); }
+  details.edf { border-top: 1px solid var(--line); margin-top: 14px; }
+  details.edf > summary { padding: 14px 0 0; font-size: 13px; color: var(--ink-soft); font-weight: 500; }
+  details.edf[open] > summary { padding-bottom: 8px; }
+  details.edf:not([open]) { padding-bottom: 4px; }
   #msgMenu { position: fixed; z-index: 32; display: flex; gap: 2px; padding: 4px; border-radius: 14px; background: rgba(30,30,30,.92);
     box-shadow: 0 8px 24px -8px rgba(0,0,0,.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
   #msgMenu button { border: 0; background: none; color: #fff; font-size: 15px; padding: 9px 14px; border-radius: 10px; cursor: pointer; }
@@ -400,13 +413,23 @@
     <button class="act" id="chatProfile" type="button">Profile</button>
   </div>
   <main id="scroller"><div id="log"></div></main>
+  <div id="attachBar" hidden><div class="pv" id="attachPv"><button type="button" id="attachRm" aria-label="Remove image">✕</button></div></div>
   <form id="composer">
+    <button id="attach" type="button" aria-label="Add an image"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+    <input type="file" id="attachFile" accept="image/*" hidden>
     <textarea id="input" rows="1" placeholder="Say something…" autocomplete="off"></textarea>
     <button id="send" type="submit" aria-label="Send">↑</button>
   </form>
 </section>
 
-<div id="msgMenu" hidden><button type="button" data-act="edit">Edit</button><button type="button" data-act="resend">Resend</button><button type="button" data-act="copy">Copy</button></div>
+<div id="msgMenu" hidden></div>
+
+<section id="chatimgs" class="view" aria-label="Images in this chat">
+  <div class="page-head"><button class="back" data-close="chatimgs" type="button">‹ Chat</button><h1>Images in this chat</h1><span></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <div class="grid" id="chatImgGrid"></div>
+  </div></div>
+</section>
 
 <section id="chatset" class="view" aria-label="Chat settings">
   <div class="page-head"><button class="back" data-close="chatset" type="button">‹ Chat</button><h1>Chat settings</h1><span></span></div>
@@ -463,28 +486,34 @@
         <div class="hint">Used in chats instead of the name above, and for {{char}}.</div>
       </div>
 
-      <div data-for="char">
-        <label class="f" for="edDesc">Description</label>
+      <details class="edf" data-for="char" data-f="desc" open>
+        <summary>Description</summary>
         <textarea id="edDesc" placeholder="Shown on the character list. Not sent to the AI."></textarea>
-      </div>
+      </details>
 
-      <label class="f" for="edPers">Personality</label>
-      <textarea id="edPers"></textarea>
+      <details class="edf" data-f="pers" open>
+        <summary>Personality</summary>
+        <textarea id="edPers"></textarea>
+      </details>
 
-      <div data-for="char">
-        <label class="f" for="edScen">Scenario <span style="font-weight:400">(optional)</span></label>
+      <details class="edf" data-for="char" data-f="scen" open>
+        <summary>Scenario <span style="font-weight:400">(optional)</span></summary>
         <textarea id="edScen" placeholder="Where and how does the story start?"></textarea>
+      </details>
 
-        <label class="f" for="edFirst">First message</label>
-        <div class="line tight"><span>Let the AI write the first message</span><input type="checkbox" class="tgl" id="edAiFirst"></div>
+      <details class="edf" data-for="char" data-f="first" open>
+        <summary>First message</summary>
+        <div class="line tight" style="padding-top:0"><span>Let the AI write the first message</span><input type="checkbox" class="tgl" id="edAiFirst"></div>
         <div class="tabs" id="edTabs"></div>
         <textarea id="edFirst" style="margin-top:10px" placeholder="The character's opening line."></textarea>
         <div class="hint" id="edFirstHint">Use {{char}} and {{user}} as placeholders.</div>
+      </details>
 
-        <label class="f" for="edEx">Example dialogue <span style="font-weight:400">(optional)</span></label>
+      <details class="edf" data-for="char" data-f="ex" open>
+        <summary>Example dialogue <span style="font-weight:400">(optional)</span></summary>
         <textarea id="edEx" placeholder="{{user}}: Hi.&#10;{{char}}: …"></textarea>
         <div class="hint">Shows the AI how the character talks. Not part of the conversation.</div>
-      </div>
+      </details>
     </div>
     <div class="save-bar"><button class="btn primary" type="button" id="edSave2">Save</button></div>
     <div class="actions">
@@ -604,8 +633,6 @@
       <input type="range" data-k="lh" min="1.2" max="2.2" step="0.05">
       <div class="line"><span>Letter spacing</span><output data-out="ls"></output></div>
       <input type="range" data-k="ls" min="-0.03" max="0.12" step="0.01">
-      <div class="line"><span>Italic</span><input type="checkbox" class="tgl" data-k="italic"></div>
-      <div class="line"><span>Underlined</span><input type="checkbox" class="tgl" data-k="underline"></div>
       <div class="line"><span>Glow</span><input type="checkbox" class="tgl" data-k="glow"></div>
     </details>
 
@@ -820,8 +847,6 @@ function applyLook() {
   s.setProperty('--fw', L.fw);
   s.setProperty('--lh', L.lh);
   s.setProperty('--ls', L.ls + 'em');
-  s.setProperty('--fst', L.italic ? 'italic' : 'normal');
-  s.setProperty('--deco', L.underline ? 'underline' : 'none');
   s.setProperty('--c1', L.c1); s.setProperty('--c2', L.c2); s.setProperty('--angle', L.angle + 'deg');
   if (L.colorMode === 'theme') s.removeProperty('--glowc'); else s.setProperty('--glowc', L.c1);
   document.body.dataset.color = L.colorMode;
@@ -831,8 +856,6 @@ function applyLook() {
   s.setProperty('--u-fw', L.u_fw);
   s.setProperty('--u-lh', L.u_lh);
   s.setProperty('--u-ls', L.u_ls + 'em');
-  s.setProperty('--u-fst', L.u_italic ? 'italic' : 'normal');
-  s.setProperty('--u-deco', L.u_underline ? 'underline' : 'none');
   s.setProperty('--u-c1', L.u_c1); s.setProperty('--u-c2', L.u_c2); s.setProperty('--u-angle', L.u_angle + 'deg');
   if (L.u_colorMode === 'theme') s.removeProperty('--u-glowc'); else s.setProperty('--u-glowc', L.u_c1);
   s.setProperty('--q', L.qColor); s.setProperty('--u-q', L.u_qColor);
@@ -876,8 +899,20 @@ function systemFor(c, p, memory) {
   return parts.filter(Boolean).join('\n\n');
 }
 
-function buildMessages(c, p, hist, memory) {
-  const msgs = hist.map(m => ({ role: m.role, content: m.imgPrompt ? `${m.content}\n[[image: ${m.imgPrompt}]]` : m.content }));
+// User images are sent as image content (the model must be able to see images); only the
+// last few are sent in full to keep requests small, older ones become a short note.
+const SEND_IMAGES = 4;
+async function buildMessages(c, p, hist, memory) {
+  const withImg = hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES);
+  const msgs = [];
+  for (const m of hist) {
+    if (m.role === 'user' && m.img) {
+      const src = withImg.includes(m) ? await idb.get(m.img).catch(() => null) : null;
+      msgs.push({ role: 'user', content: src
+        ? [{ type: 'image_url', image_url: { url: src } }, { type: 'text', text: m.content || '(image)' }]
+        : `${m.content}\n[an image was attached here]`.trim() });
+    } else msgs.push({ role: m.role, content: m.imgPrompt ? `${m.content}\n[[image: ${m.imgPrompt}]]` : m.content });
+  }
   return [{ role: 'system', content: systemFor(c, p, memory) }, ...msgs];
 }
 
@@ -1141,6 +1176,7 @@ async function aiTurn(s, hist, messages, bubble) {
   const msg = { role: 'assistant', content: visible(reply, true) };
   setText(bubble, msg.content);
   hist.push(msg); saveMsgs(s.chat, hist);
+  bubble.dataset.i = hist.indexOf(msg);
   if (!imgPrompt) return;
   const fig = addFigure(bubble);
   if (!imageEnabled()) { fig.remove(); if (here()) addBubble('err', 'Image requested, but no image proxy is set up in Settings.'); return; }
@@ -1154,45 +1190,61 @@ async function aiTurn(s, hist, messages, bubble) {
   } catch (e) { fig.remove(); if (here()) addBubble('err', 'Image failed: ' + e.message); }
 }
 
-async function send(text) {
+async function send(text, img) {
   if (!ready()) return;
   const s = cur, hist = history;
   setBusy(true);
-  hist.push({ role: 'user', content: text }); saveMsgs(s.chat, hist);
+  const msg = { role: 'user', content: text };
+  if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); }
+  hist.push(msg); saveMsgs(s.chat, hist);
   $('log').querySelector('.gnav')?.remove();
-  addBubble('me', text).dataset.i = hist.length - 1;
+  const mine = addBubble('me', text); mine.dataset.i = hist.length - 1;
+  if (msg.img) showImage(addFigure(mine), img);
   const bubble = addBubble('ai', '');
-  try { await aiTurn(s, hist, buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
+  try { await aiTurn(s, hist, await buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
   catch (e) {
     if (!bubble.textContent) { bubble.remove(); hist.pop(); saveMsgs(s.chat, hist); }
     if (cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message);
   } finally { setBusy(false); }
 }
 
-// ---------- Long press on your own message: Edit / Resend / Copy ----------
+// ---------- Long press on a message ----------
+// Yours: Edit / Resend / Copy / Delete. The character's: Copy / Delete, plus "Write another" on the
+// first message and "Regenerate" on the last reply.
 let menuFor = null;
 function hideMsgMenu() { $('msgMenu').hidden = true; menuFor?.classList.remove('held'); menuFor = null; }
 function showMsgMenu(el) {
+  const i = +el.dataset.i, m = history[i]; if (!m) return;
   hideMsgMenu();
+  const acts = m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], ['delete', 'Delete']]
+    : [...(i === 0 ? [['rewrite', 'Write another']] : []),
+       ...(i > 0 && i === history.length - 1 && history[i - 1]?.role === 'user' ? [['regen', 'Regenerate']] : []),
+       ['copy', 'Copy'], ['delete', 'Delete']];
+  const box = $('msgMenu'); box.innerHTML = '';
+  for (const [a, label] of acts) {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.textContent = label;
+    if (busy && a !== 'copy') b.disabled = true;
+    box.append(b);
+  }
   menuFor = el; el.classList.add('held'); navigator.vibrate?.(12);
-  const m = $('msgMenu'); m.hidden = false;
-  const r = el.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
-  const top = r.top - h - 8 > 60 ? r.top - h - 8 : r.bottom + 8;
-  m.style.top = top + 'px';
-  m.style.left = Math.max(12, Math.min(innerWidth - w - 12, r.right - w)) + 'px';
-  m.querySelector('[data-act=resend]').disabled = m.querySelector('[data-act=edit]').disabled = busy;
+  box.hidden = false;
+  const r = el.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
+  box.style.top = (r.top - h - 8 > 60 ? r.top - h - 8 : Math.min(r.bottom + 8, innerHeight - h - 12)) + 'px';
+  const x = m.role === 'user' ? r.right - w : r.left;
+  box.style.left = Math.max(12, Math.min(innerWidth - w - 12, x)) + 'px';
 }
 (() => {
   let timer = null, x0 = 0, y0 = 0;
   const log = $('log');
   log.addEventListener('pointerdown', e => {
-    const el = e.target.closest('.msg.me'); if (!el || el.classList.contains('editing')) return;
+    if (e.target.closest('button, a, img, .gnav')) return;
+    const el = e.target.closest('.msg.me, .msg.ai'); if (!el || el.dataset.i === undefined || el.classList.contains('editing')) return;
     x0 = e.clientX; y0 = e.clientY;
     timer = setTimeout(() => showMsgMenu(el), 480);
   });
   log.addEventListener('pointermove', e => { if (timer && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) { clearTimeout(timer); timer = null; } });
   for (const ev of ['pointerup', 'pointercancel']) log.addEventListener(ev, () => { clearTimeout(timer); timer = null; });
-  log.addEventListener('contextmenu', e => { if (e.target.closest('.msg.me')) e.preventDefault(); });
+  log.addEventListener('contextmenu', e => { if (e.target.closest('.msg')) e.preventDefault(); });
   document.addEventListener('pointerdown', e => { if (menuFor && !e.target.closest('#msgMenu')) hideMsgMenu(); }, true);
   $('scroller').addEventListener('scroll', () => menuFor && hideMsgMenu(), { passive: true });
 })();
@@ -1203,7 +1255,25 @@ $('msgMenu').onclick = e => {
   if (act === 'copy') navigator.clipboard?.writeText(m.content).then(() => toast('Copied'), () => toast('Could not copy'));
   if (act === 'resend') resendFrom(i, m.content);
   if (act === 'edit') editMessage(el, i);
+  if (act === 'regen') resendFrom(i - 1, history[i - 1].content);
+  if (act === 'delete') deleteMessage(i);
+  if (act === 'rewrite') rewriteOpening();
 };
+function deleteMessage(i) {
+  if (busy || !confirm('Delete this message?')) return;
+  const [m] = history.splice(i, 1);
+  if (m?.img) idb.del(m.img).catch(() => {});
+  saveMsgs(cur.chat, history); render();
+}
+// The AI writes a new first message (everything after it goes)
+async function rewriteOpening() {
+  if (busy || !ready()) return;
+  const later = history.length - 1;
+  if (later > 0 && !confirm(`Write a new first message? The ${later} message${later === 1 ? '' : 's'} after it will be removed.`)) return;
+  for (const m of history.splice(0)) if (m.img) idb.del(m.img).catch(() => {});
+  saveMsgs(cur.chat, history);
+  await writeOpening();
+}
 function editMessage(el, i) {
   el.classList.add('editing'); el.textContent = '';
   const t = document.createElement('textarea'); t.value = history[i].content;
@@ -1227,7 +1297,7 @@ async function resendFrom(i, text) {
   saveMsgs(s.chat, hist); render(); scrollDown();
   setBusy(true);
   const bubble = addBubble('ai', '');
-  try { await aiTurn(s, hist, buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
+  try { await aiTurn(s, hist, await buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
   catch (e) { bubble.remove(); if (cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message); }
   finally { setBusy(false); }
 }
@@ -1238,7 +1308,7 @@ async function writeOpening() {
   setBusy(true); render();
   const bubble = addBubble('ai', '');
   const ask = `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.]`;
-  try { await aiTurn(s, hist, [...buildMessages(c, p, [], s.chat.memory), { role: 'user', content: ask }], bubble); }
+  try { await aiTurn(s, hist, [...await buildMessages(c, p, [], s.chat.memory), { role: 'user', content: ask }], bubble); }
   catch (e) { bubble.remove(); if (cur?.chat.id === s.chat.id) { render(); addBubble('err', 'Could not write an opening: ' + e.message); } }
   finally { setBusy(false); }
 }
@@ -1296,7 +1366,7 @@ function deleteChat(id) {
 function openView(id) { $(id).classList.add('open'); requestAnimationFrame(() => autosizeAll($(id))); }
 function closeView(id) {
   document.activeElement?.blur(); $(id).classList.remove('open');
-  if (id === 'chat') leaveChat();
+  if (id === 'chat') { leaveChat(); setAttached(null); }
   if (id === 'settings') applyLook();
   if (id === 'chars' || id === 'personas') { endSelect(); closeSwipe(); }
   if (id === 'albums') closeSwipe();
@@ -1388,7 +1458,7 @@ function renderChats() {
         who.append(nm, tm);
         const snip = document.createElement('div'); snip.className = 'snip'; snip.textContent = stripMd(ch.preview);
         txt.append(who, snip); go.append(av, txt);
-        go.onclick = () => openChat(ch.id);
+        pressable(go, () => openChat(ch.id), () => { navigator.vibrate?.(12); chatMenu(ch, c); });
         const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.innerHTML = trashSvg;
         del.setAttribute('aria-label', 'Delete chat');
         del.onclick = () => { if (confirm(`Delete this chat with ${c.name}?`)) deleteChat(ch.id); };
@@ -1398,6 +1468,33 @@ function renderChats() {
     }
     list.appendChild(g);
   }
+}
+
+function chatMenu(ch, c) {
+  const pn = personaOf(ch)?.name || ch.personaName || 'User';
+  showSheet(`Chat with ${cn(c)} as ${pn}`, [
+    { label: 'Export chat as text', onClick: () => exportChat(ch, c, 'txt') },
+    { label: 'Export chat for SillyTavern (.jsonl)', onClick: () => exportChat(ch, c, 'jsonl') },
+    { label: 'Delete chat', onClick: () => { if (confirm(`Delete this chat with ${c.name}?`)) deleteChat(ch.id); } },
+  ]);
+}
+async function exportChat(ch, c, fmt) {
+  const msgs = store.get(msgsKey(ch.id), []), pn = personaOf(ch)?.name || ch.personaName || 'User', who = cn(c);
+  const stamp = new Date(ch.updated || Date.now()).toISOString().slice(0, 10);
+  const base = `${who} - ${pn} - ${stamp}`.replace(/[^\p{L}\p{N} ._-]/gu, '').trim();
+  let blob;
+  if (fmt === 'txt') {
+    const lines = [`Chat with ${who} as ${pn}`, `Exported ${new Date().toLocaleString()}`, ''];
+    for (const m of msgs) lines.push(`${m.role === 'user' ? pn : who}:`, (m.content || '') + (m.img ? '\n[image]' : ''), '');
+    blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  } else {
+    const t = d => new Date(d).toISOString();
+    const rows = [{ user_name: pn, character_name: who, create_date: t(ch.created || Date.now()), chat_metadata: {} },
+      ...msgs.map(m => ({ name: m.role === 'user' ? pn : who, is_user: m.role === 'user', is_system: false, send_date: t(ch.updated || Date.now()), mes: m.content || '' }))];
+    blob = new Blob([rows.map(r => JSON.stringify(r)).join('\n')], { type: 'application/jsonl' });
+  }
+  try { await shareFile(`${base}.${fmt}`, blob); }
+  catch (e) { if (!(e?.name === 'AbortError' || /cancel/i.test(e?.message || ''))) toast('Export failed: ' + (e?.message || e)); }
 }
 
 // ---------- Character profile ----------
@@ -1698,6 +1795,7 @@ function syncFirst() {
     : 'Use {{char}} and {{user}} as placeholders.';
 }
 $('edAiFirst').onchange = syncFirst;
+for (const d of document.querySelectorAll('#editor details.edf')) d.addEventListener('toggle', () => { if (d.open) autosizeAll(d); });
 
 // Downscale uploads so they fit comfortably in storage
 function readImage(file, max = 1024) {
@@ -2030,7 +2128,7 @@ function pickAlbum(from, ids, move) {
 }
 async function openGallery(ids, i) {
   const src = await idb.get('alb_' + ids[i]).catch(() => null);
-  if (src) openLightbox(src, { ids, i });
+  if (src) openLightbox(src, { keys: ids.map(id => 'alb_' + id), i, album: true });
 }
 async function copyText(t, msg = 'Link copied') {
   try { await navigator.clipboard.writeText(t); toast(msg); }
@@ -2075,7 +2173,7 @@ function setLookCtx(ctx) {
 
 // ---------- Settings page ----------
 // The text-style controls edit either the AI's or the user's text; user keys are stored with a u_ prefix
-const STYLE_KEYS = ['fs', 'fw', 'lh', 'ls', 'italic', 'underline', 'glow', 'colorMode', 'c1', 'c2', 'angle', 'qOn', 'qColor'];
+const STYLE_KEYS = ['fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', 'qOn', 'qColor'];
 const QUOTE_COLORS = ['#e8a33d', '#f2c94c', '#ff7a59', '#eb5757', '#bb6bd9', '#56ccf2', '#27ae60', '#9aa0a6'];
 let styleTarget = 'ai';
 const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
@@ -2211,6 +2309,30 @@ document.addEventListener('pointerdown', e => {
 }, true);
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
 
+// ---------- Swipe right-to-left in a chat: all images in it ----------
+function openChatImages() {
+  const keys = history.filter(m => m.img).map(m => m.img);
+  const grid = $('chatImgGrid'); grid.innerHTML = '';
+  if (!keys.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.style.gridColumn = '1 / -1'; e.textContent = 'No images in this chat yet.'; grid.append(e); }
+  keys.forEach((k, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Image ' + (i + 1));
+    idb.get(k).then(src => { if (src) b.style.backgroundImage = `url("${src}")`; }).catch(() => {});
+    b.onclick = async () => { const src = await idb.get(k).catch(() => null); if (src) openLightbox(src, { keys, i }); };
+    grid.append(b);
+  });
+  openView('chatimgs');
+}
+(() => {
+  let x0 = 0, y0 = 0, on = false;
+  const sc = $('scroller');
+  sc.addEventListener('touchstart', e => { on = e.touches.length === 1 && e.touches[0].clientX > 28; if (on) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; } }, { passive: true });
+  sc.addEventListener('touchend', e => {
+    if (!on) return; on = false;
+    const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+    if (dx < -80 && Math.abs(dx) > Math.abs(dy) * 1.5 && !menuFor) openChatImages();
+  });
+})();
+
 // ---------- Swipe from the left edge to go back ----------
 (() => {
   let v = null, x0 = 0, y0 = 0, dx = 0, t0 = 0, active = false;
@@ -2316,18 +2438,18 @@ function zClamp() {
 }
 let lbGal = null; // { ids, i } when viewing an album
 function lbMeta() {
-  $('lbLink').hidden = !lbGal;
-  $('lbCount').textContent = lbGal && lbGal.ids.length > 1 ? `${lbGal.i + 1} / ${lbGal.ids.length}` : '';
+  $('lbLink').hidden = !lbGal?.album;
+  $('lbCount').textContent = lbGal && lbGal.keys.length > 1 ? `${lbGal.i + 1} / ${lbGal.keys.length}` : '';
 }
 async function lbStep(d) {
   const n = lbGal.i + d;
-  if (n < 0 || n >= lbGal.ids.length) { zApply(true); return; }
-  const src = await idb.get('alb_' + lbGal.ids[n]).catch(() => null); if (!src) return zApply(true);
+  if (n < 0 || n >= lbGal.keys.length) { zApply(true); return; }
+  const src = await idb.get(lbGal.keys[n]).catch(() => null); if (!src) return zApply(true);
   lbGal.i = n; lbImg.src = src; Z.s = 1; Z.tx = 0; Z.ty = 0; zApply(false); lbMeta();
 }
-$('lbLink').onclick = () => lbGal && copyText(imgLink(lbGal.ids[lbGal.i]));
+$('lbLink').onclick = () => lbGal?.album && copyText(imgLink(lbGal.keys[lbGal.i].replace(/^alb_/, '')));
 function openLightbox(src, gal = null) {
-  lbGal = gal ? { ids: [...gal.ids], i: gal.i } : null; lbMeta();
+  lbGal = gal ? { keys: [...gal.keys], i: gal.i, album: !!gal.album } : null; lbMeta();
   lbImg.src = src; Z.s = 1; Z.tx = 0; Z.ty = 0; zApply(false);
   lb.classList.add('open');
 }
@@ -2442,12 +2564,26 @@ async function saveImage(src) {
 const input = $('input');
 input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 180) + 'px'; });
 input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('composer').requestSubmit(); } });
+let attached = null; // data URL of the image waiting to be sent
+function setAttached(src) {
+  attached = src;
+  $('attachBar').hidden = !src; $('attach').classList.toggle('has', !!src);
+  $('attachPv').style.backgroundImage = src ? `url("${src}")` : '';
+}
+$('attach').onclick = () => $('attachFile').click();
+$('attachFile').onchange = async () => {
+  const f = $('attachFile').files[0]; $('attachFile').value = '';
+  if (!f) return;
+  try { setAttached(await readImage(f, 1280)); } catch (e) { toast(e.message); }
+};
+$('attachRm').onclick = () => setAttached(null);
 $('composer').onsubmit = e => {
   e.preventDefault();
   const t = input.value.trim();
-  if (!t || busy) return;
-  input.value = ''; input.style.height = 'auto';
-  send(t);
+  if ((!t && !attached) || busy) return;
+  const img = attached;
+  input.value = ''; input.style.height = 'auto'; setAttached(null);
+  send(t, img);
 };
 
 // ---------- Boot ----------

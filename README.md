@@ -11,14 +11,16 @@ A character chat app: create characters and chat with them. Built on the Nearly 
    - **Prompt**: your system prompt, sent with every message
    - **Backup**: export / import everything as one file
    - **Themes**: Default / Light / Dark, accent color, AI message bubble
-   - **Customization**: separately for AI text and your text: font, size, weight, spacing, italic, underline, glow, color/gradient, and a color for "text between quotes". One tap copies one side's style to the other
+   - **Customization**: separately for AI text and your text: font, size, weight, spacing, glow, color/gradient, and a color for "text between quotes". One tap copies one side's style to the other
 4. **Personas**: who *you* are. Image, name, personality.
 5. **Characters**: image, name, optional chat name (used in chats and for `{{char}}`), description (list only, never sent to the AI), personality, scenario, first messages (Option 1, 2, … — flip through them in a new chat until you reply; or let the AI write the opening) and example dialogue. **Import character card** (next to the image) fills everything in from a PNG/JSON card (SillyTavern/Chub/JanitorAI format). Tap a character for **Character profile** (collapsible sections, edit, export card, delete) or **Chat** (pick a persona, starts a new chat).
    - From Safari or Files: **Share → GreenRoom** (or "Open in GreenRoom") on a downloaded `.png`/`.json` card opens a new character with everything filled in
    - Swipe a character or persona left for **Move** (to a folder, or a new one) and **Delete**
    - Long press to select several, then move or delete them together
-6. **Chats**: all chats grouped per character, with the persona each was played as. Tap a character to unfold its chats; open, delete, or jump to the character card.
-   - Long press one of your messages for **Edit** (then Send), **Resend** or **Copy**. Resending removes the messages after it and asks the AI again
+6. **Chats**: all chats grouped per character, with the persona each was played as. Tap a character to unfold its chats; open, delete, or jump to the character card. Long press a chat to export it (text or SillyTavern `.jsonl`) or delete it.
+   - Long press a message: yours → **Edit** (then Send), **Resend**, **Copy**, **Delete**; the character's → **Copy**, **Delete**, plus **Write another** on the first message and **Regenerate** on the last reply. Resending removes the messages after it and asks the AI again
+   - Add one image to a message with the image button next to the text field; the character sees it (needs a model that accepts images)
+   - Swipe right-to-left in a chat to see all its images
    - In a chat, tap the character at the top for **Chat settings**: a memory field sent with every message of that chat, and a style for just that chat (overrides the global customization)
 7. **Albums**: collect images. Tap one to view it (swipe between images) and copy its link (`gr://img/…`); paste it in a character's description and the image shows on the character card. Long press to select several: copy links, copy/move to another album, delete. Swipe an album left to delete it. Exported cards carry linked images along.
 
