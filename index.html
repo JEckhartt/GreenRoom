@@ -56,6 +56,7 @@
   }
   button { font: inherit; color: inherit; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   #send svg { display: block; margin: auto; pointer-events: none; }
+  button *, .crow, .crow *, .grid, .swipe, .swipe * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 
   /* ---------- Chat ---------- */
   .pulse { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); }
@@ -2162,6 +2163,7 @@ function pressable(el, onTap, onLong) {
   el.addEventListener('pointermove', e => { if (timer && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) { clearTimeout(timer); timer = null; } });
   for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(ev, () => { clearTimeout(timer); timer = null; });
   el.addEventListener('contextmenu', e => e.preventDefault());
+  el.addEventListener('selectstart', e => e.preventDefault());
   el.addEventListener('click', () => { if (long) { long = false; return; } onTap(); });
 }
 $('albumSel').onclick = e => {
