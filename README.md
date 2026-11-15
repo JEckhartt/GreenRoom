@@ -12,7 +12,7 @@ A character chat app: create characters and chat with them. Built on the Nearly 
    - **Prompt**: your system prompt, sent with every message, and forbidden words the AI is told never to use
    - **Backup**: export / import everything as one file
    - **Themes**: Default / Light / Dark, accent color, AI message bubble
-   - **Customization**: separately for AI text and your text: font, size, weight, spacing, glow, color/gradient, and a color for "text between quotes". One tap copies one side's style to the other
+   - **Customization**: separately for AI text and your text: font, size, weight, spacing, glow, color/gradient, and a Markdown section that gives quoted text, italic, bold, strikethrough, code, headings, list bullets, quote blocks, links and dividers each their own color (chats only). One tap copies one side's style to the other
 4. **Personas**: who *you* are. Image, name, personality.
 5. **Characters**: image, name, optional chat name (used in chats and for `{{char}}`), description (list only, never sent to the AI), personality, scenario, first messages (Option 1, 2, … — flip through them in a new chat until you reply; or let the AI write the opening) and example dialogue. **Import character card** (next to the image) fills everything in from a PNG/JSON card (SillyTavern/Chub/JanitorAI format). Tap a character for **Character profile** (collapsible sections, edit, export card, delete) or **Chat** (pick a persona, starts a new chat).
    - From Safari or Files: **Share → GreenRoom** (or "Open in GreenRoom") on a downloaded `.png`/`.json` card opens a new character with everything filled in

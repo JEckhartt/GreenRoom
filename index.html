@@ -87,8 +87,9 @@
     color: transparent; -webkit-text-fill-color: transparent; text-decoration-color: var(--u-c1);
   }
   body.uglow .msg.me .txt { text-shadow: 0 0 16px color-mix(in srgb, var(--u-glowc) 55%, transparent); }
-  body.qon .msg.ai .q { color: var(--q); -webkit-text-fill-color: var(--q); }
-  body.uqon .msg.me .q { color: var(--u-q); -webkit-text-fill-color: var(--u-q); }
+  .mdrow { display: flex; align-items: center; gap: 10px; padding: 10px 0 0; }
+  .mdrow .nm { flex: 1; font-size: 15px; }
+  .mdrow .nm code { font-size: 12px; color: var(--ink-soft); background: none; margin-left: 6px; }
   body[data-color="solid"] .msg.ai .txt { color: var(--c1); text-decoration-color: var(--c1); }
   body[data-color="gradient"] .msg.ai .txt {
     background: linear-gradient(var(--angle), var(--c1), var(--c2));
@@ -173,6 +174,7 @@
   /* ---------- Markdown ---------- */
   .msg.me .txt { display: block; }
   .md p { margin: 0 0 .65em; }
+  .md strong { font-weight: 700; }
   .md > :last-child, .md blockquote > :last-child { margin-bottom: 0; }
   .md ul, .md ol { margin: 0 0 .65em; padding-left: 1.4em; }
   .md blockquote { margin: 0 0 .65em; padding-left: .8em; border-left: 3px solid var(--line); opacity: .85; }
@@ -728,8 +730,8 @@
         <button class="btn" type="button" id="matchToMe">Your text = AI style</button>
         <button class="btn" type="button" id="matchToAi">AI text = your style</button>
       </div>
-      <div class="msg me"><span class="txt" data-rich>Can't sleep. "Talk to me?"</span></div>
-      <div class="msg ai"><span class="txt" data-rich>"Of course." The rain always sounds different at night, doesn't it?</span></div>
+      <div class="msg me"><span class="txt" data-rich>*yawns* Can't sleep. "Talk to me?"</span></div>
+      <div class="msg ai"><span class="txt" data-rich>"Of course." *She pulls the blanket closer.* The rain **always** sounds ~~boring~~ different at night.&#10;&#10;> Old memory: the `porch` light.</span></div>
     </div>
 
 
@@ -773,12 +775,9 @@
     </details>
 
     <details class="card fold" data-sec="look-quotes">
-      <summary class="sub">Quoted text <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></summary>
-      <div class="line"><span>Own color for "text between quotes"</span><input type="checkbox" class="tgl" data-k="qOn"></div>
-      <div data-q>
-        <div class="line"><span>Quote color</span><input type="color" data-k="qColor"></div>
-        <div class="presets" id="qPresets"></div>
-      </div>
+      <summary class="sub">Markdown <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></summary>
+      <div class="hint" style="margin-top:0">Give each kind of formatting its own color. Only used in chats.</div>
+      <div id="mdRows"></div>
       <div class="actions"><button class="btn" type="button" id="resetLook">Reset customization</button></div>
     </details>
     </div></div>
@@ -840,8 +839,14 @@ const LOOK_DEFAULTS = {
   aiFont: 'Fraunces', meFont: 'Inter',
   fs: 18, fw: 300, lh: 1.6, ls: 0, italic: false, underline: false, glow: false,
   colorMode: 'theme', c1: '#ff7a59', c2: '#c13584', angle: 135, qOn: false, qColor: '#e8a33d',
+  md_iOn: false, md_iColor: '#8e7cc3', md_bOn: false, md_bColor: '#d9553b', md_sOn: false, md_sColor: '#9aa0a6',
+  md_codeOn: false, md_codeColor: '#2f9e8f', md_hOn: false, md_hColor: '#d9553b', md_liOn: false, md_liColor: '#d9553b',
+  md_bqOn: false, md_bqColor: '#8a8a90', md_aOn: false, md_aColor: '#3d63f5', md_hrOn: false, md_hrColor: '#c9b8ad',
   u_fs: 16, u_fw: 400, u_lh: 1.55, u_ls: 0, u_italic: false, u_underline: false, u_glow: false,
   u_colorMode: 'theme', u_c1: '#00c6ff', u_c2: '#0072ff', u_angle: 135, u_qOn: false, u_qColor: '#e8a33d',
+  u_md_iOn: false, u_md_iColor: '#8e7cc3', u_md_bOn: false, u_md_bColor: '#d9553b', u_md_sOn: false, u_md_sColor: '#9aa0a6',
+  u_md_codeOn: false, u_md_codeColor: '#2f9e8f', u_md_hOn: false, u_md_hColor: '#d9553b', u_md_liOn: false, u_md_liColor: '#d9553b',
+  u_md_bqOn: false, u_md_bqColor: '#8a8a90', u_md_aOn: false, u_md_aColor: '#3d63f5', u_md_hrOn: false, u_md_hrColor: '#c9b8ad',
 };
 const DEFAULTS = {
   proxyUrl: '', apiKey: '', model: '',
@@ -949,6 +954,29 @@ const chatLook = () => cur?.chat.look && Object.keys(cur.chat.look).length ? { .
 const activeLook = () => lookCtx === 'global' && $('settings').classList.contains('open') ? cfg : chatLook();
 function isDark() { const t = activeLook().theme; return t === 'dark' || (t === 'original' && darkMQ.matches); }
 
+// Markdown elements that can get their own color (chat messages + settings preview only)
+const MD_ELS = [
+  { id: 'q', key: 'q', name: 'Quoted text', hint: '"…"', sel: '.q' },
+  { id: 'i', key: 'md_i', name: 'Italic', hint: '*…*', sel: 'em' },
+  { id: 'b', key: 'md_b', name: 'Bold', hint: '**…**', sel: 'strong' },
+  { id: 's', key: 'md_s', name: 'Strikethrough', hint: '~~…~~', sel: 's' },
+  { id: 'code', key: 'md_code', name: 'Code', hint: '`…`', sel: 'code' },
+  { id: 'h', key: 'md_h', name: 'Headings', hint: '# …', sel: '.h' },
+  { id: 'li', key: 'md_li', name: 'List bullets & numbers', hint: '- …', sel: 'li::marker', marker: true },
+  { id: 'bq', key: 'md_bq', name: 'Quote blocks', hint: '> …', sel: 'blockquote', border: true },
+  { id: 'a', key: 'md_a', name: 'Links', hint: '[…](…)', sel: 'a' },
+  { id: 'hr', key: 'md_hr', name: 'Dividers', hint: '---', sel: 'hr', line: true },
+];
+(() => {
+  const css = [];
+  for (const m of MD_ELS) for (const side of ['ai', 'me']) {
+    const v = `var(--md${side}-${m.id})`, scope = `body.md${side}-${m.id} :is(#log, #preview) .msg.${side} .txt`;
+    if (m.line) css.push(`${scope} ${m.sel} { border-top-color: ${v}; }`);
+    else if (m.marker) css.push(`${scope} ${m.sel} { color: ${v}; }`);
+    else css.push(`${scope} ${m.sel} { color: ${v}; -webkit-text-fill-color: ${v};${m.border ? ` border-left-color: ${v};` : ''} }`);
+  }
+  const st = document.createElement('style'); st.textContent = css.join('\n'); document.head.append(st);
+})();
 function applyLook() {
   const L = activeLook();
   const root = document.documentElement, s = root.style;
@@ -974,11 +1002,12 @@ function applyLook() {
   s.setProperty('--u-ls', L.u_ls + 'em');
   s.setProperty('--u-c1', L.u_c1); s.setProperty('--u-c2', L.u_c2); s.setProperty('--u-angle', L.u_angle + 'deg');
   if (L.u_colorMode === 'theme') s.removeProperty('--u-glowc'); else s.setProperty('--u-glowc', L.u_c1);
-  s.setProperty('--q', L.qColor); s.setProperty('--u-q', L.u_qColor);
+  for (const m of MD_ELS) for (const [side, pre] of [['ai', ''], ['me', 'u_']]) {
+    document.body.classList.toggle(`md${side}-${m.id}`, !!L[pre + m.key + 'On']);
+    s.setProperty(`--md${side}-${m.id}`, L[pre + m.key + 'Color']);
+  }
   document.body.dataset.ucolor = L.u_colorMode;
   document.body.classList.toggle('uglow', L.u_glow);
-  document.body.classList.toggle('qon', L.qOn);
-  document.body.classList.toggle('uqon', L.u_qOn);
   matchNative();
 }
 
@@ -2684,8 +2713,7 @@ function setLookCtx(ctx) {
 
 // ---------- Settings page ----------
 // The text-style controls edit either the AI's or the user's text; user keys are stored with a u_ prefix
-const STYLE_KEYS = ['fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', 'qOn', 'qColor'];
-const QUOTE_COLORS = ['#e8a33d', '#f2c94c', '#ff7a59', '#eb5757', '#bb6bd9', '#56ccf2', '#27ae60', '#9aa0a6'];
+const STYLE_KEYS = ['fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
 let styleTarget = 'ai';
 const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
 const fontKey = () => styleTarget === 'me' ? 'meFont' : 'aiFont';
@@ -2707,7 +2735,7 @@ function syncControls() {
   for (const b of $('fonts').children) b.classList.toggle('on', b.dataset.font === L[fontKey()]);
   $('colorControls').hidden = g('colorMode') === 'theme';
   for (const el of document.querySelectorAll('[data-grad]')) el.hidden = g('colorMode') !== 'gradient';
-  for (const el of document.querySelectorAll('[data-q]')) el.hidden = !g('qOn');
+  for (const el of document.querySelectorAll('[data-mdc]')) el.hidden = !g(el.dataset.mdc + 'On');
   $('gradbar').style.background = `linear-gradient(90deg, ${g('c1')}, ${g('c2')})`;
   for (const t of document.querySelectorAll('#lookBlock .tgt')) t.textContent = styleTarget === 'me' ? '· you' : '· AI';
   const own = lookCtx === 'chat' && cur?.chat.look && Object.keys(cur.chat.look).length;
@@ -2750,11 +2778,14 @@ function buildSettings() {
     b.onclick = () => { writeLook(sk('c1'), a); writeLook(sk('c2'), c); update(sk('angle'), ang); };
     $('presets').appendChild(b);
   }
-  for (const col of QUOTE_COLORS) {
-    const b = document.createElement('button');
-    b.type = 'button'; b.style.background = col; b.setAttribute('aria-label', 'Quote color ' + col);
-    b.onclick = () => update(sk('qColor'), col);
-    $('qPresets').appendChild(b);
+  // one row per markdown element: switch + color
+  for (const m of MD_ELS) {
+    const row = document.createElement('div'); row.className = 'mdrow';
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = m.name;
+    const hint = document.createElement('code'); hint.textContent = m.hint; nm.append(hint);
+    const col = document.createElement('input'); col.type = 'color'; col.dataset.k = m.key + 'Color'; col.dataset.mdc = m.key;
+    const tg = document.createElement('input'); tg.type = 'checkbox'; tg.className = 'tgl'; tg.dataset.k = m.key + 'On';
+    row.append(nm, col, tg); $('mdRows').append(row);
   }
   // generic bindings
   for (const el of document.querySelectorAll(CONTROLS)) {
