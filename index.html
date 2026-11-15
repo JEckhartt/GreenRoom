@@ -181,8 +181,6 @@
   .md .h1 { font-size: 1.3em; } .md .h2 { font-size: 1.15em; } .md .h3 { font-size: 1.05em; }
   .md a { color: var(--accent); }
   .md img { display: block; max-width: min(100%, 420px); border-radius: 12px; margin: 8px 0; cursor: zoom-in; }
-  .gnav { display: flex; align-items: center; gap: 10px; margin-top: 8px; font: 13px 'Inter', system-ui, sans-serif; color: var(--ink-soft); }
-  .gnav button { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--field); color: var(--ink); cursor: pointer; font-size: 16px; line-height: 1; }
 
   /* ---------- Editor: first message options ---------- */
   .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
@@ -196,6 +194,23 @@
   .grid button.selected::after { content: '✓'; position: absolute; right: 6px; bottom: 6px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 13px; display: grid; place-items: center; }
   #lightbox .bar.bottom { gap: 10px; }
   #lbCount { pointer-events: none; color: #fff; font-size: 14px; align-self: center; opacity: .8; }
+
+  /* ---------- Alternative replies ---------- */
+  .alts { display: flex; align-items: center; gap: 2px; margin-top: 4px; font: 12px 'Inter', system-ui, sans-serif; color: var(--ink-soft); opacity: .55;
+    -webkit-text-fill-color: var(--ink-soft); text-shadow: none; }
+  .alts button { border: 0; background: none; color: inherit; -webkit-text-fill-color: var(--ink-soft); font-size: 18px; line-height: 1; padding: 4px 8px; cursor: pointer; }
+  .alts button:disabled { opacity: .35; }
+  .alts span { font-variant-numeric: tabular-nums; }
+
+  /* ---------- Writing help (long press send) ---------- */
+  #helpBar { max-width: 760px; width: 100%; margin: 0 auto; padding: 8px 16px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); }
+  #helpBar span { flex: 1; }
+  #helpBar button { border: 1px solid var(--line); background: var(--field); border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+  #sendMenu { position: fixed; z-index: 32; display: flex; flex-direction: column; padding: 4px; border-radius: 14px; background: rgba(30,30,30,.94);
+    box-shadow: 0 8px 24px -8px rgba(0,0,0,.4); min-width: 210px; }
+  #sendMenu button { border: 0; background: none; color: #fff; font-size: 15px; padding: 11px 14px; border-radius: 10px; text-align: left; cursor: pointer; }
+  #sendMenu button:active { background: rgba(255,255,255,.15); }
+  #sendMenu button.small { font-size: 13px; color: rgba(255,255,255,.7); }
 
   /* ---------- Message menu / editing ---------- */
   .msg.me, .msg.ai { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -413,6 +428,7 @@
     <button class="act" id="chatProfile" type="button">Profile</button>
   </div>
   <main id="scroller"><div id="log"></div></main>
+  <div id="helpBar" hidden><span id="helpState"></span><button type="button" id="helpRetry">Retry</button><button type="button" id="helpUndo">Delete</button></div>
   <div id="attachBar" hidden><div class="pv" id="attachPv"><button type="button" id="attachRm" aria-label="Remove image">✕</button></div></div>
   <form id="composer">
     <button id="attach" type="button" aria-label="Add an image"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
@@ -423,6 +439,28 @@
 </section>
 
 <div id="msgMenu" hidden></div>
+<div id="sendMenu" hidden>
+  <button type="button" data-act="enhance">✨ Enhance my message</button>
+  <button type="button" data-act="write">✍️ Write for me</button>
+  <button type="button" data-act="prompts" class="small">Edit these prompts</button>
+</div>
+
+<section id="helpers" class="view" aria-label="Writing help">
+  <div class="page-head"><button class="back" data-close="helpers" type="button">‹ Back</button><h1>Writing help</h1><button class="act" id="hpSave" type="button">Save</button></div>
+  <div class="page-body"><div class="page-inner">
+    <p class="group-title">Enhance my message</p>
+    <div class="card">
+      <textarea id="hpEnhance"></textarea>
+      <div class="hint">Used by ✨ Enhance: the AI rewrites what you typed following this prompt. {{char}} and {{user}} are filled in.</div>
+    </div>
+    <p class="group-title">Write for me</p>
+    <div class="card">
+      <textarea id="hpWrite"></textarea>
+      <div class="hint">Used by ✍️ Write for me: the AI writes your next message. Anything already in the text box is passed along as an idea.</div>
+    </div>
+    <div class="save-bar"><button class="btn primary" type="button" id="hpSave2">Save</button></div>
+  </div></div>
+</section>
 
 <section id="chatimgs" class="view" aria-label="Images in this chat">
   <div class="page-head"><button class="back" data-close="chatimgs" type="button">‹ Chat</button><h1>Images in this chat</h1><span></span></div>
@@ -1061,22 +1099,7 @@ function render() {
     const b = addBubble(m.role === 'user' ? 'me' : 'ai', m.content);
     b.dataset.i = i;
     if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => src ? showImage(f, src) : f.remove()).catch(() => f.remove()); }
-  }
-  // Several first messages: flip through them until you reply
-  const gs = cur && !cur.c.aiFirst ? greetingsOf(cur.c) : [];
-  if (gs.length > 1 && history.length === 1 && history[0].greeting !== undefined) {
-    const g = history[0].greeting, nav = document.createElement('div'); nav.className = 'gnav';
-    const go = d => {
-      if (busy) return;
-      const n = (g + d + gs.length) % gs.length;
-      history[0] = { role: 'assistant', content: fill(gs[n].trim(), cur.c, cur.p), greeting: n };
-      saveMsgs(cur.chat, history); render();
-    };
-    const prev = document.createElement('button'); prev.type = 'button'; prev.textContent = '‹'; prev.onclick = () => go(-1);
-    const next = document.createElement('button'); next.type = 'button'; next.textContent = '›'; next.onclick = () => go(1);
-    const lab = document.createElement('span'); lab.textContent = `Option ${g + 1} of ${gs.length}`;
-    nav.append(prev, lab, next);
-    $('log').querySelector('.msg.ai')?.append(nav);
+    if (m.role === 'assistant') addAltNav(b, m, i);
   }
 }
 
@@ -1169,14 +1192,17 @@ async function streamChat(messages, onText) {
 }
 
 // Runs one AI turn in chat s ({chat, c, p}); hist is that chat's array, so it stays valid if the user switches chats
-async function aiTurn(s, hist, messages, bubble) {
+// into: an existing reply that gets this as an extra alternative instead of a new message
+async function aiTurn(s, hist, messages, bubble, into) {
   const here = () => cur?.chat.id === s.chat.id;
-  const reply = await streamChat(messages, r => { setText(bubble, visible(r)); if (here()) scrollDown(); });
+  const reply = await streamChat(messages, r => { setText(bubble, visible(r)); if (here() && !into) scrollDown(); });
   const imgPrompt = [...reply.matchAll(TAG)].pop()?.[1] || '';
-  const msg = { role: 'assistant', content: visible(reply, true) };
+  let msg = { role: 'assistant', content: visible(reply, true) };
   setText(bubble, msg.content);
-  hist.push(msg); saveMsgs(s.chat, hist);
-  bubble.dataset.i = hist.indexOf(msg);
+  if (into) { ensureAlts(into); into.alts.push({ content: msg.content }); selectAlt(into, into.alts.length - 1); msg = into.alts[into.sel]; }
+  else hist.push(msg);
+  saveMsgs(s.chat, hist);
+  bubble.dataset.i = hist.indexOf(into || msg);
   if (!imgPrompt) return;
   const fig = addFigure(bubble);
   if (!imageEnabled()) { fig.remove(); if (here()) addBubble('err', 'Image requested, but no image proxy is set up in Settings.'); return; }
@@ -1185,7 +1211,9 @@ async function aiTurn(s, hist, messages, bubble) {
     const src = await generateImage(imgPrompt, ref, cn(s.c), fill(s.c.personality, s.c, s.p));
     const id = 'img_' + uid();
     await idb.put(id, src).catch(() => {});
-    msg.img = id; msg.imgPrompt = imgPrompt; saveMsgs(s.chat, hist);
+    msg.img = id; msg.imgPrompt = imgPrompt;
+    if (into) selectAlt(into, into.sel);
+    saveMsgs(s.chat, hist);
     showImage(fig, src);
   } catch (e) { fig.remove(); if (here()) addBubble('err', 'Image failed: ' + e.message); }
 }
@@ -1197,7 +1225,6 @@ async function send(text, img) {
   const msg = { role: 'user', content: text };
   if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); }
   hist.push(msg); saveMsgs(s.chat, hist);
-  $('log').querySelector('.gnav')?.remove();
   const mine = addBubble('me', text); mine.dataset.i = hist.length - 1;
   if (msg.img) showImage(addFigure(mine), img);
   const bubble = addBubble('ai', '');
@@ -1205,7 +1232,10 @@ async function send(text, img) {
   catch (e) {
     if (!bubble.textContent) { bubble.remove(); hist.pop(); saveMsgs(s.chat, hist); }
     if (cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message);
-  } finally { setBusy(false); }
+  } finally {
+    setBusy(false);
+    const i = bubble.dataset.i; if (i !== undefined && bubble.isConnected && !bubble.querySelector('.alts')) addAltNav(bubble, hist[+i], +i);
+  }
 }
 
 // ---------- Long press on a message ----------
@@ -1217,9 +1247,7 @@ function showMsgMenu(el) {
   const i = +el.dataset.i, m = history[i]; if (!m) return;
   hideMsgMenu();
   const acts = m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], ['delete', 'Delete']]
-    : [...(i === 0 ? [['rewrite', 'Write another']] : []),
-       ...(i > 0 && i === history.length - 1 && history[i - 1]?.role === 'user' ? [['regen', 'Regenerate']] : []),
-       ['copy', 'Copy'], ['delete', 'Delete']];
+    : [['copy', 'Copy'], ['delete', 'Delete']];
   const box = $('msgMenu'); box.innerHTML = '';
   for (const [a, label] of acts) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.textContent = label;
@@ -1237,7 +1265,7 @@ function showMsgMenu(el) {
   let timer = null, x0 = 0, y0 = 0;
   const log = $('log');
   log.addEventListener('pointerdown', e => {
-    if (e.target.closest('button, a, img, .gnav')) return;
+    if (e.target.closest('button, a, img, .alts')) return;
     const el = e.target.closest('.msg.me, .msg.ai'); if (!el || el.dataset.i === undefined || el.classList.contains('editing')) return;
     x0 = e.clientX; y0 = e.clientY;
     timer = setTimeout(() => showMsgMenu(el), 480);
@@ -1259,10 +1287,12 @@ $('msgMenu').onclick = e => {
   if (act === 'delete') deleteMessage(i);
   if (act === 'rewrite') rewriteOpening();
 };
+// Deletes message i and everything after it
 function deleteMessage(i) {
-  if (busy || !confirm('Delete this message?')) return;
-  const [m] = history.splice(i, 1);
-  if (m?.img) idb.del(m.img).catch(() => {});
+  if (busy) return;
+  const later = history.length - i - 1;
+  if (!confirm(later ? `Delete this message and the ${later} after it?` : 'Delete this message?')) return;
+  for (const m of history.splice(i)) for (const k of imagesOf(m)) idb.del(k).catch(() => {});
   saveMsgs(cur.chat, history); render();
 }
 // The AI writes a new first message (everything after it goes)
@@ -1270,7 +1300,7 @@ async function rewriteOpening() {
   if (busy || !ready()) return;
   const later = history.length - 1;
   if (later > 0 && !confirm(`Write a new first message? The ${later} message${later === 1 ? '' : 's'} after it will be removed.`)) return;
-  for (const m of history.splice(0)) if (m.img) idb.del(m.img).catch(() => {});
+  for (const m of history.splice(0)) for (const k of imagesOf(m)) idb.del(k).catch(() => {});
   saveMsgs(cur.chat, history);
   await writeOpening();
 }
@@ -1292,14 +1322,52 @@ async function resendFrom(i, text) {
   if (busy || !ready()) return;
   const s = cur, hist = history, later = hist.length - i - 1;
   if (later > 1 && !confirm(`Resend from here? The ${later} messages after it will be removed.`)) return render();
-  for (const m of hist.splice(i + 1)) if (m.img) idb.del(m.img).catch(() => {});
+  for (const m of hist.splice(i + 1)) for (const k of imagesOf(m)) idb.del(k).catch(() => {});
   hist[i].content = text;
   saveMsgs(s.chat, hist); render(); scrollDown();
   setBusy(true);
   const bubble = addBubble('ai', '');
   try { await aiTurn(s, hist, await buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
   catch (e) { bubble.remove(); if (cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message); }
-  finally { setBusy(false); }
+  finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
+}
+
+// ---------- Alternative replies: ‹ › under every reply of the character ----------
+function ensureAlts(m) { if (!m.alts) { m.alts = [{ content: m.content, img: m.img, imgPrompt: m.imgPrompt }]; m.sel = 0; } }
+function selectAlt(m, k) {
+  m.sel = k; const a = m.alts[k];
+  m.content = a.content;
+  for (const f of ['img', 'imgPrompt']) { if (a[f]) m[f] = a[f]; else delete m[f]; }
+}
+const imagesOf = m => [m.img, ...(m.alts || []).map(a => a.img)].filter((x, i, arr) => x && arr.indexOf(x) === i);
+function addAltNav(bubble, m, i) {
+  const n = m.alts?.length || 1, k = m.sel || 0;
+  const nav = document.createElement('div'); nav.className = 'alts';
+  const prev = document.createElement('button'); prev.type = 'button'; prev.textContent = '‹'; prev.setAttribute('aria-label', 'Previous reply');
+  prev.hidden = k === 0; prev.disabled = busy;
+  prev.onclick = () => { if (busy) return; selectAlt(m, k - 1); saveMsgs(cur.chat, history); render(); };
+  const lab = document.createElement('span'); lab.textContent = n > 1 ? `${k + 1}/${n}` : '';
+  const next = document.createElement('button'); next.type = 'button'; next.textContent = '›';
+  next.setAttribute('aria-label', k < n - 1 ? 'Next reply' : 'Write another reply'); next.disabled = busy;
+  next.onclick = () => { if (busy) return; if (k < n - 1) { selectAlt(m, k + 1); saveMsgs(cur.chat, history); render(); } else anotherReply(i, bubble); };
+  nav.append(prev, lab, next);
+  bubble.append(nav);
+}
+const openingAsk = (c, p) => `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.]`;
+// Writes another version of reply i, using only the conversation before it
+async function anotherReply(i, bubble) {
+  if (busy || !ready()) return;
+  const s = cur, hist = history, m = hist[i]; if (!m) return;
+  setBusy(true);
+  bubble.querySelector('.alts')?.remove(); bubble.querySelector('figure')?.remove();
+  setText(bubble, '');
+  try {
+    const messages = i === 0
+      ? [...await buildMessages(s.c, s.p, [], s.chat.memory), { role: 'user', content: openingAsk(s.c, s.p) }]
+      : await buildMessages(s.c, s.p, hist.slice(0, i), s.chat.memory);
+    await aiTurn(s, hist, messages, bubble, m);
+  } catch (e) { if (cur?.chat.id === s.chat.id) toast('Could not write another reply: ' + e.message); }
+  finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
 }
 
 async function writeOpening() {
@@ -1307,10 +1375,9 @@ async function writeOpening() {
   const s = cur, hist = history, { c, p } = s;
   setBusy(true); render();
   const bubble = addBubble('ai', '');
-  const ask = `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.]`;
-  try { await aiTurn(s, hist, [...await buildMessages(c, p, [], s.chat.memory), { role: 'user', content: ask }], bubble); }
+  try { await aiTurn(s, hist, [...await buildMessages(c, p, [], s.chat.memory), { role: 'user', content: openingAsk(c, p) }], bubble); }
   catch (e) { bubble.remove(); if (cur?.chat.id === s.chat.id) { render(); addBubble('err', 'Could not write an opening: ' + e.message); } }
-  finally { setBusy(false); }
+  finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
 }
 
 const lastText = h => (h.at(-1)?.content || '').slice(0, 200);
@@ -1346,7 +1413,10 @@ function startChat() {
   const { c, p } = cur;
   if (c.aiFirst) return writeOpening();
   const gs = greetingsOf(c);
-  if (gs.length) { history.push({ role: 'assistant', content: fill(gs[0].trim(), c, p), greeting: 0 }); saveMsgs(cur.chat, history); render(); }
+  if (gs.length) {
+    const alts = gs.map(g => ({ content: fill(g.trim(), c, p) }));
+    history.push({ role: 'assistant', content: alts[0].content, alts, sel: 0 }); saveMsgs(cur.chat, history); render();
+  }
 }
 function renderChatHead() {
   const { chat, c, p } = cur;
@@ -1357,7 +1427,7 @@ function renderChatHead() {
 }
 function deleteChat(id) {
   if (cur?.chat.id === id) { cur = null; history = []; $('chat').classList.remove('open'); }
-  for (const m of store.get(msgsKey(id), [])) if (m.img) idb.del(m.img).catch(() => {});
+  for (const m of store.get(msgsKey(id), [])) for (const k of imagesOf(m)) idb.del(k).catch(() => {});
   store.del(msgsKey(id));
   chats = chats.filter(x => x.id !== id); saveChats();
 }
@@ -1366,7 +1436,7 @@ function deleteChat(id) {
 function openView(id) { $(id).classList.add('open'); requestAnimationFrame(() => autosizeAll($(id))); }
 function closeView(id) {
   document.activeElement?.blur(); $(id).classList.remove('open');
-  if (id === 'chat') { leaveChat(); setAttached(null); }
+  if (id === 'chat') { leaveChat(); setAttached(null); clearHelper(); hideSendMenu(); }
   if (id === 'settings') applyLook();
   if (id === 'chars' || id === 'personas') { endSelect(); closeSwipe(); }
   if (id === 'albums') closeSwipe();
@@ -2311,7 +2381,7 @@ for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEv
 
 // ---------- Swipe right-to-left in a chat: all images in it ----------
 function openChatImages() {
-  const keys = history.filter(m => m.img).map(m => m.img);
+  const keys = history.flatMap(imagesOf);
   const grid = $('chatImgGrid'); grid.innerHTML = '';
   if (!keys.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.style.gridColumn = '1 / -1'; e.textContent = 'No images in this chat yet.'; grid.append(e); }
   keys.forEach((k, i) => {
@@ -2564,6 +2634,75 @@ async function saveImage(src) {
 const input = $('input');
 input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 180) + 'px'; });
 input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('composer').requestSubmit(); } });
+// ---------- Writing help: long press the send button ----------
+const HELP_DEFAULTS = {
+  enhancePrompt: 'Rewrite my message as {{user}} so it reads better: fix spelling and grammar, make it more vivid and descriptive, keep my meaning, intent and point of view, and keep roughly the same length. Do not add anything {{char}} says or does.',
+  writePrompt: "Write {{user}}'s next message in this roleplay, in {{user}}'s voice and point of view, reacting naturally to {{char}}'s last message. Only write what {{user}} says and does; never write {{char}}'s actions or words.",
+};
+let helper = null; // { mode, original } while an AI suggestion sits in the text box
+function showSendMenu() {
+  const m = $('sendMenu'); m.hidden = false;
+  m.querySelector('[data-act=enhance]').disabled = !input.value.trim();
+  const r = $('send').getBoundingClientRect();
+  m.style.top = Math.max(12, r.top - m.offsetHeight - 10) + 'px';
+  m.style.left = Math.max(12, r.right - m.offsetWidth) + 'px';
+  navigator.vibrate?.(12);
+}
+const hideSendMenu = () => { $('sendMenu').hidden = true; };
+(() => {
+  let timer = null, long = false;
+  const b = $('send');
+  b.addEventListener('pointerdown', () => { long = false; timer = setTimeout(() => { long = true; showSendMenu(); }, 480); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => clearTimeout(timer));
+  b.addEventListener('contextmenu', e => e.preventDefault());
+  b.addEventListener('click', e => { if (long) { e.preventDefault(); long = false; } }, true);
+  document.addEventListener('pointerdown', e => { if (!$('sendMenu').hidden && !e.target.closest('#sendMenu, #send')) hideSendMenu(); }, true);
+})();
+$('sendMenu').onclick = e => {
+  const act = e.target.closest('button')?.dataset.act; if (!act) return;
+  hideSendMenu();
+  if (act === 'prompts') return openHelpers();
+  const key = act === 'enhance' ? 'enhancePrompt' : 'writePrompt';
+  if (!cfg[key]?.trim()) { toast('Save the prompt first, then use the button'); return openHelpers(key); }
+  runHelper(act, input.value);
+};
+function openHelpers(focus) {
+  $('hpEnhance').value = cfg.enhancePrompt || HELP_DEFAULTS.enhancePrompt;
+  $('hpWrite').value = cfg.writePrompt || HELP_DEFAULTS.writePrompt;
+  openView('helpers');
+  if (focus) setTimeout(() => $(focus === 'enhancePrompt' ? 'hpEnhance' : 'hpWrite').focus(), 350);
+}
+$('hpSave').onclick = $('hpSave2').onclick = () => {
+  cfg.enhancePrompt = $('hpEnhance').value.trim(); cfg.writePrompt = $('hpWrite').value.trim(); saveCfg();
+  toast('Saved. Long press send to use them.'); closeView('helpers');
+};
+// Puts the AI's text in the text box; Retry / Delete (back to what you wrote) above it
+async function runHelper(mode, original) {
+  if (busy || !cur || !ready()) return;
+  if (mode === 'enhance' && !original.trim()) return toast('Type something to enhance first');
+  const s = cur, { c, p } = s;
+  const task = fill(mode === 'enhance' ? cfg.enhancePrompt : cfg.writePrompt, c, p);
+  const ask = mode === 'enhance'
+    ? `[Out of character. ${task}\nReply with the rewritten message only.]\n\n${original}`
+    : `[Out of character. ${task}${original.trim() ? `\nUse this as the idea for the message: ${original.trim()}` : ''}\nReply with ${userName(p)}'s message only.]`;
+  helper = { mode, original };
+  $('helpBar').hidden = false; $('helpState').textContent = mode === 'enhance' ? 'Enhancing…' : 'Writing…';
+  $('helpRetry').disabled = $('helpUndo').disabled = true;
+  setBusy(true);
+  try {
+    const messages = [...await buildMessages(c, p, history, s.chat.memory), { role: 'user', content: ask }];
+    const text = await streamChat(messages, r => { input.value = visible(r); input.dispatchEvent(new Event('input')); });
+    input.value = visible(text, true).replace(/^\s*\[[^\]]*\]\s*/, ''); input.dispatchEvent(new Event('input'));
+    $('helpState').textContent = mode === 'enhance' ? 'Enhanced by AI' : 'Written by AI';
+  } catch (e) {
+    input.value = original; input.dispatchEvent(new Event('input'));
+    $('helpState').textContent = 'Failed: ' + e.message;
+  } finally { setBusy(false); $('helpRetry').disabled = $('helpUndo').disabled = false; }
+}
+function clearHelper() { helper = null; $('helpBar').hidden = true; }
+$('helpRetry').onclick = () => helper && runHelper(helper.mode, helper.original);
+$('helpUndo').onclick = () => { if (!helper) return; input.value = helper.original; input.dispatchEvent(new Event('input')); clearHelper(); };
+
 let attached = null; // data URL of the image waiting to be sent
 function setAttached(src) {
   attached = src;
@@ -2582,7 +2721,7 @@ $('composer').onsubmit = e => {
   const t = input.value.trim();
   if ((!t && !attached) || busy) return;
   const img = attached;
-  input.value = ''; input.style.height = 'auto'; setAttached(null);
+  input.value = ''; input.style.height = 'auto'; setAttached(null); clearHelper();
   send(t, img);
 };
 

@@ -18,7 +18,9 @@ A character chat app: create characters and chat with them. Built on the Nearly 
    - Swipe a character or persona left for **Move** (to a folder, or a new one) and **Delete**
    - Long press to select several, then move or delete them together
 6. **Chats**: all chats grouped per character, with the persona each was played as. Tap a character to unfold its chats; open, delete, or jump to the character card. Long press a chat to export it (text or SillyTavern `.jsonl`) or delete it.
-   - Long press a message: yours → **Edit** (then Send), **Resend**, **Copy**, **Delete**; the character's → **Copy**, **Delete**, plus **Write another** on the first message and **Regenerate** on the last reply. Resending removes the messages after it and asks the AI again
+   - Under every reply of the character: **›** writes another version, **‹ ›** flip between versions (2/3); the one showing is the one the AI remembers. Several first messages appear the same way
+   - Long press a message: yours → **Edit** (then Send), **Resend**, **Copy**, **Delete**; the character's → **Copy**, **Delete**. Deleting removes everything after it too; resending asks the AI again from there
+   - Long press the send button: **✨ Enhance my message** (AI rewrites what you typed) and **✍️ Write for me** (AI writes your message), each with its own saved prompt. The result lands in the text box with **Retry** and **Delete** (back to what you wrote)
    - Add one image to a message with the image button next to the text field; the character sees it (needs a model that accepts images)
    - Swipe right-to-left in a chat to see all its images
    - In a chat, tap the character at the top for **Chat settings**: a memory field sent with every message of that chat, and a style for just that chat (overrides the global customization)
