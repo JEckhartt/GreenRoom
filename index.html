@@ -197,6 +197,12 @@
   #lightbox .bar.bottom { gap: 10px; }
   #lbCount { pointer-events: none; color: #fff; font-size: 14px; align-self: center; opacity: .8; }
 
+  /* ---------- Chat settings tabs ---------- */
+  .tabbar { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); max-width: 640px; width: 100%; margin: 0 auto; }
+  .tabbar button { flex: 1; padding: 8px 6px; border-radius: 10px; border: 0; background: none; font-size: 14px; color: var(--ink-soft); cursor: pointer; }
+  .tabbar button.on { background: var(--accent); color: #fff; }
+  .linkrow { display: flex; justify-content: space-between; gap: 12px; }
+
   /* ---------- Alternative replies ---------- */
   .alts { display: flex; align-items: center; gap: 2px; margin-top: 4px; font: 12px 'Inter', system-ui, sans-serif; color: var(--ink-soft); opacity: .55;
     -webkit-text-fill-color: var(--ink-soft); text-shadow: none; }
@@ -465,15 +471,25 @@
 </section>
 
 <section id="chatimgs" class="view" aria-label="Images in this chat">
-  <div class="page-head"><button class="back" data-close="chatimgs" type="button">‹ Chat</button><h1>Images in this chat</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="chatimgs" type="button">‹ Chat</button><h1 id="ciTitle"></h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <div class="actions" style="margin-top:0">
+      <button class="btn" type="button" id="ciCard">Character card</button>
+      <button class="btn" type="button" id="ciEdit">Edit character</button>
+    </div>
+    <p class="group-title">Images in this chat</p>
     <div class="grid" id="chatImgGrid"></div>
   </div></div>
 </section>
 
 <section id="chatset" class="view" aria-label="Chat settings">
   <div class="page-head"><button class="back" data-close="chatset" type="button">‹ Chat</button><h1>Chat settings</h1><span></span></div>
-  <div class="page-body"><div class="page-inner">
+  <div class="tabbar" id="csTabs">
+    <button type="button" data-t="0" class="on">Memory &amp; style</button>
+    <button type="button" data-t="1">Proxy</button>
+    <button type="button" data-t="2">Prompt</button>
+  </div>
+  <div class="page-body" id="csBody"><div class="page-inner cs-pane" data-t="0">
     <p class="group-title">Memory</p>
     <div class="card">
       <textarea id="memory" placeholder="A summary of what happened so far, or things the character should always remember."></textarea>
@@ -484,6 +500,30 @@
     <p class="group-title">Style for this chat</p>
     <div class="hint" id="chatLookState" style="margin:-4px 4px 10px"></div>
     <div id="chatLookHost"></div>
+  </div>
+  <div class="page-inner cs-pane" data-t="1" hidden>
+    <p class="group-title">Proxy for this chat</p>
+    <div class="card">
+      <label class="f" for="csUrl">Proxy URL</label>
+      <input id="csUrl" type="url" autocapitalize="off" autocorrect="off">
+      <label class="f" for="csKey">API key</label>
+      <input id="csKey" type="password" autocomplete="off">
+      <label class="f" for="csModel">Model</label>
+      <input id="csModel" type="text" autocapitalize="off" autocorrect="off">
+      <div class="hint">Leave a field empty to use the global setting. Used for every reply, new version and writing help in this chat.</div>
+      <div class="actions"><button class="btn" type="button" id="csProxyClear">Use global proxy</button></div>
+    </div>
+  </div>
+  <div class="page-inner cs-pane" data-t="2" hidden>
+    <p class="group-title">System prompt for this chat</p>
+    <div class="card">
+      <textarea id="csPrompt" class="big"></textarea>
+      <div class="hint">When filled in, it replaces the global system prompt in this chat only. {{char}} and {{user}} are filled in.</div>
+      <div class="actions">
+        <button class="btn" type="button" id="csPromptCopy">Start from global prompt</button>
+        <button class="btn" type="button" id="csPromptClear">Use global prompt</button>
+      </div>
+    </div>
   </div></div>
 </section>
 
@@ -927,7 +967,7 @@ const greetingsOf = c => (c?.firstMessages?.length ? c.firstMessages : [c?.first
 
 function systemFor(c, p, memory) {
   const f = t => fill((t || '').trim(), c, p);
-  const parts = [f(cfg.systemPrompt)];
+  const parts = [f(cur?.chat.prompt?.trim() || cfg.systemPrompt)];
   let ch = `--- Character: ${cn(c)} ---\nYou are ${cn(c)}. Stay in character.`;
   if (f(c.personality)) ch += `\n\nPersonality:\n${f(c.personality)}`;
   if (f(c.scenario)) ch += `\n\nScenario:\n${f(c.scenario)}`;
@@ -1155,8 +1195,14 @@ async function requestImage(prompt) {
 }
 
 // ---------- Chat ----------
+// The open chat may override the proxy field by field
+function api() {
+  const o = cur?.chat.proxy || {};
+  return { url: o.url?.trim() || cfg.proxyUrl, key: o.key?.trim() || cfg.apiKey, model: o.model?.trim() || cfg.model };
+}
 function ready() {
-  if (cfg.proxyUrl && cfg.model) return true;
+  const a = api();
+  if (a.url && a.model) return true;
   toast('Set up a proxy and model first'); openSettings(); return false;
 }
 function setBusy(on) {
@@ -1165,9 +1211,10 @@ function setBusy(on) {
 }
 
 async function streamChat(messages, onText) {
-  const res = await fetch(endpoint(cfg.proxyUrl), {
-    method: 'POST', headers: authHeaders(cfg.apiKey),
-    body: JSON.stringify({ model: cfg.model, messages, stream: true, temperature: 0.9 })
+  const a = api();
+  const res = await fetch(endpoint(a.url), {
+    method: 'POST', headers: authHeaders(a.key),
+    body: JSON.stringify({ model: a.model, messages, stream: true, temperature: 0.9 })
   });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${(await res.text()).slice(0, 300)}`);
   const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '', reply = '';
@@ -1517,7 +1564,10 @@ function renderChats() {
       const sub = document.createElement('div'); sub.className = 'sublist';
       const link = document.createElement('button'); link.type = 'button'; link.className = 'link';
       link.textContent = 'View character card ›'; link.onclick = () => openProfile(c.id);
-      sub.append(link);
+      const nw = document.createElement('button'); nw.type = 'button'; nw.className = 'link';
+      nw.textContent = '+ Start new chat'; nw.onclick = () => pickPersona(c);
+      const lr = document.createElement('div'); lr.className = 'linkrow'; lr.append(link, nw);
+      sub.append(lr);
       for (const ch of cs) {
         const p = personaOf(ch);
         const row = document.createElement('div'); row.className = 'crow';
@@ -2232,11 +2282,58 @@ $('albumMenu').onclick = () => {
 // ---------- Chat settings: memory + this chat's own style ----------
 function openChatSettings() {
   $('memory').value = cur.chat.memory || '';
+  const o = cur.chat.proxy || {};
+  $('csUrl').value = o.url || ''; $('csKey').value = o.key || ''; $('csModel').value = o.model || '';
+  $('csUrl').placeholder = cfg.proxyUrl || 'https://…/api/v1';
+  $('csKey').placeholder = cfg.apiKey ? 'Global key' : 'sk-…';
+  $('csModel').placeholder = cfg.model || 'model';
+  $('csPrompt').value = cur.chat.prompt || '';
+  $('csPrompt').placeholder = cfg.systemPrompt ? 'Empty: the global system prompt is used.' : 'No global system prompt set.';
+  setCsTab(0);
   setLookCtx('chat');
   $('chatset').querySelector('.page-body').scrollTop = 0;
   openView('chatset');
 }
 $('memory').addEventListener('input', () => { if (!cur) return; cur.chat.memory = $('memory').value; store.set('chats', chats); });
+for (const [id, k] of [['csUrl', 'url'], ['csKey', 'key'], ['csModel', 'model']]) $(id).addEventListener('input', () => {
+  if (!cur) return;
+  const o = cur.chat.proxy ||= {}; o[k] = $(id).value;
+  if (!o.url && !o.key && !o.model) delete cur.chat.proxy;
+  store.set('chats', chats);
+});
+$('csProxyClear').onclick = () => { if (!cur) return; delete cur.chat.proxy; store.set('chats', chats); for (const id of ['csUrl', 'csKey', 'csModel']) $(id).value = ''; toast('This chat uses the global proxy'); };
+$('csPrompt').addEventListener('input', () => { if (!cur) return; cur.chat.prompt = $('csPrompt').value; if (!cur.chat.prompt.trim()) delete cur.chat.prompt; store.set('chats', chats); });
+$('csPromptCopy').onclick = () => {
+  if (!cur || !cfg.systemPrompt) return toast('There is no global system prompt yet');
+  if ($('csPrompt').value.trim() && !confirm('Replace this chat\'s prompt with the global one?')) return;
+  $('csPrompt').value = cfg.systemPrompt; $('csPrompt').dispatchEvent(new Event('input', { bubbles: true }));
+};
+$('csPromptClear').onclick = () => { if (!cur) return; delete cur.chat.prompt; store.set('chats', chats); $('csPrompt').value = ''; autosize($('csPrompt')); toast('This chat uses the global prompt'); };
+
+// Tabs: tap or swipe sideways
+let csTab = 0;
+function setCsTab(t) {
+  csTab = Math.max(0, Math.min(2, t));
+  for (const b of $('csTabs').children) b.classList.toggle('on', +b.dataset.t === csTab);
+  for (const pane of document.querySelectorAll('#csBody .cs-pane')) pane.hidden = +pane.dataset.t !== csTab;
+  $('csBody').scrollTop = 0;
+  requestAnimationFrame(() => autosizeAll(document.querySelector(`#csBody .cs-pane[data-t="${csTab}"]`)));
+}
+$('csTabs').onclick = e => { const t = e.target.closest('button')?.dataset.t; if (t !== undefined) setCsTab(+t); };
+(() => {
+  let x0 = 0, y0 = 0, ok = false;
+  const body = $('csBody');
+  body.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    ok = e.touches.length === 1 && t.clientX > 28 && !e.target.closest('input, textarea, select, .fonts, .presets');
+    x0 = t.clientX; y0 = t.clientY;
+  }, { passive: true });
+  body.addEventListener('touchend', e => {
+    if (!ok) return; ok = false;
+    const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) setCsTab(csTab + (dx < 0 ? 1 : -1));
+  });
+})();
 function setLookCtx(ctx) {
   lookCtx = ctx;
   $(ctx === 'chat' ? 'chatLookHost' : 'globalLookHost').append($('lookBlock'));
@@ -2393,8 +2490,11 @@ function openChatImages() {
     b.onclick = async () => { const src = await idb.get(k).catch(() => null); if (src) openLightbox(src, { keys, i }); };
     grid.append(b);
   });
+  $('ciTitle').textContent = cur ? cn(cur.c) : '';
   openView('chatimgs');
 }
+$('ciCard').onclick = () => cur && openProfile(cur.c.id);
+$('ciEdit').onclick = () => cur && openEditor('char', cur.c.id);
 (() => {
   let x0 = 0, y0 = 0, on = false;
   const sc = $('scroller');
