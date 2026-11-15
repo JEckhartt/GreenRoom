@@ -975,6 +975,8 @@ const MD_ELS = [
     else if (m.marker) css.push(`${scope} ${m.sel} { color: ${v}; }`);
     else css.push(`${scope} ${m.sel} { color: ${v}; -webkit-text-fill-color: ${v};${m.border ? ` border-left-color: ${v};` : ''} }`);
   }
+  // Inside quotes the quote color wins, including strikethrough lines and link underlines
+  for (const side of ['ai', 'me']) css.push(`body.md${side}-q :is(#log, #preview) .msg.${side} .txt :is(s, a, code):has(> .q) { text-decoration-color: var(--md${side}-q); }`);
   const st = document.createElement('style'); st.textContent = css.join('\n'); document.head.append(st);
 })();
 function applyLook() {
@@ -1186,7 +1188,7 @@ function colorQuotes(root) {
   while (w.nextNode()) nodes.push(w.currentNode);
   let inQ = false, block = null;
   for (const n of nodes) {
-    if (n.parentElement.closest('code')) continue;
+    if (n.parentElement.closest('pre')) continue; // code blocks keep their own look; inline code in quotes follows the quote
     const b = n.parentElement.closest('p, li, .h, td, pre, blockquote');
     if (b !== block) { block = b; inQ = false; }
     const frag = document.createDocumentFragment();
