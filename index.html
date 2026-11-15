@@ -1282,23 +1282,33 @@ async function httpError(res) {
   return new Error(`${res.status}${res.statusText ? ' ' + res.statusText : ''}: ${msg || 'no details'}`);
 }
 
-async function generateImage(prompt, ref, who, about) {
+// References, in order of importance: 1) the character card image + the physical description from
+// Personality, 2) the last picture the character sent in this chat, for consistency.
+// If the model refuses two images it gets the card only, then text only.
+async function generateImage(prompt, refs, who, about) {
   about = (about || '').trim().slice(0, 2000);
-  const extra = about ? `\n\nAbout ${who || 'the character'} (use for their looks and details):\n${about}` : '';
+  const name = who || 'the character';
+  const extra = about ? `\n\nAbout ${name} (their looks and details; always follow this):\n${about}` : '';
   const imagesApi = /images\/generations$/.test(endpoint(imgApi().url));
-  if (ref && !imagesApi) {
-    try {
-      return await requestImage([
-        { type: 'image_url', image_url: { url: ref } },
-        { type: 'text', text: `Create a new image in exactly the same visual style as the reference image: same medium, rendering, line work, colour palette and lighting.${who ? ` The reference shows ${who}; keep their appearance consistent whenever they appear.` : ''}\n\nImage to create: ${prompt}${extra}` },
-      ]);
-    } catch (e1) {
-      // Some generators refuse an input image: try once more with the text alone
-      try { return await requestImage(prompt + extra); }
-      catch (e2) { throw new Error(e2.message === e1.message ? e2.message : `${e2.message}\n\nWith the character image as reference it failed too: ${e1.message}`); }
-    }
+  const card = refs?.card, last = refs?.last && refs.last !== refs.card ? refs.last : null;
+  const attempts = [];
+  if (!imagesApi && (card || last)) {
+    const imgs = [card, last].filter(Boolean);
+    const lines = card && last
+      ? `Reference 1 is ${name}'s character card: the main reference for their appearance and the visual style (medium, rendering, line work, colour palette, lighting). Follow it first.\nReference 2 is the last picture ${name} sent in this chat: use it to keep things consistent (outfit, hair, setting, mood), but where it differs from reference 1, reference 1 wins.`
+      : card ? `The reference image is ${name}'s character card: match their appearance and the visual style exactly (medium, rendering, line work, colour palette, lighting).`
+      : `The reference image is the last picture ${name} sent in this chat: keep their appearance and the visual style consistent with it.`;
+    attempts.push([...imgs.map(url => ({ type: 'image_url', image_url: { url } })), { type: 'text', text: `${lines}\n\nImage to create: ${prompt}${extra}` }]);
+    if (card && last) attempts.push([{ type: 'image_url', image_url: { url: card } }, { type: 'text', text: `The reference image is ${name}'s character card: match their appearance and the visual style exactly (medium, rendering, line work, colour palette, lighting).\n\nImage to create: ${prompt}${extra}` }]);
   }
-  return requestImage(prompt + extra);
+  attempts.push(prompt + extra);
+  const errors = [];
+  for (const a of attempts) {
+    try { return await requestImage(a); }
+    catch (e) { if (isAbort(e)) throw e; if (!errors.some(x => x.message === e.message)) errors.push(e); }
+  }
+  const [lastErr, ...earlier] = errors.reverse();
+  throw new Error(lastErr.message + (earlier.length ? `\n\nWith reference images it failed too: ${earlier.map(e => e.message).join(' / ')}` : ''));
 }
 var IMAGE_TIMEOUT = 180000;
 // Finds an image anywhere in a response: data URLs, base64 fields, or image links
@@ -1517,8 +1527,12 @@ async function attachImage(s, hist, msg, into, bubble, imgPrompt) {
   const fig = addFigure(bubble);
   if (!imageEnabled()) { fig.remove(); if (here()) addBubble('err', 'Image requested, but no image proxy is active (Settings → Image proxy).'); return; }
   try {
-    const ref = s.c.img ? await idb.get(s.c.img).catch(() => null) : null;
-    const src = await generateImage(imgPrompt, ref, cn(s.c), fill(s.c.personality, s.c, s.p));
+    const card = s.c.img ? await idb.get(s.c.img).catch(() => null) : null;
+    // the character's most recent picture before this message (not the one being replaced)
+    const at = hist.indexOf(into || msg), before = at >= 0 ? hist.slice(0, at) : hist;
+    const prev = [...before].reverse().find(m => m.role === 'assistant' && m.img && m.img !== msg.img);
+    const last = prev ? await idb.get(prev.img).catch(() => null) : null;
+    const src = await generateImage(imgPrompt, { card, last }, cn(s.c), fill(s.c.personality, s.c, s.p));
     const id = 'img_' + uid();
     await idb.put(id, src).catch(() => {});
     msg.img = id; msg.imgPrompt = imgPrompt;
