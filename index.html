@@ -97,7 +97,8 @@
   }
   body.glow .msg.ai .txt { text-shadow: 0 0 16px color-mix(in srgb, var(--glowc) 55%, transparent); }
   body.ai-bubble .msg.ai { background: var(--bubble-me); border: 1px solid var(--line); padding: 10px 14px; border-radius: 18px 18px 18px 4px; }
-  .msg.err { align-self: center; color: var(--accent); font-size: 14px; }
+  .msg.err { align-self: center; color: var(--accent); font-size: 14px; max-width: 92%; white-space: pre-wrap; overflow-wrap: anywhere;
+    -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
   .empty { text-align: center; color: var(--ink-soft); font-family: var(--ai-font); font-weight: 300; font-size: 22px; margin-top: 18vh; padding: 0 16px; }
 
   figure.gen { margin: 10px 0 0; }
@@ -1183,6 +1184,29 @@ function render() {
 // ---------- Image generation ----------
 // ref: the character's image. Chat-style image endpoints get it as a style reference; if the model refuses
 // an input image, or the endpoint is /images/generations, the text prompt alone is used.
+// Readable error from a provider response: their message, the upstream provider's raw error, code
+function errorText(j, raw = '') {
+  const e = j?.error ?? j;
+  if (!e || typeof e !== 'object') return String(e || raw || 'Unknown error');
+  const meta = e.metadata || {};
+  let rawUp = meta.raw ? (typeof meta.raw === 'string' ? meta.raw : JSON.stringify(meta.raw)) : '';
+  try { const r = typeof meta.raw === 'string' ? JSON.parse(meta.raw) : meta.raw; const m = r?.error?.message || r?.message || r?.detail; if (m) rawUp = m; } catch {}
+  const parts = [
+    e.message || e.detail || (typeof e.error === 'string' ? e.error : ''),
+    rawUp && rawUp !== e.message ? rawUp : '',
+    meta.reasons?.length ? 'reasons: ' + meta.reasons.join(', ') : '',
+    meta.provider_name ? `provider: ${meta.provider_name}` : '',
+    e.code || e.type ? `code: ${e.code || e.type}` : '',
+  ].filter(Boolean);
+  return (parts.join(' — ') || raw || JSON.stringify(e)).slice(0, 1200);
+}
+async function httpError(res) {
+  const raw = await res.text();
+  let msg = raw.slice(0, 1200);
+  try { msg = errorText(JSON.parse(raw), raw); } catch {}
+  return new Error(`${res.status}${res.statusText ? ' ' + res.statusText : ''}: ${msg || 'no details'}`);
+}
+
 async function generateImage(prompt, ref, who, about) {
   about = (about || '').trim().slice(0, 2000);
   const extra = about ? `\n\nAbout ${who || 'the character'} (use for their looks and details):\n${about}` : '';
@@ -1193,7 +1217,11 @@ async function generateImage(prompt, ref, who, about) {
         { type: 'image_url', image_url: { url: ref } },
         { type: 'text', text: `Create a new image in exactly the same visual style as the reference image: same medium, rendering, line work, colour palette and lighting.${who ? ` The reference shows ${who}; keep their appearance consistent whenever they appear.` : ''}\n\nImage to create: ${prompt}${extra}` },
       ]);
-    } catch (e) { console.warn('Reference image not accepted, retrying with text only', e); }
+    } catch (e1) {
+      // Some generators refuse an input image: try once more with the text alone
+      try { return await requestImage(prompt + extra); }
+      catch (e2) { throw new Error(e2.message === e1.message ? e2.message : `${e2.message}\n\nWith the character image as reference it failed too: ${e1.message}`); }
+    }
   }
   return requestImage(prompt + extra);
 }
@@ -1204,9 +1232,9 @@ async function requestImage(prompt) {
     ? { model: a.model, prompt, n: 1 }
     : { model: a.model, messages: [{ role: 'user', content: prompt }], modalities: ['image', 'text'] };
   const res = await fetch(url, { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${(await res.text()).slice(0, 300)}`);
+  if (!res.ok) throw await httpError(res);
   const j = await res.json();
-  if (j.error) throw new Error(j.error.message || JSON.stringify(j.error));
+  if (j.error) throw new Error(errorText(j));
 
   if (imagesApi) {
     const d = j.data?.[0];
@@ -1226,7 +1254,16 @@ async function requestImage(prompt) {
       if (hit) return hit[0];
     }
   }
-  throw new Error('The image model returned no image.');
+  // No image: pass on whatever the model said instead (often a refusal or safety block)
+  const ch = j.choices?.[0], m = ch?.message || {};
+  const said = [
+    typeof m.content === 'string' ? m.content.trim() : Array.isArray(m.content) ? m.content.filter(x => x.text).map(x => x.text).join(' ').trim() : '',
+    m.refusal,
+    ch?.finish_reason && ch.finish_reason !== 'stop' ? `finish reason: ${ch.finish_reason}` : '',
+    ch?.native_finish_reason && ch.native_finish_reason !== ch.finish_reason ? `provider reason: ${ch.native_finish_reason}` : '',
+    imagesApi && j.data && !j.data.length ? 'the response contained no images' : '',
+  ].filter(Boolean).join(' — ');
+  throw new Error('The image model returned no image' + (said ? ': ' + said.slice(0, 1200) : '.'));
 }
 
 // ---------- Chat ----------
@@ -1260,7 +1297,7 @@ async function streamChat(messages, onText) {
     method: 'POST', headers: authHeaders(a.key),
     body: JSON.stringify({ model: a.model, messages, stream: true, temperature: gen().temperature })
   });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${(await res.text()).slice(0, 300)}`);
+  if (!res.ok) throw await httpError(res);
   const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '', reply = '';
   while (true) {
     const { done, value } = await reader.read();
@@ -1274,7 +1311,7 @@ async function streamChat(messages, onText) {
       if (data === '[DONE]') continue;
       try {
         const j = JSON.parse(data);
-        if (j.error) throw new Error(j.error.message || JSON.stringify(j.error));
+        if (j.error) throw new Error(errorText(j));
         const delta = j.choices?.[0]?.delta?.content ?? '';
         if (delta) { reply += delta; onText(reply); }
       } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
