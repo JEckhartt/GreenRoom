@@ -4,17 +4,20 @@ A character chat app: create characters and chat with them. Built on the Nearly 
 
 ## Usage
 1. Open `index.html` in your browser (or host it statically).
-2. On first launch, pick **Female** or **Male**.
-3. Fill in **Settings** (full-screen page):
-   - **Proxy** — chat endpoint: URL (OpenAI-compatible, `/chat/completions` appended automatically), API key, model
-   - **Image proxy** — URL, API key, model. Only used when you explicitly ask for an image. Works with OpenRouter image models (chat endpoint with `modalities`) and `/images/generations` endpoints
-   - **Prompt** — gender, your full system prompt, optional personality notes
-   - **Customization** — Original / Light / Dark (OLED) mode (keyboard + status bar follow it in the iOS app), accent color, 20 fonts for AI and your messages, size, boldness, line height, letter spacing, italic, underline, glow, solid or gradient text color with presets
-4. Talk.
+2. The app opens on the title screen: **Characters**, **Personas**, **Settings**.
+3. In **Settings** (full-screen page):
+   - **Proxy**: chat endpoint URL (OpenAI-compatible, `/chat/completions` appended automatically), API key, model
+   - **Image proxy**: URL, API key, model. Only used when you explicitly ask for an image
+   - **Prompt**: your system prompt, sent with every message
+   - **Customization**: theme, accent color, fonts, text styling
+4. **Personas**: who *you* are. Image, name, personality. Mark one as your persona and characters will know you as them.
+5. **Characters**: create one with image, name, description (list only, never sent to the AI), personality, scenario, first message (or let the AI write the opening) and example dialogue. Tap a character to chat.
 
-You paste your own **System prompt** in Settings; it is sent with every request, followed by a short identity block (gender + name handling) and your optional Personality notes. The AI picks its own name, which appears in the header. "Clear conversation" also clears the name, so a new personality starts fresh. Gender can be changed later in Settings.
+Each character has its own chat history. Edit a character from the chat header; restart or delete it from the editor. `{{char}}` and `{{user}}` placeholders work in the system prompt and character fields.
 
-Settings and conversation are stored locally in the browser (`localStorage`). The full conversation is sent as context, so very long chats will eventually hit the model's context limit.
+What the AI receives: system prompt, then the character's personality + scenario, then your active persona, then example dialogue, then the chat.
+
+Everything is stored locally (`localStorage` for text, IndexedDB for images).
 
 ## iOS app
 The `ios/` folder is a native Xcode project (Capacitor) that wraps `index.html`. Requires a Mac with Xcode.

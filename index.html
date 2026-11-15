@@ -2,7 +2,7 @@
 <html lang="en" data-theme="original">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>GreenRoom</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -43,7 +43,7 @@
   }
 
   * { box-sizing: border-box; }
-  html, body { height: 100%; height: 100dvh; margin: 0; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; height: 100dvh; margin: 0; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body {
     background: radial-gradient(120% 80% at 50% 0%, var(--bg-2), var(--bg));
     background-color: var(--bg);
@@ -54,13 +54,7 @@
   button { font: inherit; color: inherit; }
 
   /* ---------- Chat ---------- */
-  header.top {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: max(14px, env(safe-area-inset-top)) 16px 14px; max-width: 760px; width: 100%; margin: 0 auto;
-  }
-  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--ai-font); font-size: 20px; font-weight: 400; letter-spacing: .02em; }
   .pulse { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); }
-  .pulse.live { animation: pulse 1.4s ease-out infinite; }
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
   .pill { background: none; border: 1px solid var(--line); color: var(--ink-soft); border-radius: 999px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
   .pill:hover { color: var(--ink); border-color: var(--ink-soft); }
@@ -110,17 +104,47 @@
   #send { height: 46px; min-width: 46px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; font-size: 20px; cursor: pointer; }
   #send:disabled { opacity: .45; cursor: default; }
 
-  /* ---------- Onboarding ---------- */
-  #onboard { position: fixed; inset: 0; z-index: 25; display: none; align-items: center; justify-content: center; gap: 14px; padding: 16px; flex-wrap: wrap;
-    background: radial-gradient(120% 80% at 50% 30%, var(--bg-2), var(--bg)); background-color: var(--bg); }
-  #onboard.open { display: flex; }
-  .choice { width: 150px; padding: 26px 0; border-radius: 22px; border: 1px solid var(--line); background: var(--field); font-family: 'Fraunces', Georgia, serif; font-size: 20px; cursor: pointer; transition: border-color .2s, transform .2s; }
-  .choice:hover { border-color: var(--accent); transform: translateY(-2px); }
-
   /* ---------- Settings page ---------- */
-  #settings { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: flex; flex-direction: column;
+  .view { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: flex; flex-direction: column;
     transform: translateX(100%); visibility: hidden; transition: transform .3s cubic-bezier(.2,.8,.2,1), visibility 0s .3s; }
-  #settings.open { transform: none; visibility: visible; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+  .view.open { transform: none; visibility: visible; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+  .page-head .act { justify-self: end; background: none; border: 0; color: var(--accent); font-size: 17px; font-weight: 600; padding: 6px 4px; cursor: pointer; }
+
+  /* ---------- Title screen ---------- */
+  #home { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
+  .logo { display: flex; align-items: center; gap: 14px; font-family: 'Fraunces', Georgia, serif; font-size: 44px; font-weight: 400; letter-spacing: .01em; margin: 0 0 36px; }
+  .logo .pulse { width: 16px; height: 16px; }
+  .menu { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; }
+  .menu button { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-radius: 18px; border: 1px solid var(--line); background: var(--field); font-family: 'Fraunces', Georgia, serif; font-size: 20px; cursor: pointer; text-align: left; transition: border-color .2s; }
+  .menu button::after { content: '›'; color: var(--ink-soft); font-size: 24px; line-height: 1; }
+  .menu button:active { border-color: var(--accent); }
+
+  /* ---------- Character / persona lists ---------- */
+  .create { position: sticky; top: 0; z-index: 2; padding: 12px 0; background: var(--bg); }
+  .create button { width: 100%; padding: 15px; border-radius: 16px; border: 1.5px dashed var(--accent); background: var(--field); color: var(--accent); font-size: 16px; font-weight: 600; cursor: pointer; }
+  .items { display: flex; flex-direction: column; gap: 10px; }
+  .item { display: flex; gap: 14px; align-items: flex-start; width: 100%; padding: 12px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); text-align: left; cursor: pointer; }
+  .thumb { flex: none; width: 96px; aspect-ratio: 3 / 4; border-radius: 12px; background: var(--accent-soft) center / cover no-repeat; display: grid; place-items: center; font-family: 'Fraunces', Georgia, serif; font-size: 34px; color: var(--accent); overflow: hidden; }
+  .item .info { flex: 1; min-width: 0; }
+  .item h3 { margin: 2px 0 4px; font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+  .item p { margin: 0; font-size: 14px; line-height: 1.4; color: var(--ink-soft); white-space: pre-line; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+  .badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 999px; }
+  .list-empty { text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
+
+  /* ---------- Editor ---------- */
+  .pick { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+  .pick .thumb { width: 110px; cursor: pointer; }
+  .pick .btns { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+  .card .line.tight { padding-top: 10px; }
+  .save-bar { margin-top: 18px; }
+  .save-bar .btn.primary { width: 100%; padding: 14px; border: 0; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; }
+
+  /* ---------- Chat head ---------- */
+  .chat-who { display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 56vw; font-family: var(--ai-font); font-size: 19px; }
+  .chat-who span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chat-who .av { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--accent-soft) center / cover no-repeat; display: grid; place-items: center; color: var(--accent); font-size: 15px; position: relative; }
+  .chat-who .av.live::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; animation: pulse 1.4s ease-out infinite; }
   .page-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: max(10px, env(safe-area-inset-top)) 12px 10px; border-bottom: 1px solid var(--line); }
   .page-head h1 { margin: 0; font-size: 17px; font-weight: 600; }
   .back { justify-self: start; background: none; border: 0; color: var(--accent); font-size: 17px; padding: 6px 4px; cursor: pointer; }
@@ -146,7 +170,7 @@
     width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; outline: none; }
   .card input:focus, .card textarea:focus { border-color: var(--accent); }
   .card textarea { min-height: 110px; resize: vertical; }
-  .card textarea.big { min-height: 240px; font-size: 14px; line-height: 1.45; }
+  .card textarea.big { min-height: 240px; line-height: 1.45; }
   .hint { font-size: 12px; color: var(--ink-soft); margin-top: 5px; }
 
   .seg { display: flex; gap: 6px; background: var(--bg); padding: 4px; border-radius: 12px; border: 1px solid var(--line); }
@@ -183,22 +207,95 @@
 </style>
 </head>
 <body data-color="theme">
-<header class="top">
-  <div class="brand"><span class="pulse" id="pulse"></span><span id="aiName">GreenRoom</span></div>
-  <button class="pill" id="openSettings" type="button">Settings</button>
-</header>
+<section id="home" aria-label="GreenRoom">
+  <h1 class="logo"><span class="pulse"></span>GreenRoom</h1>
+  <nav class="menu">
+    <button type="button" id="goChars">Characters</button>
+    <button type="button" id="goPersonas">Personas</button>
+    <button type="button" id="goSettings">Settings</button>
+  </nav>
+</section>
 
-<main id="scroller"><div id="log"></div></main>
+<section id="chars" class="view" aria-label="Characters">
+  <div class="page-head"><button class="back" data-close="chars" type="button">‹ Back</button><h1>Characters</h1><span></span></div>
+  <div class="page-body"><div class="page-inner">
+    <div class="create"><button type="button" id="newChar">+ Create new character</button></div>
+    <div class="items" id="charList"></div>
+  </div></div>
+</section>
 
-<form id="composer">
-  <textarea id="input" rows="1" placeholder="Say something…" autocomplete="off"></textarea>
-  <button id="send" type="submit" aria-label="Send">↑</button>
-</form>
+<section id="personas" class="view" aria-label="Personas">
+  <div class="page-head"><button class="back" data-close="personas" type="button">‹ Back</button><h1>Personas</h1><span></span></div>
+  <div class="page-body"><div class="page-inner">
+    <div class="create"><button type="button" id="newPersona">+ Create new persona</button></div>
+    <div class="items" id="personaList"></div>
+  </div></div>
+</section>
 
-<div id="onboard">
-  <button class="choice" type="button" data-gender="female">Female</button>
-  <button class="choice" type="button" data-gender="male">Male</button>
-</div>
+<section id="chat" class="view" aria-label="Chat">
+  <div class="page-head">
+    <button class="back" data-close="chat" type="button">‹ Back</button>
+    <div class="chat-who"><span class="av" id="chatAv"></span><span id="chatName"></span></div>
+    <button class="act" id="editChar" type="button">Edit</button>
+  </div>
+  <main id="scroller"><div id="log"></div></main>
+  <form id="composer">
+    <textarea id="input" rows="1" placeholder="Say something…" autocomplete="off"></textarea>
+    <button id="send" type="submit" aria-label="Send">↑</button>
+  </form>
+</section>
+
+<section id="editor" class="view" aria-label="Editor">
+  <div class="page-head"><button class="back" data-close="editor" type="button">‹ Cancel</button><h1 id="edTitle"></h1><button class="act" id="edSave" type="button">Save</button></div>
+  <div class="page-body"><div class="page-inner">
+    <div class="card">
+      <label class="f">Image</label>
+      <div class="pick">
+        <div class="thumb" id="edThumb" role="button" aria-label="Upload image">+</div>
+        <div class="btns">
+          <button class="btn" type="button" id="edPick">Upload image</button>
+          <button class="btn danger" type="button" id="edNoImg">Remove</button>
+        </div>
+      </div>
+      <input type="file" id="edFile" accept="image/*" hidden>
+
+      <label class="f" for="edName">Name</label>
+      <input id="edName" type="text" autocomplete="off">
+
+      <div data-for="char">
+        <label class="f" for="edDesc">Description</label>
+        <textarea id="edDesc" placeholder="Shown on the character list. Not sent to the AI."></textarea>
+      </div>
+
+      <label class="f" for="edPers">Personality</label>
+      <textarea id="edPers"></textarea>
+
+      <div data-for="char">
+        <label class="f" for="edScen">Scenario <span style="font-weight:400">(optional)</span></label>
+        <textarea id="edScen" placeholder="Where and how does the story start?"></textarea>
+
+        <label class="f" for="edFirst">First message</label>
+        <div class="line tight"><span>Let the AI write the first message</span><input type="checkbox" class="tgl" id="edAiFirst"></div>
+        <textarea id="edFirst" style="margin-top:10px" placeholder="The character's opening line."></textarea>
+        <div class="hint" id="edFirstHint">Use {{char}} and {{user}} as placeholders.</div>
+
+        <label class="f" for="edEx">Example dialogue <span style="font-weight:400">(optional)</span></label>
+        <textarea id="edEx" placeholder="{{user}}: Hi.&#10;{{char}}: …"></textarea>
+        <div class="hint">Shows the AI how the character talks. Not part of the conversation.</div>
+      </div>
+
+      <div data-for="persona">
+        <div class="line"><span>Use as my persona</span><input type="checkbox" class="tgl" id="edActive"></div>
+        <div class="hint">The characters you chat with will know you as this persona.</div>
+      </div>
+    </div>
+    <div class="save-bar"><button class="btn primary" type="button" id="edSave2">Save</button></div>
+    <div class="actions">
+      <button class="btn" type="button" id="edRestart">Restart chat</button>
+      <button class="btn danger" type="button" id="edDelete">Delete</button>
+    </div>
+  </div></div>
+</section>
 
 <div id="lightbox">
   <div class="stage"><img alt="" draggable="false"></div>
@@ -207,9 +304,9 @@
 </div>
 <div id="toast"></div>
 
-<section id="settings" aria-label="Settings">
+<section id="settings" class="view" aria-label="Settings">
   <div class="page-head">
-    <button class="back" id="closeSettings" type="button">‹ Back</button>
+    <button class="back" data-close="settings" type="button">‹ Back</button>
     <h1>Settings</h1>
     <span></span>
   </div>
@@ -244,17 +341,9 @@
     <details class="sec" data-sec="prompt">
     <summary class="group-title">Prompt</summary>
     <div class="card">
-      <label class="f">Gender</label>
-      <div class="seg" data-k="gender">
-        <button type="button" data-v="female">Female</button>
-        <button type="button" data-v="male">Male</button>
-      </div>
       <label class="f" for="systemPrompt">System prompt</label>
       <textarea id="systemPrompt" data-k="systemPrompt" class="big" placeholder="Paste your complete system prompt here."></textarea>
-      <div class="hint">Sent with every message.</div>
-      <label class="f" for="persona">Personality</label>
-      <textarea id="persona" data-k="persona" placeholder="e.g. A bit of a tease, loves jazz."></textarea>
-      <div class="hint">Optional. Appended after the system prompt.</div>
+      <div class="hint">Sent with every message, before the character and persona. {{char}} and {{user}} are filled in.</div>
     </div>
     </details>
 
@@ -327,14 +416,6 @@
     </details>
     </details>
 
-    <details class="sec" data-sec="conversation">
-    <summary class="group-title">Conversation</summary>
-    <div class="card">
-      <div class="actions"><button class="btn danger" id="clearChat" type="button">Clear conversation</button></div>
-      <div class="hint">Also clears the AI's chosen name and generated images.</div>
-    </div>
-    </details>
-
   </div></div>
 </section>
 
@@ -394,14 +475,20 @@ const LOOK_DEFAULTS = {
 const DEFAULTS = {
   proxyUrl: '', apiKey: '', model: '',
   imgUrl: '', imgKey: '', imgModel: '',
-  systemPrompt: '', persona: '', gender: '',
+  systemPrompt: '', activePersona: '',
   ...LOOK_DEFAULTS,
 };
 let cfg = { ...DEFAULTS, ...store.get('cfg', {}) };
-let history = store.get('history', []);
-let aiName = store.get('aiName', '');
+let chars = store.get('chars', []);
+let personas = store.get('personas', []);
+let current = null;   // character whose chat is open
+let history = [];     // that chat's messages
 let busy = false;
 const saveCfg = () => store.set('cfg', cfg);
+const saveChars = () => store.set('chars', chars);
+const savePersonas = () => store.set('personas', personas);
+const chatKey = id => 'chat.' + id;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // ---------- Image storage (IndexedDB; localStorage is too small for images) ----------
 const idb = (() => {
@@ -418,7 +505,7 @@ const idb = (() => {
       t.oncomplete = () => res(req?.result); t.onerror = () => rej(t.error);
     });
   };
-  return { get: k => tx('readonly', s => s.get(k)), put: (k, v) => tx('readwrite', s => s.put(v, k)), clear: () => tx('readwrite', s => s.clear()) };
+  return { get: k => tx('readonly', s => s.get(k)), put: (k, v) => tx('readwrite', s => s.put(v, k)), del: k => tx('readwrite', s => s.delete(k)) };
 })();
 
 // ---------- Appearance ----------
@@ -458,27 +545,28 @@ function matchNative() {
 darkMQ.addEventListener?.('change', applyLook);
 
 // ---------- Prompt ----------
-const TAG = /\[\[(name|image):\s*([^\]]+?)\s*\]\]/gi;
+const TAG = /\[\[image:\s*([^\]]+?)\s*\]\]/gi;
 const imageEnabled = () => !!(cfg.imgUrl.trim() && cfg.imgModel.trim());
+const activePersona = () => personas.find(p => p.id === cfg.activePersona) || null;
+const userName = () => activePersona()?.name || 'User';
+const fill = (t, c) => (t || '').replace(/\{\{char\}\}/gi, c.name).replace(/\{\{user\}\}/gi, userName());
 
-function identityPrompt() {
-  const g = cfg.gender === 'male'
-    ? 'You present as a man. Your self-image, voice and the way people refer to you (he/him) follow from that.'
-    : 'You present as a woman. Your self-image, voice and the way people refer to you (she/her) follow from that.';
-  const n = aiName
-    ? `Your name is ${aiName}. You chose it; keep it. If you ever deliberately change it, append [[name:NewName]] at the very end of that message.`
-    : 'You have not chosen a name yet. Pick one that truly fits the personality you are creating, early and naturally in the conversation. In the message where you first tell the user your name, append the tag [[name:YourName]] at the very end. The tag is hidden from the user; never mention it.';
-  const img = imageEnabled()
-    ? '\nYou can send images, but only when the user explicitly asks you for an image, picture, photo or drawing. Then reply briefly and naturally, and append [[image: a detailed description of the image to generate, in English]] at the very end of that message. The image appears below your message. Never do this unless explicitly asked; the tag is hidden from the user.'
-    : '';
-  return `--- Identity ---\n${g}\n${n}${img}`;
+function systemFor(c) {
+  const p = activePersona(), f = t => fill((t || '').trim(), c);
+  const parts = [f(cfg.systemPrompt)];
+  let ch = `--- Character: ${c.name} ---\nYou are ${c.name}. Stay in character.`;
+  if (f(c.personality)) ch += `\n\nPersonality:\n${f(c.personality)}`;
+  if (f(c.scenario)) ch += `\n\nScenario:\n${f(c.scenario)}`;
+  parts.push(ch);
+  if (p) parts.push(`--- User: ${p.name} ---\nYou are talking with ${p.name}.${f(p.personality) ? `\n\n${f(p.personality)}` : ''}`);
+  if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
+  if (imageEnabled()) parts.push('--- Images ---\nYou can send images, but only when the user explicitly asks you for an image, picture, photo or drawing. Then reply briefly and naturally, and append [[image: a detailed description of the image to generate, in English]] at the very end of that message. The image appears below your message. Never do this unless explicitly asked; the tag is hidden from the user.');
+  return parts.filter(Boolean).join('\n\n');
 }
 
-function buildMessages() {
-  let system = [cfg.systemPrompt.trim(), identityPrompt()].filter(Boolean).join('\n\n');
-  if (cfg.persona.trim()) system += `\n\n--- Personality notes ---\n${cfg.persona.trim()}`;
-  const msgs = history.map(m => ({ role: m.role, content: m.imgPrompt ? `${m.content}\n[[image: ${m.imgPrompt}]]` : m.content }));
-  return [{ role: 'system', content: system }, ...msgs];
+function buildMessages(c, hist) {
+  const msgs = hist.map(m => ({ role: m.role, content: m.imgPrompt ? `${m.content}\n[[image: ${m.imgPrompt}]]` : m.content }));
+  return [{ role: 'system', content: systemFor(c) }, ...msgs];
 }
 
 function visible(t, final) {
@@ -524,14 +612,13 @@ function showImage(fig, src) {
 function render() {
   $('log').innerHTML = '';
   if (!history.length) {
-    const e = document.createElement('div'); e.className = 'empty'; e.textContent = "Hi. I'm here.";
+    const e = document.createElement('div'); e.className = 'empty'; e.textContent = busy ? '' : `Say hi to ${current?.name || ''}.`;
     $('log').appendChild(e);
   }
   for (const m of history) {
     const b = addBubble(m.role === 'user' ? 'me' : 'ai', m.content);
     if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => src ? showImage(f, src) : f.remove()).catch(() => f.remove()); }
   }
-  $('aiName').textContent = aiName || 'GreenRoom';
 }
 
 // ---------- Image generation ----------
@@ -568,76 +655,270 @@ async function generateImage(prompt) {
 }
 
 // ---------- Chat ----------
-async function send(text) {
-  if (!cfg.proxyUrl || !cfg.model) { openSettings(); return; }
-  busy = true; $('send').disabled = true; $('pulse').classList.add('live');
+function ready() {
+  if (cfg.proxyUrl && cfg.model) return true;
+  toast('Set up a proxy and model first'); openSettings(); return false;
+}
+function setBusy(on) {
+  busy = on; $('send').disabled = on; $('chatAv').classList.toggle('live', on);
+  if (!on && !matchMedia('(pointer: coarse)').matches) $('input').focus(); // no auto keyboard on phones
+}
 
-  history.push({ role: 'user', content: text });
-  store.set('history', history);
+async function streamChat(messages, onText) {
+  const res = await fetch(endpoint(cfg.proxyUrl), {
+    method: 'POST', headers: authHeaders(cfg.apiKey),
+    body: JSON.stringify({ model: cfg.model, messages, stream: true, temperature: 0.9 })
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${(await res.text()).slice(0, 300)}`);
+  const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '', reply = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split('\n'); buf = lines.pop();
+    for (const line of lines) {
+      const l = line.trim();
+      if (!l.startsWith('data:')) continue;
+      const data = l.slice(5).trim();
+      if (data === '[DONE]') continue;
+      try {
+        const j = JSON.parse(data);
+        if (j.error) throw new Error(j.error.message || JSON.stringify(j.error));
+        const delta = j.choices?.[0]?.delta?.content ?? '';
+        if (delta) { reply += delta; onText(reply); }
+      } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
+    }
+  }
+  if (!reply) throw new Error('Received an empty response.');
+  return reply;
+}
+
+// Runs one AI turn for character c; hist is that chat's array (stays valid if the user switches chats)
+async function aiTurn(c, hist, messages, bubble) {
+  const key = chatKey(c.id), here = () => current?.id === c.id;
+  let reply = '';
+  reply = await streamChat(messages, r => { reply = r; setText(bubble, visible(r)); if (here()) scrollDown(); });
+  const imgPrompt = [...reply.matchAll(TAG)].pop()?.[1] || '';
+  const msg = { role: 'assistant', content: visible(reply, true) };
+  setText(bubble, msg.content);
+  hist.push(msg); store.set(key, hist);
+  if (!imgPrompt) return;
+  const fig = addFigure(bubble);
+  if (!imageEnabled()) { fig.remove(); if (here()) addBubble('err', 'Image requested, but no image proxy is set up in Settings.'); return; }
+  try {
+    const src = await generateImage(imgPrompt);
+    const id = 'img_' + uid();
+    await idb.put(id, src).catch(() => {});
+    msg.img = id; msg.imgPrompt = imgPrompt; store.set(key, hist);
+    showImage(fig, src);
+  } catch (e) { fig.remove(); if (here()) addBubble('err', 'Image failed: ' + e.message); }
+}
+
+async function send(text) {
+  if (!ready()) return;
+  const c = current, hist = history;
+  setBusy(true);
+  hist.push({ role: 'user', content: text }); store.set(chatKey(c.id), hist);
   addBubble('me', text);
   const bubble = addBubble('ai', '');
-  let reply = '';
+  try { await aiTurn(c, hist, buildMessages(c, hist), bubble); }
+  catch (e) {
+    if (!bubble.textContent) { bubble.remove(); hist.pop(); store.set(chatKey(c.id), hist); }
+    if (current?.id === c.id) addBubble('err', 'Something went wrong: ' + e.message);
+  } finally { setBusy(false); }
+}
 
-  try {
-    const res = await fetch(endpoint(cfg.proxyUrl), {
-      method: 'POST', headers: authHeaders(cfg.apiKey),
-      body: JSON.stringify({ model: cfg.model, messages: buildMessages(), stream: true, temperature: 0.9 })
-    });
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${(await res.text()).slice(0, 300)}`);
+async function writeOpening() {
+  if (!ready()) return;
+  const c = current, hist = history;
+  setBusy(true); render();
+  const bubble = addBubble('ai', '');
+  const ask = `[Write ${c.name}'s opening message to start the roleplay with ${userName()}. Stay fully in character, based on ${c.name}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.]`;
+  try { await aiTurn(c, hist, [...buildMessages(c, []), { role: 'user', content: ask }], bubble); }
+  catch (e) { bubble.remove(); if (current?.id === c.id) { render(); addBubble('err', 'Could not write an opening: ' + e.message); } }
+  finally { setBusy(false); }
+}
 
-    const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      const lines = buf.split('\n'); buf = lines.pop();
-      for (const line of lines) {
-        const l = line.trim();
-        if (!l.startsWith('data:')) continue;
-        const data = l.slice(5).trim();
-        if (data === '[DONE]') continue;
-        try {
-          const j = JSON.parse(data);
-          if (j.error) throw new Error(j.error.message || JSON.stringify(j.error));
-          const delta = j.choices?.[0]?.delta?.content ?? '';
-          if (delta) { reply += delta; setText(bubble, visible(reply)); scrollDown(); }
-        } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
-      }
-    }
-    if (!reply) throw new Error('Received an empty response.');
+function openChat(id) {
+  current = chars.find(c => c.id === id); if (!current) return;
+  history = store.get(chatKey(id), []);
+  renderChatHead(); render(); openView('chat');
+  if (!history.length) startChat();
+}
+function startChat() {
+  if (current.aiFirst) return writeOpening();
+  if (current.firstMessage?.trim()) { history.push({ role: 'assistant', content: fill(current.firstMessage.trim(), current) }); store.set(chatKey(current.id), history); render(); }
+}
+function renderChatHead() {
+  $('chatName').textContent = current.name;
+  setThumb($('chatAv'), current);
+}
+async function clearChat(id) {
+  for (const m of store.get(chatKey(id), [])) if (m.img) idb.del(m.img).catch(() => {});
+  try { localStorage.removeItem('greenroom.' + chatKey(id)); } catch {}
+  if (current?.id === id) { history = []; render(); }
+}
 
-    let imgPrompt = '';
-    for (const [, kind, val] of reply.matchAll(TAG)) {
-      if (kind.toLowerCase() === 'name') {
-        aiName = val.replace(/[^\p{L}\p{M}' -]/gu, '').trim().slice(0, 30) || aiName;
-        store.set('aiName', aiName); $('aiName').textContent = aiName;
-      } else imgPrompt = val;
-    }
-    const msg = { role: 'assistant', content: visible(reply, true) };
-    setText(bubble, msg.content);
-    history.push(msg); store.set('history', history);
+// ---------- Views ----------
+function openView(id) { $(id).classList.add('open'); }
+function closeView(id) {
+  document.activeElement?.blur(); $(id).classList.remove('open');
+  if (id === 'chat') current = null;
+}
+for (const b of document.querySelectorAll('[data-close]')) b.onclick = () => closeView(b.dataset.close);
 
-    if (imgPrompt) {
-      const fig = addFigure(bubble);
-      if (!imageEnabled()) { fig.remove(); addBubble('err', 'Image requested, but no image proxy is set up in Settings.'); }
-      else {
-        try {
-          const src = await generateImage(imgPrompt);
-          const id = 'img_' + Date.now();
-          await idb.put(id, src).catch(() => {});
-          msg.img = id; msg.imgPrompt = imgPrompt; store.set('history', history);
-          showImage(fig, src);
-        } catch (e) { fig.remove(); addBubble('err', 'Image failed: ' + e.message); }
-      }
-    }
-  } catch (e) {
-    if (!reply) { bubble.remove(); history.pop(); store.set('history', history); }
-    addBubble('err', 'Something went wrong: ' + e.message);
-  } finally {
-    busy = false; $('send').disabled = false; $('pulse').classList.remove('live');
-    if (!matchMedia('(pointer: coarse)').matches) $('input').focus(); // no auto keyboard on phones
+// ---------- Character & persona lists ----------
+const avatarCache = new Map();
+async function setThumb(el, it) {
+  el.style.backgroundImage = ''; el.textContent = (it.name || '?').trim().charAt(0).toUpperCase();
+  if (!it.img) return;
+  const key = it.img;
+  if (!avatarCache.has(key)) avatarCache.set(key, idb.get(key).catch(() => null));
+  const src = await avatarCache.get(key);
+  if (src && it.img === key) { el.style.backgroundImage = `url("${src}")`; el.textContent = ''; }
+}
+
+function renderList(kind) {
+  const items = kind === 'char' ? chars : personas;
+  const list = $(kind === 'char' ? 'charList' : 'personaList');
+  list.innerHTML = '';
+  if (!items.length) {
+    const e = document.createElement('div'); e.className = 'list-empty';
+    e.textContent = kind === 'char' ? 'No characters yet.' : 'No personas yet.';
+    return list.appendChild(e);
+  }
+  for (const it of items) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'item';
+    const th = document.createElement('div'); th.className = 'thumb'; setThumb(th, it);
+    const info = document.createElement('div'); info.className = 'info';
+    const h = document.createElement('h3'); h.textContent = it.name;
+    if (kind === 'persona' && it.id === cfg.activePersona) { const g = document.createElement('span'); g.className = 'badge'; g.textContent = 'Active'; h.appendChild(g); }
+    const p = document.createElement('p'); p.textContent = (kind === 'char' ? it.description : it.personality) || '';
+    info.append(h, p); b.append(th, info);
+    b.onclick = () => kind === 'char' ? openChat(it.id) : openEditor('persona', it.id);
+    list.appendChild(b);
   }
 }
+
+// ---------- Editor (shared by characters and personas) ----------
+let edit = null; // { kind, id, img: undefined = unchanged, null = removed, dataURL = new }
+const edItems = () => edit.kind === 'char' ? chars : personas;
+
+function openEditor(kind, id) {
+  const it = (kind === 'char' ? chars : personas).find(x => x.id === id) || null;
+  edit = { kind, id: it?.id || null, img: undefined };
+  const noun = kind === 'char' ? 'character' : 'persona';
+  $('edTitle').textContent = (it ? 'Edit ' : 'New ') + noun;
+  for (const el of document.querySelectorAll('#editor [data-for]')) el.hidden = el.dataset.for !== kind;
+  $('edName').value = it?.name || '';
+  $('edName').placeholder = kind === 'char' ? 'Character name' : 'Your name';
+  $('edPers').placeholder = kind === 'char' ? 'Who is this character? Looks, traits, how they talk.' : 'Who are you in the story? The character will know this.';
+  $('edDesc').value = it?.description || '';
+  $('edPers').value = it?.personality || '';
+  $('edScen').value = it?.scenario || '';
+  $('edFirst').value = it?.firstMessage || '';
+  $('edAiFirst').checked = !!it?.aiFirst;
+  $('edEx').value = it?.examples || '';
+  $('edActive').checked = it ? cfg.activePersona === it.id : !activePersona();
+  syncFirst();
+  setThumb($('edThumb'), it || { name: '+' }); if (!it) $('edThumb').textContent = '+';
+  $('edNoImg').hidden = !it?.img;
+  $('edDelete').hidden = !it;
+  $('edRestart').hidden = !(it && kind === 'char');
+  $('editor').querySelector('.page-body').scrollTop = 0;
+  openView('editor');
+}
+function syncFirst() {
+  const ai = $('edAiFirst').checked;
+  $('edFirst').hidden = ai;
+  $('edFirstHint').textContent = ai
+    ? 'Every new chat starts with an opening the AI writes from the personality, scenario and system prompt.'
+    : 'Use {{char}} and {{user}} as placeholders.';
+}
+$('edAiFirst').onchange = syncFirst;
+
+// Downscale uploads so they fit comfortably in storage
+function readImage(file, max = 1024) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.naturalWidth * k); cv.height = Math.round(img.naturalHeight * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url); res(cv.toDataURL('image/jpeg', 0.86));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Could not read that image.')); };
+    img.src = url;
+  });
+}
+$('edPick').onclick = $('edThumb').onclick = () => $('edFile').click();
+$('edFile').onchange = async () => {
+  const f = $('edFile').files[0]; $('edFile').value = '';
+  if (!f) return;
+  try {
+    edit.img = await readImage(f);
+    const th = $('edThumb'); th.style.backgroundImage = `url("${edit.img}")`; th.textContent = '';
+    $('edNoImg').hidden = false;
+  } catch (e) { toast(e.message); }
+};
+$('edNoImg').onclick = () => {
+  edit.img = null; const th = $('edThumb'); th.style.backgroundImage = ''; th.textContent = ($('edName').value.trim() || '+').charAt(0).toUpperCase();
+  $('edNoImg').hidden = true;
+};
+
+async function saveEditor() {
+  const name = $('edName').value.trim();
+  if (!name) { toast('Give it a name'); $('edName').focus(); return; }
+  const items = edItems();
+  let it = items.find(x => x.id === edit.id);
+  if (!it) { it = { id: uid(), created: Date.now() }; items.unshift(it); }
+  it.name = name;
+  it.personality = $('edPers').value.trim();
+  if (edit.kind === 'char') {
+    Object.assign(it, { description: $('edDesc').value.trim(), scenario: $('edScen').value.trim(),
+      firstMessage: $('edFirst').value.trim(), aiFirst: $('edAiFirst').checked, examples: $('edEx').value.trim() });
+  } else {
+    if ($('edActive').checked) cfg.activePersona = it.id;
+    else if (cfg.activePersona === it.id) cfg.activePersona = '';
+    saveCfg();
+  }
+  if (edit.img !== undefined) {
+    if (it.img) { idb.del(it.img).catch(() => {}); avatarCache.delete(it.img); delete it.img; }
+    if (edit.img) { const key = 'av_' + uid(); try { await idb.put(key, edit.img); it.img = key; } catch { toast('Could not store the image'); } }
+  }
+  edit.kind === 'char' ? saveChars() : savePersonas();
+  renderList(edit.kind);
+  if (current?.id === it.id) renderChatHead();
+  closeView('editor');
+}
+$('edSave').onclick = $('edSave2').onclick = saveEditor;
+
+$('edDelete').onclick = async () => {
+  const items = edItems(), it = items.find(x => x.id === edit.id); if (!it) return;
+  if (!confirm(`Delete ${it.name}?` + (edit.kind === 'char' ? ' Their chat is deleted too.' : ''))) return;
+  items.splice(items.indexOf(it), 1);
+  if (it.img) { idb.del(it.img).catch(() => {}); avatarCache.delete(it.img); }
+  if (edit.kind === 'char') { await clearChat(it.id); saveChars(); if (current?.id === it.id) closeView('chat'); }
+  else { if (cfg.activePersona === it.id) { cfg.activePersona = ''; saveCfg(); } savePersonas(); }
+  renderList(edit.kind);
+  closeView('editor');
+};
+$('edRestart').onclick = async () => {
+  const it = chars.find(x => x.id === edit.id); if (!it) return;
+  if (!confirm(`Restart the chat with ${it.name}? All messages are deleted.`)) return;
+  await clearChat(it.id);
+  closeView('editor');
+  if (current?.id === it.id) startChat();
+  toast('Chat restarted');
+};
+
+$('newChar').onclick = () => openEditor('char');
+$('newPersona').onclick = () => openEditor('persona');
+$('editChar').onclick = () => current && openEditor('char', current.id);
+$('goChars').onclick = () => openView('chars');
+$('goPersonas').onclick = () => openView('personas');
+$('goSettings').onclick = () => openSettings();
 
 // ---------- Settings page ----------
 let fontTarget = 'aiFont';
@@ -659,7 +940,6 @@ function syncControls() {
 
 function update(k, v) {
   cfg[k] = v; saveCfg(); applyLook(); syncControls();
-  if (k === 'gender') render();
 }
 
 function buildSettings() {
@@ -697,12 +977,6 @@ function buildSettings() {
   };
   $('accentReset').onclick = () => update('accent', '');
   $('resetLook').onclick = () => { if (confirm('Reset all customization?')) { Object.assign(cfg, LOOK_DEFAULTS); update('theme', cfg.theme); } };
-  $('clearChat').onclick = async () => {
-    if (!confirm('Clear the entire conversation?')) return;
-    history = []; aiName = ''; store.set('history', history); store.set('aiName', '');
-    await idb.clear().catch(() => {});
-    render(); closeSettings();
-  };
 }
 
 // Collapsible sections remember their state
@@ -718,15 +992,24 @@ function initFolds() {
 function openSettings() {
   loadFonts(Object.keys(FONTS));
   syncControls();
-  $('settings').classList.add('open');
+  openView('settings');
 }
-function closeSettings() { document.activeElement?.blur(); $('settings').classList.remove('open'); }
 
-$('openSettings').onclick = openSettings;
-$('closeSettings').onclick = closeSettings;
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeLightbox(); closeSettings(); }
+  if (e.key !== 'Escape') return;
+  if (lb.classList.contains('open')) return closeLightbox();
+  const top = [...document.querySelectorAll('.view.open')].pop();
+  if (top) closeView(top.id);
 });
+
+// ---------- Touch: tap outside a field closes the keyboard; no page zoom ----------
+document.addEventListener('pointerdown', e => {
+  const a = document.activeElement;
+  if (!a?.matches?.('input, textarea, [contenteditable]')) return;
+  if (e.target.closest('input, textarea, select, label, button, [contenteditable]')) return;
+  a.blur();
+}, true);
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
 // ---------- Image viewer: pinch / pan / double-tap zoom ----------
 const lb = $('lightbox'), lbImg = lb.querySelector('img');
 const Z = { s: 1, tx: 0, ty: 0 };
@@ -869,18 +1152,11 @@ $('composer').onsubmit = e => {
 };
 
 // ---------- Boot ----------
-for (const b of document.querySelectorAll('#onboard .choice')) b.onclick = () => {
-  update('gender', b.dataset.gender);
-  $('onboard').classList.remove('open');
-  if (!cfg.proxyUrl || !cfg.model) openSettings();
-};
-
 buildSettings();
 initFolds();
 applyLook();
-render();
-if (!cfg.gender) $('onboard').classList.add('open');
-else if (!cfg.proxyUrl || !cfg.model) openSettings();
+renderList('char');
+renderList('persona');
 document.addEventListener('deviceready', matchNative);
 setTimeout(matchNative, 300);
 </script>
