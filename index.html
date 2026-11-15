@@ -1272,13 +1272,32 @@ async function keepImage(src) {
     return await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
   } catch { return src; }
 }
+// Chat-style image models differ in which output they accept: some want image + text, others image only.
+// The working combination is remembered on the image proxy.
 async function requestImage(prompt) {
+  const pr = proxyFor('img');
+  const order = pr.modalities ? [pr.modalities] : [['image', 'text'], ['image']];
+  let last;
+  for (const mods of order) {
+    try {
+      const out = await requestImageOnce(prompt, mods);
+      if (pr.id && pr.modalities?.join() !== mods.join()) { pr.modalities = mods; saveCfg(); }
+      return out;
+    } catch (e) {
+      last = e;
+      if (!/output modalit/i.test(e.message)) throw e;
+      if (pr.modalities) { delete pr.modalities; saveCfg(); return requestImage(prompt); } // remembered combo stopped working
+    }
+  }
+  throw new Error(`${last.message}\n\nThe model "${imgApi().model}" can't create images through this proxy. Pick an image model in Settings → Image proxy (on OpenRouter, filter the models list by output "image").`);
+}
+async function requestImageOnce(prompt, modalities) {
   const a = imgApi(), url = endpoint(a.url);
   if (!a.url || !a.model) throw new Error('The image proxy has no URL or model filled in.');
   const imagesApi = /images\/generations$/.test(url);
   const body = imagesApi
     ? { model: a.model, prompt, n: 1 }
-    : { model: a.model, messages: [{ role: 'user', content: prompt }], modalities: ['image', 'text'] };
+    : { model: a.model, messages: [{ role: 'user', content: prompt }], modalities };
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), IMAGE_TIMEOUT);
   let res, raw;
   try {
