@@ -232,6 +232,7 @@
   .alts button { border: 0; background: none; color: inherit; -webkit-text-fill-color: var(--ink-soft); font-size: 18px; line-height: 1; padding: 4px 8px; cursor: pointer; }
   .alts button:disabled { opacity: .35; }
   .alts span { font-variant-numeric: tabular-nums; }
+  .alts .cam { display: grid; place-items: center; margin-left: 6px; padding: 4px 8px; }
 
   /* ---------- Writing help (long press send) ---------- */
   #helpBar { max-width: 760px; width: 100%; margin: 0 auto; padding: 8px 16px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); }
@@ -547,6 +548,10 @@
     <div class="card" id="cProxyBox"></div>
     <p class="group-title">Image proxy for this chat</p>
     <div class="card" id="cImgBox"></div>
+    <div class="card" style="margin-top:10px">
+      <div class="line" style="padding-top:12px"><span>Character sends pictures on its own</span><input type="checkbox" class="tgl" id="csAutoPics"></div>
+      <div class="hint">When the character says it sends a picture ("here's a pic of…"). Off: a 📷 appears under that reply instead; tap it to make the picture. Pictures you ask for are always made.</div>
+    </div>
     <p class="group-title">Generation for this chat</p>
     <div class="card">
       <div class="line"><span>Temperature</span><span style="display:flex;gap:8px;align-items:center"><output id="csTempOut"></output>
@@ -1518,7 +1523,7 @@ async function aiTurn(s, hist, messages, bubble, into) {
   bubble.dataset.i = idx;
   // An image when the user's latest message asks for one, or when the character says it sends one now.
   // A tag on its own (without either) is ignored: models tend to copy them.
-  const asked = wantsImage(hist[idx - 1]) || replySendsImage(msg.content);
+  const asked = wantsImage(hist[idx - 1]) || (s.chat.autoPics !== false && replySendsImage(msg.content));
   if (!asked) imgPrompt = '';
   // asked, but the model forgot the tag: describe it separately
   if (!imgPrompt && asked) {
@@ -1713,6 +1718,14 @@ function addAltNav(bubble, m, i) {
   next.setAttribute('aria-label', k < n - 1 ? 'Next reply' : 'Write another reply'); next.disabled = busy;
   next.onclick = () => { if (busy) return; if (k < n - 1) { selectAlt(m, k + 1); saveMsgs(cur.chat, history); render(); } else anotherReply(i, bubble); };
   nav.append(prev, lab, next);
+  // Auto pictures off: the character "sent" one, tap the camera to make it
+  if (cur && cur.chat.autoPics === false && !m.img && replySendsImage(m.content)) {
+    const cam = document.createElement('button'); cam.type = 'button'; cam.className = 'cam'; cam.disabled = busy;
+    cam.setAttribute('aria-label', 'Make this picture');
+    cam.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>';
+    cam.onclick = () => imageForReply(i);
+    nav.append(cam);
+  }
   bubble.append(nav);
 }
 const openingAsk = (c, p) => `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.]`;
@@ -2599,6 +2612,7 @@ function openChatSettings() {
   $('sumFold').open = !cfg.summaryPrompt?.trim();
   syncSummary();
   renderProxyBoxes(); syncChatGen();
+  $('csAutoPics').checked = cur.chat.autoPics !== false;
   $('csForbidden').value = cur.chat.forbidden || '';
   $('csPrompt').value = cur.chat.prompt || '';
   $('csPrompt').placeholder = cfg.systemPrompt ? 'Empty: the global system prompt is used.' : 'No global system prompt set.';
@@ -2686,6 +2700,11 @@ function syncChatGen() {
   $('csCtx').placeholder = cfg.contextSize ? `Global: ${cfg.contextSize}` : 'Global: no limit';
 }
 $('csTemp').oninput = () => { if (!cur) return; cur.chat.temperature = +$('csTemp').value; store.set('chats', chats); syncChatGen(); };
+$('csAutoPics').onchange = () => {
+  if (!cur) return;
+  if ($('csAutoPics').checked) delete cur.chat.autoPics; else cur.chat.autoPics = false;
+  store.set('chats', chats); render();
+};
 $('csTempReset').onclick = () => { if (!cur) return; delete cur.chat.temperature; store.set('chats', chats); syncChatGen(); };
 $('csCtx').oninput = () => { if (!cur) return; const v = $('csCtx').value.trim(); if (v) cur.chat.contextSize = v; else delete cur.chat.contextSize; store.set('chats', chats); };
 $('csForbidden').addEventListener('input', () => { if (!cur) return; cur.chat.forbidden = $('csForbidden').value; if (!cur.chat.forbidden.trim()) delete cur.chat.forbidden; store.set('chats', chats); });
