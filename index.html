@@ -1051,7 +1051,7 @@ function addBubble(role, text) {
   $('log').querySelector('.empty')?.remove();
   const el = document.createElement('div');
   el.className = 'msg ' + role;
-  if (role === 'err') el.textContent = text;
+  if (role === 'err') { el.textContent = text; el.dataset.chat = cur?.chat.id || ''; console.warn(text); }
   else { const t = document.createElement('span'); t.className = 'txt'; rich(t, text); el.appendChild(t); }
   $('log').appendChild(el);
   scrollDown();
@@ -1163,11 +1163,17 @@ function addFigure(bubble) {
 function showImage(fig, src) {
   const img = new Image(); img.alt = ''; img.src = src;
   img.onload = scrollDown;
+  img.onerror = () => {
+    const e = document.createElement('div'); e.className = 'wait'; e.style.animation = 'none'; e.style.padding = '12px'; e.style.textAlign = 'center';
+    e.textContent = /^https?:/i.test(src) ? `The image could not be loaded (the link may have expired or be blocked): ${src.slice(0, 120)}` : 'The image data is damaged and could not be shown.';
+    fig.replaceChildren(e);
+  };
   img.onclick = () => openLightbox(src);
   fig.replaceChildren(img);
 }
 
 function render() {
+  const notes = [...$('log').querySelectorAll('.msg.err')].filter(e => e.dataset.chat === (cur?.chat.id || ''));
   $('log').innerHTML = '';
   if (!history.length) {
     const e = document.createElement('div'); e.className = 'empty'; e.textContent = busy ? '' : `Say hi to ${cur ? cn(cur.c) : ''}.`;
@@ -1179,6 +1185,7 @@ function render() {
     if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => src ? showImage(f, src) : f.remove()).catch(() => f.remove()); }
     if (m.role === 'assistant') addAltNav(b, m, i);
   }
+  for (const n of notes) $('log').append(n);
 }
 
 // ---------- Image generation ----------
@@ -1225,35 +1232,90 @@ async function generateImage(prompt, ref, who, about) {
   }
   return requestImage(prompt + extra);
 }
+var IMAGE_TIMEOUT = 180000;
+// Finds an image anywhere in a response: data URLs, base64 fields, or image links
+function findImage(node, depth = 0) {
+  if (!node || depth > 8) return null;
+  if (typeof node === 'string') {
+    const d = node.match(/data:image\/[a-z+.-]+;base64,[A-Za-z0-9+/=]+/); if (d) return d[0];
+    const u = node.match(/https?:\/\/[^\s"')\]]+\.(?:png|jpe?g|webp|gif)(?:\?[^\s"')\]]*)?/i); if (u) return u[0];
+    return null;
+  }
+  if (Array.isArray(node)) { for (const x of node) { const r = findImage(x, depth + 1); if (r) return r; } return null; }
+  if (typeof node === 'object') {
+    for (const k of ['b64_json', 'base64', 'bytesBase64Encoded', 'image_base64', 'b64']) if (typeof node[k] === 'string' && node[k].length > 100) return `data:${node.mime_type || node.mimeType || 'image/png'};base64,${node[k]}`;
+    if (node.inlineData?.data) return `data:${node.inlineData.mimeType || 'image/png'};base64,${node.inlineData.data}`;
+    for (const k of ['image_url', 'imageUrl', 'image', 'url', 'uri']) {
+      const v = node[k]; const s = typeof v === 'string' ? v : v?.url;
+      if (typeof s !== 'string') continue;
+      if (/^data:image\//.test(s)) return s;
+      // a link counts when it is labelled as an image or looks like an image file
+      if (/^https?:\/\//.test(s) && (k.startsWith('image') || /\.(png|jpe?g|webp|gif)(\?|$)/i.test(s))) return s;
+    }
+    for (const v of Object.values(node)) { const r = findImage(v, depth + 1); if (r) return r; }
+  }
+  return null;
+}
+// Remote links can expire: keep a copy of the image itself when the server allows it
+async function keepImage(src) {
+  if (!/^https?:/i.test(src)) return src;
+  try {
+    const blob = await (await fetch(src)).blob();
+    if (!blob.type.startsWith('image/')) return src;
+    return await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+  } catch { return src; }
+}
 async function requestImage(prompt) {
   const a = imgApi(), url = endpoint(a.url);
+  if (!a.url || !a.model) throw new Error('The image proxy has no URL or model filled in.');
   const imagesApi = /images\/generations$/.test(url);
   const body = imagesApi
     ? { model: a.model, prompt, n: 1 }
     : { model: a.model, messages: [{ role: 'user', content: prompt }], modalities: ['image', 'text'] };
-  const res = await fetch(url, { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify(body) });
-  if (!res.ok) throw await httpError(res);
-  const j = await res.json();
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), IMAGE_TIMEOUT);
+  let res, raw;
+  try {
+    res = await fetch(url, { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify(body), signal: ctl.signal });
+    if (!res.ok) throw await httpError(res);
+    raw = await res.text();
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error(`No answer from the image generator after ${IMAGE_TIMEOUT / 60000} minutes.`);
+    if (e instanceof TypeError) throw new Error(`Could not reach the image proxy (${e.message}). Check the URL, your connection, or whether the server allows requests from apps.`);
+    throw e;
+  } finally { clearTimeout(timer); }
+  let j;
+  try { j = JSON.parse(raw); }
+  catch {
+    // A streamed (server-sent events) answer: collect every chunk
+    const chunks = raw.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).filter(d => d && d !== '[DONE]');
+    if (!chunks.length) throw new Error(`The image proxy did not answer with JSON: ${raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300) || '(empty response)'}`);
+    const parts = chunks.map(c => { try { return JSON.parse(c); } catch { return null; } }).filter(Boolean);
+    const err = parts.find(x => x.error); if (err) throw new Error(errorText(err));
+    const img = findImage(parts); if (img) return keepImage(img);
+    const text = parts.map(x => x.choices?.[0]?.delta?.content || '').join('').trim();
+    j = { choices: [{ message: { content: text }, finish_reason: parts.at(-1)?.choices?.[0]?.finish_reason }] };
+  }
   if (j.error) throw new Error(errorText(j));
 
   if (imagesApi) {
     const d = j.data?.[0];
     if (d?.b64_json) return 'data:image/png;base64,' + d.b64_json;
-    if (d?.url) return d.url;
+    if (d?.url) return keepImage(d.url);
   } else {
     const m = j.choices?.[0]?.message || {};
     const im = m.images?.[0];
     const fromImages = im?.image_url?.url || im?.url;
-    if (fromImages) return fromImages;
+    if (fromImages) return keepImage(fromImages);
     if (Array.isArray(m.content)) {
       const part = m.content.find(p => p.type === 'image_url' || p.image_url);
-      if (part) return part.image_url?.url || part.image_url;
+      if (part) return keepImage(part.image_url?.url || part.image_url);
     }
     if (typeof m.content === 'string') {
       const hit = m.content.match(/data:image\/[a-z]+;base64,[A-Za-z0-9+/=]+/) || m.content.match(/https?:\/\/\S+\.(?:png|jpe?g|webp|gif)(?:\?\S*)?/i);
-      if (hit) return hit[0];
+      if (hit) return keepImage(hit[0]);
     }
   }
+  const anywhere = findImage(j); if (anywhere) return keepImage(anywhere);
   // No image: pass on whatever the model said instead (often a refusal or safety block)
   const ch = j.choices?.[0], m = ch?.message || {};
   const said = [
@@ -1389,6 +1451,7 @@ async function send(text, img) {
   if (!ready()) return;
   const s = cur, hist = history;
   setBusy(true);
+  for (const n of $('log').querySelectorAll('.msg.err')) n.remove();
   const msg = { role: 'user', content: text };
   if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); }
   hist.push(msg); saveMsgs(s.chat, hist);
