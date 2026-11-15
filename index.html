@@ -123,6 +123,9 @@
   #input { flex: 1; resize: none; max-height: 180px; min-height: 46px; padding: 12px 16px; border-radius: 22px; border: 1px solid var(--line); background: var(--field); color: var(--ink); font: inherit; font-family: var(--me-font); outline: none; }
   #input:focus { border-color: var(--accent); }
   #send { height: 46px; min-width: 46px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; font-size: 20px; cursor: pointer; }
+  #send .i-stop, #send.stop .i-send { display: none; }
+  #send.stop .i-stop { display: block; margin: auto; }
+  #send.stop { background: var(--ink); color: var(--bg); }
   #send:disabled { opacity: .45; cursor: default; }
 
   /* ---------- Settings page ---------- */
@@ -177,7 +180,12 @@
   .md strong { font-weight: 700; }
   .md > :last-child, .md blockquote > :last-child { margin-bottom: 0; }
   .md ul, .md ol { margin: 0 0 .65em; padding-left: 1.4em; }
-  .md blockquote { margin: 0 0 .65em; padding-left: .8em; border-left: 3px solid var(--line); opacity: .85; }
+  .md blockquote { margin: 0 0 .65em; padding-left: .8em; border-left: 3px solid var(--line); }
+  /* gradient text is painted through the text; boxes with their own background need a visible color */
+  body[data-color="gradient"] .msg.ai .txt :is(code, pre) { -webkit-text-fill-color: var(--c1); color: var(--c1); }
+  body[data-ucolor="gradient"] .msg.me .txt :is(code, pre) { -webkit-text-fill-color: var(--u-c1); color: var(--u-c1); }
+  body[data-color="gradient"] .msg.ai .txt blockquote { border-left-color: var(--c2); }
+  body[data-ucolor="gradient"] .msg.me .txt blockquote { border-left-color: var(--u-c2); }
   .md code { font-family: ui-monospace, Menlo, monospace; font-size: .88em; background: color-mix(in srgb, var(--ink) 8%, transparent); padding: .1em .35em; border-radius: 5px; }
   .md pre { white-space: pre-wrap; background: color-mix(in srgb, var(--ink) 6%, transparent); padding: 10px; border-radius: 10px; margin: 0 0 .65em; }
   .md pre code { background: none; padding: 0; }
@@ -318,8 +326,8 @@
 
   /* ---------- Chat settings ---------- */
   button.chat-who { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; color: inherit; }
-  .match { display: flex; gap: 8px; }
-  .match .btn { flex: 1; padding: 8px 10px; font-size: 13px; }
+  .match { display: flex; gap: 6px; padding: 0 4px; margin-top: -6px; }
+  .match .btn { flex: 1; padding: 6px 8px; font-size: 12px; border: 0; background: none; color: var(--accent); }
 
   /* ---------- Character profile ---------- */
   .hero { width: 100%; aspect-ratio: 3 / 4; max-height: 62vh; margin-top: 12px; border-radius: 18px; background: var(--accent-soft) center / cover no-repeat;
@@ -457,7 +465,7 @@
     <button id="attach" type="button" aria-label="Add an image"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
     <input type="file" id="attachFile" accept="image/*" hidden>
     <textarea id="input" rows="1" placeholder="Say something…" autocomplete="off"></textarea>
-    <button id="send" type="submit" aria-label="Send"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+    <button id="send" type="submit" aria-label="Send"><svg class="i-send" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg><svg class="i-stop" width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="currentColor"/></svg></button>
   </form>
 </section>
 
@@ -506,7 +514,8 @@
     <button type="button" data-t="3">Prompt</button>
   </div>
   <div class="page-body" id="csBody"><div class="page-inner cs-pane" data-t="0">
-    <p class="group-title">Memory</p>
+    <details class="sec" id="memFold" open>
+    <summary class="group-title">Memory</summary>
     <div class="card">
       <div class="tokbar" id="tokBar"></div>
       <textarea id="memory" placeholder="A summary of what happened so far, or things the character should always remember."></textarea>
@@ -519,6 +528,7 @@
         <div class="actions"><button class="btn" type="button" id="sumExample">Use an example prompt</button></div>
       </details>
     </div>
+    </details>
     <div class="hint" style="margin:10px 4px 0">
       <b>About the context window.</b> A model only sees a limited amount of text (its context window, in tokens). In a long chat the oldest messages fall out and the character forgets them.
       Summarize regularly: it writes the not-yet-summarized part into Memory, which is always sent. Summarizing itself also needs the unsummarized part to fit, so don't wait too long.
@@ -727,8 +737,8 @@
         <button type="button" data-v="me">Style your text</button>
       </div>
       <div class="match">
-        <button class="btn" type="button" id="matchToMe">Your text = AI style</button>
-        <button class="btn" type="button" id="matchToAi">AI text = your style</button>
+        <button class="btn" type="button" id="matchToAi">Match user</button>
+        <button class="btn" type="button" id="matchToMe">Match AI</button>
       </div>
       <div class="msg me"><span class="txt" data-rich>*yawns* Can't sleep. "Talk to me?"</span></div>
       <div class="msg ai"><span class="txt" data-rich>"Of course." *She pulls the blanket closer.* The rain **always** sounds ~~boring~~ different at night.&#10;&#10;> Old memory: the `porch` light.</span></div>
@@ -1350,13 +1360,14 @@ async function requestImageOnce(prompt, modalities) {
     ? { model: a.model, prompt, n: 1 }
     : { model: a.model, messages: [{ role: 'user', content: prompt }], modalities };
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), IMAGE_TIMEOUT);
+  const outer = abortCtl?.signal; outer?.addEventListener('abort', () => ctl.abort());
   let res, raw;
   try {
     res = await fetch(url, { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify(body), signal: ctl.signal });
     if (!res.ok) throw await httpError(res);
     raw = await res.text();
   } catch (e) {
-    if (e.name === 'AbortError') throw new Error(`No answer from the image generator after ${IMAGE_TIMEOUT / 60000} minutes.`);
+    if (e.name === 'AbortError') { if (outer?.aborted) throw e; throw new Error(`No answer from the image generator after ${IMAGE_TIMEOUT / 60000} minutes.`); }
     if (e instanceof TypeError) throw new Error(`Could not reach the image proxy (${e.message}). Check the URL, your connection, or whether the server allows requests from apps.`);
     throw e;
   } finally { clearTimeout(timer); }
@@ -1425,19 +1436,30 @@ function ready() {
   if (a.url && a.model) return true;
   toast('Set up a proxy and model first'); openSettings(); return false;
 }
+// While the AI writes, the send button is a stop button; abortCtl cancels the running request
+let abortCtl = null;
+const isAbort = e => e?.name === 'AbortError';
 function setBusy(on) {
-  busy = on; $('send').disabled = on; $('chatAv').classList.toggle('live', on);
+  busy = on; $('chatAv').classList.toggle('live', on);
+  abortCtl = on ? new AbortController() : null;
+  $('send').classList.toggle('stop', on); $('send').disabled = false;
+  $('send').setAttribute('aria-label', on ? 'Stop' : 'Send');
   if (!on && !matchMedia('(pointer: coarse)').matches) $('input').focus(); // no auto keyboard on phones
 }
 
 async function streamChat(messages, onText) {
   const a = api();
   const res = await fetch(endpoint(a.url), {
-    method: 'POST', headers: authHeaders(a.key),
+    method: 'POST', headers: authHeaders(a.key), signal: abortCtl?.signal,
     body: JSON.stringify({ model: a.model, messages, stream: true, temperature: gen().temperature })
   });
   if (!res.ok) throw await httpError(res);
   const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '', reply = '';
+  // Stopped halfway: keep what was written so far
+  try { await readStream(); } catch (e) { if (isAbort(e) && reply) return reply; throw e; }
+  if (!reply) throw new Error('Received an empty response.');
+  return reply;
+  async function readStream() {
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -1456,8 +1478,7 @@ async function streamChat(messages, onText) {
       } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
     }
   }
-  if (!reply) throw new Error('Received an empty response.');
-  return reply;
+  }
 }
 
 // Runs one AI turn in chat s ({chat, c, p}); hist is that chat's array, so it stays valid if the user switches chats
@@ -1477,7 +1498,7 @@ async function aiTurn(s, hist, messages, bubble, into) {
   const asked = wantsImage(hist[idx - 1]) || replySendsImage(msg.content);
   if (!imgPrompt && asked) {
     if (!imageEnabled()) { if (here()) addBubble('err', 'You asked for a picture, but no image proxy is active. Add one in Settings → Image proxy (or in this chat\'s settings).'); return; }
-    try { imgPrompt = await describeImage(s, hist[idx - 1].content, msg.content); } catch (e) { if (here()) addBubble('err', 'Could not work out the picture: ' + e.message); return; }
+    try { imgPrompt = await describeImage(s, hist[idx - 1].content, msg.content); } catch (e) { if (!isAbort(e) && here()) addBubble('err', 'Could not work out the picture: ' + e.message); return; }
   }
   if (imgPrompt) await attachImage(s, hist, msg, into, bubble, imgPrompt);
 }
@@ -1504,7 +1525,7 @@ async function attachImage(s, hist, msg, into, bubble, imgPrompt) {
     if (into) selectAlt(into, into.sel);
     saveMsgs(s.chat, hist);
     showImage(fig, src);
-  } catch (e) { fig.remove(); if (here()) addBubble('err', 'Image failed: ' + e.message); }
+  } catch (e) { fig.remove(); if (!isAbort(e) && here()) addBubble('err', 'Image failed: ' + e.message); }
 }
 // Long press → Create image on a reply
 async function imageForReply(i) {
@@ -1520,7 +1541,7 @@ async function imageForReply(i) {
     if (target.img) idb.del(target.img).catch(() => {});
     bubble.querySelector('figure')?.remove();
     await attachImage(s, hist, target, m.alts ? m : null, bubble, prompt);
-  } catch (e) { toast('Could not create an image: ' + e.message); }
+  } catch (e) { if (!isAbort(e)) toast('Could not create an image: ' + e.message); }
   finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
 }
 
@@ -1538,8 +1559,11 @@ async function send(text, img, forceImage) {
   const bubble = addBubble('ai', '');
   try { await aiTurn(s, hist, await buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
   catch (e) {
-    if (!bubble.textContent) { bubble.remove(); hist.pop(); saveMsgs(s.chat, hist); }
-    if (cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message);
+    if (isAbort(e)) bubble.remove(); // stopped before anything was written: your message stays
+    else {
+      if (!bubble.textContent) { bubble.remove(); hist.pop(); saveMsgs(s.chat, hist); }
+      if (cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message);
+    }
   } finally {
     setBusy(false);
     const i = bubble.dataset.i; if (i !== undefined && bubble.isConnected && !bubble.querySelector('.alts')) addAltNav(bubble, hist[+i], +i);
@@ -1637,7 +1661,7 @@ async function resendFrom(i, text) {
   setBusy(true);
   const bubble = addBubble('ai', '');
   try { await aiTurn(s, hist, await buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
-  catch (e) { bubble.remove(); if (cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message); }
+  catch (e) { bubble.remove(); if (!isAbort(e) && cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message); }
   finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
 }
 
@@ -1675,7 +1699,7 @@ async function anotherReply(i, bubble) {
       ? [...await buildMessages(s.c, s.p, [], s.chat.memory), { role: 'user', content: openingAsk(s.c, s.p) }]
       : await buildMessages(s.c, s.p, hist.slice(0, i), s.chat.memory);
     await aiTurn(s, hist, messages, bubble, m);
-  } catch (e) { if (cur?.chat.id === s.chat.id) toast('Could not write another reply: ' + e.message); }
+  } catch (e) { if (!isAbort(e) && cur?.chat.id === s.chat.id) toast('Could not write another reply: ' + e.message); }
   finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
 }
 
@@ -1685,7 +1709,7 @@ async function writeOpening() {
   setBusy(true); render();
   const bubble = addBubble('ai', '');
   try { await aiTurn(s, hist, [...await buildMessages(c, p, [], s.chat.memory), { role: 'user', content: openingAsk(c, p) }], bubble); }
-  catch (e) { bubble.remove(); if (cur?.chat.id === s.chat.id) { render(); addBubble('err', 'Could not write an opening: ' + e.message); } }
+  catch (e) { bubble.remove(); if (cur?.chat.id === s.chat.id) { render(); if (!isAbort(e)) addBubble('err', 'Could not write an opening: ' + e.message); } }
   finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
 }
 
@@ -2574,14 +2598,17 @@ function renderProxyBoxes() {
 }
 function renderProxyBox(box, kind, scope) {
   const list = proxyList(kind), k = proxyKey(kind), chat = scope === 'chat' ? cur?.chat : null;
-  const selId = chat ? (list.some(x => x.id === chat[k]) ? chat[k] : '') : cfg[k];
+  const selId = chat ? (list.some(x => x.id === chat[k]) && chat[k] !== cfg[k] ? chat[k] : '') : cfg[k];
   const save = () => { saveCfg(); if (chat) store.set('chats', chats); };
   const select = id => { if (chat) { if (id) chat[k] = id; else delete chat[k]; } else cfg[k] = id; save(); renderProxyBoxes(); };
   box.innerHTML = '';
   const chips = document.createElement('div'); chips.className = 'chips';
   const chip = (label, on, fn, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; b.onclick = fn; chips.append(b); };
   if (chat) { const g = list.find(x => x.id === cfg[k]); chip('Global' + (g ? ` (${g.name || 'unnamed'})` : ''), !selId, () => select('')); }
-  for (const pr of list) chip(pr.name || 'Unnamed', pr.id === selId, () => select(pr.id));
+  for (const pr of list) {
+    if (chat && pr.id === cfg[k]) continue; // already offered as "Global"
+    chip(pr.name || 'Unnamed', pr.id === selId, () => select(pr.id));
+  }
   chip('+ New', false, () => {
     const pr = { id: uid(), name: `${kind === 'img' ? 'Image proxy' : 'Proxy'} ${list.length + 1}`, url: '', key: '', model: '' };
     list.push(pr); select(pr.id);
@@ -2676,10 +2703,12 @@ $('sumBtn').onclick = async () => {
     toast('Summary written to Memory');
   } catch (e) {
     if (cur === s) { $('memory').value = before; autosize($('memory')); }
-    toast('Summarize failed: ' + e.message);
+    toast(isAbort(e) ? 'Summarize stopped' : 'Summarize failed: ' + e.message);
   } finally { setBusy(false); $('sumBtn').textContent = 'Summarize'; syncSummary(); }
 };
 $('memory').addEventListener('input', () => syncSummary());
+$('memFold').open = store.get('memFoldOpen', true);
+$('memFold').addEventListener('toggle', () => { store.set('memFoldOpen', $('memFold').open); if ($('memFold').open) autosizeAll($('memFold')); });
 $('sumFold').addEventListener('toggle', () => { if ($('sumFold').open) autosizeAll($('sumFold')); });
 
 // Tabs: tap or swipe sideways
@@ -2761,7 +2790,7 @@ function matchStyle(toMe) {
   const L = editLook();
   for (const [a, u] of [...STYLE_KEYS.map(k => [k, 'u_' + k]), ['aiFont', 'meFont']]) toMe ? writeLook(u, L[a]) : writeLook(a, L[u]);
   update('theme', L.theme);
-  toast(toMe ? 'Your text now matches the AI' : 'AI text now matches yours');
+  toast(toMe ? 'Your text now looks like the AI text' : 'AI text now looks like your text');
 }
 
 function buildSettings() {
@@ -3172,7 +3201,7 @@ async function runHelper(mode, original) {
     $('helpState').textContent = mode === 'enhance' ? 'Enhanced by AI' : 'Written by AI';
   } catch (e) {
     input.value = original; input.dispatchEvent(new Event('input'));
-    $('helpState').textContent = 'Failed: ' + e.message;
+    $('helpState').textContent = isAbort(e) ? 'Stopped' : 'Failed: ' + e.message;
   } finally { setBusy(false); $('helpRetry').disabled = $('helpUndo').disabled = false; }
 }
 function clearHelper() { helper = null; $('helpBar').hidden = true; }
@@ -3194,6 +3223,7 @@ $('attachFile').onchange = async () => {
 $('attachRm').onclick = () => setAttached(null);
 $('composer').onsubmit = e => {
   e.preventDefault();
+  if (busy) { if (e.submitter === $('send')) abortCtl?.abort(); return; }
   const t = input.value.trim();
   if ((!t && !attached) || busy) return;
   const img = attached;

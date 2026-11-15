@@ -12,13 +12,14 @@ A character chat app: create characters and chat with them. Built on the Nearly 
    - **Prompt**: your system prompt, sent with every message, and forbidden words the AI is told never to use
    - **Backup**: export / import everything as one file
    - **Themes**: Default / Light / Dark, accent color, AI message bubble
-   - **Customization**: separately for AI text and your text: font, size, weight, spacing, glow, color/gradient, and a Markdown section that gives quoted text, italic, bold, strikethrough, code, headings, list bullets, quote blocks, links and dividers each their own color (chats only). One tap copies one side's style to the other
+   - **Customization**: separately for AI text and your text: font, size, weight, spacing, glow, color/gradient, and a Markdown section that gives quoted text, italic, bold, strikethrough, code, headings, list bullets, quote blocks, links and dividers each their own color (chats only). **Match user** (under Style AI text) and **Match AI** (under Style your text) copy one side's style to the other
 4. **Personas**: who *you* are. Image, name, personality.
 5. **Characters**: image, name, optional chat name (used in chats and for `{{char}}`), description (list only, never sent to the AI), personality, scenario, first messages (Option 1, 2, … — flip through them in a new chat until you reply; or let the AI write the opening) and example dialogue. **Import character card** (next to the image) fills everything in from a PNG/JSON card (SillyTavern/Chub/JanitorAI format). Tap a character for **Character profile** (collapsible sections, edit, export card, delete) or **Chat** (pick a persona, starts a new chat).
    - From Safari or Files: **Share → GreenRoom** (or "Open in GreenRoom") on a downloaded `.png`/`.json` card opens a new character with everything filled in
    - Swipe a character or persona left for **Move** (to a folder, or a new one) and **Delete**
    - Long press to select several, then move or delete them together
 6. **Chats**: all chats grouped per character, with the persona each was played as. Tap a character to unfold its chats; open, delete, start a new chat, or jump to the character card. Long press a chat to export it (text or SillyTavern `.jsonl`) or delete it.
+   - While the AI writes, the send button becomes a **stop** button (what's written so far is kept)
    - Under every reply of the character: **›** writes another version, **‹ ›** flip between versions (2/3); the one showing is the one the AI remembers. Several first messages appear the same way
    - Long press a message: yours → **Edit** (then Send), **Resend**, **Copy**, **Delete**; the character's → **Create image**, **Copy**, **Delete**. Deleting removes everything after it too; resending asks the AI again from there
    - Long press the send button: **✨ Enhance my message** (AI rewrites what you typed) and **✍️ Write for me** (AI writes your message), each with its own saved prompt. The result lands in the text box with **Retry** and **Delete** (back to what you wrote)
