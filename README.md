@@ -1,4 +1,4 @@
-# GreenRoom
+# Green Room
 
 A character chat app: create characters and chat with them. Built on the Nearly codebase.
 
@@ -15,7 +15,7 @@ A character chat app: create characters and chat with them. Built on the Nearly 
    - **Customization**: separately for AI text and your text: font, size, weight, spacing, glow, color/gradient, and a Markdown section that gives quoted text, italic, bold, strikethrough, code, headings, list bullets, quote blocks, links and dividers each their own color (chats only). **Match user** (under Style AI text) and **Match AI** (under Style your text) copy one side's style to the other
 4. **Personas**: who *you* are. Image, name, personality.
 5. **Characters**: image, name, optional chat name (used in chats and for `{{char}}`), description (list only, never sent to the AI), personality, scenario, first messages (Option 1, 2, … — flip through them in a new chat until you reply; or let the AI write the opening) and example dialogue. **Import character card** (next to the image) fills everything in from a PNG/JSON card (SillyTavern/Chub/JanitorAI format). Tap a character for **Character profile** (collapsible sections, edit, export card, delete) or **Chat** (pick a persona, starts a new chat).
-   - From Safari or Files: **Share → GreenRoom** (or "Open in GreenRoom") on a downloaded `.png`/`.json` card opens a new character with everything filled in
+   - From Safari or Files: **Share → Green Room** (or "Open in Green Room") on a downloaded `.png`/`.json` card opens a new character with everything filled in
    - Swipe a character or persona left for **Move** (to a folder, or a new one) and **Delete**
    - Long press to select several, then move or delete them together
 6. **Chats**: all chats grouped per character, with the persona each was played as. Tap a character to unfold its chats; open, delete, start a new chat, or jump to the character card. Long press a chat to export it (text or SillyTavern `.jsonl`) or delete it.
@@ -24,7 +24,7 @@ A character chat app: create characters and chat with them. Built on the Nearly 
    - Long press a message: yours → **Edit** (then Send), **Resend**, **Copy**, **Delete**; the character's → **Create image**, **Copy**, **Delete**. Deleting removes everything after it too; resending asks the AI again from there
    - Long press the send button: **✨ Enhance my message** (AI rewrites what you typed) and **✍️ Write for me** (AI writes your message), each with its own saved prompt. The result lands in the text box with **Retry** and **Delete** (back to what you wrote)
    - The **+** above the text field: **Upload image** (the character sees it; needs a model that accepts images), **Upload file** (text, Markdown, JSON, CSV, HTML, PDF; sent with your message) and **Author's note** (a short instruction kept close to the newest messages so it keeps working in long chats)
-   - Long press the last reply → **Continue** (or long press send → Continue the last reply): the AI carries on where it stopped
+   - **Continue** under the newest reply (or long press send → Continue the last reply): the AI carries on where it stopped
    - Swipe right-to-left in a chat: **Character card**, **Edit character**, and all images in the chat
    - In a chat, tap the character at the top for **Chat settings**, with tabs (tap or swipe): **Memory** (memory sent with every message; a summary prompt and **Summarize** button that writes the not-yet-summarized part of the chat into Memory; a counter of unsummarized tokens), **Style** (theme and style for this chat), **Proxy** (pick or add a proxy and image proxy for this chat, or keep Global; switch whether the character sends pictures on its own, otherwise a 📷 under such a reply makes it on tap; temperature and context size for this chat) and **Prompt** (replaces the global system prompt in this chat; extra forbidden words)
 7. **Lorebooks**: world info (places, people, rules). Each entry has keywords and is only sent when a keyword appears in the recent messages (or always, if marked). Use a lorebook everywhere, link it to a character (editor) or to a chat (Chat settings → Prompt). Lorebooks in character cards are imported and exported with the card; SillyTavern world info files can be imported and exported.

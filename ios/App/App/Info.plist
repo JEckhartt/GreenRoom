@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>GreenRoom</string>
+        <string>Green Room</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -65,9 +65,9 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>GreenRoom saves images you choose to your photo library.</string>
+	<string>Green Room saves images you choose to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>GreenRoom saves images you choose to your photo library.</string>
+	<string>Green Room saves images you choose to your photo library.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

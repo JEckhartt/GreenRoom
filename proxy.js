@@ -19,7 +19,7 @@ http.createServer(async (req, res) => {
   try {
     const up = await fetch(UPSTREAM + req.url, {
       method: req.method,
-      headers: { 'Content-Type': 'application/json', 'X-Title': 'GreenRoom', ...(auth ? { Authorization: auth } : {}) },
+      headers: { 'Content-Type': 'application/json', 'X-Title': 'Green Room', ...(auth ? { Authorization: auth } : {}) },
       body: req.method === 'GET' ? undefined : Buffer.concat(chunks)
     });
     res.writeHead(up.status, { 'Content-Type': up.headers.get('content-type') || 'application/json' });

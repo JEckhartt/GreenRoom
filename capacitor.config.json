@@ -1,6 +1,6 @@
 {
   "appId": "app.greenroom.chat",
-  "appName": "GreenRoom",
+  "appName": "Green Room",
   "webDir": "www",
   "ios": {
     "contentInset": "never",

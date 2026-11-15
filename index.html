@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>GreenRoom</title>
+<title>Green Room</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
@@ -130,6 +130,7 @@
   #attachPv button { position: absolute; top: -7px; right: -7px; }
   .fchip { display: flex; align-items: center; gap: 8px; max-width: 75%; padding: 6px 6px 6px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--field); font-size: 13px; }
   .fchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fchip span::before, .fbub::before { content: ''; display: inline-block; width: 9px; height: 11px; margin-right: 7px; border: 1.5px solid currentColor; border-radius: 2px; vertical-align: -1px; opacity: .6; }
   .anchip { border: 1px dashed var(--accent); color: var(--accent); background: none; border-radius: 999px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
   #plusBtn { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--field); color: var(--ink-soft); font-size: 22px; font-weight: 300; line-height: 1; display: grid; place-items: center; cursor: pointer; transition: transform .2s, color .2s; padding: 0 0 2px; }
   #plusBtn.open { transform: rotate(45deg); color: var(--accent); border-color: var(--accent); }
@@ -165,10 +166,12 @@
   #home { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
   .logo { display: flex; align-items: center; gap: 14px; font-family: 'Fraunces', Georgia, serif; font-size: 44px; font-weight: 400; letter-spacing: .01em; margin: 0 0 36px; }
   .logo .pulse { width: 16px; height: 16px; }
-  .menu { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; }
-  .menu button { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-radius: 18px; border: 1px solid var(--line); background: var(--field); font-family: 'Fraunces', Georgia, serif; font-size: 20px; cursor: pointer; text-align: left; transition: border-color .2s; }
-  .menu button::after { content: '›'; color: var(--ink-soft); font-size: 24px; line-height: 1; }
-  .menu button:active { border-color: var(--accent); }
+  .menu { width: 100%; max-width: 320px; display: flex; flex-direction: column; }
+  .menu button { display: flex; justify-content: space-between; align-items: center; padding: 18px 6px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; font-family: 'Fraunces', Georgia, serif; font-size: 21px; cursor: pointer; text-align: left; transition: color .15s; }
+  .menu button:first-child { border-top: 1px solid var(--line); }
+  .menu button::after { content: '›'; color: var(--ink-soft); font-size: 24px; line-height: 1; transition: transform .15s; }
+  .menu button:active { color: var(--accent); }
+  .menu button:active::after { transform: translateX(4px); color: var(--accent); }
 
   /* ---------- Character / persona lists ---------- */
   .create { position: sticky; top: 0; z-index: 2; padding: 12px 0; background: var(--bg); }
@@ -268,6 +271,7 @@
   .alts button:disabled { opacity: .35; }
   .alts span { font-variant-numeric: tabular-nums; }
   .alts .cam { display: grid; place-items: center; margin-left: 6px; padding: 4px 8px; }
+  .alts .cont { font-size: 13px; padding: 4px 10px; margin-left: 4px; }
 
   /* ---------- Writing help (long press send) ---------- */
   #helpBar { max-width: 760px; width: 100%; margin: 0 auto; padding: 8px 16px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); }
@@ -428,8 +432,8 @@
 </style>
 </head>
 <body data-color="theme">
-<section id="home" aria-label="GreenRoom">
-  <h1 class="logo"><span class="pulse"></span>GreenRoom</h1>
+<section id="home" aria-label="Green Room">
+  <h1 class="logo"><span class="pulse"></span>Green Room</h1>
   <nav class="menu">
     <button type="button" id="goChats">Chats</button>
     <button type="button" id="goChars">Characters</button>
@@ -522,7 +526,15 @@
     <div class="anbox">
       <div class="anrow"><b>Author's note</b><button type="button" id="anClose" aria-label="Close author's note">Done</button></div>
       <textarea id="anText" placeholder="e.g. Keep replies under 150 words. It is midnight and raining. Never speak for {{user}}."></textarea>
-      <div class="anrow">
+      <div class="anrow"><span>On</span><input type="checkbox" class="tgl" id="anOn"></div>
+      <div class="anrow" style="margin-top:8px">
+        <label for="anKeep">Keep it</label>
+        <select id="anKeep">
+          <option value="on">until I turn it off</option>
+          <option value="once">for my next message only</option>
+        </select>
+      </div>
+      <div class="anrow" style="margin-top:8px">
         <label for="anDepth">Placed</label>
         <select id="anDepth">
           <option value="1">with your latest message</option>
@@ -533,16 +545,16 @@
           <option value="10">10 messages back</option>
         </select>
       </div>
-      <div class="hint" style="margin-top:4px">Sent with every message of this chat, close to the newest messages, so it keeps working in long chats. Hidden from the chat.</div>
+      <div class="hint" style="margin-top:8px">While on, it is sent with your messages in this chat, close to the newest messages, so it keeps working in long chats. Hidden from the chat. Turned off, the text is kept for later.</div>
     </div>
   </div>
   <div id="toolsRow">
+    <button id="plusBtn" type="button" aria-label="Add">+</button>
     <div id="chipsRow">
       <div class="pv" id="attachPv" hidden><button type="button" id="attachRm" aria-label="Remove image">✕</button></div>
       <div class="fchip" id="fileChip" hidden><span id="fileName"></span><button type="button" id="fileRm" aria-label="Remove file">✕</button></div>
-      <button type="button" class="anchip" id="anChip" hidden>📝 Author's note</button>
+      <button type="button" class="anchip" id="anChip" hidden>Author's note</button>
     </div>
-    <button id="plusBtn" type="button" aria-label="Add">+</button>
   </div>
   <input type="file" id="attachFile" accept="image/*" hidden>
   <input type="file" id="attachDoc" accept=".txt,.md,.markdown,.json,.csv,.tsv,.xml,.html,.htm,.yaml,.yml,.log,.srt,.pdf,text/*,application/pdf,application/json" hidden>
@@ -556,14 +568,14 @@
 
 <div id="msgMenu" hidden></div>
 <div id="plusMenu" hidden>
-  <button type="button" data-act="image"><span>🖼️</span>Upload image</button>
-  <button type="button" data-act="file"><span>📄</span>Upload file <small>text, PDF…</small></button>
-  <button type="button" data-act="note"><span>📝</span>Author's note</button>
+  <button type="button" data-act="image">Upload image</button>
+  <button type="button" data-act="file">Upload file <small>text, PDF…</small></button>
+  <button type="button" data-act="note">Author's note</button>
 </div>
 <div id="sendMenu" hidden>
-  <button type="button" data-act="enhance">✨ Enhance my message</button>
-  <button type="button" data-act="write">✍️ Write for me</button>
-  <button type="button" data-act="continue">➡️ Continue the last reply</button>
+  <button type="button" data-act="enhance">Enhance my message</button>
+  <button type="button" data-act="write">Write for me</button>
+  <button type="button" data-act="continue">Continue the last reply</button>
   <button type="button" data-act="prompts" class="small">Edit these prompts</button>
 </div>
 
@@ -573,12 +585,12 @@
     <p class="group-title">Enhance my message</p>
     <div class="card">
       <textarea id="hpEnhance"></textarea>
-      <div class="hint">Used by ✨ Enhance: the AI rewrites what you typed following this prompt. {{char}} and {{user}} are filled in.</div>
+      <div class="hint">Used by Enhance my message: the AI rewrites what you typed following this prompt. {{char}} and {{user}} are filled in.</div>
     </div>
     <p class="group-title">Write for me</p>
     <div class="card">
       <textarea id="hpWrite"></textarea>
-      <div class="hint">Used by ✍️ Write for me: the AI writes your next message. Anything already in the text box is passed along as an idea.</div>
+      <div class="hint">Used by Write for me: the AI writes your next message. Anything already in the text box is passed along as an idea.</div>
     </div>
     <div class="save-bar"><button class="btn primary" type="button" id="hpSave2">Save</button></div>
   </div></div>
@@ -1029,12 +1041,12 @@ async function exportBackup() {
     const images = {};
     for (const k of await idb.keys()) { const v = await idb.get(k); if (v) images[k] = v; }
     const data = JSON.stringify({ app: 'greenroom', version: 1, created: new Date().toISOString(), storage: lsDump(), images });
-    const name = `GreenRoom-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const name = `Green-Room-backup-${new Date().toISOString().slice(0, 10)}.json`;
     const Share = window.Capacitor?.Plugins?.Share;
     if (FS && Share) {
       await FS.writeFile({ path: name, data, directory: 'CACHE', encoding: 'utf8' });
       const { uri } = await FS.getUri({ path: name, directory: 'CACHE' });
-      await Share.share({ title: 'GreenRoom backup', files: [uri] });
+      await Share.share({ title: 'Green Room backup', files: [uri] });
       return;
     }
     const file = new File([data], name, { type: 'application/json' });
@@ -1049,8 +1061,8 @@ async function exportBackup() {
 
 async function importBackup(file) {
   let b;
-  try { b = JSON.parse(await file.text()); } catch { return toast('That file is not a GreenRoom backup'); }
-  if (b?.app !== 'greenroom' || typeof b.storage !== 'object') return toast('That file is not a GreenRoom backup');
+  try { b = JSON.parse(await file.text()); } catch { return toast('That file is not a Green Room backup'); }
+  if (b?.app !== 'greenroom' || typeof b.storage !== 'object') return toast('That file is not a Green Room backup');
   const count = k => { try { return JSON.parse(b.storage[k] || '[]').length; } catch { return 0; } };
   const when = b.created ? new Date(b.created).toLocaleString() : 'unknown date';
   if (!confirm(`Restore the backup from ${when}?\n${count('chars')} characters, ${count('personas')} personas, ${count('chats')} chats.\n\nThis replaces everything currently in the app.`)) return;
@@ -1243,7 +1255,7 @@ async function buildMessages(c, p, hist, memory) {
     else lastUser.content += IMG_NOTE;
   }
   // Author's note: added to the user message closest to its depth (1 = the latest)
-  let note = cur?.chat.authorNote?.trim() ? fill(cur.chat.authorNote.trim(), c, p) : '';
+  let note = cur?.chat.authorNote?.trim() && !cur.chat.authorOff ? fill(cur.chat.authorNote.trim(), c, p) : '';
   if (note) {
     const depth = cur.chat.authorDepth || 1;
     for (let i = msgs.length - depth; i >= 0; i--) {
@@ -1274,7 +1286,7 @@ const endpoint = base => {
   base = base.trim().replace(/\/+$/, '');
   return /\/(chat\/completions|images\/generations)$/.test(base) ? base : base + '/chat/completions';
 };
-const authHeaders = key => ({ 'Content-Type': 'application/json', ...(key ? { Authorization: 'Bearer ' + key } : {}), 'X-Title': 'GreenRoom' });
+const authHeaders = key => ({ 'Content-Type': 'application/json', ...(key ? { Authorization: 'Bearer ' + key } : {}), 'X-Title': 'Green Room' });
 
 // ---------- Rendering ----------
 function scrollDown() { const s = $('scroller'); s.scrollTop = s.scrollHeight; }
@@ -1394,7 +1406,7 @@ function addFigure(bubble) {
 }
 function addFileChip(bubble, file) {
   const c = document.createElement('div'); c.className = 'fbub';
-  c.textContent = `📄 ${file.name}`;
+  c.textContent = file.name;
   bubble.append(c);
 }
 function showImage(fig, src) {
@@ -1767,11 +1779,15 @@ async function send(text, img, forceImage, doc) {
   if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); }
   if (doc) { msg.file = { name: doc.name, key: 'file_' + uid(), chars: doc.text.length }; await idb.put(msg.file.key, doc.text).catch(() => { delete msg.file; toast('Could not store the file'); }); }
   hist.push(msg); saveMsgs(s.chat, hist);
+  const usedOnce = s.chat.authorOnce && !s.chat.authorOff && s.chat.authorNote?.trim();
+  for (const b of $('log').querySelectorAll('.alts .cont')) b.remove(); // Continue only under the newest reply
   const mine = addBubble('me', text); mine.dataset.i = hist.length - 1;
   if (msg.img) showImage(addFigure(mine), img);
   if (msg.file) addFileChip(mine, msg.file);
   const bubble = addBubble('ai', '');
-  try { await aiTurn(s, hist, await buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
+  const sendMsgs = await buildMessages(s.c, s.p, hist, s.chat.memory);
+  if (usedOnce) { s.chat.authorOff = true; store.set('chats', chats); syncTools(); }
+  try { await aiTurn(s, hist, sendMsgs, bubble); }
   catch (e) {
     if (isAbort(e)) bubble.remove(); // stopped before anything was written: your message stays
     else {
@@ -1793,7 +1809,7 @@ function showMsgMenu(el) {
   const i = +el.dataset.i, m = history[i]; if (!m) return;
   hideMsgMenu();
   const acts = m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], ['delete', 'Delete']]
-    : [...(i === history.length - 1 ? [['continue', 'Continue']] : []), ['image', 'Create image'], ['copy', 'Copy'], ['delete', 'Delete']];
+    : [['image', 'Create image'], ['copy', 'Copy'], ['delete', 'Delete']];
   const box = $('msgMenu'); box.innerHTML = '';
   for (const [a, label] of acts) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.textContent = label;
@@ -1899,6 +1915,12 @@ function addAltNav(bubble, m, i) {
   next.setAttribute('aria-label', k < n - 1 ? 'Next reply' : 'Write another reply'); next.disabled = busy;
   next.onclick = () => { if (busy) return; if (k < n - 1) { selectAlt(m, k + 1); saveMsgs(cur.chat, history); render(); } else anotherReply(i, bubble); };
   nav.append(prev, lab, next);
+  // Continue: under the newest reply
+  if (i === history.length - 1 && i > 0) {
+    const go = document.createElement('button'); go.type = 'button'; go.className = 'cont'; go.textContent = 'Continue';
+    go.disabled = busy; go.onclick = () => continueReply(i);
+    nav.append(go);
+  }
   // Auto pictures off: the character "sent" one, tap the camera to make it
   if (cur && cur.chat.autoPics === false && !m.img && replySendsImage(m.content)) {
     const cam = document.createElement('button'); cam.type = 'button'; cam.className = 'cam'; cam.disabled = busy;
@@ -3633,7 +3655,8 @@ let attachedDoc = null; // { name, text } of the file waiting to be sent
 function syncTools() {
   $('attachPv').hidden = !attached;
   $('fileChip').hidden = !attachedDoc;
-  $('anChip').hidden = !cur?.chat.authorNote?.trim() || !$('anPanel').hidden;
+  $('anChip').hidden = !cur?.chat.authorNote?.trim() || !!cur?.chat.authorOff || !$('anPanel').hidden;
+  $('anChip').textContent = cur?.chat.authorOnce ? "Author's note · next message" : "Author's note";
   $('plusBtn').classList.toggle('has', !!(attached || attachedDoc));
 }
 function setAttached(src) {
@@ -3643,7 +3666,7 @@ function setAttached(src) {
 }
 function setDoc(doc) {
   attachedDoc = doc;
-  $('fileName').textContent = doc ? `📄 ${doc.name}` : '';
+  $('fileName').textContent = doc ? doc.name : '';
   syncTools();
 }
 
@@ -3654,7 +3677,7 @@ $('plusBtn').onclick = () => {
   const m = $('plusMenu'); m.hidden = false; $('plusBtn').classList.add('open');
   const r = $('plusBtn').getBoundingClientRect();
   m.style.top = Math.max(12, r.top - m.offsetHeight - 8) + 'px';
-  m.style.left = Math.max(12, r.right - m.offsetWidth) + 'px';
+  m.style.left = Math.max(12, Math.min(innerWidth - m.offsetWidth - 12, r.left)) + 'px';
 };
 document.addEventListener('pointerdown', e => { if (!$('plusMenu').hidden && !e.target.closest('#plusMenu, #plusBtn')) hidePlus(); }, true);
 $('plusMenu').onclick = e => {
@@ -3715,6 +3738,8 @@ function openNote() {
   if (!cur) return;
   $('anText').value = cur.chat.authorNote || '';
   $('anDepth').value = String(cur.chat.authorDepth || 1);
+  $('anOn').checked = !cur.chat.authorOff;
+  $('anKeep').value = cur.chat.authorOnce ? 'once' : 'on';
   $('anPanel').hidden = false; syncTools();
   requestAnimationFrame(() => { $('anText').style.height = 'auto'; $('anText').style.height = Math.min(160, $('anText').scrollHeight) + 'px'; });
 }
@@ -3727,6 +3752,8 @@ $('anText').addEventListener('input', () => {
   if (t.value.trim()) cur.chat.authorNote = t.value; else delete cur.chat.authorNote;
   store.set('chats', chats);
 });
+$('anOn').onchange = () => { if (!cur) return; if ($('anOn').checked) delete cur.chat.authorOff; else cur.chat.authorOff = true; store.set('chats', chats); };
+$('anKeep').onchange = () => { if (!cur) return; if ($('anKeep').value === 'once') cur.chat.authorOnce = true; else delete cur.chat.authorOnce; store.set('chats', chats); };
 $('anDepth').onchange = () => { if (!cur) return; cur.chat.authorDepth = +$('anDepth').value; store.set('chats', chats); };
 
 $('attachFile').onchange = async () => {
