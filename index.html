@@ -1073,6 +1073,15 @@ const IMG_PAST = /\b(sent|showed|shared|took|that|this|the|your|nice|cute|great|
 const IMG_MORE = /\b(another|one more|nog een|again|opnieuw)\b/i;
 const asksForImage = t => !!t && (IMG_LOOK.test(t) || IMG_SHORT.test(t) || (IMG_WORD.test(t) && IMG_VERB.test(t) && (!IMG_PAST.test(t) || IMG_MORE.test(t))));
 const wantsImage = m => !!m && m.role === 'user' && (m.wantsImage || asksForImage(m.content));
+// The character says it sends a picture right now: "here's a pic of…", "*sends you a selfie*", "*snaps a photo and sends it*"
+const PIC = String.raw`(pics?|pictures?|photos?|selfies?|snapshots?|images?|foto'?s?|fotootjes?|selfie)`;
+const SENDS_IMG = new RegExp([
+  String.raw`\b(here'?s|here is|here are|heres|sending you|sent you|just sent|i'?m sending|attached( is)?|hier is|hier zijn|ik stuur( je)?)\b[^.!?\n]{0,25}\b${PIC}\b`,
+  String.raw`\*[^*\n]{0,80}\b(sends?|texts?|attaches?|shares?|stuurt|deelt)\b[^*\n]{0,60}\b${PIC}\b[^*\n]{0,80}\*`,
+  String.raw`\*[^*\n]{0,80}\b(snaps?|takes?)\b[^*\n]{0,40}\b${PIC}\b[^*\n]{0,40}\b(sends?|texts?|shares?|stuurt)\b[^*\n]{0,60}\*`,
+  String.raw`\*[^*\n]{0,40}\b(shows?|holds? up)\b[^*\n]{0,15}\b(you|u|je)\b[^*\n]{0,25}\b${PIC}\b[^*\n]{0,60}\*`,
+].join('|'), 'i');
+const replySendsImage = t => !!t && SENDS_IMG.test(t);
 const IMG_NOTE = '\n\n[Note from the app: the user is asking for a picture. Reply in character and end your message with [[image: detailed English description of the picture]].]';
 async function buildMessages(c, p, hist, memory) {
   const withImg = hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES);
@@ -1290,7 +1299,7 @@ async function httpError(res) {
 async function generateImage(prompt, refs, who, about) {
   about = (about || '').trim().slice(0, 2000);
   const name = who || 'the character';
-  const extra = about ? `\n\nAbout ${name} (their looks and details; always follow this):\n${about}` : '';
+  const extra = about ? `\n\nAbout ${name} (their looks and details; follow this whenever they appear):\n${about}` : '';
   const imagesApi = /images\/generations$/.test(endpoint(imgApi().url));
   const card = refs?.card, last = refs?.last && refs.last !== refs.card ? refs.last : null;
   const attempts = [];
@@ -1300,8 +1309,9 @@ async function generateImage(prompt, refs, who, about) {
       ? `Reference 1 is ${name}'s character card: the main reference for their appearance and the visual style (medium, rendering, line work, colour palette, lighting). Follow it first.\nReference 2 is the last picture ${name} sent in this chat: use it to keep things consistent (outfit, hair, setting, mood), but where it differs from reference 1, reference 1 wins.`
       : card ? `The reference image is ${name}'s character card: match their appearance and the visual style exactly (medium, rendering, line work, colour palette, lighting).`
       : `The reference image is the last picture ${name} sent in this chat: keep their appearance and the visual style consistent with it.`;
-    attempts.push([...imgs.map(url => ({ type: 'image_url', image_url: { url } })), { type: 'text', text: `${lines}\n\nImage to create: ${prompt}${extra}` }]);
-    if (card && last) attempts.push([{ type: 'image_url', image_url: { url: card } }, { type: 'text', text: `The reference image is ${name}'s character card: match their appearance and the visual style exactly (medium, rendering, line work, colour palette, lighting).\n\nImage to create: ${prompt}${extra}` }]);
+    const only = `\nOnly put ${name} in the picture if the description below is about them; if it shows something else (a pet, food, a place), keep just the visual style.`;
+    attempts.push([...imgs.map(url => ({ type: 'image_url', image_url: { url } })), { type: 'text', text: `${lines}${only}\n\nImage to create: ${prompt}${extra}` }]);
+    if (card && last) attempts.push([{ type: 'image_url', image_url: { url: card } }, { type: 'text', text: `The reference image is ${name}'s character card: match their appearance and the visual style exactly (medium, rendering, line work, colour palette, lighting).${only}\n\nImage to create: ${prompt}${extra}` }]);
   }
   attempts.push(prompt + extra);
   const errors = [];
@@ -1506,13 +1516,14 @@ async function aiTurn(s, hist, messages, bubble, into) {
   saveMsgs(s.chat, hist);
   const idx = hist.indexOf(into || msg);
   bubble.dataset.i = idx;
-  // Images only when the user's latest message asks for one; tags the model adds on its own are ignored
-  const asked = wantsImage(hist[idx - 1]);
+  // An image when the user's latest message asks for one, or when the character says it sends one now.
+  // A tag on its own (without either) is ignored: models tend to copy them.
+  const asked = wantsImage(hist[idx - 1]) || replySendsImage(msg.content);
   if (!asked) imgPrompt = '';
   // asked, but the model forgot the tag: describe it separately
   if (!imgPrompt && asked) {
-    if (!imageEnabled()) { if (here()) addBubble('err', 'You asked for a picture, but no image proxy is active. Add one in Settings → Image proxy (or in this chat\'s settings).'); return; }
-    try { imgPrompt = await describeImage(s, hist[idx - 1].content, msg.content); } catch (e) { if (!isAbort(e) && here()) addBubble('err', 'Could not work out the picture: ' + e.message); return; }
+    if (!imageEnabled()) { if (here()) addBubble('err', 'A picture was asked for or sent, but no image proxy is active. Add one in Settings → Image proxy (or in this chat\'s settings).'); return; }
+    try { imgPrompt = await describeImage(s, hist[idx - 1]?.role === 'user' ? hist[idx - 1].content : '', msg.content); } catch (e) { if (!isAbort(e) && here()) addBubble('err', 'Could not work out the picture: ' + e.message); return; }
   }
   if (imgPrompt) await attachImage(s, hist, msg, into, bubble, imgPrompt);
 }
@@ -1521,7 +1532,7 @@ async function describeImage(s, userText, replyText) {
   const { c, p } = s;
   const out = await streamChat([
     { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-    { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p).slice(0, 2000)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText.slice(0, 1500)}"\n\nDescribe the picture ${cn(c)} sends now: subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
+    { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p).slice(0, 2000)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText.slice(0, 1500)}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), but also a pet, food, a place or anything else; only include ${cn(c)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
   ], () => {});
   return out.replace(TAG, '').trim().slice(0, 1500);
 }
