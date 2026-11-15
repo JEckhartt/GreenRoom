@@ -3195,10 +3195,24 @@ async function runHelper(mode, original) {
   $('helpRetry').disabled = $('helpUndo').disabled = true;
   setBusy(true);
   try {
-    const messages = [...await buildMessages(c, p, history, s.chat.memory), { role: 'user', content: ask }];
-    const text = await streamChat(messages, r => { input.value = visible(r); input.dispatchEvent(new Event('input')); });
+    // The chat so far goes along (your own pictures included); the character's pictures are added
+    // as real images too, so the AI can see what was sent
+    const base = await buildMessages(c, p, history, s.chat.memory);
+    const sent = history.filter(m => m.role === 'assistant' && m.img).slice(-SEND_IMAGES);
+    const pics = (await Promise.all(sent.map(m => idb.get(m.img).catch(() => null)))).filter(Boolean);
+    const withPics = pics.length ? [{ type: 'text', text: `${ask}\n\n(Attached: the last ${pics.length === 1 ? 'picture' : pics.length + ' pictures'} ${cn(c)} sent in this chat${pics.length > 1 ? ', oldest first' : ''}.)` },
+      ...pics.map(url => ({ type: 'image_url', image_url: { url } }))] : ask;
+    const show = r => { input.value = visible(r); input.dispatchEvent(new Event('input')); };
+    let text, note = '';
+    try { text = await streamChat([...base, { role: 'user', content: withPics }], show); }
+    catch (e) {
+      if (isAbort(e) || !pics.length) throw e;
+      // the chat model can't take images: try again without the character's pictures
+      const textOnly = base.map(m => Array.isArray(m.content) ? { ...m, content: `${m.content.filter(x => x.text).map(x => x.text).join('\n')}\n[an image was attached here]`.trim() } : m);
+      text = await streamChat([...textOnly, { role: 'user', content: ask }], show); note = ' (without pictures: this model can\'t see images)';
+    }
     input.value = visible(text, true).replace(/^\s*\[[^\]]*\]\s*/, ''); input.dispatchEvent(new Event('input'));
-    $('helpState').textContent = mode === 'enhance' ? 'Enhanced by AI' : 'Written by AI';
+    $('helpState').textContent = (mode === 'enhance' ? 'Enhanced by AI' : 'Written by AI') + note;
   } catch (e) {
     input.value = original; input.dispatchEvent(new Event('input'));
     $('helpState').textContent = isAbort(e) ? 'Stopped' : 'Failed: ' + e.message;
