@@ -485,7 +485,7 @@
 <section id="chars" class="view" aria-label="Characters">
   <div class="page-head"><button class="back" data-close="chars" type="button">‹ Back</button><h1>Characters</h1><span></span></div>
   <div class="page-body"><div class="page-inner">
-    <div class="create linkrow" style="gap:8px"><button type="button" id="newChar" style="flex:2">+ Create new character</button><button type="button" id="genChar" style="flex:1">Generate</button></div>
+    <div class="create linkrow" style="gap:8px"><button type="button" id="newChar" style="flex:2">+ Create new character</button><button type="button" id="genChar" style="flex:1">Generate</button><button type="button" id="chubChar" style="flex:1">Chub</button></div>
     <div class="items" id="charList"></div>
   </div></div>
   <div class="selbar" id="charSel" hidden><span></span><button class="btn" type="button" data-act="move">Move</button><button class="btn danger" type="button" data-act="delete">Delete</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
@@ -736,12 +736,13 @@ Empty = use the global setting.</div>
     <p class="group-title">Messages from the character</p>
     <div class="card">
       <div class="line"><span>Character messages you first</span><input type="checkbox" class="tgl" id="csReach"></div>
-      <div class="line" id="csReachRow"><span>When you've been away for</span>
+      <div class="line" id="csReachRow"><span id="csReachLabel">When you've been away for</span>
         <select id="csReachAfter" class="pick-sel">
           <option value="30">30 minutes</option><option value="60">1 hour</option><option value="180">3 hours</option>
           <option value="480">8 hours</option><option value="1440">1 day</option><option value="4320">3 days</option>
         </select></div>
-      <div class="hint" id="csReachHint">When you leave this chat, the character writes a message straight away; it arrives as a notification after the time above and is waiting in the chat. Come back earlier and it's cancelled. Each time costs one AI request.</div>
+      <div class="line" id="csReachRandRow"><span>Random moment</span><input type="checkbox" class="tgl" id="csReachRand"></div>
+      <div class="hint" id="csReachHint">When you leave this chat, the character writes a message straight away; it arrives as a notification after the time above and is waiting in the chat. Random moment: it arrives at an unpredictable time, somewhere between a quarter of that time and the full time. Come back earlier and it's cancelled. Each time costs one AI request.</div>
     </div>
     <p class="group-title">Lorebooks for this chat</p>
     <div class="card">
@@ -794,6 +795,7 @@ Empty = use the global setting.</div>
         <div class="thumb" id="edThumb" role="button" aria-label="Upload image">+</div>
         <div class="btns">
           <button class="btn" type="button" id="edCard">Import character card</button>
+          <button class="btn" type="button" id="edChub">Import from Chub link</button>
           <button class="btn danger" type="button" id="edNoImg">Remove</button>
         </div>
       </div>
@@ -2613,7 +2615,7 @@ function openEditor(kind, id) {
   setThumb($('edThumb'), it || { name: '+' }); if (!it) $('edThumb').textContent = '+';
   $('edNoImg').hidden = !it?.img;
   $('edDelete').hidden = !it || kind === 'char'; // characters are deleted from their profile
-  $('edCard').hidden = kind !== 'char';
+  $('edCard').hidden = $('edChub').hidden = kind !== 'char';
   renderEdLore(); renderCounts();
   $('editor').querySelector('.page-body').scrollTop = 0;
   openView('editor');
@@ -2751,6 +2753,36 @@ $('edSave').onclick = $('edSave2').onclick = saveEditor;
 $('edDelete').onclick = () => { if (edit.kind === 'persona' && deleteItems('persona', [edit.id])) closeView('editor'); };
 
 $('edCard').onclick = () => $('edCardFile').click();
+
+// Chub: a character link → the card PNG on Chub's image server (all data is embedded in it)
+function chubPath(link) {
+  const t = String(link || '').trim();
+  const m = t.match(/(?:chub\.ai|characterhub\.org)\/characters\/([^/?#\s]+\/[^/?#\s]+)/i) || t.match(/^([\w.~-]+\/[\w.~-]+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+async function importChub(link) {
+  const path = chubPath(link);
+  if (!path) return toast('That is not a Chub character link. It looks like chub.ai/characters/creator/name.');
+  toast('Downloading from Chub…');
+  try {
+    let res;
+    try { res = await fetch(`https://avatars.charhub.io/avatars/${path}/chara_card_v2.png`); } catch { res = null; }
+    if (res?.status === 404) throw new Error(`no character at "${path}". Check the link (it may be private or deleted).`);
+    if (!res?.ok) { // image server unreachable: try Chub's own download
+      try { res = await fetch('https://api.chub.ai/api/characters/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ format: 'tavern', fullPath: path, version: 'main' }) }); }
+      catch { throw new Error('Chub could not be reached. Check your internet connection.'); }
+    }
+    if (!res.ok) throw new Error(`Chub answered ${res.status}`);
+    const blob = await res.blob();
+    await importCardInto(new File([blob], `${path.split('/').pop()}.png`, { type: 'image/png' }));
+  } catch (e) { toast('Could not import from Chub: ' + (e.message || e)); }
+}
+$('edChub').onclick = async () => {
+  let clip = '';
+  try { clip = await navigator.clipboard.readText(); } catch {}
+  const link = prompt('Paste a Chub character link', chubPath(clip) ? clip : '');
+  if (link) importChub(link);
+};
 $('edCardFile').onchange = () => {
   const f = $('edCardFile').files[0]; $('edCardFile').value = '';
   if (f) importCardInto(f);
@@ -2802,6 +2834,13 @@ async function openSharedFile(url) {
 })();
 
 $('newChar').onclick = () => openEditor('char');
+$('chubChar').onclick = async () => {
+  let clip = '';
+  try { clip = await navigator.clipboard.readText(); } catch {}
+  const link = prompt('Paste a Chub character link', chubPath(clip) ? clip : '');
+  if (!link) return;
+  openEditor('char'); importChub(link);
+};
 $('genChar').onclick = () => {
   $('genStatus').textContent = '';
   $('genImg').checked = imageEnabled(); $('genImg').disabled = !imageEnabled();
@@ -3266,7 +3305,7 @@ function openChatSettings() {
   renderProxyBoxes(); syncChatGen();
   $('csAutoPics').checked = cur.chat.autoPics !== false;
   $('csForbidden').value = cur.chat.forbidden || '';
-  $('csReach').checked = !!cur.chat.reachOut; $('csReachAfter').value = String(cur.chat.reachAfter || 180); $('csReachRow').hidden = !cur.chat.reachOut;
+  $('csReach').checked = !!cur.chat.reachOut; $('csReachAfter').value = String(cur.chat.reachAfter || 180); syncReachRows();
   syncBgControls();
   renderCsLore();
   $('csPrompt').value = cur.chat.prompt || '';
@@ -3683,7 +3722,16 @@ for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEv
 // the chat (or the app) and delivered as a local notification after the chosen delay.
 const notifier = () => window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.LocalNotifications;
 const reachBusy = new Set();
-const awayText = m => m < 60 ? `${m} minutes` : m < 1440 ? `${m / 60} hour${m === 60 ? '' : 's'}` : `${m / 1440} day${m === 1440 ? '' : 's'}`;
+const awayText = m => {
+  if (m < 60) return `${Math.round(m)} minutes`;
+  if (m < 1440) { const h = Math.round(m / 60); return `${h === 1 ? 'about an hour' : `about ${h} hours`}`; }
+  const d = Math.round(m / 1440); return d === 1 ? 'about a day' : `about ${d} days`;
+};
+// Delay in minutes: the chosen time, or a random moment between a quarter of it and all of it
+function reachDelay(chat) {
+  const max = chat.reachAfter || 180;
+  return chat.reachRandom ? Math.round(Math.max(10, max / 4) + Math.random() * (max - Math.max(10, max / 4))) : max;
+}
 async function cancelReach(chat) {
   if (!chat?.pendingReach) return;
   const n = notifier(); if (n) await n.cancel({ notifications: [{ id: chat.pendingReach.nid }] }).catch(() => {});
@@ -3695,7 +3743,7 @@ async function queueReachOut(chat) {
   const hist = store.get(msgsKey(chat.id), []);
   if (!hist.some(m => m.role === 'user') || hist.at(-1)?.reach) return; // nothing to react to / still unanswered
   const a = api(chat); if (!a.url || !a.model) return;
-  const p = personaOf(chat), mins = chat.reachAfter || 180;
+  const p = personaOf(chat), mins = reachDelay(chat);
   reachBusy.add(chat.id);
   try {
     const ask = `[Out of character: ${userName(p)} has been away for ${awayText(mins)} without writing. Write the message ${cn(c)} now sends on their own initiative, like a text message, fully in character: maybe they miss ${userName(p)}, share what they are doing, ask something or pick up the story. Keep it short. Reply with the message only.]`;
@@ -3733,9 +3781,16 @@ $('csReach').onchange = async () => {
       if (r.display && r.display !== 'granted') toast('Notifications are off for Green Room in iOS Settings. The message will still be waiting in the chat.');
     } else toast('No notifications here; the message will be waiting in the chat when you come back.');
   } else { delete cur.chat.reachOut; await cancelReach(cur.chat); }
-  $('csReachRow').hidden = !cur.chat.reachOut;
+  syncReachRows();
   store.set('chats', chats);
 };
+function syncReachRows() {
+  if (!cur) return;
+  $('csReachRow').hidden = $('csReachRandRow').hidden = !cur.chat.reachOut;
+  $('csReachRand').checked = !!cur.chat.reachRandom;
+  $('csReachLabel').textContent = cur.chat.reachRandom ? "When you've been away for at most" : "When you've been away for";
+}
+$('csReachRand').onchange = () => { if (!cur) return; if ($('csReachRand').checked) cur.chat.reachRandom = true; else delete cur.chat.reachRandom; store.set('chats', chats); syncReachRows(); };
 $('csReachAfter').onchange = () => { if (!cur) return; cur.chat.reachAfter = +$('csReachAfter').value; store.set('chats', chats); };
 // leaving the app with a chat open counts as leaving the chat; coming back cancels / delivers
 document.addEventListener('visibilitychange', () => {
