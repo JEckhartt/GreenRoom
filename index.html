@@ -458,6 +458,7 @@
 <div id="sendMenu" hidden>
   <button type="button" data-act="enhance">✨ Enhance my message</button>
   <button type="button" data-act="write">✍️ Write for me</button>
+  <button type="button" data-act="picture">📸 Ask for a picture</button>
   <button type="button" data-act="prompts" class="small">Edit these prompts</button>
 </div>
 
@@ -971,7 +972,8 @@ function matchNative() {
 darkMQ.addEventListener?.('change', applyLook);
 
 // ---------- Prompt ----------
-const TAG = /\[\[image:\s*([^\]]+?)\s*\]\]/gi;
+const TAG = /\[\[?\s*(?:image|img|photo|picture|pic|selfie)\s*:\s*([^\]]+?)\s*\]\]?|<image>\s*([\s\S]+?)\s*<\/image>/gi;
+const tagPrompt = t => { const m = [...t.matchAll(TAG)].pop(); return m ? (m[1] || m[2] || '').trim() : ''; };
 const imageEnabled = () => { const a = imgApi(); return !!(a.url && a.model); };
 const personaOf = chat => personas.find(p => p.id === chat.personaId) || null;
 const userName = p => p?.name || 'User';
@@ -1002,7 +1004,12 @@ const SEND_IMAGES = 4;
 // Does a message ask the character for a picture? (English + Dutch)
 const IMG_WORD = /\b(pics?|pictures?|photos?|selfies?|images?|drawings?|draw|sketch|portrait|snapshot|foto'?s?|fotootjes?|selfie|afbeelding(en)?|plaatjes?|tekening(en)?|teken)\b/i;
 const IMG_VERB = /\b(send|show|share|take|snap|draw|make|give|see|got|have|can i|could i|stuur|laat|maak|teken|zien|geef|heb je|mag ik)\b/i;
-const asksForImage = t => !!t && IMG_WORD.test(t) && IMG_VERB.test(t);
+const IMG_LOOK = /what do you look like|show (me )?(yourself|you|your face)|can i see you|let me see you|hoe zie je eruit|laat (je|jezelf|me je) (eens )?zien|mag ik je zien|wil je zien/i;
+const asksForImage = t => !!t && (IMG_LOOK.test(t) || (IMG_WORD.test(t) && (IMG_VERB.test(t) || /\?\s*$/.test(t.trim()) || t.trim().length <= 40)));
+const wantsImage = m => !!m && m.role === 'user' && (m.wantsImage || asksForImage(m.content));
+// The character says it sends one ("*sends you a selfie*", "here's a pic") without the tag
+const SENDS_IMG = /\*[^*\n]{0,80}\b(sends?|snaps?|takes?|shares?|attaches?|holds? up|shows?|texts?|stuurt|maakt|deelt)\b[^*\n]{0,60}\b(photos?|pics?|pictures?|selfies?|images?|snapshots?|foto'?s?|selfie)\b[^*\n]{0,80}\*|\b(here'?s|here is|sending|sent you|just sent|attached|hier is|ik stuur)\b[^.!?\n]{0,30}\b(photos?|pics?|pictures?|selfies?|images?|foto'?s?)\b/i;
+const replySendsImage = t => !!t && SENDS_IMG.test(t);
 const IMG_NOTE = '\n\n[Note from the app: the user is asking for a picture. Reply in character and end your message with [[image: detailed English description of the picture]].]';
 async function buildMessages(c, p, hist, memory) {
   const withImg = hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES);
@@ -1017,7 +1024,7 @@ async function buildMessages(c, p, hist, memory) {
   }
   // Nudge on the newest user message when it asks for a picture
   const lastUser = hist.at(-1)?.role === 'user' ? msgs.at(-1) : null;
-  if (lastUser && imageEnabled() && asksForImage(hist.at(-1).content)) {
+  if (lastUser && imageEnabled() && wantsImage(hist.at(-1))) {
     if (Array.isArray(lastUser.content)) lastUser.content = lastUser.content.map(x => x.type === 'text' ? { ...x, text: x.text + IMG_NOTE } : x);
     else lastUser.content += IMG_NOTE;
   }
@@ -1388,7 +1395,7 @@ async function streamChat(messages, onText) {
 async function aiTurn(s, hist, messages, bubble, into) {
   const here = () => cur?.chat.id === s.chat.id;
   const reply = await streamChat(messages, r => { setText(bubble, visible(r)); if (here() && !into) scrollDown(); });
-  let imgPrompt = [...reply.matchAll(TAG)].pop()?.[1] || '';
+  let imgPrompt = tagPrompt(reply);
   let msg = { role: 'assistant', content: visible(reply, true) };
   setText(bubble, msg.content);
   if (into) { ensureAlts(into); into.alts.push({ content: msg.content }); selectAlt(into, into.alts.length - 1); msg = into.alts[into.sel]; }
@@ -1397,7 +1404,7 @@ async function aiTurn(s, hist, messages, bubble, into) {
   const idx = hist.indexOf(into || msg);
   bubble.dataset.i = idx;
   // The user asked for a picture but the model forgot the tag: describe it separately
-  const asked = asksForImage(hist[idx - 1]?.role === 'user' ? hist[idx - 1].content : '');
+  const asked = wantsImage(hist[idx - 1]) || replySendsImage(msg.content);
   if (!imgPrompt && asked) {
     if (!imageEnabled()) { if (here()) addBubble('err', 'You asked for a picture, but no image proxy is active. Add one in Settings → Image proxy (or in this chat\'s settings).'); return; }
     try { imgPrompt = await describeImage(s, hist[idx - 1].content, msg.content); } catch (e) { if (here()) addBubble('err', 'Could not work out the picture: ' + e.message); return; }
@@ -1447,12 +1454,13 @@ async function imageForReply(i) {
   finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
 }
 
-async function send(text, img) {
+async function send(text, img, forceImage) {
   if (!ready()) return;
   const s = cur, hist = history;
   setBusy(true);
   for (const n of $('log').querySelectorAll('.msg.err')) n.remove();
   const msg = { role: 'user', content: text };
+  if (forceImage) msg.wantsImage = true;
   if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); }
   hist.push(msg); saveMsgs(s.chat, hist);
   const mine = addBubble('me', text); mine.dataset.i = hist.length - 1;
@@ -3007,6 +3015,12 @@ $('sendMenu').onclick = e => {
   const act = e.target.closest('button')?.dataset.act; if (!act) return;
   hideSendMenu();
   if (act === 'prompts') return openHelpers();
+  if (act === 'picture') {
+    if (!imageEnabled()) return toast('No image proxy is active (Settings → Image proxy)');
+    const t = input.value.trim() || 'Send me a picture of you.';
+    const img = attached; input.value = ''; input.style.height = 'auto'; setAttached(null); clearHelper();
+    return send(t, img, true);
+  }
   const key = act === 'enhance' ? 'enhancePrompt' : 'writePrompt';
   if (!cfg[key]?.trim()) { toast('Save the prompt first, then use the button'); return openHelpers(key); }
   runHelper(act, input.value);
