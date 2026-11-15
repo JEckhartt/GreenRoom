@@ -6,9 +6,10 @@ A character chat app: create characters and chat with them. Built on the Nearly 
 1. Open `index.html` in your browser (or host it statically).
 2. The app opens on the title screen: **Chats**, **Characters**, **Personas**, **Albums**, **Settings**.
 3. In **Settings** (full-screen page):
-   - **Proxy**: chat endpoint URL (OpenAI-compatible, `/chat/completions` appended automatically), API key, model
-   - **Image proxy**: URL, API key, model. Only used when you explicitly ask for an image. With chat-style image models the character's image is sent as a style reference
-   - **Prompt**: your system prompt, sent with every message
+   - **Proxy**: save several (name, URL, API key, model) and tap one to make it active. OpenAI-compatible; `/chat/completions` is appended automatically
+   - **Image proxy**: same, for images. Only used when you explicitly ask for an image. With chat-style image models the character's image is sent as a style reference
+   - **Generation**: temperature, and context size (oldest messages are left out beyond it)
+   - **Prompt**: your system prompt, sent with every message, and forbidden words the AI is told never to use
    - **Backup**: export / import everything as one file
    - **Themes**: Default / Light / Dark, accent color, AI message bubble
    - **Customization**: separately for AI text and your text: font, size, weight, spacing, glow, color/gradient, and a color for "text between quotes". One tap copies one side's style to the other
@@ -23,7 +24,7 @@ A character chat app: create characters and chat with them. Built on the Nearly 
    - Long press the send button: **✨ Enhance my message** (AI rewrites what you typed) and **✍️ Write for me** (AI writes your message), each with its own saved prompt. The result lands in the text box with **Retry** and **Delete** (back to what you wrote)
    - Add one image to a message with the image button next to the text field; the character sees it (needs a model that accepts images)
    - Swipe right-to-left in a chat: **Character card**, **Edit character**, and all images in the chat
-   - In a chat, tap the character at the top for **Chat settings**, with tabs (tap or swipe): **Memory & style** (memory sent with every message, theme and style for this chat), **Proxy** (URL / key / model for this chat; empty fields use the global ones) and **Prompt** (replaces the global system prompt in this chat)
+   - In a chat, tap the character at the top for **Chat settings**, with tabs (tap or swipe): **Memory & style** (memory sent with every message, theme and style for this chat), **Proxy** (pick or add a proxy and image proxy for this chat, or keep Global; temperature and context size for this chat) and **Prompt** (replaces the global system prompt in this chat; extra forbidden words)
 7. **Albums**: collect images. Tap one to view it (swipe between images) and copy its link (`gr://img/…`); paste it in a character's description and the image shows on the character card. Long press to select several: copy links, copy/move to another album, delete. Swipe an album left to delete it. Exported cards carry linked images along.
 
 Markdown works in chats and on character cards (bold, italic, lists, quotes, headings, code, links). Swipe from the left edge to go back.

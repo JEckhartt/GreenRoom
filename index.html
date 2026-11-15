@@ -197,6 +197,13 @@
   #lightbox .bar.bottom { gap: 10px; }
   #lbCount { pointer-events: none; color: #fff; font-size: 14px; align-self: center; opacity: .8; }
 
+  /* ---------- Proxy lists ---------- */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .chips button { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); font-size: 14px; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chips button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chips button.add { border-style: dashed; color: var(--accent); }
+  .card input[type=number] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; outline: none; }
+
   /* ---------- Chat settings tabs ---------- */
   .tabbar { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); max-width: 640px; width: 100%; margin: 0 auto; }
   .tabbar button { flex: 1; padding: 8px 6px; border-radius: 10px; border: 0; background: none; font-size: 14px; color: var(--ink-soft); cursor: pointer; }
@@ -503,15 +510,17 @@
   </div>
   <div class="page-inner cs-pane" data-t="1" hidden>
     <p class="group-title">Proxy for this chat</p>
+    <div class="card" id="cProxyBox"></div>
+    <p class="group-title">Image proxy for this chat</p>
+    <div class="card" id="cImgBox"></div>
+    <p class="group-title">Generation for this chat</p>
     <div class="card">
-      <label class="f" for="csUrl">Proxy URL</label>
-      <input id="csUrl" type="url" autocapitalize="off" autocorrect="off">
-      <label class="f" for="csKey">API key</label>
-      <input id="csKey" type="password" autocomplete="off">
-      <label class="f" for="csModel">Model</label>
-      <input id="csModel" type="text" autocapitalize="off" autocorrect="off">
-      <div class="hint">Leave a field empty to use the global setting. Used for every reply, new version and writing help in this chat.</div>
-      <div class="actions"><button class="btn" type="button" id="csProxyClear">Use global proxy</button></div>
+      <div class="line"><span>Temperature</span><span style="display:flex;gap:8px;align-items:center"><output id="csTempOut"></output>
+        <button class="btn" type="button" id="csTempReset" style="padding:5px 10px;font-size:13px">Global</button></span></div>
+      <input type="range" id="csTemp" min="0" max="2" step="0.05">
+      <label class="f" for="csCtx">Context size (tokens)</label>
+      <input id="csCtx" type="number" inputmode="numeric" min="0" step="1000">
+      <div class="hint">Empty uses the global setting.</div>
     </div>
   </div>
   <div class="page-inner cs-pane" data-t="2" hidden>
@@ -523,6 +532,11 @@
         <button class="btn" type="button" id="csPromptCopy">Start from global prompt</button>
         <button class="btn" type="button" id="csPromptClear">Use global prompt</button>
       </div>
+    </div>
+    <p class="group-title">Forbidden words for this chat</p>
+    <div class="card">
+      <textarea id="csForbidden" placeholder="One per line or comma separated"></textarea>
+      <div class="hint">Added to the global forbidden words for this chat only.</div>
     </div>
   </div></div>
 </section>
@@ -620,27 +634,23 @@
 
     <details class="sec" data-sec="proxy">
     <summary class="group-title">Proxy</summary>
-    <div class="card">
-      <label class="f" for="proxyUrl">Proxy URL</label>
-      <input id="proxyUrl" data-k="proxyUrl" type="url" placeholder="https://your-proxy.example.com/api/v1" autocapitalize="off" autocorrect="off">
-      <div class="hint">OpenAI-compatible. <code>/chat/completions</code> is appended automatically.</div>
-      <label class="f" for="apiKey">API key</label>
-      <input id="apiKey" data-k="apiKey" type="password" placeholder="sk-or-…" autocomplete="off">
-      <label class="f" for="model">Model</label>
-      <input id="model" data-k="model" type="text" placeholder="anthropic/claude-sonnet-4.5" autocapitalize="off" autocorrect="off">
-    </div>
+    <div class="card" id="gProxyBox"></div>
     </details>
 
     <details class="sec" data-sec="image-proxy">
     <summary class="group-title">Image proxy</summary>
+    <div class="card" id="gImgBox"></div>
+    </details>
+
+    <details class="sec" data-sec="generation">
+    <summary class="group-title">Generation</summary>
     <div class="card">
-      <label class="f" for="imgUrl">Proxy URL</label>
-      <input id="imgUrl" data-k="imgUrl" type="url" placeholder="https://your-proxy.example.com/api/v1" autocapitalize="off" autocorrect="off">
-      <div class="hint">Used only when you explicitly ask for an image. Chat-style endpoints (OpenRouter image models) and <code>/images/generations</code> both work.</div>
-      <label class="f" for="imgKey">API key</label>
-      <input id="imgKey" data-k="imgKey" type="password" placeholder="sk-or-…" autocomplete="off">
-      <label class="f" for="imgModel">Model</label>
-      <input id="imgModel" data-k="imgModel" type="text" placeholder="google/gemini-2.5-flash-image" autocapitalize="off" autocorrect="off">
+      <div class="line"><span>Temperature</span><output data-out="temperature"></output></div>
+      <input type="range" data-k="temperature" min="0" max="2" step="0.05">
+      <div class="hint">Lower is more focused and predictable, higher is more creative and random.</div>
+      <label class="f" for="contextSize">Context size (tokens)</label>
+      <input id="contextSize" data-k="contextSize" type="number" inputmode="numeric" min="0" step="1000" placeholder="No limit">
+      <div class="hint">The oldest messages are left out once a chat gets longer than this (roughly 4 characters per token). Set it a bit below your model's limit. Empty = send everything.</div>
     </div>
     </details>
 
@@ -650,6 +660,9 @@
       <label class="f" for="systemPrompt">System prompt</label>
       <textarea id="systemPrompt" data-k="systemPrompt" class="big" placeholder="Paste your complete system prompt here."></textarea>
       <div class="hint">Sent with every message, before the character and persona. {{char}} and {{user}} are filled in.</div>
+      <label class="f" for="forbidden">Forbidden words</label>
+      <textarea id="forbidden" data-k="forbidden" placeholder="One per line or comma separated, e.g.&#10;shivers down the spine, ministrations"></textarea>
+      <div class="hint">The AI is told never to use these words or phrases. Models follow this well, but it's an instruction, not a hard filter.</div>
     </div>
     </details>
 
@@ -811,7 +824,8 @@ const LOOK_DEFAULTS = {
 const DEFAULTS = {
   proxyUrl: '', apiKey: '', model: '',
   imgUrl: '', imgKey: '', imgModel: '',
-  systemPrompt: '',
+  systemPrompt: '', forbidden: '', temperature: 0.9, contextSize: '',
+  proxies: [], proxyId: '', imgProxies: [], imgProxyId: '',
   ...LOOK_DEFAULTS,
 };
 let cfg = { ...DEFAULTS, ...store.get('cfg', {}) };
@@ -957,7 +971,7 @@ darkMQ.addEventListener?.('change', applyLook);
 
 // ---------- Prompt ----------
 const TAG = /\[\[image:\s*([^\]]+?)\s*\]\]/gi;
-const imageEnabled = () => !!(cfg.imgUrl.trim() && cfg.imgModel.trim());
+const imageEnabled = () => { const a = imgApi(); return !!(a.url && a.model); };
 const personaOf = chat => personas.find(p => p.id === chat.personaId) || null;
 const userName = p => p?.name || 'User';
 const cn = c => (c.chatName || '').trim() || c.name;   // name used inside chats
@@ -975,6 +989,8 @@ function systemFor(c, p, memory) {
   if (p) parts.push(`--- User: ${p.name} ---\nYou are talking with ${p.name}.${f(p.personality) ? `\n\n${f(p.personality)}` : ''}`);
   if (f(memory)) parts.push(`--- Memory (things to remember in this chat) ---\n${f(memory)}`);
   if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
+  const banned = [cfg.forbidden, cur?.chat.forbidden].join('\n').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
+  if (banned.length) parts.push(`--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.`);
   if (imageEnabled()) parts.push('--- Images ---\nYou can send images, but only when the user explicitly asks you for an image, picture, photo or drawing. Then reply briefly and naturally, and append [[image: a detailed description of the image to generate, in English]] at the very end of that message. The image appears below your message. Never do this unless explicitly asked; the tag is hidden from the user.');
   return parts.filter(Boolean).join('\n\n');
 }
@@ -993,7 +1009,15 @@ async function buildMessages(c, p, hist, memory) {
         : `${m.content}\n[an image was attached here]`.trim() });
     } else msgs.push({ role: m.role, content: m.imgPrompt ? `${m.content}\n[[image: ${m.imgPrompt}]]` : m.content });
   }
-  return [{ role: 'system', content: systemFor(c, p, memory) }, ...msgs];
+  const system = { role: 'system', content: systemFor(c, p, memory) };
+  // Context size: drop the oldest messages until it fits (~4 characters per token, ~800 per image)
+  const limit = gen().contextSize;
+  if (limit) {
+    const cost = m => Array.isArray(m.content) ? m.content.reduce((n, x) => n + (x.text ? x.text.length / 4 : 800), 4) : (m.content || '').length / 4 + 4;
+    let total = cost(system) + msgs.reduce((n, m) => n + cost(m), 0);
+    while (msgs.length > 1 && total > limit) total -= cost(msgs.shift());
+  }
+  return [system, ...msgs];
 }
 
 function visible(t, final) {
@@ -1151,7 +1175,7 @@ function render() {
 async function generateImage(prompt, ref, who, about) {
   about = (about || '').trim().slice(0, 2000);
   const extra = about ? `\n\nAbout ${who || 'the character'} (use for their looks and details):\n${about}` : '';
-  const imagesApi = /images\/generations$/.test(endpoint(cfg.imgUrl));
+  const imagesApi = /images\/generations$/.test(endpoint(imgApi().url));
   if (ref && !imagesApi) {
     try {
       return await requestImage([
@@ -1163,12 +1187,12 @@ async function generateImage(prompt, ref, who, about) {
   return requestImage(prompt + extra);
 }
 async function requestImage(prompt) {
-  const url = endpoint(cfg.imgUrl);
+  const a = imgApi(), url = endpoint(a.url);
   const imagesApi = /images\/generations$/.test(url);
   const body = imagesApi
-    ? { model: cfg.imgModel, prompt, n: 1 }
-    : { model: cfg.imgModel, messages: [{ role: 'user', content: prompt }], modalities: ['image', 'text'] };
-  const res = await fetch(url, { method: 'POST', headers: authHeaders(cfg.imgKey), body: JSON.stringify(body) });
+    ? { model: a.model, prompt, n: 1 }
+    : { model: a.model, messages: [{ role: 'user', content: prompt }], modalities: ['image', 'text'] };
+  const res = await fetch(url, { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify(body) });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${(await res.text()).slice(0, 300)}`);
   const j = await res.json();
   if (j.error) throw new Error(j.error.message || JSON.stringify(j.error));
@@ -1195,11 +1219,20 @@ async function requestImage(prompt) {
 }
 
 // ---------- Chat ----------
-// The open chat may override the proxy field by field
-function api() {
-  const o = cur?.chat.proxy || {};
-  return { url: o.url?.trim() || cfg.proxyUrl, key: o.key?.trim() || cfg.apiKey, model: o.model?.trim() || cfg.model };
+// Saved proxies; the open chat may pick its own, otherwise the globally active one is used
+const proxyList = kind => kind === 'img' ? cfg.imgProxies : cfg.proxies;
+const proxyKey = kind => kind === 'img' ? 'imgProxyId' : 'proxyId';
+function proxyFor(kind) {
+  const list = proxyList(kind), k = proxyKey(kind);
+  return list.find(x => x.id === cur?.chat[k]) || list.find(x => x.id === cfg[k]) || {};
 }
+const clean = pr => ({ url: (pr.url || '').trim(), key: (pr.key || '').trim(), model: (pr.model || '').trim() });
+const api = () => clean(proxyFor('chat'));
+const imgApi = () => clean(proxyFor('img'));
+const gen = () => ({
+  temperature: +(cur?.chat.temperature ?? cfg.temperature ?? 0.9),
+  contextSize: parseInt(cur?.chat.contextSize || cfg.contextSize, 10) || 0,
+});
 function ready() {
   const a = api();
   if (a.url && a.model) return true;
@@ -1214,7 +1247,7 @@ async function streamChat(messages, onText) {
   const a = api();
   const res = await fetch(endpoint(a.url), {
     method: 'POST', headers: authHeaders(a.key),
-    body: JSON.stringify({ model: a.model, messages, stream: true, temperature: 0.9 })
+    body: JSON.stringify({ model: a.model, messages, stream: true, temperature: gen().temperature })
   });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${(await res.text()).slice(0, 300)}`);
   const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '', reply = '';
@@ -2282,11 +2315,8 @@ $('albumMenu').onclick = () => {
 // ---------- Chat settings: memory + this chat's own style ----------
 function openChatSettings() {
   $('memory').value = cur.chat.memory || '';
-  const o = cur.chat.proxy || {};
-  $('csUrl').value = o.url || ''; $('csKey').value = o.key || ''; $('csModel').value = o.model || '';
-  $('csUrl').placeholder = cfg.proxyUrl || 'https://…/api/v1';
-  $('csKey').placeholder = cfg.apiKey ? 'Global key' : 'sk-…';
-  $('csModel').placeholder = cfg.model || 'model';
+  renderProxyBoxes(); syncChatGen();
+  $('csForbidden').value = cur.chat.forbidden || '';
   $('csPrompt').value = cur.chat.prompt || '';
   $('csPrompt').placeholder = cfg.systemPrompt ? 'Empty: the global system prompt is used.' : 'No global system prompt set.';
   setCsTab(0);
@@ -2295,13 +2325,6 @@ function openChatSettings() {
   openView('chatset');
 }
 $('memory').addEventListener('input', () => { if (!cur) return; cur.chat.memory = $('memory').value; store.set('chats', chats); });
-for (const [id, k] of [['csUrl', 'url'], ['csKey', 'key'], ['csModel', 'model']]) $(id).addEventListener('input', () => {
-  if (!cur) return;
-  const o = cur.chat.proxy ||= {}; o[k] = $(id).value;
-  if (!o.url && !o.key && !o.model) delete cur.chat.proxy;
-  store.set('chats', chats);
-});
-$('csProxyClear').onclick = () => { if (!cur) return; delete cur.chat.proxy; store.set('chats', chats); for (const id of ['csUrl', 'csKey', 'csModel']) $(id).value = ''; toast('This chat uses the global proxy'); };
 $('csPrompt').addEventListener('input', () => { if (!cur) return; cur.chat.prompt = $('csPrompt').value; if (!cur.chat.prompt.trim()) delete cur.chat.prompt; store.set('chats', chats); });
 $('csPromptCopy').onclick = () => {
   if (!cur || !cfg.systemPrompt) return toast('There is no global system prompt yet');
@@ -2309,6 +2332,77 @@ $('csPromptCopy').onclick = () => {
   $('csPrompt').value = cfg.systemPrompt; $('csPrompt').dispatchEvent(new Event('input', { bubbles: true }));
 };
 $('csPromptClear').onclick = () => { if (!cur) return; delete cur.chat.prompt; store.set('chats', chats); $('csPrompt').value = ''; autosize($('csPrompt')); toast('This chat uses the global prompt'); };
+
+// ---------- Proxy lists: tap one to make it active; + New adds one ----------
+const PROXY_HINT = {
+  chat: 'OpenAI-compatible. <code>/chat/completions</code> is appended automatically.',
+  img: 'Used only when you explicitly ask for an image. Chat-style endpoints (OpenRouter image models) and <code>/images/generations</code> both work.',
+};
+function renderProxyBoxes() {
+  renderProxyBox($('gProxyBox'), 'chat', 'global'); renderProxyBox($('gImgBox'), 'img', 'global');
+  if (cur) { renderProxyBox($('cProxyBox'), 'chat', 'chat'); renderProxyBox($('cImgBox'), 'img', 'chat'); }
+}
+function renderProxyBox(box, kind, scope) {
+  const list = proxyList(kind), k = proxyKey(kind), chat = scope === 'chat' ? cur?.chat : null;
+  const selId = chat ? (list.some(x => x.id === chat[k]) ? chat[k] : '') : cfg[k];
+  const save = () => { saveCfg(); if (chat) store.set('chats', chats); };
+  const select = id => { if (chat) { if (id) chat[k] = id; else delete chat[k]; } else cfg[k] = id; save(); renderProxyBoxes(); };
+  box.innerHTML = '';
+  const chips = document.createElement('div'); chips.className = 'chips';
+  const chip = (label, on, fn, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; b.onclick = fn; chips.append(b); };
+  if (chat) { const g = list.find(x => x.id === cfg[k]); chip('Global' + (g ? ` (${g.name || 'unnamed'})` : ''), !selId, () => select('')); }
+  for (const pr of list) chip(pr.name || 'Unnamed', pr.id === selId, () => select(pr.id));
+  chip('+ New', false, () => {
+    const pr = { id: uid(), name: `${kind === 'img' ? 'Image proxy' : 'Proxy'} ${list.length + 1}`, url: '', key: '', model: '' };
+    list.push(pr); select(pr.id);
+  }, 'add');
+  box.append(chips);
+  const pr = list.find(x => x.id === selId);
+  if (!pr) {
+    const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '12px';
+    h.textContent = chat ? 'This chat uses the global one. Pick another to use it in this chat only.' : 'No proxy yet. Tap + New.';
+    return box.append(h);
+  }
+  const field = (label, f, type, ph) => {
+    const l = document.createElement('label'); l.className = 'f'; l.textContent = label;
+    const i = document.createElement('input'); i.type = type; i.value = pr[f] || ''; i.placeholder = ph;
+    i.autocomplete = 'off'; i.setAttribute('autocapitalize', 'off'); i.setAttribute('autocorrect', 'off');
+    i.oninput = () => { pr[f] = i.value; saveCfg(); };
+    if (f === 'name') i.onchange = () => renderProxyBoxes();
+    box.append(l, i);
+    return i;
+  };
+  field('Name', 'name', 'text', 'e.g. OpenRouter');
+  field('Proxy URL', 'url', 'url', 'https://your-proxy.example.com/api/v1');
+  const h = document.createElement('div'); h.className = 'hint'; h.innerHTML = PROXY_HINT[kind]; box.append(h);
+  field('API key', 'key', 'password', 'sk-or-…');
+  field('Model', 'model', 'text', kind === 'img' ? 'google/gemini-2.5-flash-image' : 'anthropic/claude-sonnet-4.5');
+  if (chat) { const n = document.createElement('div'); n.className = 'hint'; n.textContent = 'Saved proxies are shared with Settings and other chats.'; box.append(n); }
+  const acts = document.createElement('div'); acts.className = 'actions';
+  const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete this proxy';
+  del.onclick = () => {
+    if (!confirm(`Delete "${pr.name || 'this proxy'}"? Chats that use it switch to the global one.`)) return;
+    list.splice(list.indexOf(pr), 1);
+    if (cfg[k] === pr.id) cfg[k] = list[0]?.id || '';
+    for (const ch of chats) if (ch[k] === pr.id) delete ch[k];
+    saveCfg(); store.set('chats', chats); renderProxyBoxes();
+  };
+  acts.append(del); box.append(acts);
+}
+
+// Chat generation settings
+function syncChatGen() {
+  const t = cur?.chat.temperature;
+  $('csTemp').value = t ?? cfg.temperature;
+  $('csTempOut').textContent = (+(t ?? cfg.temperature)).toFixed(2) + (t === undefined ? ' (global)' : '');
+  $('csTempReset').hidden = t === undefined;
+  $('csCtx').value = cur?.chat.contextSize || '';
+  $('csCtx').placeholder = cfg.contextSize ? `Global: ${cfg.contextSize}` : 'Global: no limit';
+}
+$('csTemp').oninput = () => { if (!cur) return; cur.chat.temperature = +$('csTemp').value; store.set('chats', chats); syncChatGen(); };
+$('csTempReset').onclick = () => { if (!cur) return; delete cur.chat.temperature; store.set('chats', chats); syncChatGen(); };
+$('csCtx').oninput = () => { if (!cur) return; const v = $('csCtx').value.trim(); if (v) cur.chat.contextSize = v; else delete cur.chat.contextSize; store.set('chats', chats); };
+$('csForbidden').addEventListener('input', () => { if (!cur) return; cur.chat.forbidden = $('csForbidden').value; if (!cur.chat.forbidden.trim()) delete cur.chat.forbidden; store.set('chats', chats); });
 
 // Tabs: tap or swipe sideways
 let csTab = 0;
@@ -2361,7 +2455,7 @@ function syncControls() {
     else if (document.activeElement !== el) el.value = v;
   }
   const g = k => L[sk(k)];
-  const outs = { fs: g('fs') + 'px', fw: g('fw'), lh: (+g('lh')).toFixed(2), ls: (+g('ls')).toFixed(2) + 'em', angle: g('angle') + '°' };
+  const outs = { temperature: (+cfg.temperature).toFixed(2), fs: g('fs') + 'px', fw: g('fw'), lh: (+g('lh')).toFixed(2), ls: (+g('ls')).toFixed(2) + 'em', angle: g('angle') + '°' };
   for (const o of document.querySelectorAll('[data-out]')) o.textContent = outs[o.dataset.out];
   for (const b of $('fonts').children) b.classList.toggle('on', b.dataset.font === L[fontKey()]);
   $('colorControls').hidden = g('colorMode') === 'theme';
@@ -2423,8 +2517,6 @@ function buildSettings() {
     else if (el.type === 'range') el.oninput = () => update(sk(k), Number(el.value));
     else el.oninput = () => update(sk(k), el.value);
   }
-  for (const k of ['proxyUrl', 'apiKey', 'model', 'imgUrl', 'imgKey', 'imgModel'])
-    $(k).addEventListener('change', () => update(k, $(k).value.trim()));
 
   $('styleTarget').onclick = e => {
     const v = e.target.dataset?.v; if (!v) return;
@@ -2447,7 +2539,7 @@ function initFolds() {
   const saved = store.get('folds', {});
   for (const d of document.querySelectorAll('#settings details[data-sec]')) {
     const k = d.dataset.sec;
-    d.open = k in saved ? saved[k] : (k === 'proxy' && !(cfg.proxyUrl && cfg.model));
+    d.open = k in saved ? saved[k] : (k === 'proxy' && !(api().url && api().model));
     d.addEventListener('toggle', () => { const f = store.get('folds', {}); f[k] = d.open; store.set('folds', f); if (d.open) autosizeAll(d); });
   }
 }
@@ -2458,6 +2550,7 @@ $('bkFile').onchange = () => { const f = $('bkFile').files[0]; $('bkFile').value
 
 function openSettings() {
   loadFonts(Object.keys(FONTS));
+  renderProxyBoxes();
   openView('settings');
   setLookCtx('global');
 }
@@ -2845,6 +2938,22 @@ $('composer').onsubmit = e => {
   }
   if (moved) store.set('chats', chats);
   if ('activePersona' in cfg) { delete cfg.activePersona; saveCfg(); }
+  // Proxies used to be single fields (globally, and optionally per chat)
+  let pm = false;
+  for (const [kind, u, kk, m] of [['chat', 'proxyUrl', 'apiKey', 'model'], ['img', 'imgUrl', 'imgKey', 'imgModel']]) {
+    if (!(u in cfg)) continue;
+    if (cfg[u] || cfg[m]) {
+      const pr = { id: uid(), name: kind === 'img' ? 'Image proxy' : 'Default', url: cfg[u] || '', key: cfg[kk] || '', model: cfg[m] || '' };
+      proxyList(kind).push(pr); cfg[proxyKey(kind)] = pr.id;
+    }
+    delete cfg[u]; delete cfg[kk]; delete cfg[m]; pm = true;
+  }
+  for (const ch of chats) if (ch.proxy) {
+    const g = proxyFor('chat'), c = chars.find(x => x.id === ch.charId);
+    const pr = { id: uid(), name: `For ${c?.name || 'a chat'}`, url: ch.proxy.url || g.url || '', key: ch.proxy.key || g.key || '', model: ch.proxy.model || g.model || '' };
+    cfg.proxies.push(pr); ch.proxyId = pr.id; delete ch.proxy; pm = true;
+  }
+  if (pm) { saveCfg(); store.set('chats', chats); }
 })();
 buildSettings();
 initFolds();
