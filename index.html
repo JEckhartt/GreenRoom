@@ -195,6 +195,37 @@
   .crow .snip { font-size: 14px; color: var(--ink-soft); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .crow .del { flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: none; color: var(--accent); cursor: pointer; display: grid; place-items: center; }
 
+  /* ---------- Swipe, folders, multi-select ---------- */
+  .swipe { position: relative; border-radius: 16px; overflow: hidden; }
+  .swipe-acts { position: absolute; top: 0; right: 0; bottom: 0; display: flex; }
+  .swipe-acts button { width: 84px; border: 0; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .swipe-acts .mv { background: #8e8e93; }
+  .swipe-acts .rm { background: #e5484d; }
+  .swipe > .item { position: relative; z-index: 1; transition: transform .25s cubic-bezier(.2,.8,.2,1); touch-action: pan-y;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .item.selected { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+  .check { flex: none; align-self: center; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; color: #fff; font-size: 14px; }
+  .item.selected .check { background: var(--accent); border-color: var(--accent); }
+  .folder-head { display: flex; align-items: center; }
+  .folder-head > .item { flex: 1; border: 0; background: none; align-items: center; }
+  .folder-icon { flex: none; width: 44px; height: 44px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+  .more { flex: none; width: 44px; height: 44px; margin-right: 6px; border: 0; background: none; color: var(--ink-soft); font-size: 22px; cursor: pointer; }
+  .folder-items { display: flex; flex-direction: column; gap: 10px; padding: 0 10px 10px; }
+  .selbar { display: flex; align-items: center; gap: 8px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--bg); }
+  body.kb-open .selbar { padding-bottom: 10px; }
+  .selbar span { flex: 1; font-weight: 600; }
+  .opt .ico { flex: none; width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+
+  /* ---------- Albums ---------- */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 4px; }
+  .grid button { aspect-ratio: 1; border: 0; padding: 0; border-radius: 10px; background: var(--accent-soft) center / cover no-repeat; cursor: pointer; }
+  .prof-body img { display: block; max-width: 100%; border-radius: 12px; margin: 8px 0; cursor: zoom-in; }
+
+  /* ---------- Chat settings ---------- */
+  button.chat-who { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; color: inherit; }
+  .match { display: flex; gap: 8px; }
+  .match .btn { flex: 1; padding: 8px 10px; font-size: 13px; }
+
   /* ---------- Character profile ---------- */
   .hero { width: 100%; aspect-ratio: 3 / 4; max-height: 62vh; margin-top: 12px; border-radius: 18px; background: var(--accent-soft) center / cover no-repeat;
     display: grid; place-items: center; font-family: 'Fraunces', Georgia, serif; font-size: 90px; color: var(--accent); cursor: zoom-in; }
@@ -269,6 +300,7 @@
     <button type="button" id="goChats">Chats</button>
     <button type="button" id="goChars">Characters</button>
     <button type="button" id="goPersonas">Personas</button>
+    <button type="button" id="goAlbums">Albums</button>
     <button type="button" id="goSettings">Settings</button>
   </nav>
 </section>
@@ -279,6 +311,7 @@
     <div class="create"><button type="button" id="newChar">+ Create new character</button></div>
     <div class="items" id="charList"></div>
   </div></div>
+  <div class="selbar" id="charSel" hidden><span></span><button class="btn" type="button" data-act="move">Move</button><button class="btn danger" type="button" data-act="delete">Delete</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
 </section>
 
 <section id="personas" class="view" aria-label="Personas">
@@ -286,6 +319,25 @@
   <div class="page-body"><div class="page-inner">
     <div class="create"><button type="button" id="newPersona">+ Create new persona</button></div>
     <div class="items" id="personaList"></div>
+  </div></div>
+  <div class="selbar" id="personaSel" hidden><span></span><button class="btn" type="button" data-act="move">Move</button><button class="btn danger" type="button" data-act="delete">Delete</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
+</section>
+
+<section id="albums" class="view" aria-label="Albums">
+  <div class="page-head"><button class="back" data-close="albums" type="button">‹ Back</button><h1>Albums</h1><span></span></div>
+  <div class="page-body"><div class="page-inner">
+    <div class="create"><button type="button" id="newAlbum">+ Create new album</button></div>
+    <div class="items" id="albumList"></div>
+  </div></div>
+</section>
+
+<section id="album" class="view" aria-label="Album">
+  <div class="page-head"><button class="back" data-close="album" type="button">‹ Albums</button><h1 id="albumTitle"></h1><button class="act" id="albumMenu" type="button" aria-label="Album options">•••</button></div>
+  <div class="page-body"><div class="page-inner">
+    <div class="create"><button type="button" id="albumAdd">+ Add images</button></div>
+    <div class="hint" style="margin:0 4px 10px">Tap an image to copy its link, then paste the link in a character's description. The image shows up on the character card.</div>
+    <div class="grid" id="albumGrid"></div>
+    <input type="file" id="albumFile" accept="image/*" multiple hidden>
   </div></div>
 </section>
 
@@ -299,7 +351,7 @@
 <section id="chat" class="view" aria-label="Chat">
   <div class="page-head">
     <button class="back" data-close="chat" type="button">‹ Back</button>
-    <div class="chat-who"><span class="av" id="chatAv"></span><span class="who-txt"><span id="chatName"></span><small id="chatAs"></small></span></div>
+    <button class="chat-who" id="chatWho" type="button" aria-label="Chat settings"><span class="av" id="chatAv"></span><span class="who-txt"><span id="chatName"></span><small id="chatAs"></small></span></button>
     <button class="act" id="chatProfile" type="button">Profile</button>
   </div>
   <main id="scroller"><div id="log"></div></main>
@@ -307,6 +359,20 @@
     <textarea id="input" rows="1" placeholder="Say something…" autocomplete="off"></textarea>
     <button id="send" type="submit" aria-label="Send">↑</button>
   </form>
+</section>
+
+<section id="chatset" class="view" aria-label="Chat settings">
+  <div class="page-head"><button class="back" data-close="chatset" type="button">‹ Chat</button><h1>Chat settings</h1><span></span></div>
+  <div class="page-body"><div class="page-inner">
+    <p class="group-title">Memory</p>
+    <div class="card">
+      <textarea id="memory" placeholder="A summary of what happened so far, or things the character should always remember."></textarea>
+      <div class="hint">Sent with every message in this chat only. Useful once a long chat no longer fits in the model's context.</div>
+    </div>
+    <p class="group-title">Style for this chat</p>
+    <div class="hint" id="chatLookState" style="margin:-4px 4px 10px"></div>
+    <div id="chatLookHost"></div>
+  </div></div>
 </section>
 
 <section id="profile" class="view" aria-label="Character profile">
@@ -318,6 +384,7 @@
     <div class="save-bar"><button class="btn primary" type="button" id="profChat">Chat</button></div>
     <div class="actions">
       <button class="btn" type="button" id="profEdit">Edit</button>
+      <button class="btn" type="button" id="profExport">Export card</button>
       <button class="btn danger" type="button" id="profDelete">Delete</button>
     </div>
   </div></div>
@@ -326,6 +393,10 @@
 <section id="editor" class="view" aria-label="Editor">
   <div class="page-head"><button class="back" data-close="editor" type="button">‹ Cancel</button><h1 id="edTitle"></h1><button class="act" id="edSave" type="button">Save</button></div>
   <div class="page-body"><div class="page-inner">
+    <div data-for="char" class="actions" style="margin:6px 0 12px">
+      <button class="btn" type="button" id="edCard">Import character card</button>
+      <input type="file" id="edCardFile" accept="image/png,.png,application/json,.json" hidden>
+    </div>
     <div class="card">
       <label class="f">Image</label>
       <div class="pick">
@@ -434,10 +505,15 @@
 
     <details class="sec" data-sec="customization">
     <summary class="group-title">Customization</summary>
+    <div id="globalLookHost"><div id="lookBlock">
     <div class="preview" id="preview">
       <div class="seg" id="styleTarget">
         <button type="button" data-v="ai" class="on">Style AI text</button>
         <button type="button" data-v="me">Style your text</button>
+      </div>
+      <div class="match">
+        <button class="btn" type="button" id="matchToMe">Your text = AI style</button>
+        <button class="btn" type="button" id="matchToAi">AI text = your style</button>
       </div>
       <div class="msg me"><span class="txt" data-rich>Can't sleep. "Talk to me?"</span></div>
       <div class="msg ai"><span class="txt" data-rich>"Of course." The rain always sounds different at night, doesn't it?</span></div>
@@ -507,6 +583,7 @@
       </div>
       <div class="actions"><button class="btn" type="button" id="resetLook">Reset customization</button></div>
     </details>
+    </div></div>
     </details>
 
   </div></div>
@@ -586,6 +663,10 @@ const saveChars = () => store.set('chars', chars);
 const savePersonas = () => store.set('personas', personas);
 const saveChats = () => { store.set('chats', chats); renderChats(); };
 const msgsKey = id => 'msgs.' + id;
+let folders = store.get('folders', []);   // { id, kind: 'char'|'persona', name }
+let albums = store.get('albums', []);     // { id, name, images: [imageId] }  image data in IndexedDB as alb_<id>
+const saveFolders = () => store.set('folders', folders);
+const saveAlbums = () => store.set('albums', albums);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // ---------- Image storage (IndexedDB; localStorage is too small for images) ----------
@@ -662,41 +743,47 @@ async function importBackup(file) {
 
 // ---------- Appearance ----------
 const darkMQ = matchMedia('(prefers-color-scheme: dark)');
-function isDark() { return cfg.theme === 'dark' || (cfg.theme === 'original' && darkMQ.matches); }
+// A chat can override any customization; lookCtx says whether the controls edit the global look or the open chat's
+let lookCtx = 'global';
+const LOOK_KEYS = Object.keys(LOOK_DEFAULTS);
+const chatLook = () => cur?.chat.look && Object.keys(cur.chat.look).length ? { ...cfg, ...cur.chat.look } : cfg;
+const activeLook = () => lookCtx === 'global' && $('settings').classList.contains('open') ? cfg : chatLook();
+function isDark() { const t = activeLook().theme; return t === 'dark' || (t === 'original' && darkMQ.matches); }
 
 function applyLook() {
+  const L = activeLook();
   const root = document.documentElement, s = root.style;
-  root.dataset.theme = cfg.theme;
-  document.querySelector('meta[name=color-scheme]').content = cfg.theme === 'original' ? 'light dark' : cfg.theme;
-  cfg.accent ? s.setProperty('--accent', cfg.accent) : s.removeProperty('--accent');
+  root.dataset.theme = L.theme;
+  document.querySelector('meta[name=color-scheme]').content = L.theme === 'original' ? 'light dark' : L.theme;
+  L.accent ? s.setProperty('--accent', L.accent) : s.removeProperty('--accent');
 
-  loadFonts([cfg.aiFont, cfg.meFont, 'Inter', 'Fraunces']);
-  s.setProperty('--ai-font', (FONTS[cfg.aiFont] || FONTS.Fraunces).css);
-  s.setProperty('--me-font', (FONTS[cfg.meFont] || FONTS.Inter).css);
-  s.setProperty('--fs', cfg.fs + 'px');
-  s.setProperty('--fw', cfg.fw);
-  s.setProperty('--lh', cfg.lh);
-  s.setProperty('--ls', cfg.ls + 'em');
-  s.setProperty('--fst', cfg.italic ? 'italic' : 'normal');
-  s.setProperty('--deco', cfg.underline ? 'underline' : 'none');
-  s.setProperty('--c1', cfg.c1); s.setProperty('--c2', cfg.c2); s.setProperty('--angle', cfg.angle + 'deg');
-  if (cfg.colorMode === 'theme') s.removeProperty('--glowc'); else s.setProperty('--glowc', cfg.c1);
-  document.body.dataset.color = cfg.colorMode;
-  document.body.classList.toggle('glow', cfg.glow);
-  document.body.classList.toggle('ai-bubble', cfg.aiBubble);
-  s.setProperty('--u-fs', cfg.u_fs + 'px');
-  s.setProperty('--u-fw', cfg.u_fw);
-  s.setProperty('--u-lh', cfg.u_lh);
-  s.setProperty('--u-ls', cfg.u_ls + 'em');
-  s.setProperty('--u-fst', cfg.u_italic ? 'italic' : 'normal');
-  s.setProperty('--u-deco', cfg.u_underline ? 'underline' : 'none');
-  s.setProperty('--u-c1', cfg.u_c1); s.setProperty('--u-c2', cfg.u_c2); s.setProperty('--u-angle', cfg.u_angle + 'deg');
-  if (cfg.u_colorMode === 'theme') s.removeProperty('--u-glowc'); else s.setProperty('--u-glowc', cfg.u_c1);
-  s.setProperty('--q', cfg.qColor); s.setProperty('--u-q', cfg.u_qColor);
-  document.body.dataset.ucolor = cfg.u_colorMode;
-  document.body.classList.toggle('uglow', cfg.u_glow);
-  document.body.classList.toggle('qon', cfg.qOn);
-  document.body.classList.toggle('uqon', cfg.u_qOn);
+  loadFonts([L.aiFont, L.meFont, 'Inter', 'Fraunces']);
+  s.setProperty('--ai-font', (FONTS[L.aiFont] || FONTS.Fraunces).css);
+  s.setProperty('--me-font', (FONTS[L.meFont] || FONTS.Inter).css);
+  s.setProperty('--fs', L.fs + 'px');
+  s.setProperty('--fw', L.fw);
+  s.setProperty('--lh', L.lh);
+  s.setProperty('--ls', L.ls + 'em');
+  s.setProperty('--fst', L.italic ? 'italic' : 'normal');
+  s.setProperty('--deco', L.underline ? 'underline' : 'none');
+  s.setProperty('--c1', L.c1); s.setProperty('--c2', L.c2); s.setProperty('--angle', L.angle + 'deg');
+  if (L.colorMode === 'theme') s.removeProperty('--glowc'); else s.setProperty('--glowc', L.c1);
+  document.body.dataset.color = L.colorMode;
+  document.body.classList.toggle('glow', L.glow);
+  document.body.classList.toggle('ai-bubble', L.aiBubble);
+  s.setProperty('--u-fs', L.u_fs + 'px');
+  s.setProperty('--u-fw', L.u_fw);
+  s.setProperty('--u-lh', L.u_lh);
+  s.setProperty('--u-ls', L.u_ls + 'em');
+  s.setProperty('--u-fst', L.u_italic ? 'italic' : 'normal');
+  s.setProperty('--u-deco', L.u_underline ? 'underline' : 'none');
+  s.setProperty('--u-c1', L.u_c1); s.setProperty('--u-c2', L.u_c2); s.setProperty('--u-angle', L.u_angle + 'deg');
+  if (L.u_colorMode === 'theme') s.removeProperty('--u-glowc'); else s.setProperty('--u-glowc', L.u_c1);
+  s.setProperty('--q', L.qColor); s.setProperty('--u-q', L.u_qColor);
+  document.body.dataset.ucolor = L.u_colorMode;
+  document.body.classList.toggle('uglow', L.u_glow);
+  document.body.classList.toggle('qon', L.qOn);
+  document.body.classList.toggle('uqon', L.u_qOn);
   matchNative();
 }
 
@@ -716,7 +803,7 @@ const personaOf = chat => personas.find(p => p.id === chat.personaId) || null;
 const userName = p => p?.name || 'User';
 const fill = (t, c, p) => (t || '').replace(/\{\{char\}\}/gi, c.name).replace(/\{\{user\}\}/gi, userName(p));
 
-function systemFor(c, p) {
+function systemFor(c, p, memory) {
   const f = t => fill((t || '').trim(), c, p);
   const parts = [f(cfg.systemPrompt)];
   let ch = `--- Character: ${c.name} ---\nYou are ${c.name}. Stay in character.`;
@@ -724,14 +811,15 @@ function systemFor(c, p) {
   if (f(c.scenario)) ch += `\n\nScenario:\n${f(c.scenario)}`;
   parts.push(ch);
   if (p) parts.push(`--- User: ${p.name} ---\nYou are talking with ${p.name}.${f(p.personality) ? `\n\n${f(p.personality)}` : ''}`);
+  if (f(memory)) parts.push(`--- Memory (things to remember in this chat) ---\n${f(memory)}`);
   if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
   if (imageEnabled()) parts.push('--- Images ---\nYou can send images, but only when the user explicitly asks you for an image, picture, photo or drawing. Then reply briefly and naturally, and append [[image: a detailed description of the image to generate, in English]] at the very end of that message. The image appears below your message. Never do this unless explicitly asked; the tag is hidden from the user.');
   return parts.filter(Boolean).join('\n\n');
 }
 
-function buildMessages(c, p, hist) {
+function buildMessages(c, p, hist, memory) {
   const msgs = hist.map(m => ({ role: m.role, content: m.imgPrompt ? `${m.content}\n[[image: ${m.imgPrompt}]]` : m.content }));
-  return [{ role: 'system', content: systemFor(c, p) }, ...msgs];
+  return [{ role: 'system', content: systemFor(c, p, memory) }, ...msgs];
 }
 
 function visible(t, final) {
@@ -801,7 +889,21 @@ function render() {
 }
 
 // ---------- Image generation ----------
-async function generateImage(prompt) {
+// ref: the character's image. Chat-style image endpoints get it as a style reference; if the model refuses
+// an input image, or the endpoint is /images/generations, the text prompt alone is used.
+async function generateImage(prompt, ref, who) {
+  const imagesApi = /images\/generations$/.test(endpoint(cfg.imgUrl));
+  if (ref && !imagesApi) {
+    try {
+      return await requestImage([
+        { type: 'image_url', image_url: { url: ref } },
+        { type: 'text', text: `Create a new image in exactly the same visual style as the reference image: same medium, rendering, line work, colour palette and lighting.${who ? ` The reference shows ${who}; keep their appearance consistent whenever they appear.` : ''}\n\nImage to create: ${prompt}` },
+      ]);
+    } catch (e) { console.warn('Reference image not accepted, retrying with text only', e); }
+  }
+  return requestImage(prompt);
+}
+async function requestImage(prompt) {
   const url = endpoint(cfg.imgUrl);
   const imagesApi = /images\/generations$/.test(url);
   const body = imagesApi
@@ -884,7 +986,8 @@ async function aiTurn(s, hist, messages, bubble) {
   const fig = addFigure(bubble);
   if (!imageEnabled()) { fig.remove(); if (here()) addBubble('err', 'Image requested, but no image proxy is set up in Settings.'); return; }
   try {
-    const src = await generateImage(imgPrompt);
+    const ref = s.c.img ? await idb.get(s.c.img).catch(() => null) : null;
+    const src = await generateImage(imgPrompt, ref, s.c.name);
     const id = 'img_' + uid();
     await idb.put(id, src).catch(() => {});
     msg.img = id; msg.imgPrompt = imgPrompt; saveMsgs(s.chat, hist);
@@ -899,7 +1002,7 @@ async function send(text) {
   hist.push({ role: 'user', content: text }); saveMsgs(s.chat, hist);
   addBubble('me', text);
   const bubble = addBubble('ai', '');
-  try { await aiTurn(s, hist, buildMessages(s.c, s.p, hist), bubble); }
+  try { await aiTurn(s, hist, buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
   catch (e) {
     if (!bubble.textContent) { bubble.remove(); hist.pop(); saveMsgs(s.chat, hist); }
     if (cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message);
@@ -912,7 +1015,7 @@ async function writeOpening() {
   setBusy(true); render();
   const bubble = addBubble('ai', '');
   const ask = `[Write ${c.name}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${c.name}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.]`;
-  try { await aiTurn(s, hist, [...buildMessages(c, p, []), { role: 'user', content: ask }], bubble); }
+  try { await aiTurn(s, hist, [...buildMessages(c, p, [], s.chat.memory), { role: 'user', content: ask }], bubble); }
   catch (e) { bubble.remove(); if (cur?.chat.id === s.chat.id) { render(); addBubble('err', 'Could not write an opening: ' + e.message); } }
   finally { setBusy(false); }
 }
@@ -936,12 +1039,14 @@ function openChat(id) {
   cur = { chat, c, p: personaOf(chat) };
   $('profile').classList.remove('open'); // the chat view sits below the profile
   history = store.get(msgsKey(id), []);
+  applyLook();
   renderChatHead(); render(); openView('chat');
   if (!history.length) startChat();
 }
 // A chat you never wrote anything in isn't worth keeping
 function leaveChat() {
   const s = cur; cur = null;
+  applyLook();
   if (s && !busy && !history.some(m => m.role === 'user')) deleteChat(s.chat.id);
 }
 function startChat() {
@@ -968,6 +1073,8 @@ function openView(id) { $(id).classList.add('open'); requestAnimationFrame(() =>
 function closeView(id) {
   document.activeElement?.blur(); $(id).classList.remove('open');
   if (id === 'chat') leaveChat();
+  if (id === 'settings') applyLook();
+  if (id === 'chars' || id === 'personas') { endSelect(); closeSwipe(); }
 }
 for (const b of document.querySelectorAll('[data-close]')) b.onclick = () => closeView(b.dataset.close);
 
@@ -977,6 +1084,7 @@ function showSheet(title, opts) {
   $('sheetOpts').replaceChildren(...opts.map(o => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'opt';
     if (o.av !== undefined) { const a = document.createElement('span'); a.className = 'av'; setThumb(a, o.av || { name: '–' }); b.append(a); }
+    if (o.icon) { const a = document.createElement('span'); a.className = 'ico'; a.innerHTML = o.icon; b.append(a); }
     b.append(o.label);
     b.onclick = () => { hideSheet(); o.onClick(); };
     return b;
@@ -1082,7 +1190,7 @@ function renderProfile() {
   $('profSecs').replaceChildren(...secs.filter(([, v]) => v?.trim()).map(([t, v]) => {
     const card = document.createElement('div'); card.className = 'card';
     const l = document.createElement('div'); l.className = 'f'; l.style.margin = '14px 0 6px'; l.textContent = t;
-    const b = document.createElement('div'); b.className = 'prof-body'; b.textContent = v;
+    const b = document.createElement('div'); b.className = 'prof-body'; withImages(b, v);
     card.append(l, b); return card;
   }));
   return true;
@@ -1094,15 +1202,25 @@ $('profHero').onclick = async () => {
 };
 $('profChat').onclick = () => { const c = chars.find(x => x.id === profileId); if (c) pickPersona(c); };
 $('profEdit').onclick = () => openEditor('char', profileId);
-$('profDelete').onclick = () => {
-  const c = chars.find(x => x.id === profileId); if (!c) return;
-  if (!confirm(`Delete ${c.name}? All chats with ${c.name} are deleted too.`)) return;
-  for (const ch of chats.filter(x => x.charId === c.id)) deleteChat(ch.id);
-  chars.splice(chars.indexOf(c), 1);
-  if (c.img) { idb.del(c.img).catch(() => {}); avatarCache.delete(c.img); }
-  saveChars(); renderList('char'); renderChats();
-  closeView('profile');
-};
+$('profDelete').onclick = () => { if (deleteItems('char', [profileId])) closeView('profile'); };
+$('profExport').onclick = () => { const c = chars.find(x => x.id === profileId); if (c) exportCard(c); };
+$('chatWho').onclick = () => cur && openChatSettings();
+
+// Album links (gr://img/<id>) become images on the character card
+const IMG_LINK = /gr:\/\/img\/([A-Za-z0-9_-]+)/g;
+const stripLinks = t => (t || '').replace(IMG_LINK, '').replace(/\n{3,}/g, '\n\n').trim();
+function withImages(el, text) {
+  el.textContent = '';
+  let i = 0;
+  for (const m of text.matchAll(IMG_LINK)) {
+    if (m.index > i) el.append(text.slice(i, m.index));
+    const img = new Image(); img.alt = '';
+    idb.get('alb_' + m[1]).then(src => { if (src) { img.src = src; img.onclick = () => openLightbox(src); } else img.replaceWith('[missing image]'); }).catch(() => {});
+    el.append(img);
+    i = m.index + m[0].length;
+  }
+  if (i < text.length) el.append(text.slice(i));
+}
 $('chatProfile').onclick = () => cur && openProfile(cur.c.id);
 
 // ---------- Character & persona lists ----------
@@ -1116,25 +1234,186 @@ async function setThumb(el, it) {
   if (src && it.img === key) { el.style.backgroundImage = `url("${src}")`; el.textContent = ''; }
 }
 
+const folderSvg = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+const openFolders = new Set(store.get('openFolders', []));
+const sel = { kind: null, ids: new Set() };
+const itemsOf = kind => kind === 'char' ? chars : personas;
+const SW = 168; // width of the swipe actions
+let openSwipe = null;
+
 function renderList(kind) {
-  const items = kind === 'char' ? chars : personas;
+  const items = itemsOf(kind), fs = folders.filter(f => f.kind === kind);
   const list = $(kind === 'char' ? 'charList' : 'personaList');
   list.innerHTML = '';
-  if (!items.length) {
+  openSwipe = null;
+  if (!items.length && !fs.length) {
     const e = document.createElement('div'); e.className = 'list-empty';
     e.textContent = kind === 'char' ? 'No characters yet.' : 'No personas yet.';
-    return list.appendChild(e);
+    list.appendChild(e);
   }
-  for (const it of items) {
+  for (const f of fs) {
+    const inside = items.filter(it => it.folder === f.id), open = openFolders.has(f.id);
+    const g = document.createElement('div'); g.className = 'group' + (open ? ' open' : '');
+    const head = document.createElement('div'); head.className = 'folder-head';
     const b = document.createElement('button'); b.type = 'button'; b.className = 'item';
-    const th = document.createElement('div'); th.className = 'thumb'; setThumb(th, it);
+    const ic = document.createElement('div'); ic.className = 'folder-icon'; ic.innerHTML = folderSvg;
     const info = document.createElement('div'); info.className = 'info';
-    const h = document.createElement('h3'); h.textContent = it.name;
-    const p = document.createElement('p'); p.textContent = (kind === 'char' ? it.description : it.personality) || '';
-    info.append(h, p); b.append(th, info);
-    b.onclick = () => kind === 'char' ? charActions(it) : openEditor('persona', it.id);
-    list.appendChild(b);
+    const h = document.createElement('h3'); h.textContent = f.name;
+    const meta = document.createElement('p'); meta.textContent = `${inside.length} ${kind === 'char' ? 'character' : 'persona'}${inside.length === 1 ? '' : 's'}`;
+    const chev = document.createElement('span'); chev.className = 'chev';
+    info.append(h, meta); b.append(ic, info, chev);
+    b.onclick = () => { open ? openFolders.delete(f.id) : openFolders.add(f.id); store.set('openFolders', [...openFolders]); renderList(kind); };
+    const more = document.createElement('button'); more.type = 'button'; more.className = 'more'; more.textContent = '⋯';
+    more.setAttribute('aria-label', 'Folder options'); more.onclick = () => folderMenu(f);
+    head.append(b, more); g.append(head);
+    if (open) {
+      const box = document.createElement('div'); box.className = 'folder-items';
+      for (const it of inside) box.append(row(kind, it));
+      if (!inside.length) { const e = document.createElement('div'); e.className = 'hint'; e.style.padding = '0 6px 6px'; e.textContent = 'Empty. Swipe an item left and choose Move.'; box.append(e); }
+      g.append(box);
+    }
+    list.append(g);
   }
+  for (const it of items) if (!it.folder || !fs.some(f => f.id === it.folder)) list.append(row(kind, it));
+  const bar = $(kind === 'char' ? 'charSel' : 'personaSel');
+  bar.hidden = sel.kind !== kind;
+  bar.querySelector('span').textContent = `${sel.ids.size} selected`;
+}
+
+function row(kind, it) {
+  const w = document.createElement('div'); w.className = 'swipe';
+  const acts = document.createElement('div'); acts.className = 'swipe-acts';
+  const mv = document.createElement('button'); mv.type = 'button'; mv.className = 'mv'; mv.textContent = 'Move';
+  const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'rm'; rm.textContent = 'Delete';
+  mv.onclick = () => { closeSwipe(); moveSheet(kind, [it.id]); };
+  rm.onclick = () => { closeSwipe(); deleteItems(kind, [it.id]); };
+  acts.append(mv, rm);
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'item' + (sel.ids.has(it.id) ? ' selected' : '');
+  const th = document.createElement('div'); th.className = 'thumb'; setThumb(th, it);
+  const info = document.createElement('div'); info.className = 'info';
+  const h = document.createElement('h3'); h.textContent = it.name;
+  const p = document.createElement('p'); p.textContent = stripLinks(kind === 'char' ? it.description : it.personality);
+  info.append(h, p); b.append(th, info);
+  if (sel.kind === kind) { const c = document.createElement('span'); c.className = 'check'; c.textContent = sel.ids.has(it.id) ? '✓' : ''; b.append(c); }
+  w.append(acts, b);
+  gestures(w, b, () => {
+    if (sel.kind) return toggleSel(kind, it.id);
+    kind === 'char' ? charActions(it) : openEditor('persona', it.id);
+  }, () => startSelect(kind, it.id));
+  return w;
+}
+
+function closeSwipe() {
+  if (!openSwipe) return;
+  openSwipe.lastChild.style.transform = ''; openSwipe = null;
+}
+// Swipe left reveals Move/Delete; long press starts multi-select; a plain tap calls onTap
+function gestures(w, b, onTap, onLong) {
+  let x0 = null, y0 = 0, dx = 0, start = 0, mode = null, timer = null;
+  b.addEventListener('pointerdown', e => {
+    if (e.button > 0) return;
+    x0 = e.clientX; y0 = e.clientY; dx = 0; mode = null;
+    start = openSwipe === w ? -SW : 0;
+    if (openSwipe && openSwipe !== w) closeSwipe();
+    timer = setTimeout(() => { mode = 'long'; navigator.vibrate?.(12); onLong(); }, 480);
+  });
+  b.addEventListener('pointermove', e => {
+    if (x0 === null) return;
+    const mx = e.clientX - x0, my = e.clientY - y0;
+    if (!mode && Math.hypot(mx, my) > 8) {
+      clearTimeout(timer);
+      mode = Math.abs(mx) > Math.abs(my) && !sel.kind ? 'swipe' : 'scroll';
+      if (mode === 'swipe') b.setPointerCapture(e.pointerId);
+    }
+    if (mode === 'swipe') {
+      dx = Math.min(0, Math.max(-SW - 30, start + mx));
+      b.style.transition = 'none'; b.style.transform = `translateX(${dx}px)`;
+    }
+  });
+  const end = () => {
+    clearTimeout(timer);
+    if (mode === 'swipe') {
+      b.style.transition = '';
+      if (dx < -SW / 2) { b.style.transform = `translateX(${-SW}px)`; openSwipe = w; }
+      else { b.style.transform = ''; if (openSwipe === w) openSwipe = null; }
+    }
+    x0 = null;
+  };
+  b.addEventListener('pointerup', end);
+  b.addEventListener('pointercancel', () => { if (!mode) mode = 'scroll'; end(); });
+  b.addEventListener('contextmenu', e => e.preventDefault());
+  b.addEventListener('click', () => {
+    const m = mode; mode = null;
+    if (m === 'swipe' || m === 'long') return;
+    if (openSwipe === w) return closeSwipe();
+    onTap();
+  });
+}
+
+function startSelect(kind, id) { closeSwipe(); sel.kind = kind; sel.ids = new Set([id]); renderList(kind); }
+function toggleSel(kind, id) {
+  sel.ids.has(id) ? sel.ids.delete(id) : sel.ids.add(id);
+  if (!sel.ids.size) sel.kind = null;
+  renderList(kind);
+}
+function endSelect() { const k = sel.kind; sel.kind = null; sel.ids = new Set(); if (k) renderList(k); }
+for (const [bar, kind] of [['charSel', 'char'], ['personaSel', 'persona']]) $(bar).onclick = e => {
+  const a = e.target.dataset?.act; if (!a) return;
+  if (a === 'cancel') endSelect();
+  if (a === 'move') moveSheet(kind, [...sel.ids]);
+  if (a === 'delete') deleteItems(kind, [...sel.ids]);
+};
+
+function moveSheet(kind, ids) {
+  const items = itemsOf(kind), list = ids.map(id => items.find(i => i.id === id)).filter(Boolean);
+  if (!list.length) return;
+  const fs = folders.filter(f => f.kind === kind);
+  showSheet(list.length === 1 ? `Move ${list[0].name} to…` : `Move ${list.length} items to…`, [
+    ...fs.map(f => ({ label: f.name, icon: folderSvg, onClick: () => moveTo(kind, list, f.id) })),
+    { label: 'New folder…', icon: '+', onClick: () => {
+      const name = prompt('Folder name')?.trim(); if (!name) return;
+      const f = { id: uid(), kind, name }; folders.push(f); saveFolders();
+      openFolders.add(f.id); store.set('openFolders', [...openFolders]);
+      moveTo(kind, list, f.id);
+    } },
+    ...(list.some(i => i.folder) ? [{ label: 'Out of folder', icon: '↑', onClick: () => moveTo(kind, list, '') }] : []),
+  ]);
+}
+function moveTo(kind, list, folderId) {
+  for (const it of list) { if (folderId) it.folder = folderId; else delete it.folder; }
+  kind === 'char' ? saveChars() : savePersonas();
+  sel.kind = null; sel.ids = new Set();
+  renderList(kind);
+}
+function folderMenu(f) {
+  showSheet(f.name, [
+    { label: 'Rename folder', onClick: () => { const n = prompt('Folder name', f.name)?.trim(); if (n) { f.name = n; saveFolders(); renderList(f.kind); } } },
+    { label: 'Delete folder', onClick: () => {
+      if (!confirm(`Delete the folder "${f.name}"? What's inside moves out of it; nothing is deleted.`)) return;
+      for (const it of itemsOf(f.kind)) if (it.folder === f.id) delete it.folder;
+      folders = folders.filter(x => x.id !== f.id); saveFolders();
+      f.kind === 'char' ? saveChars() : savePersonas();
+      renderList(f.kind);
+    } },
+  ]);
+}
+
+// Deletes characters (with their chats) or personas after one confirmation; returns true if deleted
+function deleteItems(kind, ids) {
+  const items = itemsOf(kind), list = ids.map(id => items.find(i => i.id === id)).filter(Boolean);
+  if (!list.length) return false;
+  const what = list.length === 1 ? list[0].name : `${list.length} ${kind === 'char' ? 'characters' : 'personas'}`;
+  const note = kind === 'char' ? ` All chats with ${list.length === 1 ? 'them' : 'these characters'} are deleted too.` : ' Chats with them are kept.';
+  if (!confirm(`Delete ${what}?${note}`)) return false;
+  for (const it of list) {
+    if (kind === 'char') for (const ch of chats.filter(x => x.charId === it.id)) deleteChat(ch.id);
+    items.splice(items.indexOf(it), 1);
+    if (it.img) { idb.del(it.img).catch(() => {}); avatarCache.delete(it.img); }
+  }
+  kind === 'char' ? saveChars() : savePersonas();
+  sel.kind = null; sel.ids = new Set();
+  renderList(kind); renderChats();
+  return true;
 }
 
 // ---------- Editor (shared by characters and personas) ----------
@@ -1161,6 +1440,7 @@ function openEditor(kind, id) {
   setThumb($('edThumb'), it || { name: '+' }); if (!it) $('edThumb').textContent = '+';
   $('edNoImg').hidden = !it?.img;
   $('edDelete').hidden = !it || kind === 'char'; // characters are deleted from their profile
+  $('edCard').parentElement.hidden = kind !== 'char';
   $('editor').querySelector('.page-body').scrollTop = 0;
   openView('editor');
 }
@@ -1227,13 +1507,26 @@ async function saveEditor() {
 }
 $('edSave').onclick = $('edSave2').onclick = saveEditor;
 
-$('edDelete').onclick = () => {
-  const it = personas.find(x => x.id === edit.id); if (!it || edit.kind !== 'persona') return;
-  if (!confirm(`Delete ${it.name}? Chats with this persona are kept.`)) return;
-  personas.splice(personas.indexOf(it), 1);
-  if (it.img) { idb.del(it.img).catch(() => {}); avatarCache.delete(it.img); }
-  savePersonas(); renderList('persona'); renderChats();
-  closeView('editor');
+$('edDelete').onclick = () => { if (edit.kind === 'persona' && deleteItems('persona', [edit.id])) closeView('editor'); };
+
+$('edCard').onclick = () => $('edCardFile').click();
+$('edCardFile').onchange = async () => {
+  const f = $('edCardFile').files[0]; $('edCardFile').value = '';
+  if (!f) return;
+  try {
+    const isPng = new Uint8Array(await f.slice(0, 8).arrayBuffer()).join() === PNG_SIG.join();
+    const card = isPng ? readCardPng(await f.arrayBuffer()) : JSON.parse(await f.text());
+    const c = await cardToFields(card);
+    if (!c.name && !c.personality) throw new Error('No character data found in this file.');
+    $('edName').value = c.name; $('edDesc').value = c.description; $('edPers').value = c.personality;
+    $('edScen').value = c.scenario; $('edFirst').value = c.firstMessage; $('edAiFirst').checked = c.aiFirst; $('edEx').value = c.examples;
+    syncFirst(); autosizeAll($('editor'));
+    if (isPng) {
+      edit.img = await readImage(f);
+      const th = $('edThumb'); th.style.backgroundImage = `url("${edit.img}")`; th.textContent = ''; $('edNoImg').hidden = false;
+    }
+    toast(`Imported ${c.name || 'character'}. Check the fields, then Save.`);
+  } catch (e) { toast('Could not read that card: ' + (e.message || e)); }
 };
 
 $('newChar').onclick = () => openEditor('char');
@@ -1242,6 +1535,190 @@ $('goChats').onclick = () => { renderChats(); openView('chats'); };
 $('goChars').onclick = () => openView('chars');
 $('goPersonas').onclick = () => openView('personas');
 $('goSettings').onclick = () => openSettings();
+$('goAlbums').onclick = () => { renderAlbums(); openView('albums'); };
+
+// ---------- Character cards (PNG with embedded chara_card_v2 JSON, the format SillyTavern/Chub/JanitorAI use) ----------
+const PNG_SIG = [137, 80, 78, 71, 13, 10, 26, 10];
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = bytes => { let c = 0xFFFFFFFF; for (const b of bytes) c = CRC_T[(c ^ b) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+const latin1 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 8192) s += String.fromCharCode(...bytes.subarray(i, i + 8192)); return s; };
+const b64ToUtf8 = b64 => new TextDecoder().decode(Uint8Array.from(atob(b64.trim()), ch => ch.charCodeAt(0)));
+const utf8ToB64 = str => btoa(latin1(new TextEncoder().encode(str)));
+
+function readCardPng(buf) {
+  const v = new DataView(buf), u = new Uint8Array(buf), found = {};
+  for (let o = 8; o + 8 <= u.length;) {
+    const len = v.getUint32(o), type = latin1(u.subarray(o + 4, o + 8)), data = u.subarray(o + 8, o + 8 + len);
+    if (type === 'tEXt') { const z = data.indexOf(0); found[latin1(data.subarray(0, z)).toLowerCase()] = latin1(data.subarray(z + 1)); }
+    if (type === 'IEND') break;
+    o += 12 + len;
+  }
+  const b64 = found.ccv3 || found.chara;
+  if (!b64) throw new Error('This PNG has no character data.');
+  return JSON.parse(b64ToUtf8(b64));
+}
+
+// Card fields → ours. In other apps "description" is what the AI gets; our description is display-only.
+async function cardToFields(card) {
+  const d = card?.data || card || {}, g = d.extensions?.greenroom;
+  const notes = (d.creator_notes || '').replace(/<[^>]+>/g, '').trim();
+  const out = {
+    name: (d.name || '').trim(),
+    description: g?.description ?? notes,
+    personality: g?.personality ?? [d.description, d.personality].filter(x => x?.trim()).join('\n\n'),
+    scenario: d.scenario || '',
+    firstMessage: g?.firstMessage ?? d.first_mes ?? '',
+    aiFirst: !!g?.aiFirst,
+    examples: d.mes_example || '',
+  };
+  // Album images bundled by GreenRoom: store them and put them in an album
+  const imgs = Object.entries(g?.images || {});
+  if (imgs.length) {
+    const added = [];
+    for (const [id, src] of imgs) if (/^[\w-]+$/.test(id) && !(await idb.get('alb_' + id).catch(() => null))) { await idb.put('alb_' + id, src); added.push(id); }
+    if (added.length) { albums.push({ id: uid(), name: `From card: ${out.name || 'character'}`, images: added }); saveAlbums(); }
+  }
+  return out;
+}
+
+async function exportCard(c) {
+  try {
+    toast('Making card…');
+    const images = {};
+    for (const t of [c.description, c.personality, c.scenario, c.firstMessage, c.examples])
+      for (const m of (t || '').matchAll(IMG_LINK)) { const src = await idb.get('alb_' + m[1]).catch(() => null); if (src) images[m[1]] = src; }
+    const card = { spec: 'chara_card_v2', spec_version: '2.0', data: {
+      name: c.name, description: c.personality || '', personality: '', scenario: c.scenario || '',
+      first_mes: c.aiFirst ? '' : (c.firstMessage || ''), mes_example: c.examples || '',
+      creator_notes: stripLinks(c.description), system_prompt: '', post_history_instructions: '',
+      alternate_greetings: [], tags: [], creator: '', character_version: '',
+      extensions: { greenroom: { version: 1, description: c.description || '', personality: c.personality || '', firstMessage: c.firstMessage || '', aiFirst: !!c.aiFirst, images } },
+    } };
+    // Base image: the character's picture, or a plain one with their initial
+    const cv = document.createElement('canvas'), x = cv.getContext('2d');
+    const src = c.img && await idb.get(c.img).catch(() => null);
+    if (src) {
+      const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+      cv.width = im.naturalWidth; cv.height = im.naturalHeight; x.drawImage(im, 0, 0);
+    } else {
+      cv.width = 512; cv.height = 768;
+      x.fillStyle = '#f3c9b9'; x.fillRect(0, 0, 512, 768);
+      x.fillStyle = '#d9553b'; x.font = '280px Georgia, serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText((c.name || '?').charAt(0).toUpperCase(), 256, 384);
+    }
+    const png = new Uint8Array(await (await new Promise(r => cv.toBlob(r, 'image/png'))).arrayBuffer());
+    const text = new TextEncoder().encode('chara\0' + utf8ToB64(JSON.stringify(card)));
+    const chunk = new Uint8Array(12 + text.length), dv = new DataView(chunk.buffer);
+    dv.setUint32(0, text.length); chunk.set([116, 69, 88, 116], 4); chunk.set(text, 8);
+    dv.setUint32(8 + text.length, crc32(chunk.subarray(4, 8 + text.length)));
+    const out = new Uint8Array(png.length + chunk.length), iend = png.length - 12;
+    out.set(png.subarray(0, iend)); out.set(chunk, iend); out.set(png.subarray(iend), iend + chunk.length);
+    await shareFile(`${(c.name || 'character').replace(/[^\p{L}\p{N} _-]/gu, '').trim() || 'character'}.png`, new Blob([out], { type: 'image/png' }));
+  } catch (e) {
+    if (e?.name === 'AbortError' || /cancel/i.test(e?.message || '')) return;
+    toast('Export failed: ' + (e?.message || e));
+  }
+}
+
+// Hands a file to the share sheet (iOS app: via a cache file), or downloads it in a browser
+async function shareFile(name, blob) {
+  const Share = window.Capacitor?.Plugins?.Share;
+  if (FS && Share) {
+    const b64 = btoa(latin1(new Uint8Array(await blob.arrayBuffer())));
+    await FS.writeFile({ path: name, data: b64, directory: 'CACHE' });
+    const { uri } = await FS.getUri({ path: name, directory: 'CACHE' });
+    await Share.share({ title: name, files: [uri] });
+    return;
+  }
+  const file = new File([blob], name, { type: blob.type });
+  if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+// ---------- Albums ----------
+let albumId = null;
+const shortId = () => Math.random().toString(36).slice(2, 10);
+const imgLink = id => 'gr://img/' + id;
+
+function renderAlbums() {
+  const list = $('albumList'); list.innerHTML = '';
+  if (!albums.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.textContent = 'No albums yet.'; return list.append(e); }
+  for (const a of albums) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'item';
+    const th = document.createElement('div'); th.className = 'thumb sm'; th.textContent = (a.name || '?').charAt(0).toUpperCase();
+    if (a.images[0]) idb.get('alb_' + a.images[0]).then(src => { if (src) { th.style.backgroundImage = `url("${src}")`; th.textContent = ''; } }).catch(() => {});
+    const info = document.createElement('div'); info.className = 'info';
+    const h = document.createElement('h3'); h.textContent = a.name;
+    const p = document.createElement('p'); p.textContent = `${a.images.length} image${a.images.length === 1 ? '' : 's'}`;
+    info.append(h, p); b.append(th, info);
+    b.onclick = () => openAlbum(a.id);
+    list.append(b);
+  }
+}
+function openAlbum(id) { albumId = id; renderAlbum(); openView('album'); }
+function renderAlbum() {
+  const a = albums.find(x => x.id === albumId); if (!a) return;
+  $('albumTitle').textContent = a.name;
+  const grid = $('albumGrid'); grid.innerHTML = '';
+  if (!a.images.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.style.gridColumn = '1 / -1'; e.textContent = 'No images yet.'; grid.append(e); }
+  for (const id of a.images) {
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Image ' + id);
+    idb.get('alb_' + id).then(src => { if (src) b.style.backgroundImage = `url("${src}")`; }).catch(() => {});
+    b.onclick = () => showSheet(imgLink(id), [
+      { label: 'Copy link', onClick: () => copyText(imgLink(id)) },
+      { label: 'View', onClick: async () => { const src = await idb.get('alb_' + id).catch(() => null); if (src) openLightbox(src); } },
+      { label: 'Delete image', onClick: () => {
+        if (!confirm('Delete this image? Characters that link to it will show "[missing image]".')) return;
+        a.images = a.images.filter(x => x !== id); saveAlbums(); idb.del('alb_' + id).catch(() => {}); renderAlbum();
+      } },
+    ]);
+    grid.append(b);
+  }
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); toast('Link copied'); }
+  catch { prompt('Copy this link', t); }
+}
+$('newAlbum').onclick = () => {
+  const name = prompt('Album name')?.trim(); if (!name) return;
+  const a = { id: uid(), name, images: [] }; albums.unshift(a); saveAlbums(); renderAlbums(); openAlbum(a.id);
+};
+$('albumAdd').onclick = () => $('albumFile').click();
+$('albumFile').onchange = async () => {
+  const files = [...$('albumFile').files]; $('albumFile').value = '';
+  const a = albums.find(x => x.id === albumId); if (!a || !files.length) return;
+  toast(`Adding ${files.length} image${files.length === 1 ? '' : 's'}…`);
+  for (const f of files) {
+    try { const id = shortId(); await idb.put('alb_' + id, await readImage(f, 1600)); a.images.push(id); } catch (e) { toast(e.message); }
+  }
+  saveAlbums(); renderAlbum(); renderAlbums();
+};
+$('albumMenu').onclick = () => {
+  const a = albums.find(x => x.id === albumId); if (!a) return;
+  showSheet(a.name, [
+    { label: 'Rename album', onClick: () => { const n = prompt('Album name', a.name)?.trim(); if (n) { a.name = n; saveAlbums(); renderAlbum(); renderAlbums(); } } },
+    { label: 'Delete album', onClick: () => {
+      if (!confirm(`Delete "${a.name}" and its ${a.images.length} images? Characters that link to them will show "[missing image]".`)) return;
+      for (const id of a.images) idb.del('alb_' + id).catch(() => {});
+      albums = albums.filter(x => x.id !== a.id); saveAlbums(); renderAlbums(); closeView('album');
+    } },
+  ]);
+};
+
+// ---------- Chat settings: memory + this chat's own style ----------
+function openChatSettings() {
+  $('memory').value = cur.chat.memory || '';
+  setLookCtx('chat');
+  $('chatset').querySelector('.page-body').scrollTop = 0;
+  openView('chatset');
+}
+$('memory').addEventListener('input', () => { if (!cur) return; cur.chat.memory = $('memory').value; store.set('chats', chats); });
+function setLookCtx(ctx) {
+  lookCtx = ctx;
+  $(ctx === 'chat' ? 'chatLookHost' : 'globalLookHost').append($('lookBlock'));
+  applyLook(); syncControls();
+}
 
 // ---------- Settings page ----------
 // The text-style controls edit either the AI's or the user's text; user keys are stored with a u_ prefix
@@ -1251,27 +1728,48 @@ let styleTarget = 'ai';
 const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
 const fontKey = () => styleTarget === 'me' ? 'meFont' : 'aiFont';
 
+const CONTROLS = '#settings [data-k], #lookBlock [data-k]';
+const editLook = () => lookCtx === 'chat' && cur ? chatLook() : cfg;
 function syncControls() {
-  for (const el of document.querySelectorAll('#settings [data-k]')) {
-    const k = el.dataset.k, v = cfg[sk(k)];
+  const L = editLook();
+  for (const el of document.querySelectorAll(CONTROLS)) {
+    const k = el.dataset.k, v = LOOK_KEYS.includes(sk(k)) ? L[sk(k)] : cfg[k];
     if (el.classList.contains('seg')) for (const b of el.children) b.classList.toggle('on', b.dataset.v === v);
     else if (el.type === 'checkbox') el.checked = !!v;
     else if (el.type === 'color') el.value = k === 'accent' ? (v || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#d9553b') : v;
     else if (document.activeElement !== el) el.value = v;
   }
-  const g = k => cfg[sk(k)];
+  const g = k => L[sk(k)];
   const outs = { fs: g('fs') + 'px', fw: g('fw'), lh: (+g('lh')).toFixed(2), ls: (+g('ls')).toFixed(2) + 'em', angle: g('angle') + '°' };
   for (const o of document.querySelectorAll('[data-out]')) o.textContent = outs[o.dataset.out];
-  for (const b of $('fonts').children) b.classList.toggle('on', b.dataset.font === cfg[fontKey()]);
+  for (const b of $('fonts').children) b.classList.toggle('on', b.dataset.font === L[fontKey()]);
   $('colorControls').hidden = g('colorMode') === 'theme';
   for (const el of document.querySelectorAll('[data-grad]')) el.hidden = g('colorMode') !== 'gradient';
   for (const el of document.querySelectorAll('[data-q]')) el.hidden = !g('qOn');
   $('gradbar').style.background = `linear-gradient(90deg, ${g('c1')}, ${g('c2')})`;
-  for (const t of document.querySelectorAll('#settings .tgt')) t.textContent = styleTarget === 'me' ? '· you' : '· AI';
+  for (const t of document.querySelectorAll('#lookBlock .tgt')) t.textContent = styleTarget === 'me' ? '· you' : '· AI';
+  const own = lookCtx === 'chat' && cur?.chat.look && Object.keys(cur.chat.look).length;
+  $('resetLook').textContent = lookCtx === 'chat' ? 'Use global style' : 'Reset customization';
+  $('resetLook').disabled = lookCtx === 'chat' && !own;
+  $('chatLookState').textContent = own ? 'This chat has its own style. Changes here only apply to this chat.' : 'Using the global style. Change anything below to give this chat its own.';
 }
 
+// Look keys go to the open chat in chat settings, otherwise to the global config
+function writeLook(k, v) {
+  if (lookCtx === 'chat' && cur && LOOK_KEYS.includes(k)) (cur.chat.look ||= {})[k] = v;
+  else cfg[k] = v;
+}
 function update(k, v) {
-  cfg[k] = v; saveCfg(); applyLook(); syncControls();
+  writeLook(k, v);
+  lookCtx === 'chat' && cur && LOOK_KEYS.includes(k) ? store.set('chats', chats) : saveCfg();
+  applyLook(); syncControls();
+}
+// Copy one side's text style to the other
+function matchStyle(toMe) {
+  const L = editLook();
+  for (const [a, u] of [...STYLE_KEYS.map(k => [k, 'u_' + k]), ['aiFont', 'meFont']]) toMe ? writeLook(u, L[a]) : writeLook(a, L[u]);
+  update('theme', L.theme);
+  toast(toMe ? 'Your text now matches the AI' : 'AI text now matches yours');
 }
 
 function buildSettings() {
@@ -1287,7 +1785,7 @@ function buildSettings() {
   for (const [a, c, ang] of GRADIENTS) {
     const b = document.createElement('button');
     b.type = 'button'; b.style.background = `linear-gradient(${ang}deg, ${a}, ${c})`; b.setAttribute('aria-label', 'Gradient preset');
-    b.onclick = () => { cfg[sk('c1')] = a; cfg[sk('c2')] = c; update(sk('angle'), ang); };
+    b.onclick = () => { writeLook(sk('c1'), a); writeLook(sk('c2'), c); update(sk('angle'), ang); };
     $('presets').appendChild(b);
   }
   for (const col of QUOTE_COLORS) {
@@ -1297,7 +1795,7 @@ function buildSettings() {
     $('qPresets').appendChild(b);
   }
   // generic bindings
-  for (const el of document.querySelectorAll('#settings [data-k]')) {
+  for (const el of document.querySelectorAll(CONTROLS)) {
     const k = el.dataset.k;
     if (el.classList.contains('seg')) el.onclick = e => { const v = e.target.dataset?.v; if (v) update(sk(k), v); };
     else if (el.type === 'checkbox') el.onchange = () => update(sk(k), el.checked);
@@ -1315,7 +1813,12 @@ function buildSettings() {
   };
   for (const t of document.querySelectorAll('#preview [data-rich]')) rich(t, t.textContent);
   $('accentReset').onclick = () => update('accent', '');
-  $('resetLook').onclick = () => { if (confirm('Reset all customization?')) { Object.assign(cfg, LOOK_DEFAULTS); update('theme', cfg.theme); } };
+  $('resetLook').onclick = () => {
+    if (lookCtx === 'chat' && cur) { if (confirm('Drop this chat\'s own style and use the global one?')) { delete cur.chat.look; store.set('chats', chats); applyLook(); syncControls(); } return; }
+    if (confirm('Reset all customization?')) { Object.assign(cfg, LOOK_DEFAULTS); update('theme', cfg.theme); }
+  };
+  $('matchToMe').onclick = () => matchStyle(true);
+  $('matchToAi').onclick = () => matchStyle(false);
 }
 
 // Collapsible sections remember their state
@@ -1334,8 +1837,8 @@ $('bkFile').onchange = () => { const f = $('bkFile').files[0]; $('bkFile').value
 
 function openSettings() {
   loadFonts(Object.keys(FONTS));
-  syncControls();
   openView('settings');
+  setLookCtx('global');
 }
 
 document.addEventListener('keydown', e => {
