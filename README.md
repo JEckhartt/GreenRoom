@@ -14,6 +14,7 @@ A character chat app: create characters and chat with them. Built on the Nearly 
    - **Customization**: separately for AI text and your text: font, size, weight, spacing, italic, underline, glow, color/gradient, and a color for "text between quotes". One tap copies one side's style to the other
 4. **Personas**: who *you* are. Image, name, personality.
 5. **Characters**: image, name, description (list only, never sent to the AI), personality, scenario, first message (or let the AI write the opening) and example dialogue. **Import character card** fills everything in from a PNG/JSON card (SillyTavern/Chub/JanitorAI format). Tap a character for **Character profile** (full card, edit, export card, delete) or **Chat** (pick a persona, starts a new chat).
+   - From Safari or Files: **Share → GreenRoom** (or "Open in GreenRoom") on a downloaded `.png`/`.json` card opens a new character with everything filled in
    - Swipe a character or persona left for **Move** (to a folder, or a new one) and **Delete**
    - Long press to select several, then move or delete them together
 6. **Chats**: all chats grouped per character, with the persona each was played as. Tap a character to unfold its chats; open, delete, or jump to the character card.

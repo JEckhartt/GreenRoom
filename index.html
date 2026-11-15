@@ -1597,9 +1597,12 @@ $('edSave').onclick = $('edSave2').onclick = saveEditor;
 $('edDelete').onclick = () => { if (edit.kind === 'persona' && deleteItems('persona', [edit.id])) closeView('editor'); };
 
 $('edCard').onclick = () => $('edCardFile').click();
-$('edCardFile').onchange = async () => {
+$('edCardFile').onchange = () => {
   const f = $('edCardFile').files[0]; $('edCardFile').value = '';
-  if (!f) return;
+  if (f) importCardInto(f);
+};
+// Fills the open character editor from a PNG or JSON card
+async function importCardInto(f) {
   try {
     const isPng = new Uint8Array(await f.slice(0, 8).arrayBuffer()).join() === PNG_SIG.join();
     const card = isPng ? readCardPng(await f.arrayBuffer()) : JSON.parse(await f.text());
@@ -1614,7 +1617,32 @@ $('edCardFile').onchange = async () => {
     }
     toast(`Imported ${c.name || 'character'}. Check the fields, then Save.`);
   } catch (e) { toast('Could not read that card: ' + (e.message || e)); }
-};
+}
+
+// "Share → GreenRoom" / "Open in GreenRoom" for .png and .json cards (iOS copies the file into the app's Inbox)
+async function openSharedFile(url) {
+  if (!url || !/^file:/i.test(url) || !FS) return;
+  const name = decodeURIComponent(url.split('/').pop() || 'card');
+  if (!/\.(png|json)$/i.test(name)) return;
+  try {
+    const { data } = await FS.readFile({ path: url });
+    const bytes = Uint8Array.from(atob(data), ch => ch.charCodeAt(0));
+    const file = new File([bytes], name, { type: /\.json$/i.test(name) ? 'application/json' : 'image/png' });
+    FS.deleteFile({ path: url }).catch(() => {});
+    hideSheet(); hideMsgMenu?.();
+    for (const v of ['editor', 'settings', 'chatset']) $(v).classList.remove('open');
+    openView('chars');
+    openEditor('char');
+    await importCardInto(file);
+  } catch (e) { toast('Could not open that file: ' + (e?.message || e)); }
+}
+(async () => {
+  const App = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.App;
+  if (!App) return;
+  App.addListener('appUrlOpen', e => openSharedFile(e.url));
+  const launch = await App.getLaunchUrl?.().catch(() => null);
+  if (launch?.url) openSharedFile(launch.url);
+})();
 
 $('newChar').onclick = () => openEditor('char');
 $('newPersona').onclick = () => openEditor('persona');
