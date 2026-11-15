@@ -369,6 +369,8 @@
       <textarea id="memory" placeholder="A summary of what happened so far, or things the character should always remember."></textarea>
       <div class="hint">Sent with every message in this chat only. Useful once a long chat no longer fits in the model's context.</div>
     </div>
+    <p class="group-title">Theme for this chat</p>
+    <div id="chatThemeHost"></div>
     <p class="group-title">Style for this chat</p>
     <div class="hint" id="chatLookState" style="margin:-4px 4px 10px"></div>
     <div id="chatLookHost"></div>
@@ -503,6 +505,22 @@
     </div>
     </details>
 
+    <details class="sec" data-sec="themes">
+    <summary class="group-title">Themes</summary>
+    <div id="globalThemeHost"><div class="card" id="themeBlock">
+      <label class="f" style="margin-top:4px">Mode</label>
+      <div class="seg" data-k="theme">
+        <button type="button" data-v="original">Default</button>
+        <button type="button" data-v="light">Light</button>
+        <button type="button" data-v="dark">Dark</button>
+      </div>
+      <div class="line"><span>Accent color</span><span style="display:flex;gap:8px;align-items:center">
+        <button class="btn" type="button" id="accentReset" style="padding:5px 10px;font-size:13px">Default</button>
+        <input type="color" data-k="accent" id="accent"></span></div>
+      <div class="line"><span>AI message bubble</span><input type="checkbox" class="tgl" data-k="aiBubble"></div>
+    </div></div>
+    </details>
+
     <details class="sec" data-sec="customization">
     <summary class="group-title">Customization</summary>
     <div id="globalLookHost"><div id="lookBlock">
@@ -519,19 +537,6 @@
       <div class="msg ai"><span class="txt" data-rich>"Of course." The rain always sounds different at night, doesn't it?</span></div>
     </div>
 
-    <details class="card fold" data-sec="look-appearance">
-      <summary class="sub">Appearance</summary>
-      <label class="f">Mode</label>
-      <div class="seg" data-k="theme">
-        <button type="button" data-v="original">Original</button>
-        <button type="button" data-v="light">Light</button>
-        <button type="button" data-v="dark">Dark</button>
-      </div>
-      <div class="line"><span>Accent color</span><span style="display:flex;gap:8px;align-items:center">
-        <button class="btn" type="button" id="accentReset" style="padding:5px 10px;font-size:13px">Default</button>
-        <input type="color" data-k="accent" id="accent"></span></div>
-      <div class="line"><span>AI message bubble</span><input type="checkbox" class="tgl" data-k="aiBubble"></div>
-    </details>
 
     <details class="card fold" data-sec="look-fonts">
       <summary class="sub">Font <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></summary>
@@ -891,17 +896,19 @@ function render() {
 // ---------- Image generation ----------
 // ref: the character's image. Chat-style image endpoints get it as a style reference; if the model refuses
 // an input image, or the endpoint is /images/generations, the text prompt alone is used.
-async function generateImage(prompt, ref, who) {
+async function generateImage(prompt, ref, who, about) {
+  about = (about || '').trim().slice(0, 2000);
+  const extra = about ? `\n\nAbout ${who || 'the character'} (use for their looks and details):\n${about}` : '';
   const imagesApi = /images\/generations$/.test(endpoint(cfg.imgUrl));
   if (ref && !imagesApi) {
     try {
       return await requestImage([
         { type: 'image_url', image_url: { url: ref } },
-        { type: 'text', text: `Create a new image in exactly the same visual style as the reference image: same medium, rendering, line work, colour palette and lighting.${who ? ` The reference shows ${who}; keep their appearance consistent whenever they appear.` : ''}\n\nImage to create: ${prompt}` },
+        { type: 'text', text: `Create a new image in exactly the same visual style as the reference image: same medium, rendering, line work, colour palette and lighting.${who ? ` The reference shows ${who}; keep their appearance consistent whenever they appear.` : ''}\n\nImage to create: ${prompt}${extra}` },
       ]);
     } catch (e) { console.warn('Reference image not accepted, retrying with text only', e); }
   }
-  return requestImage(prompt);
+  return requestImage(prompt + extra);
 }
 async function requestImage(prompt) {
   const url = endpoint(cfg.imgUrl);
@@ -987,7 +994,7 @@ async function aiTurn(s, hist, messages, bubble) {
   if (!imageEnabled()) { fig.remove(); if (here()) addBubble('err', 'Image requested, but no image proxy is set up in Settings.'); return; }
   try {
     const ref = s.c.img ? await idb.get(s.c.img).catch(() => null) : null;
-    const src = await generateImage(imgPrompt, ref, s.c.name);
+    const src = await generateImage(imgPrompt, ref, s.c.name, fill(s.c.personality, s.c, s.p));
     const id = 'img_' + uid();
     await idb.put(id, src).catch(() => {});
     msg.img = id; msg.imgPrompt = imgPrompt; saveMsgs(s.chat, hist);
@@ -1717,6 +1724,7 @@ $('memory').addEventListener('input', () => { if (!cur) return; cur.chat.memory 
 function setLookCtx(ctx) {
   lookCtx = ctx;
   $(ctx === 'chat' ? 'chatLookHost' : 'globalLookHost').append($('lookBlock'));
+  $(ctx === 'chat' ? 'chatThemeHost' : 'globalThemeHost').append($('themeBlock'));
   applyLook(); syncControls();
 }
 
@@ -1728,7 +1736,7 @@ let styleTarget = 'ai';
 const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
 const fontKey = () => styleTarget === 'me' ? 'meFont' : 'aiFont';
 
-const CONTROLS = '#settings [data-k], #lookBlock [data-k]';
+const CONTROLS = '#settings [data-k], #lookBlock [data-k], #themeBlock [data-k]';
 const editLook = () => lookCtx === 'chat' && cur ? chatLook() : cfg;
 function syncControls() {
   const L = editLook();

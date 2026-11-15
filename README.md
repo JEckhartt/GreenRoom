@@ -10,7 +10,8 @@ A character chat app: create characters and chat with them. Built on the Nearly 
    - **Image proxy**: URL, API key, model. Only used when you explicitly ask for an image. With chat-style image models the character's image is sent as a style reference
    - **Prompt**: your system prompt, sent with every message
    - **Backup**: export / import everything as one file
-   - **Customization**: theme, accent color, and separately for AI text and your text: font, size, weight, spacing, italic, underline, glow, color/gradient, and a color for "text between quotes". One tap copies one side's style to the other
+   - **Themes**: Default / Light / Dark, accent color, AI message bubble
+   - **Customization**: separately for AI text and your text: font, size, weight, spacing, italic, underline, glow, color/gradient, and a color for "text between quotes". One tap copies one side's style to the other
 4. **Personas**: who *you* are. Image, name, personality.
 5. **Characters**: image, name, description (list only, never sent to the AI), personality, scenario, first message (or let the AI write the opening) and example dialogue. **Import character card** fills everything in from a PNG/JSON card (SillyTavern/Chub/JanitorAI format). Tap a character for **Character profile** (full card, edit, export card, delete) or **Chat** (pick a persona, starts a new chat).
    - Swipe a character or persona left for **Move** (to a folder, or a new one) and **Delete**
