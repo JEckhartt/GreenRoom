@@ -420,6 +420,19 @@
     </div>
     </details>
 
+    <details class="sec" data-sec="backup">
+    <summary class="group-title">Backup</summary>
+    <div class="card">
+      <div class="actions">
+        <button class="btn" type="button" id="bkExport">Export backup</button>
+        <button class="btn" type="button" id="bkImport">Import backup</button>
+      </div>
+      <input type="file" id="bkFile" accept="application/json,.json" hidden>
+      <div class="hint">Export saves all characters, personas, chats, images and settings (API keys included) in one file. Keep it in Files or iCloud Drive. Import restores it after reinstalling or on another phone, and replaces everything currently in the app.</div>
+      <div class="hint" id="bkAuto"></div>
+    </div>
+    </details>
+
     <details class="sec" data-sec="customization">
     <summary class="group-title">Customization</summary>
     <div class="preview" id="preview">
@@ -545,7 +558,8 @@ const GRADIENTS = [
 const $ = id => document.getElementById(id);
 const store = {
   get(k, d) { try { const v = localStorage.getItem('greenroom.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem('greenroom.' + k, JSON.stringify(v)); } catch {} }
+  set(k, v) { try { localStorage.setItem('greenroom.' + k, JSON.stringify(v)); } catch {} scheduleBackup(); },
+  del(k) { try { localStorage.removeItem('greenroom.' + k); } catch {} scheduleBackup(); }
 };
 const LOOK_DEFAULTS = {
   theme: 'original', accent: '', aiBubble: false,
@@ -590,8 +604,111 @@ const idb = (() => {
       t.oncomplete = () => res(req?.result); t.onerror = () => rej(t.error);
     });
   };
-  return { get: k => tx('readonly', s => s.get(k)), put: (k, v) => tx('readwrite', s => s.put(v, k)), del: k => tx('readwrite', s => s.delete(k)) };
+  return {
+    get: k => tx('readonly', s => s.get(k)), keys: () => tx('readonly', s => s.getAllKeys()), clear: () => tx('readwrite', s => s.clear()),
+    // every image write/delete is mirrored to the native backup
+    put: async (k, v) => { const r = await tx('readwrite', s => s.put(v, k)); await nativeImg(k, v); return r; },
+    del: async k => { const r = await tx('readwrite', s => s.delete(k)); await nativeImg(k, null); return r; },
+  };
 })();
+
+// ---------- Backups ----------
+// 1. Automatic (iOS app only): a copy of all storage in the app's Library folder. If the web storage
+//    ever comes up empty while that copy exists, it is restored on launch. Gone when the app is deleted.
+// 2. Export / Import: one JSON file with everything, kept wherever the user saves it.
+var FS = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins?.Filesystem : null;
+var BK_DIR = 'GreenRoom', LIB = 'LIBRARY', PREFIX = 'greenroom.';
+var backupArmed = false, backupTimer = null, lastNativeBackup = 0;
+
+function lsDump() {
+  const o = {};
+  for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith(PREFIX)) o[k.slice(PREFIX.length)] = localStorage.getItem(k); }
+  return o;
+}
+function scheduleBackup() {
+  if (!FS || !backupArmed) return;
+  clearTimeout(backupTimer); backupTimer = setTimeout(flushBackup, 1500);
+}
+async function flushBackup() {
+  if (!FS) return;
+  clearTimeout(backupTimer);
+  try {
+    await FS.writeFile({ path: `${BK_DIR}/state.json`, data: JSON.stringify(lsDump()), directory: LIB, encoding: 'utf8', recursive: true });
+    lastNativeBackup = Date.now();
+  } catch (e) { console.warn('Backup failed', e); }
+}
+async function nativeImg(k, v) {
+  if (!FS) return;
+  const path = `${BK_DIR}/img/${k}`;
+  try {
+    if (v) await FS.writeFile({ path, data: v, directory: LIB, encoding: 'utf8', recursive: true });
+    else await FS.deleteFile({ path, directory: LIB });
+  } catch {}
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && backupTimer) flushBackup(); });
+
+async function restoreFromNative() {
+  if (!FS || Object.keys(lsDump()).length) return false; // web storage has data: nothing to do
+  let state;
+  try { state = JSON.parse((await FS.readFile({ path: `${BK_DIR}/state.json`, directory: LIB, encoding: 'utf8' })).data); } catch { return false; }
+  if (!state || !Object.keys(state).length) return false;
+  let names = [];
+  try { names = (await FS.readdir({ path: `${BK_DIR}/img`, directory: LIB })).files.map(f => f.name ?? f); } catch {}
+  for (const n of names) {
+    try { const v = (await FS.readFile({ path: `${BK_DIR}/img/${n}`, directory: LIB, encoding: 'utf8' })).data; await idb.put(n, v); } catch {}
+  }
+  for (const [k, v] of Object.entries(state)) localStorage.setItem(PREFIX + k, v);
+  return true;
+}
+// First run with backups: copy images that already existed
+async function seedNativeImages() {
+  for (const k of await idb.keys().catch(() => [])) { const v = await idb.get(k).catch(() => null); if (v) await nativeImg(k, v); }
+  store.set('bk.seeded', true);
+}
+
+async function exportBackup() {
+  toast('Preparing backup…');
+  try {
+    const images = {};
+    for (const k of await idb.keys()) { const v = await idb.get(k); if (v) images[k] = v; }
+    const data = JSON.stringify({ app: 'greenroom', version: 1, created: new Date().toISOString(), storage: lsDump(), images });
+    const name = `GreenRoom-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const Share = window.Capacitor?.Plugins?.Share;
+    if (FS && Share) {
+      await FS.writeFile({ path: name, data, directory: 'CACHE', encoding: 'utf8' });
+      const { uri } = await FS.getUri({ path: name, directory: 'CACHE' });
+      await Share.share({ title: 'GreenRoom backup', files: [uri] });
+      return;
+    }
+    const file = new File([data], name, { type: 'application/json' });
+    if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (e) {
+    if (e?.name === 'AbortError' || /cancel/i.test(e?.message || '')) return;
+    toast('Export failed: ' + (e?.message || e));
+  }
+}
+
+async function importBackup(file) {
+  let b;
+  try { b = JSON.parse(await file.text()); } catch { return toast('That file is not a GreenRoom backup'); }
+  if (b?.app !== 'greenroom' || typeof b.storage !== 'object') return toast('That file is not a GreenRoom backup');
+  const count = k => { try { return JSON.parse(b.storage[k] || '[]').length; } catch { return 0; } };
+  const when = b.created ? new Date(b.created).toLocaleString() : 'unknown date';
+  if (!confirm(`Restore the backup from ${when}?\n${count('chars')} characters, ${count('personas')} personas, ${count('chats')} chats.\n\nThis replaces everything currently in the app.`)) return;
+  toast('Restoring…');
+  backupArmed = false;
+  for (const k of Object.keys(lsDump())) localStorage.removeItem(PREFIX + k);
+  await idb.clear().catch(() => {});
+  if (FS) await FS.rmdir({ path: `${BK_DIR}/img`, directory: LIB, recursive: true }).catch(() => {});
+  for (const [k, v] of Object.entries(b.images || {})) await idb.put(k, v).catch(() => {});
+  for (const [k, v] of Object.entries(b.storage)) if (typeof v === 'string') localStorage.setItem(PREFIX + k, v);
+  localStorage.setItem(PREFIX + 'bk.seeded', 'true');
+  await flushBackup();
+  sessionStorage.setItem('restored', 'backup');
+  location.reload();
+}
 
 // ---------- Appearance ----------
 const darkMQ = matchMedia('(prefers-color-scheme: dark)');
@@ -892,7 +1009,7 @@ function renderChatHead() {
 function deleteChat(id) {
   if (cur?.chat.id === id) { cur = null; history = []; $('chat').classList.remove('open'); }
   for (const m of store.get(msgsKey(id), [])) if (m.img) idb.del(m.img).catch(() => {});
-  try { localStorage.removeItem('greenroom.' + msgsKey(id)); } catch {}
+  store.del(msgsKey(id));
   chats = chats.filter(x => x.id !== id); saveChats();
 }
 
@@ -1261,7 +1378,14 @@ function initFolds() {
   }
 }
 
+$('bkExport').onclick = exportBackup;
+$('bkImport').onclick = () => $('bkFile').click();
+$('bkFile').onchange = () => { const f = $('bkFile').files[0]; $('bkFile').value = ''; if (f) importBackup(f); };
+
 function openSettings() {
+  $('bkAuto').textContent = FS
+    ? 'Automatic backup on this phone is on' + (lastNativeBackup ? ` (last saved ${new Date(lastNativeBackup).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : '') + '. It survives updates and storage hiccups, but not deleting the app.'
+    : '';
   loadFonts(Object.keys(FONTS));
   syncControls();
   openView('settings');
@@ -1481,7 +1605,7 @@ $('composer').onsubmit = e => {
       const ch = { id: uid(), charId: c.id, personaId: p?.id || '', personaName: p?.name || '', created: Date.now(), updated: Date.now(), preview: lastText(old) };
       chats.push(ch); store.set(msgsKey(ch.id), old);
     }
-    try { localStorage.removeItem('greenroom.chat.' + c.id); } catch {}
+    store.del('chat.' + c.id);
     moved = true;
   }
   if (moved) store.set('chats', chats);
@@ -1493,6 +1617,14 @@ applyLook();
 renderList('char');
 renderList('persona');
 renderChats();
+(async () => {
+  if (await restoreFromNative()) { sessionStorage.setItem('restored', 'auto'); return location.reload(); }
+  const r = sessionStorage.getItem('restored');
+  if (r) { sessionStorage.removeItem('restored'); toast(r === 'auto' ? 'Restored your data from the automatic backup' : 'Backup restored'); }
+  backupArmed = true;
+  if (FS && !store.get('bk.seeded', false)) await seedNativeImages();
+  if (FS) flushBackup();
+})();
 document.addEventListener('deviceready', matchNative);
 setTimeout(matchNative, 300);
 </script>

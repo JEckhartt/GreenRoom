@@ -20,6 +20,11 @@ What the AI receives: system prompt, then the character's personality + scenario
 
 Everything is stored locally (`localStorage` for text, IndexedDB for images).
 
+## Backups
+- **Updates keep your data.** Install a new IPA over the existing app (same app ID, same Apple ID in your sideloading tool) and everything stays.
+- **Automatic backup (iOS app):** every change is mirrored to the app's Library folder. If iOS ever clears the web storage, the app restores from that copy on launch. Deleting the app deletes this copy too.
+- **Export / Import (Settings → Backup):** one `.json` file with characters, personas, chats, images and settings (API keys included). Save it to Files or iCloud Drive; Import restores it after a reinstall or on another phone and replaces what's in the app.
+
 ## iOS app
 The `ios/` folder is a native Xcode project (Capacitor) that wraps `index.html`. Requires a Mac with Xcode.
 
