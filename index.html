@@ -1645,18 +1645,31 @@ function readCardPng(buf) {
   return JSON.parse(b64ToUtf8(b64));
 }
 
+// HTML (common in JanitorAI/Chub cards) → readable plain text
+function htmlToText(h) {
+  if (!h || !/<\/?[a-z][^>]*>/i.test(h)) return (h || '').trim();
+  h = h.replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|li|blockquote|tr|section)>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<hr[^>]*>/gi, '\n———\n');
+  const text = new DOMParser().parseFromString(h, 'text/html').body.textContent || '';
+  return text.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 // Card fields → ours. In other apps "description" is what the AI gets; our description is display-only.
+// JanitorAI-style cards put a public intro (HTML) in "personality"; that becomes our description.
 async function cardToFields(card) {
   const d = card?.data || card || {}, g = d.extensions?.greenroom;
-  const notes = (d.creator_notes || '').replace(/<[^>]+>/g, '').trim();
+  const pers = d.personality || '', persIsIntro = /<\/?[a-z][^>]*>/i.test(pers);
+  const notes = [htmlToText(d.creator_notes), persIsIntro ? htmlToText(pers) : ''].filter(Boolean).join('\n\n');
   const out = {
-    name: (d.name || '').trim(),
+    name: htmlToText(d.name),
     description: g?.description ?? notes,
-    personality: g?.personality ?? [d.description, d.personality].filter(x => x?.trim()).join('\n\n'),
-    scenario: d.scenario || '',
-    firstMessage: g?.firstMessage ?? d.first_mes ?? '',
+    personality: g?.personality ?? [htmlToText(d.description), persIsIntro ? '' : htmlToText(pers)].filter(Boolean).join('\n\n'),
+    scenario: htmlToText(d.scenario),
+    firstMessage: g?.firstMessage ?? htmlToText(d.first_mes),
     aiFirst: !!g?.aiFirst,
-    examples: d.mes_example || '',
+    examples: htmlToText(d.mes_example),
   };
   // Album images bundled by GreenRoom: store them and put them in an album
   const imgs = Object.entries(g?.images || {});
