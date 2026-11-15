@@ -253,6 +253,18 @@
   .entry > summary .tag.off { background: var(--line); color: var(--ink-soft); }
   .chips button.global { border-style: dashed; }
 
+  /* ---------- Collapsible setting rows ---------- */
+  .prows { padding-top: 2px; }
+  details.prow { border-top: 1px solid var(--line); }
+  details.prow:first-of-type { border-top: 0; }
+  .chips + details.prow, .prows > input + details.prow { border-top: 1px solid var(--line); margin-top: 12px; }
+  details.prow > summary { padding: 13px 2px; font-size: 15px; gap: 10px; }
+  details.prow > summary span { flex: 1; }
+  details.prow > summary em { font-style: normal; color: var(--ink-soft); font-size: 14px; font-variant-numeric: tabular-nums; }
+  details.prow[open] { padding-bottom: 12px; }
+  details.prow .hint { margin: -2px 2px 10px; }
+  details.prow input[type=range] { margin-top: 0; }
+
   /* ---------- Chat settings tabs ---------- */
   .tabbar { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); max-width: 640px; width: 100%; margin: 0 auto; }
   .tabbar button { flex: 1; padding: 8px 6px; border-radius: 10px; border: 0; background: none; font-size: 14px; color: var(--ink-soft); cursor: pointer; }
@@ -698,10 +710,12 @@
     </div>
     <p class="group-title">Generation for this chat</p>
     <div class="card" id="cPresetBox"></div>
-    <div class="card" style="margin-top:10px">
-      <label class="f" for="csCtx" style="margin-top:4px">Context size (tokens)</label>
-      <input id="csCtx" type="number" inputmode="numeric" min="0" step="1000">
-      <div class="hint">Empty uses the global setting.</div>
+    <div class="card prows" style="margin-top:10px">
+      <details class="prow">
+        <summary><span>Context size</span><em id="sumCsCtx"></em></summary>
+        <div class="hint">How much of this chat is sent, in tokens (≈ 4 characters). Older messages beyond it are left out. Empty = the global setting.</div>
+        <input id="csCtx" type="number" inputmode="numeric" min="0" step="1000">
+      </details>
     </div>
   </div>
   <div class="page-inner cs-pane" data-t="3" hidden>
@@ -851,14 +865,17 @@
     <details class="sec" data-sec="generation">
     <summary class="group-title">Generation</summary>
     <div class="card" id="gPresetBox"></div>
-    <div class="card" style="margin-top:10px">
-      <div class="line"><span>Show the AI's thinking</span><input type="checkbox" class="tgl" data-k="showThinking"></div>
-      <div class="hint">Reasoning models think before they answer. When on, that shows as a folded "Thought for …" above the reply. It is never sent back to the AI.</div>
-    </div>
-    <div class="card" style="margin-top:10px">
-      <label class="f" for="contextSize" style="margin-top:4px">Context size (tokens)</label>
-      <input id="contextSize" data-k="contextSize" type="number" inputmode="numeric" min="0" step="1000" placeholder="No limit">
-      <div class="hint">The oldest messages are left out once a chat gets longer than this (roughly 4 characters per token). Set it a bit below your model's limit. Empty = send everything.</div>
+    <div class="card prows" style="margin-top:10px">
+      <details class="prow" data-sec="gen-thinking">
+        <summary><span>Show the AI's thinking</span><em id="sumThinking"></em></summary>
+        <div class="hint">Reasoning models think before they answer. On: shown folded as "Thought for …" above the reply. Never sent back to the AI.</div>
+        <div class="line"><span>Show it</span><input type="checkbox" class="tgl" data-k="showThinking"></div>
+      </details>
+      <details class="prow" data-sec="gen-context">
+        <summary><span>Context size</span><em id="sumContext"></em></summary>
+        <div class="hint">How much of the chat is sent, in tokens (≈ 4 characters). Older messages beyond it are left out. Set it a bit below your model's limit. Empty = send everything.</div>
+        <input id="contextSize" data-k="contextSize" type="number" inputmode="numeric" min="0" step="1000" placeholder="No limit">
+      </details>
     </div>
     </details>
 
@@ -3220,15 +3237,28 @@ function renderProxyBoxes() {
   renderPresetBox($('gPresetBox'), 'global'); if (cur) renderPresetBox($('cPresetBox'), 'chat');
 }
 // Presets: tap one to make it active; every field empty = the model's own default
+// Every setting: [key, label, step, placeholder, short explanation]
 const PRESET_FIELDS = [
-  ['maxTokens', 'Max reply length (tokens)', '1', 'e.g. 400', 'Replies stop at this length. The AI is also told to stay within it and finish its sentences, so replies don\'t get cut off.'],
-  ['topP', 'Top-p', '0.01', '0 – 1', 'Only picks from the most likely words that add up to this share. Lower = safer word choice.'],
-  ['topK', 'Top-k', '1', 'e.g. 40', 'Only picks from this many of the most likely words.'],
-  ['minP', 'Min-p', '0.01', '0 – 1', 'Skips words that are much less likely than the best one.'],
-  ['repPenalty', 'Repetition penalty', '0.01', 'e.g. 1.1', 'Above 1 makes repeating itself less likely.'],
-  ['freqPenalty', 'Frequency penalty', '0.1', '-2 – 2', 'Discourages using the same words often.'],
-  ['presPenalty', 'Presence penalty', '0.1', '-2 – 2', 'Encourages bringing up new things.'],
+  ['maxTokens', 'Max reply length', '1', 'e.g. 400', 'Hard limit per reply, in tokens (≈ ¾ word each). The AI is also asked to stay within it and finish its sentence. 300–600 suits chat. Empty = no limit.'],
+  ['topP', 'Top-p', '0.01', '0 – 1', 'Only considers the most likely words until their chances add up to this. 1 = all words; 0.9 cuts the unlikely tail. Lower = safer, plainer wording.'],
+  ['topK', 'Top-k', '1', 'e.g. 40', 'Only considers this many of the most likely next words. 40–100 is common. Lower = more predictable.'],
+  ['minP', 'Min-p', '0.01', '0 – 1', 'Drops words that are far less likely than the best one. 0.05–0.1 keeps high temperatures creative but coherent.'],
+  ['repPenalty', 'Repetition penalty', '0.01', 'e.g. 1.1', 'Makes repeating words and phrases less likely. 1 = off; 1.05–1.15 is mild. Too high makes wording odd.'],
+  ['freqPenalty', 'Frequency penalty', '0.1', '-2 – 2', 'Penalises words the more often they were used. 0 = off; 0.1–0.5 reduces repetitive wording.'],
+  ['presPenalty', 'Presence penalty', '0.1', '-2 – 2', 'Penalises any word already used, nudging toward new topics. 0 = off; 0.1–0.6 adds variety.'],
 ];
+// One collapsible row: name + current value, explanation and control inside
+function prow(label, value, hint, ...controls) {
+  const d = document.createElement('details'); d.className = 'prow';
+  const sm = document.createElement('summary');
+  const a = document.createElement('span'); a.textContent = label;
+  const v = document.createElement('em'); v.textContent = value;
+  sm.append(a, v);
+  const h = document.createElement('div'); h.className = 'hint'; h.textContent = hint;
+  d.append(sm, h, ...controls);
+  d.setValue = t => { v.textContent = t; };
+  return d;
+}
 function renderPresetBox(box, scope) {
   const list = cfg.presets, chat = scope === 'chat' ? cur?.chat : null;
   const selId = chat ? (list.some(x => x.id === chat.presetId) && chat.presetId !== cfg.presetId ? chat.presetId : '') : cfg.presetId;
@@ -3242,22 +3272,23 @@ function renderPresetBox(box, scope) {
   box.append(chips);
   const pr = list.find(x => x.id === selId);
   if (!pr) { const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '12px'; h.textContent = chat ? 'This chat uses the global preset. Pick another to use it in this chat only.' : 'No preset yet. Tap + New.'; return box.append(h); }
-  const lab = (t, f) => { const l = document.createElement('label'); l.className = 'f'; l.textContent = t; if (f) l.htmlFor = f; box.append(l); };
-  lab('Name'); const nm = document.createElement('input'); nm.type = 'text'; nm.value = pr.name || ''; nm.oninput = () => { pr.name = nm.value; saveCfg(); }; nm.onchange = () => renderProxyBoxes(); box.append(nm);
-  const tl = document.createElement('div'); tl.className = 'line'; const ts = document.createElement('span'); ts.textContent = 'Temperature'; const to = document.createElement('output'); tl.append(ts, to); box.append(tl);
-  const tr = document.createElement('input'); tr.type = 'range'; tr.min = 0; tr.max = 2; tr.step = 0.05; tr.value = numOr(pr.temperature) ?? 0.9; to.textContent = (+tr.value).toFixed(2);
-  tr.oninput = () => { pr.temperature = +tr.value; to.textContent = (+tr.value).toFixed(2); saveCfg(); }; box.append(tr);
-  const th = document.createElement('div'); th.className = 'hint'; th.textContent = 'Lower is more focused and predictable, higher is more creative and random.'; box.append(th);
-  const more = document.createElement('details'); more.className = 'edf'; more.open = PRESET_FIELDS.some(([k]) => numOr(pr[k]) !== undefined);
-  const sm = document.createElement('summary'); sm.textContent = 'More settings'; more.append(sm);
+  // name
+  const nm = document.createElement('input'); nm.type = 'text'; nm.value = pr.name || '';
+  const nameRow = prow('Name', pr.name || '', 'What this preset is called in the lists.', nm);
+  nm.oninput = () => { pr.name = nm.value; nameRow.setValue(nm.value); saveCfg(); }; nm.onchange = () => renderProxyBoxes();
+  box.append(nameRow);
+  // temperature
+  const tr = document.createElement('input'); tr.type = 'range'; tr.min = 0; tr.max = 2; tr.step = 0.05; tr.value = numOr(pr.temperature) ?? 0.9;
+  const tRow = prow('Temperature', (+tr.value).toFixed(2), 'How random the wording is. 0.3–0.7: focused and consistent. 0.8–1.0: lively, good for roleplay. Above 1.2: surprising, may ramble.', tr);
+  tr.oninput = () => { pr.temperature = +tr.value; tRow.setValue((+tr.value).toFixed(2)); saveCfg(); };
+  box.append(tRow);
+  // the rest
   for (const [k, label, step, ph, hint] of PRESET_FIELDS) {
-    const l = document.createElement('label'); l.className = 'f'; l.textContent = label;
     const i = document.createElement('input'); i.type = 'number'; i.step = step; i.inputMode = 'decimal'; i.placeholder = ph + ' (empty = model default)'; i.value = pr[k] ?? '';
-    i.oninput = () => { const v = i.value.trim(); if (v === '') delete pr[k]; else pr[k] = v; saveCfg(); };
-    const h = document.createElement('div'); h.className = 'hint'; h.textContent = hint;
-    more.append(l, i, h);
+    const row = prow(label, pr[k] ?? 'default', hint, i);
+    i.oninput = () => { const v = i.value.trim(); if (v === '') delete pr[k]; else pr[k] = v; row.setValue(v === '' ? 'default' : v); saveCfg(); };
+    box.append(row);
   }
-  box.append(more);
   if (chat) { const n = document.createElement('div'); n.className = 'hint'; n.style.marginTop = '10px'; n.textContent = 'Presets are shared with Settings and other chats.'; box.append(n); }
   if (list.length > 1) {
     const acts = document.createElement('div'); acts.className = 'actions';
@@ -3324,7 +3355,15 @@ function renderProxyBox(box, kind, scope) {
 }
 
 // Chat generation settings
+function syncGenSummaries() {
+  $('sumThinking').textContent = cfg.showThinking === false ? 'Off' : 'On';
+  $('sumContext').textContent = cfg.contextSize ? Number(cfg.contextSize).toLocaleString() : 'everything';
+  if (cur) $('sumCsCtx').textContent = cur.chat.contextSize ? Number(cur.chat.contextSize).toLocaleString() : 'global';
+}
+for (const id of ['contextSize', 'csCtx']) $(id).addEventListener('input', () => setTimeout(syncGenSummaries));
+document.querySelector('[data-k=showThinking]').addEventListener('change', () => setTimeout(syncGenSummaries));
 function syncChatGen() {
+  syncGenSummaries();
   $('csCtx').value = cur?.chat.contextSize || '';
   $('csCtx').placeholder = cfg.contextSize ? `Global: ${cfg.contextSize}` : 'Global: no limit';
 }
@@ -3550,7 +3589,7 @@ $('bkFile').onchange = () => { const f = $('bkFile').files[0]; $('bkFile').value
 
 function openSettings() {
   loadFonts(Object.keys(FONTS));
-  renderProxyBoxes();
+  renderProxyBoxes(); syncGenSummaries();
   openView('settings');
   setLookCtx('global');
 }
