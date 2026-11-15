@@ -1055,7 +1055,7 @@ function systemFor(c, p, memory) {
   if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
   const banned = [cfg.forbidden, cur?.chat.forbidden].join('\n').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
   if (banned.length) parts.push(`--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.`);
-  if (imageEnabled()) parts.push('--- Images ---\nYou can send the user pictures. Whenever the user asks for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never send pictures unless asked.');
+  if (imageEnabled()) parts.push('--- Images ---\nYou can send the user pictures. Only when the latest message from the user explicitly asks you for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never add the tag otherwise, not even when pictures were sent earlier in the chat.');
   return parts.filter(Boolean).join('\n\n');
 }
 
@@ -1064,13 +1064,15 @@ function systemFor(c, p, memory) {
 const SEND_IMAGES = 4;
 // Does a message ask the character for a picture? (English + Dutch)
 const IMG_WORD = /\b(pics?|pictures?|photos?|selfies?|images?|drawings?|draw|sketch|portrait|snapshot|foto'?s?|fotootjes?|selfie|afbeelding(en)?|plaatjes?|tekening(en)?|teken)\b/i;
-const IMG_VERB = /\b(send|show|share|take|snap|draw|make|give|see|got|have|can i|could i|stuur|laat|maak|teken|zien|geef|heb je|mag ik)\b/i;
+const IMG_VERB = /\b(send|show|share|take|snap|draw|make|give|stuur|stuurt|maak|teken|geef)\b|\b(can|could|would|will) (you|i)\b|\b(wanna|want to|would love to|let me) see\b|\b(mag ik|kun je|kan je|wil je|laat)\b/i;
 const IMG_LOOK = /what do you look like|show (me )?(yourself|you|your face)|can i see you|let me see you|hoe zie je eruit|laat (je|jezelf|me je) (eens )?zien|mag ik je zien|wil je zien/i;
-const asksForImage = t => !!t && (IMG_LOOK.test(t) || (IMG_WORD.test(t) && (IMG_VERB.test(t) || /\?\s*$/.test(t.trim()) || t.trim().length <= 40)));
+// "pic?", "selfie pls", "foto?" on their own also count
+const IMG_SHORT = /^\s*(another|one more|a|een|nog een)?\s*(pics?|pictures?|photos?|selfies?|foto'?s?|fotootjes?)\s*(pls|please|plz|graag|\?|!)*\s*$/i;
+// talking about a picture that was already sent is not a request
+const IMG_PAST = /\b(sent|showed|shared|took|that|this|the|your|nice|cute|great|love|liked?|mooie?|leuke?)\s+(pics?|pictures?|photos?|selfies?|images?|foto'?s?)\b/i;
+const IMG_MORE = /\b(another|one more|nog een|again|opnieuw)\b/i;
+const asksForImage = t => !!t && (IMG_LOOK.test(t) || IMG_SHORT.test(t) || (IMG_WORD.test(t) && IMG_VERB.test(t) && (!IMG_PAST.test(t) || IMG_MORE.test(t))));
 const wantsImage = m => !!m && m.role === 'user' && (m.wantsImage || asksForImage(m.content));
-// The character says it sends one ("*sends you a selfie*", "here's a pic") without the tag
-const SENDS_IMG = /\*[^*\n]{0,80}\b(sends?|snaps?|takes?|shares?|attaches?|holds? up|shows?|texts?|stuurt|maakt|deelt)\b[^*\n]{0,60}\b(photos?|pics?|pictures?|selfies?|images?|snapshots?|foto'?s?|selfie)\b[^*\n]{0,80}\*|\b(here'?s|here is|sending|sent you|just sent|attached|hier is|ik stuur)\b[^.!?\n]{0,30}\b(photos?|pics?|pictures?|selfies?|images?|foto'?s?)\b/i;
-const replySendsImage = t => !!t && SENDS_IMG.test(t);
 const IMG_NOTE = '\n\n[Note from the app: the user is asking for a picture. Reply in character and end your message with [[image: detailed English description of the picture]].]';
 async function buildMessages(c, p, hist, memory) {
   const withImg = hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES);
@@ -1081,7 +1083,7 @@ async function buildMessages(c, p, hist, memory) {
       msgs.push({ role: 'user', content: src
         ? [{ type: 'image_url', image_url: { url: src } }, { type: 'text', text: m.content || '(image)' }]
         : `${m.content}\n[an image was attached here]`.trim() });
-    } else msgs.push({ role: m.role, content: m.imgPrompt ? `${m.content}\n[[image: ${m.imgPrompt}]]` : m.content });
+    } else msgs.push({ role: m.role, content: m.content }); // old image tags are left out: the model would copy them
   }
   // Nudge on the newest user message when it asks for a picture
   const lastUser = hist.at(-1)?.role === 'user' ? msgs.at(-1) : null;
@@ -1504,8 +1506,10 @@ async function aiTurn(s, hist, messages, bubble, into) {
   saveMsgs(s.chat, hist);
   const idx = hist.indexOf(into || msg);
   bubble.dataset.i = idx;
-  // The user asked for a picture but the model forgot the tag: describe it separately
-  const asked = wantsImage(hist[idx - 1]) || replySendsImage(msg.content);
+  // Images only when the user's latest message asks for one; tags the model adds on its own are ignored
+  const asked = wantsImage(hist[idx - 1]);
+  if (!asked) imgPrompt = '';
+  // asked, but the model forgot the tag: describe it separately
   if (!imgPrompt && asked) {
     if (!imageEnabled()) { if (here()) addBubble('err', 'You asked for a picture, but no image proxy is active. Add one in Settings → Image proxy (or in this chat\'s settings).'); return; }
     try { imgPrompt = await describeImage(s, hist[idx - 1].content, msg.content); } catch (e) { if (!isAbort(e) && here()) addBubble('err', 'Could not work out the picture: ' + e.message); return; }
