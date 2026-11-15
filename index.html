@@ -246,6 +246,10 @@
   .card input[type=number] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; outline: none; }
 
   /* ---------- Lorebooks ---------- */
+  #edCounts .crow2 { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  #edCounts .crow2:last-of-type { border-bottom: 0; }
+  #edCounts .crow2 b { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #edCounts .hint { margin-top: 6px; }
   .pick-sel { font: inherit; font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; }
   .entry { margin-top: 10px; }
   .entry > summary .ek { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -262,7 +266,7 @@
   details.prow > summary span { flex: 1; }
   details.prow > summary em { font-style: normal; color: var(--ink-soft); font-size: 14px; font-variant-numeric: tabular-nums; }
   details.prow[open] { padding-bottom: 12px; }
-  details.prow .hint { margin: -2px 2px 10px; }
+  details.prow .hint { margin: -2px 2px 10px; white-space: pre-line; line-height: 1.5; }
   details.prow input[type=range] { margin-top: 0; }
 
   /* ---------- Chat settings tabs ---------- */
@@ -713,7 +717,8 @@
     <div class="card prows" style="margin-top:10px">
       <details class="prow">
         <summary><span>Context size</span><em id="sumCsCtx"></em></summary>
-        <div class="hint">How much of this chat is sent, in tokens (≈ 4 characters). Older messages beyond it are left out. Empty = the global setting.</div>
+        <div class="hint">How much of this chat the AI gets to read, in tokens (100 tokens ≈ 75 words). When the chat is longer, the oldest messages are left out.
+Empty = use the global setting.</div>
         <input id="csCtx" type="number" inputmode="numeric" min="0" step="1000">
       </details>
     </div>
@@ -727,6 +732,16 @@
         <button class="btn" type="button" id="csPromptCopy">Start from global prompt</button>
         <button class="btn" type="button" id="csPromptClear">Use global prompt</button>
       </div>
+    </div>
+    <p class="group-title">Messages from the character</p>
+    <div class="card">
+      <div class="line"><span>Character messages you first</span><input type="checkbox" class="tgl" id="csReach"></div>
+      <div class="line" id="csReachRow"><span>When you've been away for</span>
+        <select id="csReachAfter" class="pick-sel">
+          <option value="30">30 minutes</option><option value="60">1 hour</option><option value="180">3 hours</option>
+          <option value="480">8 hours</option><option value="1440">1 day</option><option value="4320">3 days</option>
+        </select></div>
+      <div class="hint" id="csReachHint">When you leave this chat, the character writes a message straight away; it arrives as a notification after the time above and is waiting in the chat. Come back earlier and it's cancelled. Each time costs one AI request.</div>
     </div>
     <p class="group-title">Lorebooks for this chat</p>
     <div class="card">
@@ -829,6 +844,7 @@
         <div class="hint">Shows the AI how the character talks. Not part of the conversation.</div>
       </details>
     </div>
+    <div class="card" id="edCounts" style="margin-top:12px;font-size:14px"></div>
     <div class="save-bar"><button class="btn primary" type="button" id="edSave2">Save</button></div>
     <div class="actions">
       <button class="btn danger" type="button" id="edDelete">Delete</button>
@@ -868,12 +884,16 @@
     <div class="card prows" style="margin-top:10px">
       <details class="prow" data-sec="gen-thinking">
         <summary><span>Show the AI's thinking</span><em id="sumThinking"></em></summary>
-        <div class="hint">Reasoning models think before they answer. On: shown folded as "Thought for …" above the reply. Never sent back to the AI.</div>
+        <div class="hint">Some models ("reasoning" models) think before they answer.
+On: you can read that thinking, folded above the reply. Off: it's hidden.
+It is never sent back to the AI.</div>
         <div class="line"><span>Show it</span><input type="checkbox" class="tgl" data-k="showThinking"></div>
       </details>
       <details class="prow" data-sec="gen-context">
         <summary><span>Context size</span><em id="sumContext"></em></summary>
-        <div class="hint">How much of the chat is sent, in tokens (≈ 4 characters). Older messages beyond it are left out. Set it a bit below your model's limit. Empty = send everything.</div>
+        <div class="hint">How much of the chat the AI gets to read, in tokens (100 tokens ≈ 75 words). When a chat is longer, the oldest messages are left out.
+Set it a little below your model's limit, e.g. 30000 for a 32k model.
+Empty = send everything.</div>
         <input id="contextSize" data-k="contextSize" type="number" inputmode="numeric" min="0" step="1000" placeholder="No limit">
       </details>
     </div>
@@ -1263,9 +1283,9 @@ function loreFor(c, p, chat, hist) {
   }
   return out.join('\n\n');
 }
-function systemFor(c, p, memory, lore) {
+function systemFor(c, p, memory, lore, chat = cur?.chat) {
   const f = t => fill((t || '').trim(), c, p);
-  const parts = [f(cur?.chat.prompt?.trim() || cfg.systemPrompt)];
+  const parts = [f(chat?.prompt?.trim() || cfg.systemPrompt)];
   let ch = `--- Character: ${cn(c)} ---\nYou are ${cn(c)}. Stay in character.`;
   if (f(c.personality)) ch += `\n\nPersonality:\n${f(c.personality)}`;
   if (f(c.scenario)) ch += `\n\nScenario:\n${f(c.scenario)}`;
@@ -1273,10 +1293,10 @@ function systemFor(c, p, memory, lore) {
   if (p) parts.push(`--- User: ${p.name} ---\nYou are talking with ${p.name}.${f(p.personality) ? `\n\n${f(p.personality)}` : ''}`);
   if (lore) parts.push(`--- World info (facts about this story; use when relevant) ---\n${lore}`);
   if (f(memory)) parts.push(`--- Memory (things to remember in this chat) ---\n${f(memory)}`);
-  const maxT = gen().maxTokens;
+  const maxT = gen(chat).maxTokens;
   if (maxT) parts.push(`--- Reply length ---\nKeep every reply under about ${Math.max(20, Math.round(maxT * 0.7))} words so it is never cut off, and always finish your last sentence.`);
   if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
-  const banned = [cfg.forbidden, cur?.chat.forbidden].join('\n').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
+  const banned = [cfg.forbidden, chat?.forbidden].join('\n').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
   if (banned.length) parts.push(`--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.`);
   if (imageEnabled()) parts.push('--- Images ---\nYou can send the user pictures. Only when the latest message from the user explicitly asks you for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never add the tag otherwise, not even when pictures were sent earlier in the chat.');
   return parts.filter(Boolean).join('\n\n');
@@ -1306,7 +1326,7 @@ const SENDS_IMG = new RegExp([
 ].join('|'), 'i');
 const replySendsImage = t => !!t && SENDS_IMG.test(t);
 const IMG_NOTE = '\n\n[Note from the app: the user is asking for a picture. Reply in character and end your message with [[image: detailed English description of the picture]].]';
-async function buildMessages(c, p, hist, memory) {
+async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
   const withImg = hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES);
   const msgs = [];
   for (const m of hist) {
@@ -1330,9 +1350,9 @@ async function buildMessages(c, p, hist, memory) {
     else lastUser.content += IMG_NOTE;
   }
   // Author's note: added to the user message closest to its depth (1 = the latest)
-  let note = cur?.chat.authorNote?.trim() && !cur.chat.authorOff ? fill(cur.chat.authorNote.trim(), c, p) : '';
+  let note = chat?.authorNote?.trim() && !chat.authorOff ? fill(chat.authorNote.trim(), c, p) : '';
   if (note) {
-    const depth = cur.chat.authorDepth || 1;
+    const depth = chat.authorDepth || 1;
     for (let i = msgs.length - depth; i >= 0; i--) {
       if (msgs[i]?.role !== 'user') continue;
       const add = `\n\n[Author's note: ${note}]`, m = msgs[i];
@@ -1340,9 +1360,9 @@ async function buildMessages(c, p, hist, memory) {
       note = ''; break;
     }
   }
-  const system = { role: 'system', content: systemFor(c, p, memory, loreFor(c, p, cur?.chat, hist)) + (note ? `\n\n--- Author's note ---\n${note}` : '') };
+  const system = { role: 'system', content: systemFor(c, p, memory, loreFor(c, p, chat, hist), chat) + (note ? `\n\n--- Author's note ---\n${note}` : '') };
   // Context size: drop the oldest messages until it fits (~4 characters per token, ~800 per image)
-  const limit = gen().contextSize;
+  const limit = gen(chat).contextSize;
   if (limit) {
     const cost = m => Array.isArray(m.content) ? m.content.reduce((n, x) => n + (x.text ? x.text.length / 4 : 800), 4) : (m.content || '').length / 4 + 4;
     let total = cost(system) + msgs.reduce((n, m) => n + cost(m), 0);
@@ -1714,22 +1734,22 @@ async function requestImageOnce(prompt, modalities) {
 // Saved proxies; the open chat may pick its own, otherwise the globally active one is used
 const proxyList = kind => kind === 'img' ? cfg.imgProxies : cfg.proxies;
 const proxyKey = kind => kind === 'img' ? 'imgProxyId' : 'proxyId';
-function proxyFor(kind) {
+function proxyFor(kind, chat = cur?.chat) {
   const list = proxyList(kind), k = proxyKey(kind);
-  return list.find(x => x.id === cur?.chat[k]) || list.find(x => x.id === cfg[k]) || {};
+  return list.find(x => x.id === chat?.[k]) || list.find(x => x.id === cfg[k]) || {};
 }
 const clean = pr => ({ url: (pr.url || '').trim(), key: (pr.key || '').trim(), model: (pr.model || '').trim() });
-const api = () => clean(proxyFor('chat'));
+const api = (chat = cur?.chat) => clean(proxyFor('chat', chat));
 const imgApi = () => clean(proxyFor('img'));
 // Generation presets; the open chat may pick its own, otherwise the globally active one
-const presetFor = () => cfg.presets.find(x => x.id === cur?.chat.presetId) || cfg.presets.find(x => x.id === cfg.presetId) || {};
+const presetFor = (chat = cur?.chat) => cfg.presets.find(x => x.id === chat?.presetId) || cfg.presets.find(x => x.id === cfg.presetId) || {};
 const numOr = v => v === '' || v == null || isNaN(+v) ? undefined : +v;
-const gen = () => {
-  const pr = presetFor();
+const gen = (chat = cur?.chat) => {
+  const pr = presetFor(chat);
   return {
     temperature: numOr(pr.temperature) ?? 0.9, maxTokens: numOr(pr.maxTokens), topP: numOr(pr.topP), topK: numOr(pr.topK), minP: numOr(pr.minP),
     repPenalty: numOr(pr.repPenalty), freqPenalty: numOr(pr.freqPenalty), presPenalty: numOr(pr.presPenalty),
-    contextSize: parseInt(cur?.chat.contextSize || cfg.contextSize, 10) || 0,
+    contextSize: parseInt(chat?.contextSize || cfg.contextSize, 10) || 0,
   };
 };
 function ready() {
@@ -1758,7 +1778,7 @@ function splitThink(raw) {
 }
 // opts: { onThink(text, done), free: true = no max length (summaries, generators) }
 async function streamChat(messages, onText, opts = {}) {
-  const a = api(), g = gen();
+  const a = api(opts.chat ?? cur?.chat), g = gen(opts.chat ?? cur?.chat);
   const body = { model: a.model, messages, stream: true, temperature: g.temperature };
   if (!opts.free && g.maxTokens) body.max_tokens = g.maxTokens;
   if (g.topP !== undefined) body.top_p = g.topP;
@@ -1767,7 +1787,7 @@ async function streamChat(messages, onText, opts = {}) {
   if (g.repPenalty !== undefined) body.repetition_penalty = g.repPenalty;
   if (g.freqPenalty !== undefined) body.frequency_penalty = g.freqPenalty;
   if (g.presPenalty !== undefined) body.presence_penalty = g.presPenalty;
-  const res = await fetch(endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), signal: abortCtl?.signal, body: JSON.stringify(body) });
+  const res = await fetch(endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), signal: opts.chat ? undefined : abortCtl?.signal, body: JSON.stringify(body) });
   if (!res.ok) throw await httpError(res);
   const reader = res.body.getReader(); const dec = new TextDecoder();
   let buf = '', reply = '', raw = '', thinkField = '', t0 = 0, t1 = 0;
@@ -2120,6 +2140,8 @@ function newChat(charId, personaId) {
 function openChat(id) {
   const chat = chats.find(x => x.id === id), c = chat && chars.find(x => x.id === chat.charId);
   if (!c) return;
+  deliverReach();
+  if (chat.pendingReach) cancelReach(chat); // back before the character wrote: cancel it
   if (cur && cur.chat.id !== id) leaveChat();
   cur = { chat, c, p: personaOf(chat) };
   $('profile').classList.remove('open'); // the chat view sits below the profile
@@ -2131,6 +2153,7 @@ function openChat(id) {
 // A chat you never wrote anything in isn't worth keeping
 function leaveChat() {
   const s = cur; cur = null;
+  if (s) setTimeout(() => queueReachOut(s.chat), 0);
   applyLook();
   if (s && !busy && !history.some(m => m.role === 'user')) deleteChat(s.chat.id);
 }
@@ -2591,17 +2614,52 @@ function openEditor(kind, id) {
   $('edNoImg').hidden = !it?.img;
   $('edDelete').hidden = !it || kind === 'char'; // characters are deleted from their profile
   $('edCard').hidden = kind !== 'char';
-  renderEdLore();
+  renderEdLore(); renderCounts();
   $('editor').querySelector('.page-body').scrollTop = 0;
   openView('editor');
 }
+// Exact token counts with the GPT-4o tokenizer (loaded on first use); an estimate until then
+let tokLib = null, tokTimer = null;
+function loadTokenizer() {
+  return tokLib ??= new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/gpt-tokenizer@2.9.0/dist/o200k_base.js';
+    sc.onload = () => res(window.GPTTokenizer_o200k_base);
+    sc.onerror = () => { tokLib = null; rej(new Error('offline')); };
+    document.head.append(sc);
+  });
+}
+function renderCounts() {
+  clearTimeout(tokTimer);
+  tokTimer = setTimeout(async () => {
+    const box = $('edCounts'); if (!box) return;
+    const char = edit?.kind === 'char';
+    edit && (edit.greets[edit.gi] = $('edFirst').value);
+    const always = char ? [$('edPers').value, $('edScen').value, $('edEx').value].join('\n\n').trim() : $('edPers').value.trim();
+    const first = char && !$('edAiFirst').checked ? (edit.greets[edit.gi] || '') : '';
+    const desc = char ? $('edDesc').value : '';
+    let tk = null;
+    try { tk = await loadTokenizer(); } catch {}
+    const tokens = t => !t ? 0 : tk ? tk.encode(t).length : Math.ceil(t.length / 4);
+    const pre = tk ? '' : '≈ ';
+    const row = (label, t, sent = true) => `<div class="crow2"><span>${label}</span><b>${t.length.toLocaleString()} characters${sent ? ` · ${pre}${tokens(t).toLocaleString()} tokens` : ''}</b></div>`;
+    box.innerHTML = (char
+      ? row('Sent with every message<br><small style="color:var(--ink-soft)">personality, scenario, example dialogue</small>', always)
+        + (first ? row(`First message${edit.greets.length > 1 ? ` (option ${edit.gi + 1})` : ''}`, first) : '')
+        + row('Description <small style="color:var(--ink-soft)">(not sent)</small>', desc, false)
+      : row('Sent with every message<br><small style="color:var(--ink-soft)">personality</small>', always))
+      + `<div class="hint">${tk ? 'Counted exactly with the GPT-4o tokenizer. Other models (Claude, Llama, Gemini…) count up to ~15% differently.' : 'Estimated (about 4 characters per token). The exact count needs an internet connection.'}</div>`;
+  }, 250);
+}
+for (const id of ['edPers', 'edScen', 'edEx', 'edFirst', 'edDesc']) $(id).addEventListener('input', renderCounts);
+$('edAiFirst').addEventListener('change', renderCounts);
 function renderEdLore() {
   loreChips($('edLore'), edit.lore, id => { edit.lore.has(id) ? edit.lore.delete(id) : edit.lore.add(id); renderEdLore(); });
   if (edit.pendingLore) { const b = document.createElement('button'); b.type = 'button'; b.className = 'on'; b.textContent = `${edit.pendingLore.name} (from card)`; b.onclick = () => { edit.pendingLore = null; renderEdLore(); }; $('edLore').append(b); }
 }
 function renderTabs() {
   const box = $('edTabs'); box.innerHTML = '';
-  const pick = i => { edit.greets[edit.gi] = $('edFirst').value; edit.gi = i; $('edFirst').value = edit.greets[i] || ''; autosize($('edFirst')); renderTabs(); };
+  const pick = i => { edit.greets[edit.gi] = $('edFirst').value; edit.gi = i; $('edFirst').value = edit.greets[i] || ''; autosize($('edFirst')); renderTabs(); renderCounts(); };
   edit.greets.forEach((_, i) => {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Option ' + (i + 1);
     if (i === edit.gi) b.className = 'on';
@@ -2709,7 +2767,7 @@ async function importCardInto(f) {
     edit.greets = c.firstMessages.length ? c.firstMessages : ['']; edit.gi = 0; $('edFirst').value = edit.greets[0]; renderTabs();
     const book = loreFromJson(card, `${c.name || 'Character'} lore`);
     if (book) { edit.pendingLore = book; renderEdLore(); }
-    syncFirst(); autosizeAll($('editor'));
+    syncFirst(); autosizeAll($('editor')); renderCounts();
     if (isPng) {
       edit.img = await readImage(f);
       const th = $('edThumb'); th.style.backgroundImage = `url("${edit.img}")`; th.textContent = ''; $('edNoImg').hidden = false;
@@ -2788,7 +2846,7 @@ Reply with only a JSON object (no markdown fences) with these keys:
     $('edScen').value = c.scenario || ''; $('edEx').value = Array.isArray(c.examples) ? c.examples.join('\n') : (c.examples || '');
     const gs = (Array.isArray(c.firstMessages) ? c.firstMessages : [c.firstMessages || c.firstMessage]).filter(x => typeof x === 'string' && x.trim());
     edit.greets = gs.length ? gs : ['']; edit.gi = 0; $('edFirst').value = edit.greets[0]; renderTabs();
-    syncFirst(); autosizeAll($('editor'));
+    syncFirst(); autosizeAll($('editor')); renderCounts();
     if (img) { edit.img = img; const th = $('edThumb'); th.style.backgroundImage = `url("${img}")`; th.textContent = ''; $('edNoImg').hidden = false; }
     $('genIdea').value = ''; status.textContent = '';
     toast(`Here is ${c.name || 'your character'}. Change anything you like, then Save.`);
@@ -2797,7 +2855,7 @@ Reply with only a JSON object (no markdown fences) with these keys:
   } finally { go.disabled = false; setBusy(false); }
 };
 $('newPersona').onclick = () => openEditor('persona');
-$('goChats').onclick = () => { renderChats(); openView('chats'); };
+$('goChats').onclick = () => { deliverReach(); renderChats(); openView('chats'); };
 $('goChars').onclick = () => openView('chars');
 $('goPersonas').onclick = () => openView('personas');
 $('goSettings').onclick = () => openSettings();
@@ -3208,6 +3266,7 @@ function openChatSettings() {
   renderProxyBoxes(); syncChatGen();
   $('csAutoPics').checked = cur.chat.autoPics !== false;
   $('csForbidden').value = cur.chat.forbidden || '';
+  $('csReach').checked = !!cur.chat.reachOut; $('csReachAfter').value = String(cur.chat.reachAfter || 180); $('csReachRow').hidden = !cur.chat.reachOut;
   syncBgControls();
   renderCsLore();
   $('csPrompt').value = cur.chat.prompt || '';
@@ -3238,14 +3297,22 @@ function renderProxyBoxes() {
 }
 // Presets: tap one to make it active; every field empty = the model's own default
 // Every setting: [key, label, step, placeholder, short explanation]
+// A token is a piece of a word: 100 tokens ≈ 75 English words ≈ one paragraph.
 const PRESET_FIELDS = [
-  ['maxTokens', 'Max reply length', '1', 'e.g. 400', 'Hard limit per reply, in tokens (≈ ¾ word each). The AI is also asked to stay within it and finish its sentence. 300–600 suits chat. Empty = no limit.'],
-  ['topP', 'Top-p', '0.01', '0 – 1', 'Only considers the most likely words until their chances add up to this. 1 = all words; 0.9 cuts the unlikely tail. Lower = safer, plainer wording.'],
-  ['topK', 'Top-k', '1', 'e.g. 40', 'Only considers this many of the most likely next words. 40–100 is common. Lower = more predictable.'],
-  ['minP', 'Min-p', '0.01', '0 – 1', 'Drops words that are far less likely than the best one. 0.05–0.1 keeps high temperatures creative but coherent.'],
-  ['repPenalty', 'Repetition penalty', '0.01', 'e.g. 1.1', 'Makes repeating words and phrases less likely. 1 = off; 1.05–1.15 is mild. Too high makes wording odd.'],
-  ['freqPenalty', 'Frequency penalty', '0.1', '-2 – 2', 'Penalises words the more often they were used. 0 = off; 0.1–0.5 reduces repetitive wording.'],
-  ['presPenalty', 'Presence penalty', '0.1', '-2 – 2', 'Penalises any word already used, nudging toward new topics. 0 = off; 0.1–0.6 adds variety.'],
+  ['maxTokens', 'Max reply length', '1', 'e.g. 400',
+   'The longest one reply may be, in tokens (100 tokens ≈ 75 words ≈ one paragraph).\nReplies get cut off mid-sentence? Raise it. Replies too long? Lower it.\nTry 300 for short chat, 600–800 for long descriptive replies.'],
+  ['topP', 'Top-p', '0.01', '0.1 – 1',
+   'Throws away unlikely words before the AI picks one.\n1 = keep everything. 0.9 = drop the rarest 10%.\nReplies get weird or nonsense? Lower it to 0.9. Not sure? Leave it empty.'],
+  ['topK', 'Top-k', '1', 'e.g. 40',
+   'The AI may only pick from its best K word ideas each time.\n100 = free, 40 = normal, 10 = very predictable.\nNot sure? Leave it empty.'],
+  ['minP', 'Min-p', '0.01', '0 – 0.3',
+   'Throws away words that are much worse than the best one.\nHelps keep a high temperature creative without going off the rails.\nTry 0.05. Not sure? Leave it empty.'],
+  ['repPenalty', 'Repetition penalty', '0.01', '1 – 1.3',
+   'Stops the AI repeating itself: the same phrases, the same way of starting replies.\n1 = off. Repeating? Try 1.05–1.1. Above 1.2 the writing gets strange.'],
+  ['freqPenalty', 'Frequency penalty', '0.1', '0 – 1',
+   'The more often a word was used, the less likely it comes back. Good against pet words like "smirk" or "chuckle".\n0 = off. Try 0.3.'],
+  ['presPenalty', 'Presence penalty', '0.1', '0 – 1',
+   'Words that were used before become a bit less likely, so the AI brings up new things.\n0 = off. Story going in circles? Try 0.3.'],
 ];
 // One collapsible row: name + current value, explanation and control inside
 function prow(label, value, hint, ...controls) {
@@ -3274,12 +3341,12 @@ function renderPresetBox(box, scope) {
   if (!pr) { const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '12px'; h.textContent = chat ? 'This chat uses the global preset. Pick another to use it in this chat only.' : 'No preset yet. Tap + New.'; return box.append(h); }
   // name
   const nm = document.createElement('input'); nm.type = 'text'; nm.value = pr.name || '';
-  const nameRow = prow('Name', pr.name || '', 'What this preset is called in the lists.', nm);
+  const nameRow = prow('Name', pr.name || '', 'The name shown on the preset buttons.', nm);
   nm.oninput = () => { pr.name = nm.value; nameRow.setValue(nm.value); saveCfg(); }; nm.onchange = () => renderProxyBoxes();
   box.append(nameRow);
   // temperature
   const tr = document.createElement('input'); tr.type = 'range'; tr.min = 0; tr.max = 2; tr.step = 0.05; tr.value = numOr(pr.temperature) ?? 0.9;
-  const tRow = prow('Temperature', (+tr.value).toFixed(2), 'How random the wording is. 0.3–0.7: focused and consistent. 0.8–1.0: lively, good for roleplay. Above 1.2: surprising, may ramble.', tr);
+  const tRow = prow('Temperature', (+tr.value).toFixed(2), 'How adventurous the writing is.\nLow (0.5): safe and predictable, can feel flat.\nHigh (1.2): surprising and creative, can lose the thread.\nFor roleplay try 0.8–1.0.', tr);
   tr.oninput = () => { pr.temperature = +tr.value; tRow.setValue((+tr.value).toFixed(2)); saveCfg(); };
   box.append(tRow);
   // the rest
@@ -3610,6 +3677,75 @@ document.addEventListener('pointerdown', e => {
   a.blur();
 }, true);
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+
+// ---------- Character messages you first ----------
+// iOS can't run the AI while the app is closed, so the message is written when you leave
+// the chat (or the app) and delivered as a local notification after the chosen delay.
+const notifier = () => window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.LocalNotifications;
+const reachBusy = new Set();
+const awayText = m => m < 60 ? `${m} minutes` : m < 1440 ? `${m / 60} hour${m === 60 ? '' : 's'}` : `${m / 1440} day${m === 1440 ? '' : 's'}`;
+async function cancelReach(chat) {
+  if (!chat?.pendingReach) return;
+  const n = notifier(); if (n) await n.cancel({ notifications: [{ id: chat.pendingReach.nid }] }).catch(() => {});
+  delete chat.pendingReach; store.set('chats', chats);
+}
+async function queueReachOut(chat) {
+  if (!chat?.reachOut || chat.pendingReach || reachBusy.has(chat.id)) return;
+  const c = chars.find(x => x.id === chat.charId); if (!c) return;
+  const hist = store.get(msgsKey(chat.id), []);
+  if (!hist.some(m => m.role === 'user') || hist.at(-1)?.reach) return; // nothing to react to / still unanswered
+  const a = api(chat); if (!a.url || !a.model) return;
+  const p = personaOf(chat), mins = chat.reachAfter || 180;
+  reachBusy.add(chat.id);
+  try {
+    const ask = `[Out of character: ${userName(p)} has been away for ${awayText(mins)} without writing. Write the message ${cn(c)} now sends on their own initiative, like a text message, fully in character: maybe they miss ${userName(p)}, share what they are doing, ask something or pick up the story. Keep it short. Reply with the message only.]`;
+    const messages = [...await buildMessages(c, p, hist, chat.memory, chat), { role: 'user', content: ask }];
+    const text = visible(await streamChat(messages, () => {}, { chat }), true).trim();
+    if (!text) return;
+    const at = Date.now() + mins * 60000, nid = Math.floor(Math.random() * 2e9);
+    chat.pendingReach = { text, at, nid }; store.set('chats', chats);
+    const n = notifier();
+    if (n) await n.schedule({ notifications: [{ id: nid, title: cn(c), body: stripMd(text).slice(0, 180), schedule: { at: new Date(at), allowWhileIdle: true }, extra: { chatId: chat.id } }] }).catch(e => console.warn('Notification', e));
+  } catch (e) { console.warn('Message from the character failed', e); }
+  finally { reachBusy.delete(chat.id); }
+}
+// Messages whose time has come land in their chat
+function deliverReach() {
+  let any = false;
+  for (const ch of chats) {
+    const pr = ch.pendingReach; if (!pr || pr.at > Date.now()) continue;
+    const hist = cur?.chat.id === ch.id ? history : store.get(msgsKey(ch.id), []);
+    hist.push({ role: 'assistant', content: pr.text, t: pr.at, reach: true });
+    store.set(msgsKey(ch.id), hist);
+    ch.updated = pr.at; ch.preview = lastText(hist);
+    delete ch.pendingReach; any = true;
+    if (cur?.chat.id === ch.id) render();
+  }
+  if (any) saveChats();
+}
+$('csReach').onchange = async () => {
+  if (!cur) return;
+  if ($('csReach').checked) {
+    cur.chat.reachOut = true;
+    const n = notifier();
+    if (n) {
+      const r = await n.requestPermissions().catch(() => ({}));
+      if (r.display && r.display !== 'granted') toast('Notifications are off for Green Room in iOS Settings. The message will still be waiting in the chat.');
+    } else toast('No notifications here; the message will be waiting in the chat when you come back.');
+  } else { delete cur.chat.reachOut; await cancelReach(cur.chat); }
+  $('csReachRow').hidden = !cur.chat.reachOut;
+  store.set('chats', chats);
+};
+$('csReachAfter').onchange = () => { if (!cur) return; cur.chat.reachAfter = +$('csReachAfter').value; store.set('chats', chats); };
+// leaving the app with a chat open counts as leaving the chat; coming back cancels / delivers
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (cur) queueReachOut(cur.chat); }
+  else { deliverReach(); if (cur?.chat.pendingReach) cancelReach(cur.chat); }
+});
+(() => {
+  const n = notifier();
+  n?.addListener?.('localNotificationActionPerformed', e => { deliverReach(); const id = e.notification?.extra?.chatId; if (id) { renderChats(); openChat(id); } });
+})();
 
 // ---------- Branching: a new chat that continues from message i ----------
 async function branchFrom(i) {
@@ -4235,6 +4371,7 @@ initFolds();
 applyLook();
 renderList('char');
 renderList('persona');
+deliverReach();
 renderChats();
 if (sessionStorage.getItem('restored')) { sessionStorage.removeItem('restored'); setTimeout(() => toast('Backup restored'), 0); }
 // Clean up the automatic-backup copy an earlier build wrote
