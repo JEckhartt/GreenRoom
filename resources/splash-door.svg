@@ -20,7 +20,7 @@
   <g transform="translate(512 560) scale(1.22) translate(-512 -560)">
   <ellipse cx="560" cy="500" rx="360" ry="380" fill="url(#halo)"/>
   <!-- light spilling onto the floor -->
-  <path d="M520 800 L716 800 L930 1024 L470 1024 Z" fill="url(#spill)"/>
+  <path d="M520 800 L716 800 L1060 1180 L440 1180 Z" fill="url(#spill)"/>
   <!-- doorway (lit) -->
   <path d="M332 800 V420 A180 180 0 0 1 692 420 V800 Z" fill="url(#light)"/>
   <!-- door, ajar -->
