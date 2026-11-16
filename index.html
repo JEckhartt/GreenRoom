@@ -4327,6 +4327,17 @@ function buildSettings() {
 
   $('styleTarget').onclick = e => {
     const v = e.target.dataset?.v; if (!v) return;
+    // Both = one style for both sides: your side takes over the AI's settings first, so every switch shown is true for both
+    if (v === 'both' && styleTarget !== 'both') {
+      const L = editLook();
+      const diff = STYLE_KEYS.some(k => JSON.stringify(L[k]) !== JSON.stringify(L['u_' + k])) || L.aiFont !== L.meFont;
+      if (diff) {
+        for (const k of STYLE_KEYS) writeLook('u_' + k, L[k]);
+        writeLook('meFont', L.aiFont);
+        styleTarget = v; update('theme', L.theme);
+        toast('Your messages now use the AI style. Changes apply to both.');
+      }
+    }
     styleTarget = v;
     for (const b of $('styleTarget').children) b.classList.toggle('on', b.dataset.v === v);
     syncControls();
