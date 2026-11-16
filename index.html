@@ -201,23 +201,36 @@
   body:not(.ai-bubble):is([data-aialign=center], [data-aialign=right]) .msg.ai { align-self: stretch; max-width: 100%; }
   body[data-aialign=center] .msg.ai .alts { justify-content: center; }
   body[data-aialign=right] .msg.ai .alts { justify-content: flex-end; }
-  .mname { display: none; font: 600 13px/1.3 'Inter', system-ui, sans-serif; letter-spacing: .01em; margin-bottom: 4px; white-space: normal;
-    color: var(--name-c, var(--accent)); -webkit-text-fill-color: var(--name-c, var(--accent)); background: none; text-shadow: none; }
-  body.show-names .mname { display: block; }
-  .mav { display: none; }
-  body.show-avs :is(#log, #preview) .msg { position: relative; }
-  body.show-avs :is(#log, #preview) .msg.ai { margin-left: 42px; }
-  body.show-avs :is(#log, #preview) .msg.me { margin-right: 42px; }
-  body.show-avs .mav { display: grid; place-items: center; position: absolute; top: 0; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; cursor: pointer;
+  .mname { display: none; font: 600 13px/1.3 'Inter', system-ui, sans-serif; letter-spacing: .01em; margin-bottom: 4px; white-space: normal; background: none; text-shadow: none; }
+  .msg.ai > .mname { color: var(--name-ai, var(--accent)); -webkit-text-fill-color: var(--name-ai, var(--accent)); }
+  .msg.me > .mname { color: var(--name-me, var(--accent)); -webkit-text-fill-color: var(--name-me, var(--accent)); }
+  body.names-ai .msg.ai > .mname, body.names-me .msg.me > .mname { display: block; }
+  .mav { display: none; place-items: center; position: absolute; top: 0; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; cursor: pointer;
     background: var(--accent-soft) center / cover no-repeat; color: var(--accent); font: 15px 'Fraunces', Georgia, serif; -webkit-text-fill-color: var(--accent); text-shadow: none; }
-  body.show-avs .msg.ai > .mav { left: -42px; }
-  body.show-avs .msg.me > .mav { right: -42px; }
-  body.av-square .mav { border-radius: 9px; }
-  body[data-bubble=round] .msg.me, body[data-bubble=round].ai-bubble .msg.ai { border-radius: 18px; }
-  body[data-bubble=sharp] .msg.me, body[data-bubble=sharp].ai-bubble .msg.ai { border-radius: 5px; }
+  :is(#log, #preview) .msg { position: relative; }
+  body.avs-ai .msg.ai > .mav, body.avs-me .msg.me > .mav { display: grid; }
+  body.avsq-ai .msg.ai > .mav, body.avsq-me .msg.me > .mav { border-radius: 9px; }
+  /* pictures sit on the outer side: left for messages on the left, right for messages on the right */
+  body.avs-ai:not([data-sides=right]) :is(#log, #preview) .msg.ai { margin-left: 42px; }
+  body.avs-ai:not([data-sides=right]) .msg.ai > .mav { left: -42px; }
+  body.avs-ai[data-sides=right] :is(#log, #preview) .msg.ai { margin-right: 42px; }
+  body.avs-ai[data-sides=right] .msg.ai > .mav { right: -42px; }
+  body.avs-me:not([data-sides=left]) :is(#log, #preview) .msg.me { margin-right: 42px; }
+  body.avs-me:not([data-sides=left]) .msg.me > .mav { right: -42px; }
+  body.avs-me[data-sides=left] :is(#log, #preview) .msg.me { margin-left: 42px; }
+  body.avs-me[data-sides=left] .msg.me > .mav { left: -42px; }
+  /* which side messages sit on */
+  body[data-sides=right] .msg.ai { align-self: flex-end; }
+  body[data-sides=left] .msg.me { align-self: flex-start; }
+  body[data-sides=right] .msg.ai .alts { justify-content: flex-end; }
+  /* bubble shapes, per side; the tail points to the side the message sits on */
+  body[data-bubbleme=round] .msg.me, body.ai-bubble[data-bubbleai=round] .msg.ai { border-radius: 18px; }
+  body[data-bubbleme=sharp] .msg.me, body.ai-bubble[data-bubbleai=sharp] .msg.ai { border-radius: 5px; }
+  body[data-sides=left][data-bubbleme=tail] .msg.me { border-radius: 18px 18px 18px 4px; }
+  body.ai-bubble[data-sides=right][data-bubbleai=tail] .msg.ai { border-radius: 18px 18px 4px 18px; }
   body[data-spacing=compact] #log { gap: 8px; } body[data-spacing=airy] #log { gap: 32px; }
   body[data-spacing=compact] .preview { gap: 6px; } body[data-spacing=airy] .preview { gap: 22px; }
-  body.hide-times .ts { display: none; }
+  body.notime-ai .msg.ai .ts, body.notime-me .msg.me .ts { display: none; }
   @keyframes msgFade { from { opacity: 0; } }
   @keyframes msgSlide { from { opacity: 0; transform: translateY(16px); } }
   body[data-anim=fade] .msg.new { animation: msgFade .45s ease-out; }
@@ -1002,12 +1015,9 @@ Empty = send everything.</div>
     <div id="globalLookHost"><div id="lookBlock">
     <div class="preview" id="preview">
       <div class="seg" id="styleTarget">
-        <button type="button" data-v="ai" class="on">Style AI text</button>
-        <button type="button" data-v="me">Style your text</button>
-      </div>
-      <div class="match">
-        <button class="btn" type="button" id="matchToAi">Match user</button>
-        <button class="btn" type="button" id="matchToMe">Match AI</button>
+        <button type="button" data-v="ai" class="on">AI</button>
+        <button type="button" data-v="me">You</button>
+        <button type="button" data-v="both">Both</button>
       </div>
       <div class="msg me"><span class="txt" data-rich>*yawns* Can't sleep. "Talk to me?"</span></div>
       <div class="msg ai"><span class="txt" data-rich>"Of course." *She pulls the blanket closer.* The rain **always** sounds ~~boring~~ different at night.&#10;&#10;> Old memory: the `porch` light.</span></div>
@@ -1023,7 +1033,7 @@ Empty = send everything.</div>
         <button type="button" data-v="right">Right</button>
       </div>
       <div class="hint">Inside the bubble; without a bubble, across the whole screen.</div>
-      <div class="line"><span>Names above messages</span><input type="checkbox" class="tgl" data-k="showNames"></div>
+      <div class="line"><span>Names above messages <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="showNames"></div>
       <div id="nameColorRow">
         <div class="seg" data-k="nameMode" style="margin-top:6px">
           <button type="button" data-v="theme">Accent color</button>
@@ -1031,7 +1041,7 @@ Empty = send everything.</div>
         </div>
         <div class="line" id="nameCRow"><span>Name color</span><input type="color" data-k="nameC"></div>
       </div>
-      <div class="line"><span>Profile pictures</span><input type="checkbox" class="tgl" data-k="showAvatars"></div>
+      <div class="line"><span>Profile pictures <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="showAvatars"></div>
       <div id="avShapeRow">
         <div class="seg" data-k="avShape" style="margin-top:6px">
           <button type="button" data-v="circle">Circle</button>
@@ -1039,20 +1049,28 @@ Empty = send everything.</div>
         </div>
         <div class="hint">In a chat, tap a picture to float it: pinch to resize, drag it anywhere, ✕ to close.</div>
       </div>
-      <label class="f">Bubble shape</label>
+      <label class="f">Bubble shape <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></label>
       <div class="seg" data-k="bubbleShape">
         <button type="button" data-v="round">Rounded</button>
         <button type="button" data-v="tail">Tail</button>
         <button type="button" data-v="sharp">Sharp</button>
       </div>
+      <div class="line"><span>Timestamps <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="showTimes"></div>
+      <p class="sub" style="margin:16px 0 0">For all messages</p>
+      <label class="f">Where messages sit</label>
+      <div class="seg" data-k="sides">
+        <button type="button" data-v="default">AI left, you right</button>
+        <button type="button" data-v="left">All left</button>
+        <button type="button" data-v="right">All right</button>
+      </div>
+      <div class="hint">All right puts everything on the right: the character's and your messages, pictures and names.</div>
       <label class="f">Space between messages</label>
       <div class="seg" data-k="spacing">
         <button type="button" data-v="compact">Compact</button>
         <button type="button" data-v="normal">Normal</button>
         <button type="button" data-v="airy">Airy</button>
       </div>
-      <div class="line"><span>Timestamps</span><input type="checkbox" class="tgl" data-k="showTimes"></div>
-      <label class="f">New messages</label>
+      <label class="f">How new messages appear</label>
       <div class="seg" data-k="anim">
         <button type="button" data-v="none">Appear</button>
         <button type="button" data-v="fade">Fade in</button>
@@ -1178,7 +1196,9 @@ const store = {
 const LOOK_DEFAULTS = {
   theme: 'original', accent: '', aiBubble: false,
   align: 'left', u_align: 'left', showNames: false, nameMode: 'theme', nameC: '#d9553b', showAvatars: false, avShape: 'circle',
-  bubbleShape: 'tail', spacing: 'normal', showTimes: true, anim: 'none',
+  bubbleShape: 'tail', showTimes: true,
+  u_showNames: false, u_nameMode: 'theme', u_nameC: '#3d63f5', u_showAvatars: false, u_avShape: 'circle', u_bubbleShape: 'tail', u_showTimes: true,
+  sides: 'default', spacing: 'normal', anim: 'none',
   aiFont: 'Fraunces', meFont: 'Inter',
   fs: 18, fw: 300, lh: 1.6, ls: 0, italic: false, underline: false, glow: false,
   colorMode: 'theme', c1: '#ff7a59', c2: '#c13584', angle: 135, qOn: false, qColor: '#e8a33d',
@@ -1199,6 +1219,11 @@ const DEFAULTS = {
   ...LOOK_DEFAULTS,
 };
 let cfg = { ...DEFAULTS, ...store.get('cfg', {}) };
+// Layout options became per side: earlier choices apply to your side too
+for (const k of ['showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'showTimes']) {
+  const raw = store.get('cfg', {});
+  if (k in raw && !(('u_' + k) in raw)) cfg['u_' + k] = raw[k];
+}
 let chars = store.get('chars', []);
 let personas = store.get('personas', []);
 let chats = store.get('chats', []);  // { id, charId, personaId, personaName, created, updated, preview }
@@ -1345,10 +1370,13 @@ function applyLook() {
   document.body.classList.toggle('ai-bubble', L.aiBubble);
   const B = document.body;
   B.dataset.aialign = L.align || 'left'; B.dataset.mealign = L.u_align || 'left';
-  B.classList.toggle('show-names', !!L.showNames); B.classList.toggle('show-avs', !!L.showAvatars);
-  B.classList.toggle('av-square', L.avShape === 'square'); B.classList.toggle('hide-times', L.showTimes === false);
-  B.dataset.bubble = L.bubbleShape || 'tail'; B.dataset.spacing = L.spacing || 'normal'; B.dataset.anim = L.anim || 'none';
-  L.nameMode === 'custom' ? s.setProperty('--name-c', L.nameC) : s.removeProperty('--name-c');
+  for (const [side, pre] of [['ai', ''], ['me', 'u_']]) {
+    B.classList.toggle('names-' + side, !!L[pre + 'showNames']); B.classList.toggle('avs-' + side, !!L[pre + 'showAvatars']);
+    B.classList.toggle('avsq-' + side, L[pre + 'avShape'] === 'square'); B.classList.toggle('notime-' + side, L[pre + 'showTimes'] === false);
+    B.dataset['bubble' + side] = L[pre + 'bubbleShape'] || 'tail';
+    L[pre + 'nameMode'] === 'custom' ? s.setProperty('--name-' + side, L[pre + 'nameC']) : s.removeProperty('--name-' + side);
+  }
+  B.dataset.sides = L.sides || 'default'; B.dataset.spacing = L.spacing || 'normal'; B.dataset.anim = L.anim || 'none';
   s.setProperty('--u-fs', L.u_fs + 'px');
   s.setProperty('--u-fw', L.u_fw);
   s.setProperty('--u-lh', L.u_lh);
@@ -4055,7 +4083,7 @@ function setLookCtx(ctx) {
 
 // ---------- Settings page ----------
 // The text-style controls edit either the AI's or the user's text; user keys are stored with a u_ prefix
-const STYLE_KEYS = ['align', 'fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
+const STYLE_KEYS = ['align', 'showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'showTimes', 'fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
 let styleTarget = 'ai';
 const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
 const fontKey = () => styleTarget === 'me' ? 'meFont' : 'aiFont';
@@ -4080,7 +4108,7 @@ function syncControls() {
   for (const el of document.querySelectorAll('[data-grad]')) el.hidden = g('colorMode') !== 'gradient';
   for (const el of document.querySelectorAll('[data-mdc]')) el.hidden = !g(el.dataset.mdc + 'On');
   $('gradbar').style.background = `linear-gradient(90deg, ${g('c1')}, ${g('c2')})`;
-  for (const t of document.querySelectorAll('#lookBlock .tgt')) t.textContent = styleTarget === 'me' ? '· you' : '· AI';
+  for (const t of document.querySelectorAll('#lookBlock .tgt')) t.textContent = styleTarget === 'me' ? '· you' : styleTarget === 'both' ? '· both' : '· AI';
   $('nameColorRow').hidden = !g('showNames'); $('nameCRow').hidden = g('nameMode') !== 'custom';
   $('avShapeRow').hidden = !g('showAvatars');
   // the mock-up uses the open chat's names and pictures when there is one
@@ -4110,28 +4138,26 @@ function update(k, v) {
   lookCtx === 'chat' && cur && LOOK_KEYS.includes(k) ? store.set('chats', chats) : saveCfg();
   applyLook(); syncControls();
 }
-// Copy one side's text style to the other
-function matchStyle(toMe) {
-  const L = editLook();
-  for (const [a, u] of [...STYLE_KEYS.map(k => [k, 'u_' + k]), ['aiFont', 'meFont']]) toMe ? writeLook(u, L[a]) : writeLook(a, L[u]);
-  update('theme', L.theme);
-  toast(toMe ? 'Your text now looks like the AI text' : 'AI text now looks like your text');
-}
 
+// Style controls: to the AI side, your side, or both at once
+function setStyle(k, v) {
+  if (styleTarget === 'both' && STYLE_KEYS.includes(k)) writeLook('u_' + k, v);
+  update(sk(k), v);
+}
 function buildSettings() {
   // font grid
   $('fonts').innerHTML = '';
   for (const name of Object.keys(FONTS)) {
     const b = document.createElement('button');
     b.type = 'button'; b.dataset.font = name; b.textContent = name; b.style.fontFamily = FONTS[name].css;
-    b.onclick = () => update(fontKey(), name);
+    b.onclick = () => { if (styleTarget === 'both') writeLook('meFont', name); update(fontKey(), name); };
     $('fonts').appendChild(b);
   }
   // gradient presets
   for (const [a, c, ang] of GRADIENTS) {
     const b = document.createElement('button');
     b.type = 'button'; b.style.background = `linear-gradient(${ang}deg, ${a}, ${c})`; b.setAttribute('aria-label', 'Gradient preset');
-    b.onclick = () => { writeLook(sk('c1'), a); writeLook(sk('c2'), c); update(sk('angle'), ang); };
+    b.onclick = () => { for (const [k, v] of [['c1', a], ['c2', c]]) { writeLook(sk(k), v); if (styleTarget === 'both') writeLook('u_' + k, v); } setStyle('angle', ang); };
     $('presets').appendChild(b);
   }
   // one row per markdown element: switch + color
@@ -4146,10 +4172,10 @@ function buildSettings() {
   // generic bindings
   for (const el of document.querySelectorAll(CONTROLS)) {
     const k = el.dataset.k;
-    if (el.classList.contains('seg')) el.onclick = e => { const v = e.target.dataset?.v; if (v) update(sk(k), v); };
-    else if (el.type === 'checkbox') el.onchange = () => update(sk(k), el.checked);
-    else if (el.type === 'range') el.oninput = () => update(sk(k), Number(el.value));
-    else el.oninput = () => update(sk(k), el.value);
+    if (el.classList.contains('seg')) el.onclick = e => { const v = e.target.dataset?.v; if (v) setStyle(k, v); };
+    else if (el.type === 'checkbox') el.onchange = () => setStyle(k, el.checked);
+    else if (el.type === 'range') el.oninput = () => setStyle(k, Number(el.value));
+    else el.oninput = () => setStyle(k, el.value);
   }
 
   $('styleTarget').onclick = e => {
@@ -4170,8 +4196,6 @@ function buildSettings() {
     if (lookCtx === 'chat' && cur) { if (confirm('Drop this chat\'s own style and use the global one?')) { delete cur.chat.look; store.set('chats', chats); applyLook(); syncControls(); } return; }
     if (confirm('Reset all customization?')) { Object.assign(cfg, LOOK_DEFAULTS); update('theme', cfg.theme); }
   };
-  $('matchToMe').onclick = () => matchStyle(true);
-  $('matchToAi').onclick = () => matchStyle(false);
 }
 
 // Collapsible sections remember their state
