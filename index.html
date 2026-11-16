@@ -740,6 +740,11 @@ Empty = use the global setting.</div>
         <button class="btn" type="button" id="csPromptClear">Use global prompt</button>
       </div>
     </div>
+    <p class="group-title">Real time</p>
+    <div class="card">
+      <div class="line"><span>Send the real date and time</span><input type="checkbox" class="tgl" id="csRealTime"></div>
+      <div class="hint">With every message the AI gets your current date, day and time, and how long it has been since the previous message. The character can then say good morning at the right time, notice it's the weekend, or that you've been gone for hours.</div>
+    </div>
     <p class="group-title">Messages from the character</p>
     <div class="card">
       <div class="line"><span>Character messages you first</span><input type="checkbox" class="tgl" id="csReach"></div>
@@ -1302,7 +1307,23 @@ function loreFor(c, p, chat, hist) {
   }
   return out.join('\n\n');
 }
-function systemFor(c, p, memory, lore, chat = cur?.chat) {
+// Real time: "Saturday 16 November 2026, 21:40 (Europe/Amsterdam)"
+const clockText = (at = Date.now()) => {
+  const d = new Date(at), tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ', ' +
+    d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + (tz ? ` (${tz})` : '');
+};
+const gapText = ms => { const m = Math.round(ms / 60000); return m < 60 ? `${m} minute${m === 1 ? '' : 's'}` : m < 2880 ? `${Math.round(m / 60)} hour${Math.round(m / 60) === 1 ? '' : 's'}` : `${Math.round(m / 1440)} days`; };
+function timeFor(hist) {
+  let t = `--- Real time ---\nIt is now ${clockText()}. This is the real current date and time; use it naturally when it matters (time of day, day of the week, season, how late it is), without announcing it.`;
+  const times = (hist || []).map(m => m.t).filter(Boolean);
+  if (times.length >= 2) {
+    const gap = times.at(-1) - times.at(-2);
+    if (gap >= 30 * 60000) t += `\nThe latest message came ${gapText(gap)} after the one before it.`;
+  }
+  return t;
+}
+function systemFor(c, p, memory, lore, chat = cur?.chat, hist = null) {
   const f = t => fill((t || '').trim(), c, p);
   const parts = [f(chat?.prompt?.trim() || cfg.systemPrompt)];
   let ch = `--- Character: ${cn(c)} ---\nYou are ${cn(c)}. Stay in character.`;
@@ -1317,6 +1338,7 @@ function systemFor(c, p, memory, lore, chat = cur?.chat) {
   if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
   const banned = [cfg.forbidden, chat?.forbidden].join('\n').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
   if (banned.length) parts.push(`--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.`);
+  if (chat?.realTime) parts.push(timeFor(hist));
   if (!imagesOn(chat)) parts.push('--- Pictures ---\nYou cannot send real pictures in this chat. When the user asks for a picture, photo or selfie, describe it vividly in words as part of your reply, as if showing it (for example: *sends you a photo: …*).');
   if (imageEnabled(chat)) parts.push('--- Images ---\nYou can send the user pictures. Only when the latest message from the user explicitly asks you for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never add the tag otherwise, not even when pictures were sent earlier in the chat.');
   return parts.filter(Boolean).join('\n\n');
@@ -1382,7 +1404,7 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
       note = ''; break;
     }
   }
-  const system = { role: 'system', content: systemFor(c, p, memory, loreFor(c, p, chat, hist), chat) + (note ? `\n\n--- Author's note ---\n${note}` : '') };
+  const system = { role: 'system', content: systemFor(c, p, memory, loreFor(c, p, chat, hist), chat, hist) + (note ? `\n\n--- Author's note ---\n${note}` : '') };
   // Context size: drop the oldest messages until it fits (~4 characters per token, ~800 per image)
   const limit = gen(chat).contextSize;
   if (limit) {
@@ -3393,6 +3415,7 @@ function openChatSettings() {
   $('csAutoPics').checked = cur.chat.autoPics !== false;
   syncGenImg();
   $('csForbidden').value = cur.chat.forbidden || '';
+  $('csRealTime').checked = !!cur.chat.realTime;
   $('csReach').checked = !!cur.chat.reachOut; $('csReachAfter').value = String(cur.chat.reachAfter || 180); syncReachRows();
   syncBgControls();
   renderCsLore();
@@ -3578,6 +3601,7 @@ $('csAutoPics').onchange = () => {
   store.set('chats', chats); render();
 };
 $('csCtx').oninput = () => { if (!cur) return; const v = $('csCtx').value.trim(); if (v) cur.chat.contextSize = v; else delete cur.chat.contextSize; store.set('chats', chats); };
+$('csRealTime').onchange = () => { if (!cur) return; if ($('csRealTime').checked) cur.chat.realTime = true; else delete cur.chat.realTime; store.set('chats', chats); };
 $('csForbidden').addEventListener('input', () => { if (!cur) return; cur.chat.forbidden = $('csForbidden').value; if (!cur.chat.forbidden.trim()) delete cur.chat.forbidden; store.set('chats', chats); });
 
 // ---------- Summaries ----------
@@ -3845,7 +3869,7 @@ async function queueReachOut(chat) {
   const p = personaOf(chat), mins = reachDelay(chat);
   reachBusy.add(chat.id);
   try {
-    const ask = `[Out of character: ${userName(p)} has been away for ${awayText(mins)} without writing. Write the message ${cn(c)} now sends on their own initiative, like a text message, fully in character: maybe they miss ${userName(p)}, share what they are doing, ask something or pick up the story. Keep it short. Reply with the message only.]`;
+    const ask = `[Out of character: ${userName(p)} has been away for ${awayText(mins)} without writing. Write the message ${cn(c)} now sends on their own initiative, like a text message, fully in character: maybe they miss ${userName(p)}, share what they are doing, ask something or pick up the story. Keep it short. Reply with the message only.${chat.realTime ? ` It arrives on ${clockText(Date.now() + mins * 60000)}; fit it to that moment.` : ''}]`;
     const messages = [...await buildMessages(c, p, hist, chat.memory, chat), { role: 'user', content: ask }];
     const text = visible(await streamChat(messages, () => {}, { chat }), true).trim();
     if (!text) return;
