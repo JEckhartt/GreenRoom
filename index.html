@@ -602,7 +602,7 @@
   <input type="file" id="attachDoc" accept=".txt,.md,.markdown,.json,.csv,.tsv,.xml,.html,.htm,.yaml,.yml,.log,.srt,.pdf,text/*,application/pdf,application/json" hidden>
   <form id="composer">
     <div class="field">
-    <textarea id="input" rows="1" placeholder="Say something…" autocomplete="off"></textarea>
+    <textarea id="input" rows="1" enterkeyhint="enter" placeholder="Say something…" autocomplete="off"></textarea>
     <button id="send" type="submit" aria-label="Send"><svg class="i-send" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg><svg class="i-stop" width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="currentColor"/></svg></button>
     </div>
   </form>
@@ -617,7 +617,6 @@
 <div id="sendMenu" hidden>
   <button type="button" data-act="enhance">Enhance my message</button>
   <button type="button" data-act="write">Write for me</button>
-  <button type="button" data-act="continue">Continue the last reply</button>
   <button type="button" data-act="prompts" class="small">Edit these prompts</button>
 </div>
 
@@ -1314,14 +1313,21 @@ const clockText = (at = Date.now()) => {
     d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + (tz ? ` (${tz})` : '');
 };
 const gapText = ms => { const m = Math.round(ms / 60000); return m < 60 ? `${m} minute${m === 1 ? '' : 's'}` : m < 2880 ? `${Math.round(m / 60)} hour${Math.round(m / 60) === 1 ? '' : 's'}` : `${Math.round(m / 1440)} days`; };
-function timeFor(hist) {
-  let t = `--- Real time ---\nIt is now ${clockText()}. This is the real current date and time; use it naturally when it matters (time of day, day of the week, season, how late it is), without announcing it.`;
-  const times = (hist || []).map(m => m.t).filter(Boolean);
-  if (times.length >= 2) {
-    const gap = times.at(-1) - times.at(-2);
-    if (gap >= 30 * 60000) t += `\nThe latest message came ${gapText(gap)} after the one before it.`;
+function timeFor() {
+  return `--- Real time ---\nIt is now ${clockText()}. This is the real current date and time; use it naturally when it matters (time of day, day of the week, season, how late it is), without announcing it.\nEach message from the user carries a [Time: …] note saying how much real time passed since the message before it. Little time passed: the moment simply continues, nobody left. Hours or days passed: the user was away, so react to that naturally (it is later now, things happened in between, you may have missed them).`;
+}
+// How much real time passed before message i, as a note for the AI
+function timeNote(hist, i) {
+  const m = hist[i], prev = hist.slice(0, i).reverse().find(x => x.t);
+  if (!m?.t) return '';
+  let gap = '';
+  if (prev) {
+    const ms = m.t - prev.t;
+    gap = ms < 2 * 60000 ? ' Right after the previous message: no time has passed.'
+      : ms < 30 * 60000 ? ` ${gapText(ms)} after the previous message: the moment continues.`
+      : ` ${gapText(ms)} after the previous message: time has passed.`;
   }
-  return t;
+  return `[Time: ${clockText(m.t)}.${gap}]`;
 }
 function systemFor(c, p, memory, lore, chat = cur?.chat, hist = null) {
   const f = t => fill((t || '').trim(), c, p);
@@ -1334,11 +1340,11 @@ function systemFor(c, p, memory, lore, chat = cur?.chat, hist = null) {
   if (lore) parts.push(`--- World info (facts about this story; use when relevant) ---\n${lore}`);
   if (f(memory)) parts.push(`--- Memory (things to remember in this chat) ---\n${f(memory)}`);
   const maxT = gen(chat).maxTokens;
-  if (maxT) parts.push(`--- Reply length ---\nKeep every reply under about ${Math.max(20, Math.round(maxT * 0.7))} words so it is never cut off, and always finish your last sentence.`);
+  if (maxT) parts.push(`--- Reply length (strict) ---\nEvery reply must stay under ${Math.max(15, Math.round(maxT * 0.6))} words. This is a hard limit, also for long scenes: write less, not faster. Always finish your last sentence.`);
   if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
   const banned = [cfg.forbidden, chat?.forbidden].join('\n').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
   if (banned.length) parts.push(`--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.`);
-  if (chat?.realTime) parts.push(timeFor(hist));
+  if (chat?.realTime) parts.push(timeFor());
   if (!imagesOn(chat)) parts.push('--- Pictures ---\nYou cannot send real pictures in this chat. When the user asks for a picture, photo or selfie, describe it vividly in words as part of your reply, as if showing it (for example: *sends you a photo: …*).');
   if (imageEnabled(chat)) parts.push('--- Images ---\nYou can send the user pictures. Only when the latest message from the user explicitly asks you for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never add the tag otherwise, not even when pictures were sent earlier in the chat.');
   return parts.filter(Boolean).join('\n\n');
@@ -1386,9 +1392,22 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
     } else if (m.role === 'user' && m.file) msgs.push({ role: 'user', content: text });
     else msgs.push({ role: m.role, content: m.content }); // old image tags are left out: the model would copy them
   }
-  // Nudge on the newest user message when it asks for a picture
+  // Real time: the newest user message (and earlier ones after a long break) say when they were sent
+  if (chat?.realTime) {
+    const lastU = hist.map(m => m.role).lastIndexOf('user');
+    hist.forEach((m, i) => {
+      if (m.role !== 'user' || !m.t) return;
+      const prev = hist.slice(0, i).reverse().find(x => x.t);
+      if (i !== lastU && !(prev && m.t - prev.t >= 30 * 60000)) return;
+      const tn = timeNote(hist, i) + '\n', x = msgs[i];
+      x.content = Array.isArray(x.content) ? x.content.map(y => y.type === 'text' ? { ...y, text: tn + y.text } : y) : tn + x.content;
+    });
+  }
+  // Nudge on the newest user message when it asks for a picture, and the max length
   const lastUser = hist.at(-1)?.role === 'user' ? msgs.at(-1) : null;
-  const note0 = lastUser && wantsImage(hist.at(-1)) ? (imageEnabled(chat) ? IMG_NOTE : !imagesOn(chat) ? DESCRIBE_NOTE : '') : '';
+  const maxT = gen(chat).maxTokens;
+  const note0 = (lastUser && wantsImage(hist.at(-1)) ? (imageEnabled(chat) ? IMG_NOTE : !imagesOn(chat) ? DESCRIBE_NOTE : '') : '')
+    + (lastUser && maxT ? `\n\n[Length: keep your reply under ${Math.max(15, Math.round(maxT * 0.6))} words.]` : '');
   if (note0) {
     if (Array.isArray(lastUser.content)) lastUser.content = lastUser.content.map(x => x.type === 'text' ? { ...x, text: x.text + note0 } : x);
     else lastUser.content += note0;
@@ -1831,8 +1850,17 @@ async function streamChat(messages, onText, opts = {}) {
   if (g.repPenalty !== undefined) body.repetition_penalty = g.repPenalty;
   if (g.freqPenalty !== undefined) body.frequency_penalty = g.freqPenalty;
   if (g.presPenalty !== undefined) body.presence_penalty = g.presPenalty;
-  const res = await fetch(endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), signal: opts.chat ? undefined : abortCtl?.signal, body: JSON.stringify(body) });
+  const send = () => fetch(endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), signal: opts.chat ? undefined : abortCtl?.signal, body: JSON.stringify(body) });
+  let res = await send();
+  // Some models (OpenAI's newer ones) want max_completion_tokens instead of max_tokens
+  if (!res.ok && body.max_tokens && res.status === 400) {
+    const err = await httpError(res);
+    if (!/max_tokens|max_completion_tokens/i.test(err.message)) throw err;
+    body.max_completion_tokens = body.max_tokens; delete body.max_tokens;
+    res = await send();
+  }
   if (!res.ok) throw await httpError(res);
+  let cutOff = false;
   const reader = res.body.getReader(); const dec = new TextDecoder();
   let buf = '', reply = '', raw = '', thinkField = '', t0 = 0, t1 = 0;
   const thinking = () => [thinkField, splitThink(raw).think].filter(Boolean).join('\n').trim();
@@ -1840,6 +1868,11 @@ async function streamChat(messages, onText, opts = {}) {
   // Stopped halfway: keep what was written so far
   try { await readStream(); } catch (e) { if (isAbort(e) && reply) { finishThink(); return reply; } throw e; }
   finishThink();
+  // Cut off at the max length: end at the last finished sentence instead of mid-word
+  if (cutOff && reply) {
+    const m = reply.match(/^[\s\S]*[.!?…*"”)](?=\s|$)/);
+    if (m && m[0].length > reply.length * 0.5) { reply = m[0]; onText(reply); }
+  }
   if (!reply) throw new Error(lastThink.text ? 'The model only returned its thinking, no reply. Try again or raise the max reply length.' : 'Received an empty response.');
   return reply;
   function finishThink() {
@@ -1861,6 +1894,7 @@ async function streamChat(messages, onText, opts = {}) {
       try {
         const j = JSON.parse(data);
         if (j.error) throw new Error(errorText(j));
+        if (j.choices?.[0]?.finish_reason === 'length') cutOff = true;
         const d = j.choices?.[0]?.delta || {};
         const rz = d.reasoning ?? d.reasoning_content ?? (Array.isArray(d.reasoning_details) ? d.reasoning_details.map(x => x.text || x.summary || '').join('') : '') ?? '';
         if (rz) { if (!t0) t0 = Date.now(); thinkField += rz; opts.onThink?.(thinking(), false); }
@@ -4289,7 +4323,6 @@ async function saveImage(src) {
 // ---------- Composer ----------
 const input = $('input');
 input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 180) + 'px'; });
-input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('composer').requestSubmit(); } });
 // ---------- Writing help: long press the send button ----------
 const HELP_DEFAULTS = {
   enhancePrompt: 'Rewrite my message as {{user}} so it reads better: fix spelling and grammar, make it more vivid and descriptive, keep my meaning, intent and point of view, and keep roughly the same length. Do not add anything {{char}} says or does.',
@@ -4318,7 +4351,6 @@ $('sendMenu').onclick = e => {
   const act = e.target.closest('button')?.dataset.act; if (!act) return;
   hideSendMenu();
   if (act === 'prompts') return openHelpers();
-  if (act === 'continue') { const i = history.length - 1; return history[i]?.role === 'assistant' ? continueReply(i) : toast('There is no reply to continue yet'); }
   const key = act === 'enhance' ? 'enhancePrompt' : 'writePrompt';
   if (!cfg[key]?.trim()) { toast('Save the prompt first, then use the button'); return openHelpers(key); }
   runHelper(act, input.value);
