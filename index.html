@@ -139,6 +139,7 @@
   #plusMenu button { display: flex; align-items: center; gap: 10px; border: 0; background: none; color: #fff; font-size: 15px; padding: 11px 12px; border-radius: 10px; text-align: left; cursor: pointer; }
   #plusMenu button small { color: rgba(255,255,255,.55); font-size: 12px; margin-left: auto; }
   #plusMenu button:active { background: rgba(255,255,255,.15); }
+  #giPanel { max-width: 760px; width: 100%; margin: 0 auto; padding: 8px 16px 0; animation: anIn .22s cubic-bezier(.2,.8,.2,1); }
   #anPanel { max-width: 760px; width: 100%; margin: 0 auto; padding: 8px 16px 0; animation: anIn .22s cubic-bezier(.2,.8,.2,1); }
   @keyframes anIn { from { opacity: 0; transform: translateY(14px); } }
   .anbox { border: 1px solid var(--accent); border-radius: 16px; background: var(--card); padding: 10px 12px; }
@@ -146,7 +147,8 @@
   .anrow b { color: var(--ink); font-size: 14px; }
   .anrow button { border: 0; background: none; color: var(--accent); font-weight: 600; font-size: 14px; cursor: pointer; }
   .anrow select { font: inherit; font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; }
-  #anText { display: block; width: 100%; min-height: 64px; max-height: 160px; margin: 6px 0; resize: none; border: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; outline: none; }
+  #log figure.gen img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  #giText, #anText { display: block; width: 100%; min-height: 64px; max-height: 160px; margin: 6px 0; resize: none; border: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; outline: none; }
   .fbub { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 5px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 7%, transparent); font: 13px 'Inter', system-ui, sans-serif; }
   .msg.me .txt:not(:empty) ~ .fbub { margin-top: 8px; }
   #send { flex: none; width: 34px; height: 34px; margin: 0 5px 5px 0; border-radius: 50%; border: 0; background: var(--accent); color: #fff; cursor: pointer; display: grid; place-items: center; padding: 0; }
@@ -590,6 +592,15 @@
       <div class="hint" style="margin-top:8px">While on, it is sent with your messages in this chat, close to the newest messages, so it keeps working in long chats. Hidden from the chat. Turned off, the text is kept for later.</div>
     </div>
   </div>
+  <div id="giPanel" hidden>
+    <div class="anbox">
+      <div class="anrow"><b>Picture to send</b><button type="button" id="giClose">Close</button></div>
+      <textarea id="giText" placeholder="Describe the picture, e.g. me on the beach at sunset, wet hair, laughing"></textarea>
+      <div class="anrow"><span>Match what I wrote in my message</span><input type="checkbox" class="tgl" id="giMatch"></div>
+      <div class="hint" style="margin-top:6px">On: the picture fits the message you typed; the text above becomes extra direction. Your persona's picture and description set how you look. It's added to your message; send as usual.</div>
+      <div class="anrow" style="margin-top:8px"><span id="giState"></span><button type="button" id="giGo">Generate</button></div>
+    </div>
+  </div>
   <div id="toolsRow">
     <button id="plusBtn" type="button" aria-label="Add">+</button>
     <div id="chipsRow">
@@ -611,6 +622,7 @@
 <div id="msgMenu" hidden></div>
 <div id="plusMenu" hidden>
   <button type="button" data-act="image">Upload image</button>
+  <button type="button" data-act="genimg">Generate image</button>
   <button type="button" data-act="file">Upload file <small>text, PDF…</small></button>
   <button type="button" data-act="note">Author's note</button>
 </div>
@@ -1599,7 +1611,7 @@ function showImage(fig, src) {
     e.textContent = /^https?:/i.test(src) ? `The image could not be loaded (the link may have expired or be blocked): ${src.slice(0, 120)}` : 'The image data is damaged and could not be shown.';
     fig.replaceChildren(e);
   };
-  img.onclick = () => openLightbox(src);
+  img.onclick = () => { if (img.dataset.long) { delete img.dataset.long; return; } openLightbox(src); };
   fig.replaceChildren(img);
 }
 
@@ -1680,7 +1692,7 @@ async function generateImage(prompt, refs, who, about) {
   let looks = '';
   if (imgs.length) { try { looks = await describeRefs(imgs, name); } catch (e) { if (isAbort(e)) throw e; } }
   try {
-    const out = await requestImage(prompt + extra + (looks ? `\n\nHow it must look (taken from the reference pictures; match this closely):\n${looks}` : ''));
+    const out = await requestImage(prompt + extra + (looks ? `\n\nFrom ${name}'s reference pictures (described in words):\n${looks}\nThe visual style above always applies. The appearance only applies to ${name}: use it only if ${name} is in the picture, and never give anyone else ${name}'s looks.` : ''));
     if (attempts.length && pr.id && !pr.noRefs) { pr.noRefs = true; saveCfg(); }
     return out;
   } catch (e) { if (isAbort(e)) throw e; errors.push(e); }
@@ -2025,14 +2037,14 @@ async function continueReply(i) {
   finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
 }
 // Long press → Create image on a reply
-async function imageForReply(i) {
+async function imageForReply(i, again = false) {
   if (busy || !ready()) return;
   if (!imageEnabled()) return toast('No image proxy is active (Settings → Image proxy)');
   const s = cur, hist = history, m = hist[i]; if (!m) return;
   const bubble = [...$('log').querySelectorAll('.msg.ai')].find(b => +b.dataset.i === i); if (!bubble) return;
   setBusy(true);
   try {
-    const prompt = m.pendingImg || await describeImage(s, hist[i - 1]?.role === 'user' ? hist[i - 1].content : '', m.content);
+    const prompt = (again && m.imgPrompt) || m.pendingImg || await describeImage(s, hist[i - 1]?.role === 'user' ? hist[i - 1].content : '', m.content);
     delete m.pendingImg;
     let target = m;
     if (m.alts) target = m.alts[m.sel || 0];
@@ -2043,14 +2055,14 @@ async function imageForReply(i) {
   finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
 }
 
-async function send(text, img, forceImage, doc) {
+async function send(text, img, forceImage, doc, imgPrompt) {
   if (!ready()) return;
   const s = cur, hist = history;
   setBusy(true);
   for (const n of $('log').querySelectorAll('.msg.err')) n.remove();
   const msg = { role: 'user', content: text, t: Date.now() };
   if (forceImage) msg.wantsImage = true;
-  if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); }
+  if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); if (msg.img && imgPrompt) msg.imgPrompt = imgPrompt; }
   if (doc) { msg.file = { name: doc.name, key: 'file_' + uid(), chars: doc.text.length }; await idb.put(msg.file.key, doc.text).catch(() => { delete msg.file; toast('Could not store the file'); }); }
   hist.push(msg); saveMsgs(s.chat, hist);
   const usedOnce = s.chat.authorOnce && !s.chat.authorOff && s.chat.authorNote?.trim();
@@ -2080,12 +2092,14 @@ async function send(text, img, forceImage, doc) {
 // first message and "Regenerate" on the last reply.
 let menuFor = null;
 function hideMsgMenu() { $('msgMenu').hidden = true; menuFor?.classList.remove('held'); menuFor = null; }
-function showMsgMenu(el) {
+function showMsgMenu(el, anchor = el, onImage = false) {
   const i = +el.dataset.i, m = history[i]; if (!m) return;
   hideMsgMenu();
   const pin = ['pin', m.pinned ? 'Unpin' : 'Pin'], branch = ['branch', 'Branch from here'];
-  const acts = m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], pin, branch, ['delete', 'Delete']]
-    : [...(i === 0 ? [['direct', 'Rewrite with a prompt']] : []), ...(imagesOn() ? [['image', 'Create image']] : []), ['copy', 'Copy'], pin, branch, ['delete', 'Delete']];
+  const regen = imagesOn() && (m.role === 'assistant' || m.imgPrompt);
+  const acts = onImage ? [...(regen ? [['imgregen', 'Regenerate image']] : []), ['imgdel', 'Delete image']]
+    : m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], pin, branch, ['delete', 'Delete']]
+    : [['aedit', 'Edit'], ...(i === 0 ? [['direct', 'Rewrite with a prompt']] : []), ...(imagesOn() ? [['image', 'Create image']] : []), ['copy', 'Copy'], pin, branch, ['delete', 'Delete']];
   const box = $('msgMenu'); box.innerHTML = '';
   for (const [a, label] of acts) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.textContent = label;
@@ -2094,7 +2108,7 @@ function showMsgMenu(el) {
   }
   menuFor = el; el.classList.add('held'); navigator.vibrate?.(12);
   box.hidden = false;
-  const r = el.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
+  const r = anchor.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
   box.style.top = (r.top - h - 8 > 60 ? r.top - h - 8 : Math.min(r.bottom + 8, innerHeight - h - 12)) + 'px';
   const x = m.role === 'user' ? r.right - w : r.left;
   box.style.left = Math.max(12, Math.min(innerWidth - w - 12, x)) + 'px';
@@ -2103,6 +2117,14 @@ function showMsgMenu(el) {
   let timer = null, x0 = 0, y0 = 0;
   const log = $('log');
   log.addEventListener('pointerdown', e => {
+    // long press on a picture: its own menu
+    const pic = e.target.closest('figure.gen img');
+    if (pic) {
+      const el = pic.closest('.msg'); if (!el || el.dataset.i === undefined) return;
+      x0 = e.clientX; y0 = e.clientY;
+      timer = setTimeout(() => { pic.dataset.long = '1'; showMsgMenu(el, pic, true); }, 480);
+      return;
+    }
     if (e.target.closest('button, a, img, .alts')) return;
     const el = e.target.closest('.msg.me, .msg.ai'); if (!el || el.dataset.i === undefined || el.classList.contains('editing')) return;
     x0 = e.clientX; y0 = e.clientY;
@@ -2129,7 +2151,51 @@ $('msgMenu').onclick = e => {
   if (act === 'continue') continueReply(i);
   if (act === 'rewrite') rewriteOpening();
   if (act === 'direct') directOpening(el);
+  if (act === 'aedit') editReply(el, i);
+  if (act === 'imgdel') deleteImage(i);
+  if (act === 'imgregen') m.role === 'user' ? regenUserImage(i) : imageForReply(i, true);
 };
+// Edit the character's reply in place (nothing is resent)
+function editReply(el, i) {
+  const m = history[i];
+  el.classList.add('editing'); el.textContent = '';
+  const t = document.createElement('textarea'); t.value = m.content;
+  const acts = document.createElement('div'); acts.className = 'edit-acts';
+  const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = 'Cancel';
+  const save = document.createElement('button'); save.type = 'button'; save.className = 'btn primary'; save.textContent = 'Save';
+  acts.append(cancel, save); el.append(t, acts);
+  const fit = () => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; };
+  t.addEventListener('input', fit); fit(); t.focus();
+  cancel.onclick = () => render();
+  save.onclick = () => {
+    const v = t.value.trim(); if (!v) return t.focus();
+    m.content = v; if (m.alts) m.alts[m.sel || 0].content = v;
+    saveMsgs(cur.chat, history); render();
+  };
+}
+function deleteImage(i) {
+  const m = history[i]; if (!m?.img || busy) return;
+  if (!confirm('Delete this picture?')) return;
+  const key = m.img;
+  delete m.img; delete m.imgPrompt;
+  if (m.alts) { const a = m.alts[m.sel || 0]; delete a.img; delete a.imgPrompt; }
+  if (!imagesOf(m).includes(key)) idb.del(key).catch(() => {});
+  saveMsgs(cur.chat, history); render();
+}
+async function regenUserImage(i) {
+  const m = history[i]; if (!m?.imgPrompt || busy) return;
+  if (!imageProxyOk()) return toast('No image proxy is active (Settings → Image proxy)');
+  const s = cur, bubble = [...$('log').querySelectorAll('.msg.me')].find(b => +b.dataset.i === i);
+  setBusy(true);
+  const fig = bubble?.querySelector('figure'); if (fig) fig.innerHTML = '<div class="wait">Making an image…</div>';
+  try {
+    const src = await userPicture(s, m.imgPrompt);
+    const old = m.img, id = 'img_' + uid();
+    await idb.put(id, src); m.img = id; idb.del(old).catch(() => {});
+    saveMsgs(s.chat, history);
+  } catch (e) { if (!isAbort(e)) toast('Could not create an image: ' + e.message); }
+  finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
+}
 // First message: tell the AI what to change, it writes a new version (kept next to the old one)
 function directOpening(el) {
   el.classList.add('editing'); el.textContent = '';
@@ -4440,6 +4506,7 @@ $('helpRetry').onclick = () => helper && runHelper(helper.mode, helper.original)
 $('helpUndo').onclick = () => { if (!helper) return; input.value = helper.original; input.dispatchEvent(new Event('input')); clearHelper(); };
 
 let attached = null;    // data URL of the image waiting to be sent
+let attachedPrompt = null; // its image prompt when it was generated
 let attachedDoc = null; // { name, text } of the file waiting to be sent
 function syncTools() {
   $('attachPv').hidden = !attached;
@@ -4448,8 +4515,8 @@ function syncTools() {
   $('anChip').textContent = cur?.chat.authorOnce ? "Author's note · next message" : "Author's note";
   $('plusBtn').classList.toggle('has', !!(attached || attachedDoc));
 }
-function setAttached(src) {
-  attached = src;
+function setAttached(src, prompt = null) {
+  attached = src; attachedPrompt = src ? prompt : null;
   $('attachPv').style.backgroundImage = src ? `url("${src}")` : '';
   syncTools();
 }
@@ -4475,6 +4542,48 @@ $('plusMenu').onclick = e => {
   if (act === 'image') $('attachFile').click();
   if (act === 'file') $('attachDoc').click();
   if (act === 'note') openNote();
+  if (act === 'genimg') openGenImg();
+};
+// Generate a picture the user sends
+function openGenImg() {
+  if (!cur) return;
+  if (!imagesOn()) return toast('Pictures are off in this chat (Chat settings → Proxy)');
+  $('anPanel').hidden = true;
+  $('giPanel').hidden = false; $('giState').textContent = '';
+  $('giText').focus();
+}
+$('giClose').onclick = () => { $('giPanel').hidden = true; document.activeElement?.blur(); };
+// Makes the user's picture: their persona's picture and description keep the looks
+async function userPicture(s, prompt) {
+  const p = s.p, ref = p?.img ? await idb.get(p.img).catch(() => null) : null;
+  return generateImage(prompt, { card: ref }, userName(p), fill(p?.personality || '', s.c, p));
+}
+let giBusy = false;
+$('giGo').onclick = async () => {
+  if (!cur || giBusy || busy) return;
+  if (!imageProxyOk()) return toast('No image proxy is active (Settings → Image proxy)');
+  const s = cur, { c, p } = s, extra = $('giText').value.trim(), match = $('giMatch').checked, typed = input.value.trim();
+  if (match && !typed) return toast('Type your message first, or turn off "Match what I wrote"');
+  if (!match && !extra) return $('giText').focus();
+  giBusy = true; $('giGo').disabled = true;
+  try {
+    let prompt = extra;
+    if (match) {
+      $('giState').textContent = 'Working out the picture…';
+      const recent = transcriptOf(history.slice(-6), c, p);
+      prompt = (await streamChat([
+        { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
+        { role: 'user', content: `${userName(p)} is chatting with ${cn(c)}.${p?.personality?.trim() ? `\nAbout ${userName(p)}:\n${fill(p.personality, c, p).slice(0, 1500)}` : ''}\n\nThe chat so far (most recent part):\n${recent.slice(-3000)}\n\n${userName(p)} is about to send this message with a picture:\n"${typed}"${extra ? `\n\nExtra direction for the picture: ${extra}` : ''}\n\nDescribe the picture ${userName(p)} sends with that message, so it fits the message and the moment. Only include ${userName(p)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
+      ], () => {}, { free: true })).replace(TAG, '').trim().slice(0, 1500);
+    }
+    $('giState').textContent = 'Making the picture…';
+    const src = await userPicture(s, prompt);
+    if (cur?.chat.id !== s.chat.id) return;
+    setAttached(src, prompt);
+    $('giPanel').hidden = true; $('giText').value = '';
+    toast('Picture added to your message');
+  } catch (e) { $('giState').textContent = ''; if (!isAbort(e)) toast('Could not create an image: ' + e.message); }
+  finally { giBusy = false; $('giGo').disabled = false; if ($('giState').textContent.startsWith('Making') || $('giState').textContent.startsWith('Working')) $('giState').textContent = ''; }
 };
 
 // Files: text formats are read directly, PDFs through pdf.js (loaded on first use)
@@ -4556,9 +4665,9 @@ $('composer').onsubmit = e => {
   if (busy) { if (e.submitter === $('send')) abortCtl?.abort(); return; }
   const t = input.value.trim();
   if ((!t && !attached && !attachedDoc) || busy) return;
-  const img = attached, doc = attachedDoc;
+  const img = attached, doc = attachedDoc, ip = attachedPrompt;
   input.value = ''; input.style.height = 'auto'; setAttached(null); setDoc(null); clearHelper();
-  send(t, img, false, doc);
+  send(t, img, false, doc, ip);
 };
 
 // ---------- Boot ----------

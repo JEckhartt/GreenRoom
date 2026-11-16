@@ -64,6 +64,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Green Room uses the camera when you take a photo to send in a chat or use for a character.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Green Room saves images you choose to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
