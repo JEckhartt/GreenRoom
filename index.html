@@ -185,18 +185,16 @@
   .item .info { flex: 1; min-width: 0; }
   .item h3 { margin: 2px 0 4px; font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
   .item p { margin: 0; font-size: 14px; line-height: 1.4; color: var(--ink-soft); white-space: pre-line; overflow-wrap: anywhere;
-    display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
-  #charList .item p { -webkit-line-clamp: 4; }
-  #charList .thumb { aspect-ratio: 9 / 8; background-position: center top; }
-  .cexp { display: flex; gap: 8px; padding: 8px 2px 4px; animation: anIn .2s cubic-bezier(.2,.8,.2,1); }
-  .cexp button { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--field); color: var(--accent); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
-  .cexp button:active { background: var(--accent-soft); }
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .cgroup > .swipe { border-radius: 0; }
+  .cgroup > .swipe > .item { border: 0; border-radius: 0; }
+  .cgroup .sublist { padding: 0 14px; }
   .badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 999px; }
   .list-empty { text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
 
   /* ---------- Editor ---------- */
   .pick { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
-  .pick .thumb { width: 110px; cursor: pointer; }
+  .pick .thumb { width: 110px; cursor: pointer; background-size: contain !important; }
   .pick .btns { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
   .card .line.tight { padding-top: 10px; }
   .save-bar { margin-top: 18px; }
@@ -496,15 +494,15 @@
 <section id="chars" class="view" aria-label="Characters">
   <div class="page-head"><button class="back" data-close="chars" type="button">‹ Back</button><h1>Characters</h1><button class="act plus" id="charAdd" type="button" aria-label="New character">+</button></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <input type="search" class="search" id="charSearch" placeholder="Search characters" autocomplete="off" style="margin-bottom:12px">
     <div class="items" id="charList"></div>
   </div></div>
   <div class="selbar" id="charSel" hidden><span></span><button class="btn" type="button" data-act="move">Move</button><button class="btn danger" type="button" data-act="delete">Delete</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
 </section>
 
 <section id="personas" class="view" aria-label="Personas">
-  <div class="page-head"><button class="back" data-close="personas" type="button">‹ Back</button><h1>Personas</h1><span></span></div>
-  <div class="page-body"><div class="page-inner">
-    <div class="create"><button type="button" id="newPersona">+ Create new persona</button></div>
+  <div class="page-head"><button class="back" data-close="personas" type="button">‹ Back</button><h1>Personas</h1><button class="act plus" id="newPersona" type="button" aria-label="New persona">+</button></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="items" id="personaList"></div>
   </div></div>
   <div class="selbar" id="personaSel" hidden><span></span><button class="btn" type="button" data-act="move">Move</button><button class="btn danger" type="button" data-act="delete">Delete</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
@@ -537,9 +535,8 @@
 </section>
 
 <section id="albums" class="view" aria-label="Albums">
-  <div class="page-head"><button class="back" data-close="albums" type="button">‹ Back</button><h1>Albums</h1><span></span></div>
-  <div class="page-body"><div class="page-inner">
-    <div class="create"><button type="button" id="newAlbum">+ Create new album</button></div>
+  <div class="page-head"><button class="back" data-close="albums" type="button">‹ Back</button><h1>Albums</h1><button class="act plus" id="newAlbum" type="button" aria-label="New album">+</button></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="items" id="albumList"></div>
   </div></div>
 </section>
@@ -556,7 +553,8 @@
 </section>
 
 <section id="chats" class="view" aria-label="Chats">
-  <div class="page-head"><button class="back" data-close="chats" type="button">‹ Back</button><h1>Chats</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="chats" type="button">‹ Back</button><h1>Chats</h1><button class="act plus" id="chatAdd" type="button" aria-label="New or imported chat">+</button></div>
+  <input type="file" id="chatFile" accept=".jsonl,.json,.txt,application/json,text/plain" hidden>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <input type="search" class="search" id="chatSearch" placeholder="Search all chats" autocomplete="off" style="margin-bottom:12px">
     <div class="items" id="chatList"></div>
@@ -2341,7 +2339,7 @@ async function writeOpening() {
 const lastText = h => (h.at(-1)?.content || '').slice(0, 200);
 function saveMsgs(chat, hist) {
   store.set(msgsKey(chat.id), hist);
-  chat.updated = Date.now(); chat.preview = lastText(hist);
+  chat.updated = Date.now(); chat.preview = lastText(hist); chat.count = hist.length;
   saveChats();
 }
 function newChat(charId, personaId) {
@@ -2459,11 +2457,75 @@ function charActions(c) {
     { label: 'Chat', onClick: () => pickPersona(c) },
   ]);
 }
-function pickPersona(c) {
+function pickPersona(c, then = pid => newChat(c.id, pid)) {
   showSheet(`Chat with ${c.name} as…`, [
-    ...personas.map(p => ({ label: p.name, av: p, onClick: () => newChat(c.id, p.id) })),
-    { label: 'No persona', av: null, onClick: () => newChat(c.id, '') },
+    ...personas.map(p => ({ label: p.name, av: p, onClick: () => then(p.id) })),
+    { label: 'No persona', av: null, onClick: () => then('') },
   ]);
+}
+function pickChar(title, then) {
+  if (!chars.length) return toast('Make a character first');
+  showSheet(title, [...chars].sort((a, b) => a.name.localeCompare(b.name)).map(c => ({ label: c.name, av: c, onClick: () => then(c) })));
+}
+// Chats screen +: start a chat, or import one (SillyTavern .jsonl, Green Room text export, or JSON)
+let importTo = null;
+$('chatAdd').onclick = () => showSheet('Chats', [
+  { label: 'Start new chat', onClick: () => pickChar('Chat with…', c => pickPersona(c)) },
+  { label: 'Import chat', onClick: () => pickChar('Import a chat with…', c => pickPersona(c, pid => { importTo = { c, pid }; $('chatFile').click(); })) },
+]);
+$('chatFile').onchange = async () => {
+  const f = $('chatFile').files[0]; $('chatFile').value = '';
+  if (!f || !importTo) return;
+  const { c, pid } = importTo; importTo = null;
+  try {
+    const msgs = parseChat(await f.text(), c);
+    if (!msgs.length) throw new Error('No messages found in this file.');
+    const p = personas.find(x => x.id === pid);
+    const chat = { id: uid(), charId: c.id, personaId: p?.id || '', personaName: p?.name || '', created: msgs[0].t || Date.now(), updated: Date.now() };
+    chats.push(chat); saveMsgs(chat, msgs);
+    chat.updated = msgs.at(-1).t || Date.now(); store.set('chats', chats);
+    renderChats(); toast(`Imported ${msgs.length} message${msgs.length === 1 ? '' : 's'}`);
+    openChat(chat.id);
+  } catch (e) { toast('Import failed: ' + e.message); }
+};
+// Reads a chat file into messages
+function parseChat(text, c) {
+  const time = v => { const t = typeof v === 'number' ? v : Date.parse(String(v || '').replace(/(\d)(am|pm)$/i, '$1 $2')); return isNaN(t) ? undefined : t; };
+  const out = [], add = (user, content, t, alts) => {
+    content = String(content ?? '').trim(); if (!content) return;
+    const m = { role: user ? 'user' : 'assistant', content };
+    if (t) m.t = t;
+    if (!user && Array.isArray(alts) && alts.length > 1) { m.alts = alts.map(a => ({ content: String(a) })); m.sel = Math.max(0, alts.indexOf(content)); }
+    out.push(m);
+  };
+  const t = text.trim();
+  // SillyTavern: one JSON object per line, the first is the header
+  if (t.startsWith('{') && t.includes('\n')) {
+    const rows = t.split('\n').map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+    if (rows.some(r => 'mes' in r)) {
+      for (const r of rows) if ('mes' in r && !r.is_system) add(r.is_user, r.mes, time(r.send_date), r.swipes);
+      return out;
+    }
+  }
+  // JSON: an array of messages, or { messages: [...] }
+  if (/^[[{]/.test(t)) {
+    let j; try { j = JSON.parse(t); } catch { throw new Error('This file is not valid JSON.'); }
+    const arr = Array.isArray(j) ? j : j.messages || j.chat || j.history || [];
+    for (const m of arr) add(m.role ? m.role === 'user' : m.is_user, m.content ?? m.mes ?? m.text, time(m.t ?? m.send_date ?? m.timestamp), m.swipes);
+    return out;
+  }
+  // Text export: "Name:" on its own line, then the message
+  const head = t.match(/^Chat with (.+) as (.+)$/m);
+  const bot = head?.[1] || cn(c), me = head?.[2];
+  let who = null, buf = [];
+  const flush = () => { if (who !== null) add(who === 'user', buf.join('\n').trim().replace(/\n\[image\]$/, '')); buf = []; };
+  for (const line of t.split('\n')) {
+    const name = line.match(/^(.{1,60}):$/)?.[1];
+    if (name && (name === bot || name === me || (!me && name !== bot))) { flush(); who = name === bot ? 'ai' : 'user'; continue; }
+    if (who !== null) buf.push(line);
+  }
+  flush();
+  return out;
 }
 
 // ---------- Chats overview ----------
@@ -2519,7 +2581,8 @@ function renderChats() {
         const txt = document.createElement('div');
         const who = document.createElement('div'); who.className = 'who';
         const nm = document.createElement('span'); nm.textContent = 'as ' + (p?.name || ch.personaName || 'no persona') + (ch.branchOf ? ' · branch' : '');
-        const tm = document.createElement('time'); tm.textContent = when(ch.updated);
+        if (ch.count == null) ch.count = store.get(msgsKey(ch.id), []).length;
+        const tm = document.createElement('time'); tm.textContent = `${ch.count} message${ch.count === 1 ? '' : 's'} · ${when(ch.updated)}`;
         who.append(nm, tm);
         const snip = document.createElement('div'); snip.className = 'snip'; snip.textContent = stripMd(ch.preview);
         txt.append(who, snip); go.append(av, txt);
@@ -2610,12 +2673,13 @@ $('chatProfile').onclick = () => cur && openProfile(cur.c.id);
 // ---------- Character & persona lists ----------
 const avatarCache = new Map();
 async function setThumb(el, it) {
-  el.style.backgroundImage = ''; el.textContent = (it.name || '?').trim().charAt(0).toUpperCase();
+  el.style.background = ''; el.textContent = (it.name || '?').trim().charAt(0).toUpperCase();
   if (!it.img) return;
   const key = it.img;
   if (!avatarCache.has(key)) avatarCache.set(key, idb.get(key).catch(() => null));
   const src = await avatarCache.get(key);
-  if (src && it.img === key) { el.style.backgroundImage = `url("${src}")`; el.textContent = ''; }
+  // scaled to fit: the whole picture shows, never cropped
+  if (src && it.img === key) { el.style.background = `var(--accent-soft) url("${src}") center / contain no-repeat`; el.textContent = ''; }
 }
 
 const folderSvg = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
@@ -2625,14 +2689,17 @@ const itemsOf = kind => kind === 'char' ? chars : personas;
 const SW = 168; // width of the swipe actions
 let openSwipe = null;
 
+const charQuery = () => ($('charSearch')?.value || '').trim().toLowerCase();
 function renderList(kind) {
-  const items = itemsOf(kind), fs = folders.filter(f => f.kind === kind);
+  const q = kind === 'char' ? charQuery() : '';
+  const items = q ? itemsOf(kind).filter(it => [it.name, it.chatName, it.description, it.personality, it.scenario].some(v => (v || '').toLowerCase().includes(q))) : itemsOf(kind);
+  const fs = q ? [] : folders.filter(f => f.kind === kind);
   const list = $(kind === 'char' ? 'charList' : 'personaList');
   list.innerHTML = '';
   openSwipe = null;
   if (!items.length && !fs.length) {
     const e = document.createElement('div'); e.className = 'list-empty';
-    e.textContent = kind === 'char' ? 'No characters yet.' : 'No personas yet.';
+    e.textContent = q ? 'No characters match your search.' : kind === 'char' ? 'No characters yet.' : 'No personas yet.';
     list.appendChild(e);
   }
   for (const f of fs) {
@@ -2658,7 +2725,7 @@ function renderList(kind) {
     }
     list.append(g);
   }
-  for (const it of items) if (!it.folder || !fs.some(f => f.id === it.folder)) list.append(row(kind, it));
+  for (const it of items) if (q || !it.folder || !fs.some(f => f.id === it.folder)) list.append(row(kind, it));
   const bar = $(kind === 'char' ? 'charSel' : 'personaSel');
   bar.hidden = sel.kind !== kind;
   bar.querySelector('span').textContent = `${sel.ids.size} selected`;
@@ -2686,14 +2753,14 @@ function row(kind, it) {
     if (kind !== 'char') return openEditor('persona', it.id);
     openCharRow = openCharRow === it.id ? null : it.id; renderList('char');
   }, () => startSelect(kind, it.id));
-  if (kind !== 'char') return w;
-  const box = document.createElement('div'); box.append(w);
-  if (openCharRow === it.id && !sel.kind) {
-    const x = document.createElement('div'); x.className = 'cexp';
-    const pf = document.createElement('button'); pf.type = 'button'; pf.textContent = 'Profile'; pf.onclick = () => openProfile(it.id);
-    const ch = document.createElement('button'); ch.type = 'button'; ch.textContent = 'Chat'; ch.onclick = () => pickPersona(it);
-    x.append(pf, ch); box.append(x);
-  }
+  if (kind !== 'char' || openCharRow !== it.id || sel.kind) return w;
+  // unfolded: one card, the options attached underneath (like a character on the Chats screen)
+  const box = document.createElement('div'); box.className = 'group open cgroup'; box.append(w);
+  const sub = document.createElement('div'); sub.className = 'sublist';
+  const lr = document.createElement('div'); lr.className = 'linkrow';
+  const pf = document.createElement('button'); pf.type = 'button'; pf.className = 'link'; pf.textContent = 'Profile ›'; pf.onclick = () => openProfile(it.id);
+  const ch = document.createElement('button'); ch.type = 'button'; ch.className = 'link'; ch.textContent = '+ Start new chat'; ch.onclick = () => pickPersona(it);
+  lr.append(pf, ch); sub.append(lr); box.append(sub);
   return box;
 }
 
@@ -3109,6 +3176,7 @@ async function openSharedFile(url) {
   if (launch?.url) openSharedFile(launch.url);
 })();
 
+$('charSearch').addEventListener('input', () => renderList('char'));
 $('charAdd').onclick = () => showSheet('New character', [
   { label: 'Create new character', onClick: () => openEditor('char') },
   { label: 'Generate', onClick: openGenerator },
@@ -4569,6 +4637,8 @@ $('plusBtn').onclick = () => {
   m.style.left = Math.max(12, Math.min(innerWidth - m.offsetWidth - 12, r.left)) + 'px';
 };
 document.addEventListener('pointerdown', e => { if (!$('plusMenu').hidden && !e.target.closest('#plusMenu, #plusBtn')) hidePlus(); }, true);
+// tapping + (or an option in its menu) doesn't take the focus away from the text field, so the keyboard stays
+for (const el of [$('plusBtn'), $('plusMenu')]) el.addEventListener('pointerdown', e => { if (document.activeElement === input) e.preventDefault(); });
 $('plusMenu').onclick = e => {
   const act = e.target.closest('button')?.dataset.act; if (!act) return;
   hidePlus();
