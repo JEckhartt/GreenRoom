@@ -1056,7 +1056,7 @@ Empty = send everything.</div>
         <button type="button" data-v="me">You</button>
         <button type="button" data-v="both">Both</button>
       </div>
-      <div class="msg me"><span class="txt" data-rich>*yawns* Can't sleep. "Talk to me?"</span></div>
+      <div class="msg me"><span class="txt" data-rich>*yawns* **Can't** sleep ~~again~~. "Talk to me?" It's `3am`.</span></div>
       <div class="msg ai"><span class="txt" data-rich>"Of course." *She pulls the blanket closer.* The rain **always** sounds ~~boring~~ different at night.&#10;&#10;> Old memory: the `porch` light.</span></div>
     </div>
 
@@ -1849,7 +1849,7 @@ function addFileChip(bubble, file) {
 function addFold(fig, m) {
   const b = document.createElement('button'); b.type = 'button'; b.className = 'imgfold';
   const set = () => { fig.classList.toggle('folded', !!m.imgFolded); b.innerHTML = m.imgFolded ? 'Show picture' : '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'; b.setAttribute('aria-label', m.imgFolded ? 'Show picture' : 'Fold picture away'); };
-  b.onclick = e => { e.stopPropagation(); if (m.imgFolded) delete m.imgFolded; else m.imgFolded = true; set(); if (cur) saveMsgs(cur.chat, history); };
+  b.onclick = e => { e.stopPropagation(); if (m.imgFolded) delete m.imgFolded; else m.imgFolded = true; set(); if (cur) saveMsgs(cur.chat, history, true); };
   set(); fig.append(b);
 }
 function showImage(fig, src) {
@@ -2418,7 +2418,7 @@ $('msgMenu').onclick = e => {
   const act = e.target.dataset?.act, el = menuFor; if (!act || !el) return;
   hideMsgMenu();
   const i = +el.dataset.i, m = history[i]; if (!m) return;
-  if (act === 'pin') { if (m.pinned) delete m.pinned; else m.pinned = true; saveMsgs(cur.chat, history); render(); toast(m.pinned ? 'Pinned. Find it by swiping left.' : 'Unpinned'); }
+  if (act === 'pin') { if (m.pinned) delete m.pinned; else m.pinned = true; saveMsgs(cur.chat, history, true); render(); toast(m.pinned ? 'Pinned. Find it by swiping left.' : 'Unpinned'); }
   if (act === 'branch') branchFrom(i);
   if (act === 'copy') navigator.clipboard?.writeText(m.content).then(() => toast('Copied'), () => toast('Could not copy'));
   if (act === 'resend') resendFrom(i, m.content);
@@ -2448,7 +2448,7 @@ function editReply(el, i) {
   save.onclick = () => {
     const v = t.value.trim(); if (!v) return t.focus();
     m.content = v; if (m.alts) m.alts[m.sel || 0].content = v;
-    saveMsgs(cur.chat, history); render();
+    saveMsgs(cur.chat, history, true); render();
   };
 }
 function deleteImage(i) {
@@ -2458,7 +2458,7 @@ function deleteImage(i) {
   delete m.img; delete m.imgPrompt;
   if (m.alts) { const a = m.alts[m.sel || 0]; delete a.img; delete a.imgPrompt; }
   if (!imagesOf(m).includes(key)) idb.del(key).catch(() => {});
-  saveMsgs(cur.chat, history); render();
+  saveMsgs(cur.chat, history, true); render();
 }
 async function regenUserImage(i) {
   const m = history[i]; if (!m?.imgPrompt || busy) return;
@@ -2546,11 +2546,11 @@ function addAltNav(bubble, m, i) {
   const nav = document.createElement('div'); nav.className = 'alts';
   const prev = document.createElement('button'); prev.type = 'button'; prev.textContent = '‹'; prev.setAttribute('aria-label', 'Previous reply');
   prev.hidden = k === 0; prev.disabled = busy;
-  prev.onclick = () => { if (busy) return; selectAlt(m, k - 1); saveMsgs(cur.chat, history); render(); };
+  prev.onclick = () => { if (busy) return; selectAlt(m, k - 1); saveMsgs(cur.chat, history, true); render(); };
   const lab = document.createElement('span'); lab.textContent = n > 1 ? `${k + 1}/${n}` : '';
   const next = document.createElement('button'); next.type = 'button'; next.textContent = '›';
   next.setAttribute('aria-label', k < n - 1 ? 'Next reply' : 'Write another reply'); next.disabled = busy;
-  next.onclick = () => { if (busy) return; if (k < n - 1) { selectAlt(m, k + 1); saveMsgs(cur.chat, history); render(); } else anotherReply(i, bubble); };
+  next.onclick = () => { if (busy) return; if (k < n - 1) { selectAlt(m, k + 1); saveMsgs(cur.chat, history, true); render(); } else anotherReply(i, bubble); };
   nav.append(prev, lab, next);
   // Continue: under the newest reply
   if (i === history.length - 1 && i > 0) {
@@ -2599,9 +2599,11 @@ async function writeOpening() {
 }
 
 const lastText = h => (h.at(-1)?.content || '').slice(0, 200);
-function saveMsgs(chat, hist) {
+// quiet: a change that isn't a new message (fold, pin, edit, swipe…) keeps the chat's time and place in the list
+function saveMsgs(chat, hist, quiet = false) {
   msgSet(chat.id, hist);
-  chat.updated = Date.now(); chat.preview = lastText(hist); chat.count = hist.length;
+  if (!quiet) chat.updated = Date.now();
+  chat.preview = lastText(hist); chat.count = hist.length;
   saveChats();
 }
 function newChat(charId, personaId) {
@@ -4243,6 +4245,16 @@ function syncControls() {
   for (const t of document.querySelectorAll('#lookBlock .tgt')) t.textContent = styleTarget === 'me' ? '· you' : styleTarget === 'both' ? '· both' : '· AI';
   $('nameColorRow').hidden = !g('showNames'); $('nameCRow').hidden = g('nameMode') !== 'custom';
   $('avShapeRow').hidden = !g('showAvatars');
+  // headings, lists, links and dividers join the mock-up when their color is switched on
+  for (const t of document.querySelectorAll('#preview [data-rich]')) {
+    const pre = t.closest('.msg').classList.contains('me') ? 'u_' : '', on = k => !!L[pre + k + 'On'];
+    let txt = t.dataset.base || t.textContent;
+    if (on('md_h')) txt = '### Late night\n' + txt;
+    if (on('md_li')) txt += '\n- one more thing';
+    if (on('md_a')) txt += '\n[a link](https://example.com)';
+    if (on('md_hr')) txt += '\n\n---\n\n…';
+    if (t.dataset.shown !== txt) { t.dataset.shown = txt; rich(t, txt); }
+  }
   // the mock-up uses the open chat's names and pictures when there is one
   for (const m of document.querySelectorAll('#preview .msg')) {
     const role = m.classList.contains('me') ? 'me' : 'ai';
@@ -4319,7 +4331,7 @@ function buildSettings() {
     for (const b of $('styleTarget').children) b.classList.toggle('on', b.dataset.v === v);
     syncControls();
   };
-  for (const t of document.querySelectorAll('#preview [data-rich]')) rich(t, t.textContent);
+  for (const t of document.querySelectorAll('#preview [data-rich]')) { t.dataset.base = t.textContent; rich(t, t.textContent); }
   for (const m of document.querySelectorAll('#preview .msg')) {
     const me = m.classList.contains('me');
     decorate(m, me ? 'me' : 'ai', null, null);
