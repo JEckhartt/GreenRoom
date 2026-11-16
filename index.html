@@ -1668,14 +1668,40 @@ async function generateImage(prompt, refs, who, about) {
     attempts.push([...imgs.map(url => ({ type: 'image_url', image_url: { url } })), { type: 'text', text: `${lines}${only}\n\nImage to create: ${prompt}${extra}` }]);
     if (card && last) attempts.push([{ type: 'image_url', image_url: { url: card } }, { type: 'text', text: `The reference image is ${name}'s character card: match their appearance and the visual style exactly (medium, rendering, line work, colour palette, lighting).${only}\n\nImage to create: ${prompt}${extra}` }]);
   }
-  attempts.push(prompt + extra);
+  const pr = proxyFor('img'), imgs = [card, last].filter(Boolean);
+  // This image proxy is known not to take reference images: go straight to the described version
+  if (pr.noRefs) attempts.length = 0;
   const errors = [];
   for (const a of attempts) {
     try { return await requestImage(a); }
     catch (e) { if (isAbort(e)) throw e; if (!errors.some(x => x.message === e.message)) errors.push(e); }
   }
+  // No reference images possible: the chat model looks at them and describes them in words instead
+  let looks = '';
+  if (imgs.length) { try { looks = await describeRefs(imgs, name); } catch (e) { if (isAbort(e)) throw e; } }
+  try {
+    const out = await requestImage(prompt + extra + (looks ? `\n\nHow it must look (taken from the reference pictures; match this closely):\n${looks}` : ''));
+    if (attempts.length && pr.id && !pr.noRefs) { pr.noRefs = true; saveCfg(); }
+    return out;
+  } catch (e) { if (isAbort(e)) throw e; errors.push(e); }
   const [lastErr, ...earlier] = errors.reverse();
   throw new Error(lastErr.message + (earlier.length ? `\n\nWith reference images it failed too: ${earlier.map(e => e.message).join(' / ')}` : ''));
+}
+// The chat model describes the reference pictures (card first) for an image proxy that can't take them.
+// Descriptions are kept per picture, so each one is only described once.
+const refKey = src => { let h = 2166136261; for (let i = 0; i < src.length; i += Math.max(1, src.length >> 12)) h = Math.imul(h ^ src.charCodeAt(i), 16777619); return 'desc_' + (h >>> 0).toString(36) + '_' + src.length; };
+async function describeRefs(imgs, name) {
+  const key = refKey(imgs.join('|'));
+  const kept = await idb.get(key).catch(() => null); if (kept) return kept;
+  const a = api(); if (!a.url || !a.model) return '';
+  const which = imgs.length > 1 ? `Picture 1 is ${name}'s character card (the main reference); picture 2 is the last picture ${name} sent (for outfit, hair and setting; where they differ, picture 1 wins).` : `The picture is ${name}'s character card.`;
+  const out = await streamChat([
+    { role: 'system', content: 'You describe reference pictures for an image generator that cannot see them. Be concrete and visual. Output only the description, no preamble.' },
+    { role: 'user', content: [...imgs.map(url => ({ type: 'image_url', image_url: { url } })), { type: 'text', text: `${which}\n\nDescribe in detail, as one compact paragraph of at most 200 words: 1) ${name}'s appearance: face, age, skin, hair (colour, length, style), eyes, build, distinguishing marks, clothing and accessories; 2) the visual style: medium (photo, anime, oil painting, 3D…), rendering, line work, colour palette and lighting.` }] },
+  ], () => {}, { free: true });
+  const text = out.replace(TAG, '').trim().slice(0, 1800);
+  if (text) idb.put(key, text).catch(() => {});
+  return text;
 }
 var IMAGE_TIMEOUT = 180000;
 // Finds an image anywhere in a response: data URLs, base64 fields, or image links
@@ -3589,7 +3615,7 @@ function renderProxyBox(box, kind, scope) {
     const l = document.createElement('label'); l.className = 'f'; l.textContent = label;
     const i = document.createElement('input'); i.type = type; i.value = pr[f] || ''; i.placeholder = ph;
     i.autocomplete = 'off'; i.setAttribute('autocapitalize', 'off'); i.setAttribute('autocorrect', 'off');
-    i.oninput = () => { pr[f] = i.value; saveCfg(); };
+    i.oninput = () => { pr[f] = i.value; if (f === 'url' || f === 'model') { delete pr.noRefs; delete pr.modalities; } saveCfg(); };
     if (f === 'name') i.onchange = () => renderProxyBoxes();
     box.append(l, i);
     return i;
