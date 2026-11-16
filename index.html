@@ -242,6 +242,8 @@
     box-shadow: 0 14px 40px -12px rgba(0,0,0,.55); -webkit-user-select: none; user-select: none; }
   #floatPic img { display: block; width: 100%; pointer-events: none; -webkit-user-drag: none; }
   #floatPic button { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(20,20,20,.7); color: #fff; font-size: 13px; cursor: pointer; }
+  body.me-nobubble .msg.me { background: none; border: 0; padding: 0; border-radius: 0; }
+  .more-msgs { align-self: center; border: 1px solid var(--line); background: var(--field); color: var(--accent); font: 600 14px 'Inter', system-ui, sans-serif; padding: 9px 16px; border-radius: 999px; cursor: pointer; }
   .badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 999px; }
   .list-empty { text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
 
@@ -1012,6 +1014,18 @@ Empty = send everything.</div>
     </div>
     </details>
 
+    <details class="sec" data-sec="debug">
+    <summary class="group-title">Debug</summary>
+    <div class="card">
+      <div class="hint" id="dbgSummary" style="margin-top:0"></div>
+      <div class="actions">
+        <button class="btn" type="button" id="dbgReport">Download debug report</button>
+        <button class="btn" type="button" id="dbgClear">Clear log</button>
+      </div>
+      <div class="hint">For when the app crashes or something goes wrong: share this file when you report it. It holds errors, crashes, storage use and chat sizes, but no messages, prompts or API keys.</div>
+    </div>
+    </details>
+
     <details class="sec" data-sec="customization">
     <summary class="group-title">Customization</summary>
     <div id="globalLookHost"><div id="lookBlock">
@@ -1051,6 +1065,7 @@ Empty = send everything.</div>
         </div>
         <div class="hint">In a chat, tap a picture to float it: pinch to resize, drag it anywhere, ✕ to close.</div>
       </div>
+      <div class="line"><span>Message bubble <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="aiBubble"></div>
       <label class="f">Bubble shape <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></label>
       <div class="seg" data-k="bubbleShape">
         <button type="button" data-v="round">Rounded</button>
@@ -1142,7 +1157,6 @@ Empty = send everything.</div>
       <div class="line"><span>Accent color</span><span style="display:flex;gap:8px;align-items:center">
         <button class="btn" type="button" id="accentReset" style="padding:5px 10px;font-size:13px">Default</button>
         <input type="color" data-k="accent" id="accent"></span></div>
-      <div class="line"><span>AI message bubble</span><input type="checkbox" class="tgl" data-k="aiBubble"></div>
     </div></div>
     </details>
 
@@ -1192,15 +1206,38 @@ const GRADIENTS = [
 
 // ---------- State ----------
 const $ = id => document.getElementById(id);
+// ---------- Debug log: errors, warnings and the last step before a crash (Settings → Debug) ----------
+let dbgLog = (() => { try { return JSON.parse(localStorage.getItem('greenroom.debug') || '[]'); } catch { return []; } })();
+function dbg(type, msg) {
+  dbgLog.push({ t: new Date().toISOString(), type, msg: String(msg).slice(0, 700) });
+  if (dbgLog.length > 300) dbgLog = dbgLog.slice(-300);
+  try { localStorage.setItem('greenroom.debug', JSON.stringify(dbgLog)); } catch {}
+}
+const step = s => { try { localStorage.setItem('greenroom.lastStep', new Date().toISOString().slice(11, 19) + ' UTC · ' + s); } catch {} };
+window.addEventListener('error', e => dbg('error', `${e.message} @ ${(e.filename || '').split('/').pop()}:${e.lineno}:${e.colno}`));
+window.addEventListener('unhandledrejection', e => dbg('error', 'Unhandled: ' + (e.reason?.stack || e.reason?.message || e.reason)));
+for (const lvl of ['warn', 'error']) {
+  const orig = console[lvl].bind(console);
+  console[lvl] = (...a) => { dbg(lvl, a.map(x => x instanceof Error ? x.message : typeof x === 'object' ? (() => { try { return JSON.stringify(x).slice(0, 300); } catch { return String(x); } })() : String(x)).join(' ')); orig(...a); };
+}
+// The app was open and never went to the background, yet a new session started: iOS closed it (usually memory)
+if (localStorage.getItem('greenroom.alive') === '1') dbg('crash', 'The previous session ended unexpectedly while the app was open (iOS does this when the app runs out of memory). Last step: ' + (localStorage.getItem('greenroom.lastStep') || 'unknown'));
+try { localStorage.setItem('greenroom.alive', '1'); } catch {}
+document.addEventListener('visibilitychange', () => { try { localStorage.setItem('greenroom.alive', document.hidden ? '0' : '1'); } catch {} });
+window.addEventListener('pagehide', () => { try { localStorage.setItem('greenroom.alive', '0'); } catch {} });
+let storeWarned = false;
 const store = {
   get(k, d) { try { const v = localStorage.getItem('greenroom.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem('greenroom.' + k, JSON.stringify(v)); } catch {} },
+  set(k, v) {
+    try { localStorage.setItem('greenroom.' + k, JSON.stringify(v)); }
+    catch (e) { dbg('error', `Saving "${k}" failed: ${e.message}`); if (!storeWarned) { storeWarned = true; setTimeout(() => toast('Storage is full: some changes could not be saved. See Settings → Debug.'), 0); } }
+  },
   del(k) { try { localStorage.removeItem('greenroom.' + k); } catch {} }
 };
 const LOOK_DEFAULTS = {
   theme: 'original', accent: '', aiBubble: false,
   align: 'left', u_align: 'left', showNames: false, nameMode: 'theme', nameC: '#d9553b', showAvatars: false, avShape: 'circle',
-  bubbleShape: 'tail', showTimes: true, wide: false, u_wide: false,
+  bubbleShape: 'tail', showTimes: true, wide: false, u_wide: false, u_aiBubble: true,
   u_showNames: false, u_nameMode: 'theme', u_nameC: '#3d63f5', u_showAvatars: false, u_avShape: 'circle', u_bubbleShape: 'tail', u_showTimes: true,
   sides: 'default', spacing: 'normal', anim: 'none',
   aiFont: 'Fraunces', meFont: 'Inter',
@@ -1239,6 +1276,35 @@ const saveChars = () => store.set('chars', chars);
 const savePersonas = () => store.set('personas', personas);
 const saveChats = () => { store.set('chats', chats); renderChats(); };
 const msgsKey = id => 'msgs.' + id;
+// Messages live in IndexedDB (lots of room) with a copy in memory; localStorage only has a few MB.
+const MSG = new Map();
+const msgGet = id => MSG.get(id) || [];
+let msgWarned = false;
+function msgSet(id, arr) {
+  MSG.set(id, arr);
+  idb.put('m.' + id, arr).catch(e => { dbg('error', `Saving chat ${id} failed: ${e?.message || e}`); if (!msgWarned) { msgWarned = true; toast('A chat could not be saved. See Settings → Debug.'); } });
+}
+function msgDel(id) { MSG.delete(id); idb.del('m.' + id).catch(() => {}); }
+async function loadMsgs() {
+  try {
+    for (const k of await idb.keys()) {
+      if (typeof k !== 'string' || !k.startsWith('m.')) continue;
+      const id = k.slice(2);
+      if (!MSG.has(id)) MSG.set(id, (await idb.get(k)) || []);
+    }
+  } catch (e) { dbg('error', 'Loading chats from the database failed: ' + (e?.message || e)); }
+  // chats still in the small storage move over (removed there only once they're safely stored)
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i); if (!k?.startsWith('greenroom.msgs.')) continue;
+    const id = k.slice('greenroom.msgs.'.length);
+    try {
+      const v = JSON.parse(localStorage.getItem(k)) || [];
+      if (!MSG.get(id)?.length) MSG.set(id, v);
+      await idb.put('m.' + id, MSG.get(id));
+      localStorage.removeItem(k);
+    } catch (e) { dbg('error', `Moving chat ${id} failed: ${e?.message || e}`); }
+  }
+}
 let folders = store.get('folders', []);   // { id, kind: 'char'|'persona', name }
 let albums = store.get('albums', []);     // { id, name, images: [imageId] }  image data in IndexedDB as alb_<id>
 let lorebooks = store.get('lorebooks', []); // { id, name, global, depth, entries: [{ id, title, keys, content, always, on }] }
@@ -1314,7 +1380,7 @@ async function importBackup(file) {
   for (const k of Object.keys(lsDump())) localStorage.removeItem(PREFIX + k);
   await idb.clear().catch(() => {});
   for (const [k, v] of Object.entries(b.images || {})) await idb.put(k, v).catch(() => {});
-  for (const [k, v] of Object.entries(b.storage)) if (typeof v === 'string' && k !== 'bk.seeded') localStorage.setItem(PREFIX + k, v);
+  for (const [k, v] of Object.entries(b.storage)) if (typeof v === 'string' && !['bk.seeded', 'alive', 'lastStep'].includes(k)) localStorage.setItem(PREFIX + k, v);
   sessionStorage.setItem('restored', 'backup');
   location.reload();
 }
@@ -1372,6 +1438,7 @@ function applyLook() {
   document.body.dataset.color = L.colorMode;
   document.body.classList.toggle('glow', L.glow);
   document.body.classList.toggle('ai-bubble', L.aiBubble);
+  document.body.classList.toggle('me-nobubble', L.u_aiBubble === false);
   const B = document.body;
   B.dataset.aialign = L.align || 'left'; B.dataset.mealign = L.u_align || 'left';
   for (const [side, pre] of [['ai', ''], ['me', 'u_']]) {
@@ -1766,14 +1833,31 @@ function render() {
   try { renderLog(); } finally { rendering = false; }
   if (keep === null) scrollDown(); else sc.scrollTop = keep;
 }
+// Very long chats: only the newest messages are drawn; "Show earlier messages" adds more
+const SHOW_MAX = 120;
+let shownFrom = 0;
+function showEarlier(to) {
+  const sc = $('scroller'), oldH = sc.scrollHeight, top = sc.scrollTop;
+  shownFrom = Math.max(0, to ?? shownFrom - SHOW_MAX);
+  render();
+  if (to === undefined) sc.scrollTop = top + (sc.scrollHeight - oldH);
+}
 function renderLog() {
   const notes = [...$('log').querySelectorAll('.msg.err')].filter(e => e.dataset.chat === (cur?.chat.id || ''));
   $('log').innerHTML = '';
+  const t0 = performance.now();
+  if (shownFrom > history.length) shownFrom = Math.max(0, history.length - SHOW_MAX);
+  if (shownFrom > 0) {
+    const more = document.createElement('button'); more.type = 'button'; more.className = 'more-msgs';
+    more.textContent = `Show earlier messages (${shownFrom} more)`; more.onclick = () => showEarlier();
+    $('log').append(more);
+  }
   if (!history.length) {
     const e = document.createElement('div'); e.className = 'empty'; e.textContent = busy ? '' : `Say hi to ${cur ? cn(cur.c) : ''}.`;
     $('log').appendChild(e);
   }
-  for (const [i, m] of history.entries()) {
+  for (let i = shownFrom; i < history.length; i++) {
+    const m = history[i];
     const b = addBubble(m.role === 'user' ? 'me' : 'ai', m.content);
     b.dataset.i = i;
     if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => src ? showImage(f, src) : f.remove()).catch(() => f.remove()); }
@@ -1783,6 +1867,8 @@ function renderLog() {
     if (m.role === 'assistant') addAltNav(b, m, i);
   }
   for (const n of notes) $('log').append(n);
+  const ms = Math.round(performance.now() - t0);
+  if (ms > 400) dbg('slow', `Drawing ${history.length - shownFrom} messages took ${ms} ms`);
 }
 
 // ---------- Image generation ----------
@@ -2211,6 +2297,7 @@ async function imageForReply(i, again = false) {
 
 async function send(text, img, forceImage, doc, imgPrompt) {
   if (!ready()) return;
+  step(`send (chat has ${history.length} messages)`);
   const s = cur, hist = history;
   setBusy(true);
   for (const n of $('log').querySelectorAll('.msg.err')) n.remove();
@@ -2476,7 +2563,7 @@ async function writeOpening() {
 
 const lastText = h => (h.at(-1)?.content || '').slice(0, 200);
 function saveMsgs(chat, hist) {
-  store.set(msgsKey(chat.id), hist);
+  msgSet(chat.id, hist);
   chat.updated = Date.now(); chat.preview = lastText(hist); chat.count = hist.length;
   saveChats();
 }
@@ -2494,7 +2581,9 @@ function openChat(id) {
   if (cur && cur.chat.id !== id) leaveChat();
   cur = { chat, c, p: personaOf(chat) };
   $('profile').classList.remove('open'); // the chat view sits below the profile
-  history = store.get(msgsKey(id), []);
+  history = msgGet(id);
+  shownFrom = Math.max(0, history.length - SHOW_MAX);
+  step(`open chat (${history.length} messages)`);
   applyLook();
   toBottom = true; renderChatHead(); render(); openView('chat'); syncTools(); applyChatBg();
   if (!history.length) startChat();
@@ -2553,8 +2642,8 @@ $('bgDim').oninput = () => { if (!cur) return; cur.chat.bgDim = +$('bgDim').valu
 function deleteChat(id) {
   const gone = chats.find(x => x.id === id); if (gone?.bg) idb.del(gone.bg).catch(() => {});
   if (cur?.chat.id === id) { cur = null; history = []; $('chat').classList.remove('open'); }
-  for (const m of store.get(msgsKey(id), [])) for (const k of imagesOf(m)) idb.del(k).catch(() => {});
-  store.del(msgsKey(id));
+  for (const m of msgGet(id)) for (const k of imagesOf(m)) idb.del(k).catch(() => {});
+  msgDel(id);
   chats = chats.filter(x => x.id !== id); saveChats();
 }
 
@@ -2720,7 +2809,7 @@ function renderChats() {
         const txt = document.createElement('div');
         const who = document.createElement('div'); who.className = 'who';
         const nm = document.createElement('span'); nm.textContent = 'as ' + (p?.name || ch.personaName || 'no persona') + (ch.branchOf ? ' · branch' : '');
-        if (ch.count == null) ch.count = store.get(msgsKey(ch.id), []).length;
+        if (ch.count == null) ch.count = msgGet(ch.id).length;
         const tm = document.createElement('time'); tm.textContent = `${ch.count} message${ch.count === 1 ? '' : 's'} · ${when(ch.updated)}`;
         who.append(nm, tm);
         const snip = document.createElement('div'); snip.className = 'snip'; snip.textContent = stripMd(ch.preview);
@@ -2746,7 +2835,7 @@ function chatMenu(ch, c) {
   ]);
 }
 async function exportChat(ch, c, fmt) {
-  const msgs = store.get(msgsKey(ch.id), []), pn = personaOf(ch)?.name || ch.personaName || 'User', who = cn(c);
+  const msgs = msgGet(ch.id), pn = personaOf(ch)?.name || ch.personaName || 'User', who = cn(c);
   const stamp = new Date(ch.updated || Date.now()).toISOString().slice(0, 10);
   const base = `${who} - ${pn} - ${stamp}`.replace(/[^\p{L}\p{N} ._-]/gu, '').trim();
   let blob;
@@ -4088,7 +4177,7 @@ function setLookCtx(ctx) {
 
 // ---------- Settings page ----------
 // The text-style controls edit either the AI's or the user's text; user keys are stored with a u_ prefix
-const STYLE_KEYS = ['align', 'wide', 'showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'showTimes', 'fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
+const STYLE_KEYS = ['aiBubble', 'align', 'wide', 'showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'showTimes', 'fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
 let styleTarget = 'ai';
 const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
 const fontKey = () => styleTarget === 'me' ? 'meFont' : 'aiFont';
@@ -4217,7 +4306,41 @@ $('bkExport').onclick = exportBackup;
 $('bkImport').onclick = () => $('bkFile').click();
 $('bkFile').onchange = () => { const f = $('bkFile').files[0]; $('bkFile').value = ''; if (f) importBackup(f); };
 
+function syncDebug() {
+  const crashes = dbgLog.filter(e => e.type === 'crash').length, errors = dbgLog.filter(e => e.type === 'error').length;
+  $('dbgSummary').textContent = dbgLog.length ? `${dbgLog.length} entries in the log: ${crashes} crash${crashes === 1 ? '' : 'es'}, ${errors} error${errors === 1 ? '' : 's'}.` : 'The log is empty.';
+}
+$('dbgClear').onclick = () => { if (!confirm('Clear the debug log?')) return; dbgLog = []; store.set('debug', []); syncDebug(); };
+$('dbgReport').onclick = async () => {
+  try { await shareFile(`Green-Room-debug-${new Date().toISOString().slice(0, 16).replace(':', '')}.txt`, new Blob([await debugReport()], { type: 'text/plain' })); }
+  catch (e) { if (!(e?.name === 'AbortError' || /cancel/i.test(e?.message || ''))) toast('Could not make the report: ' + (e?.message || e)); }
+};
+async function debugReport() {
+  const est = await navigator.storage?.estimate?.().catch(() => null);
+  let ls = 0; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); ls += (k.length + (localStorage.getItem(k) || '').length) * 2; }
+  let imgs = 0; try { imgs = (await idb.keys()).filter(k => !String(k).startsWith('m.')).length; } catch {}
+  const kb = n => (n / 1024).toFixed(0) + ' KB', mb = n => (n / 1048576).toFixed(1) + ' MB';
+  const sizes = chats.map(ch => { const m = msgGet(ch.id); return { ch, n: m.length, bytes: JSON.stringify(m).length, img: m.filter(x => x.img).length }; }).sort((a, b) => b.bytes - a.bytes);
+  const safe = JSON.parse(JSON.stringify(cfg));
+  for (const l of ['proxies', 'imgProxies']) for (const p of safe[l] || []) { if (p.key) p.key = '(hidden)'; }
+  for (const k of ['systemPrompt', 'forbidden', 'summaryPrompt', 'enhancePrompt', 'writePrompt']) if (typeof safe[k] === 'string') safe[k] = `(${safe[k].length} characters)`;
+  const L = [
+    'Green Room debug report', 'Made: ' + new Date().toISOString(), '',
+    '== Device', 'User agent: ' + navigator.userAgent, `Screen: ${screen.width}x${screen.height} @${devicePixelRatio}x, window ${innerWidth}x${innerHeight}`,
+    'Memory (if known): ' + (navigator.deviceMemory ? navigator.deviceMemory + ' GB' : 'unknown'), 'Native app: ' + !!window.Capacitor?.isNativePlatform?.(), '',
+    '== Storage', 'Small storage (localStorage, ~5 MB max): ' + mb(ls), est ? `Database: ${mb(est.usage || 0)} used of ${mb(est.quota || 0)}` : 'Database: unknown', `Images stored: ${imgs}`, '',
+    '== Content', `Characters: ${chars.length}, personas: ${personas.length}, chats: ${chats.length}, lorebooks: ${lorebooks.length}, albums: ${albums.length}`,
+    `Messages in total: ${sizes.reduce((a, x) => a + x.n, 0)}`, 'Largest chats:',
+    ...sizes.slice(0, 8).map(x => `  ${x.n} messages, ${kb(x.bytes)} text, ${x.img} pictures (chat ${x.ch.id.slice(0, 6)}, ${chars.find(c => c.id === x.ch.charId)?.name || '?'})`), '',
+    '== Open chat', cur ? `${history.length} messages, ${history.length - shownFrom} drawn` : 'none', '',
+    '== Last step', localStorage.getItem('greenroom.lastStep') || 'unknown', '',
+    `== Log (${dbgLog.length} entries, newest last)`, ...dbgLog.map(e => `${e.t}  ${e.type.toUpperCase()}  ${e.msg}`), '',
+    '== Settings (API keys and prompts left out)', JSON.stringify(safe, null, 1),
+  ];
+  return L.join('\n');
+}
 function openSettings() {
+  syncDebug();
   loadFonts(Object.keys(FONTS));
   renderProxyBoxes(); syncGenSummaries();
   openView('settings');
@@ -4264,7 +4387,7 @@ async function cancelReach(chat) {
 async function queueReachOut(chat) {
   if (!chat?.reachOut || chat.pendingReach || reachBusy.has(chat.id)) return;
   const c = chars.find(x => x.id === chat.charId); if (!c) return;
-  const hist = store.get(msgsKey(chat.id), []);
+  const hist = msgGet(chat.id);
   if (!hist.some(m => m.role === 'user') || hist.at(-1)?.reach) return; // nothing to react to / still unanswered
   const a = api(chat); if (!a.url || !a.model) return;
   const p = personaOf(chat), mins = reachDelay(chat);
@@ -4286,9 +4409,9 @@ function deliverReach() {
   let any = false;
   for (const ch of chats) {
     const pr = ch.pendingReach; if (!pr || pr.at > Date.now()) continue;
-    const hist = cur?.chat.id === ch.id ? history : store.get(msgsKey(ch.id), []);
+    const hist = cur?.chat.id === ch.id ? history : msgGet(ch.id);
     hist.push({ role: 'assistant', content: pr.text, t: pr.at, reach: true });
-    store.set(msgsKey(ch.id), hist);
+    msgSet(ch.id, hist);
     ch.updated = pr.at; ch.preview = lastText(hist);
     delete ch.pendingReach; any = true;
     if (cur?.chat.id === ch.id) render();
@@ -4345,7 +4468,7 @@ async function branchFrom(i) {
   const copy = { ...JSON.parse(JSON.stringify(src)), id: uid(), created: Date.now(), updated: Date.now(), branchOf: src.id, preview: lastText(msgs) };
   if (copy.bg) copy.bg = await copyKey(copy.bg);
   copy.summarizedUpTo = Math.min(src.summarizedUpTo || 0, msgs.length);
-  chats.push(copy); store.set(msgsKey(copy.id), msgs); saveChats();
+  chats.push(copy); msgSet(copy.id, msgs); saveChats();
   openChat(copy.id); toast('Branched into a new chat. The original is unchanged.');
 }
 
@@ -4353,6 +4476,7 @@ async function branchFrom(i) {
 function gotoMsg(i) {
   for (const v of ['chatimgs', 'chatset']) $(v).classList.remove('open');
   if (lb.classList.contains('open')) closeLightbox();
+  if (i < shownFrom) showEarlier(Math.max(0, i - 10));
   requestAnimationFrame(() => {
     const el = $('log').querySelector(`.msg[data-i="${i}"]`); if (!el) return;
     el.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -4439,7 +4563,7 @@ $('chatSearch').addEventListener('input', () => {
   const hits = [];
   for (const ch of [...chats].sort((a, b) => b.updated - a.updated)) {
     const c = chars.find(x => x.id === ch.charId); if (!c || !ch.preview) continue;
-    store.get(msgsKey(ch.id), []).forEach((m, i) => { if (stripMd(m.content || '').toLowerCase().includes(q.toLowerCase())) hits.push({ ch, c, m, i }); });
+    msgGet(ch.id).forEach((m, i) => { if (stripMd(m.content || '').toLowerCase().includes(q.toLowerCase())) hits.push({ ch, c, m, i }); });
     if (hits.length > 150) break;
   }
   if (!hits.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.textContent = 'Nothing found.'; return list.append(e); }
@@ -5026,7 +5150,7 @@ document.addEventListener('click', e => { const h = e.target.closest('.page-head
     if (old.length) {
       const p = personas.find(x => x.id === cfg.activePersona);
       const ch = { id: uid(), charId: c.id, personaId: p?.id || '', personaName: p?.name || '', created: Date.now(), updated: Date.now(), preview: lastText(old) };
-      chats.push(ch); store.set(msgsKey(ch.id), old);
+      chats.push(ch); msgSet(ch.id, old);
     }
     store.del('chat.' + c.id);
     moved = true;
@@ -5069,8 +5193,7 @@ initFolds();
 applyLook();
 renderList('char');
 renderList('persona');
-deliverReach();
-renderChats();
+loadMsgs().then(() => { deliverReach(); renderChats(); step('started'); });
 if (sessionStorage.getItem('restored')) { sessionStorage.removeItem('restored'); setTimeout(() => toast('Backup restored'), 0); }
 // Clean up the automatic-backup copy an earlier build wrote
 if (FS && store.get('bk.seeded', false)) { FS.rmdir({ path: 'GreenRoom', directory: 'LIBRARY', recursive: true }).catch(() => {}); store.del('bk.seeded'); }
