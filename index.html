@@ -1660,27 +1660,30 @@ async function httpError(res) {
   return new Error(`${res.status}${res.statusText ? ' ' + res.statusText : ''}: ${msg || 'no details'}`);
 }
 
-// References, in order of importance: 1) the character card image + the physical description from
-// Personality, 2) the last picture the character sent in this chat, for consistency.
-// If the model refuses two images it gets the card only, then text only.
+// References, in order of importance. The character's pictures: 1) the character card (looks + style),
+// 2) the last picture the character sent, for consistency. The user's pictures: 1) the character card for
+// the style only, 2) the persona's picture for the user's looks. refs.list overrides: [{ url, label, desc }].
+// If the model refuses two images it gets the first only, then the pictures described in words.
+function charRefs(refs, name) {
+  const card = refs?.card, last = refs?.last && refs.last !== refs.card ? refs.last : null;
+  const style = 'the visual style (medium, rendering, line work, colour palette, lighting)';
+  return [
+    card && { url: card, label: `${name}'s character card: the main reference for ${name}'s appearance and ${style}. Follow it first.`, desc: `${name}'s character card: describe ${name}'s appearance and the visual style` },
+    last && { url: last, label: card ? `the last picture ${name} sent in this chat: keep outfit, hair, setting and mood consistent with it; where it differs from reference 1, reference 1 wins.` : `the last picture ${name} sent in this chat: keep ${name}'s appearance and ${style} consistent with it.`, desc: `the last picture ${name} sent: describe ${name}'s outfit, hair and setting${card ? '' : ', and the visual style'}` },
+  ].filter(Boolean);
+}
 async function generateImage(prompt, refs, who, about) {
   about = (about || '').trim().slice(0, 2000);
   const name = who || 'the character';
   const extra = about ? `\n\nAbout ${name} (their looks and details; follow this whenever they appear):\n${about}` : '';
   const imagesApi = /images\/generations$/.test(endpoint(imgApi().url));
-  const card = refs?.card, last = refs?.last && refs.last !== refs.card ? refs.last : null;
+  const list = refs?.list ? refs.list.filter(r => r.url) : charRefs(refs, name);
+  const only = refs?.list ? '' : `\nOnly put ${name} in the picture if the description below is about them; if it shows something else (a pet, food, a place), keep just the visual style.`;
+  const ask = rs => [...rs.map(r => ({ type: 'image_url', image_url: { url: r.url } })),
+    { type: 'text', text: `${rs.length > 1 ? rs.map((r, i) => `Reference ${i + 1} is ${r.label}`).join('\n') : `The reference image is ${rs[0].label}`}${only}\n\nImage to create: ${prompt}${extra}` }];
   const attempts = [];
-  if (!imagesApi && (card || last)) {
-    const imgs = [card, last].filter(Boolean);
-    const lines = card && last
-      ? `Reference 1 is ${name}'s character card: the main reference for their appearance and the visual style (medium, rendering, line work, colour palette, lighting). Follow it first.\nReference 2 is the last picture ${name} sent in this chat: use it to keep things consistent (outfit, hair, setting, mood), but where it differs from reference 1, reference 1 wins.`
-      : card ? `The reference image is ${name}'s character card: match their appearance and the visual style exactly (medium, rendering, line work, colour palette, lighting).`
-      : `The reference image is the last picture ${name} sent in this chat: keep their appearance and the visual style consistent with it.`;
-    const only = `\nOnly put ${name} in the picture if the description below is about them; if it shows something else (a pet, food, a place), keep just the visual style.`;
-    attempts.push([...imgs.map(url => ({ type: 'image_url', image_url: { url } })), { type: 'text', text: `${lines}${only}\n\nImage to create: ${prompt}${extra}` }]);
-    if (card && last) attempts.push([{ type: 'image_url', image_url: { url: card } }, { type: 'text', text: `The reference image is ${name}'s character card: match their appearance and the visual style exactly (medium, rendering, line work, colour palette, lighting).${only}\n\nImage to create: ${prompt}${extra}` }]);
-  }
-  const pr = proxyFor('img'), imgs = [card, last].filter(Boolean);
+  if (!imagesApi && list.length) { attempts.push(ask(list)); if (list.length > 1) attempts.push(ask(list.slice(0, 1))); }
+  const pr = proxyFor('img');
   // This image proxy is known not to take reference images: go straight to the described version
   if (pr.noRefs) attempts.length = 0;
   const errors = [];
@@ -1690,28 +1693,28 @@ async function generateImage(prompt, refs, who, about) {
   }
   // No reference images possible: the chat model looks at them and describes them in words instead
   let looks = '';
-  if (imgs.length) { try { looks = await describeRefs(imgs, name); } catch (e) { if (isAbort(e)) throw e; } }
+  if (list.length) { try { looks = await describeRefs(list); } catch (e) { if (isAbort(e)) throw e; console.warn('Describing the reference pictures failed', e); } }
   try {
-    const out = await requestImage(prompt + extra + (looks ? `\n\nFrom ${name}'s reference pictures (described in words):\n${looks}\nThe visual style above always applies. The appearance only applies to ${name}: use it only if ${name} is in the picture, and never give anyone else ${name}'s looks.` : ''));
+    const out = await requestImage(prompt + extra + (looks ? `\n\nFrom the reference pictures (described in words):\n${looks}\nThe visual style always applies. A person's described appearance only applies to that person, and only if they are in the picture; never give anyone else their looks.` : ''));
     if (attempts.length && pr.id && !pr.noRefs) { pr.noRefs = true; saveCfg(); }
     return out;
   } catch (e) { if (isAbort(e)) throw e; errors.push(e); }
   const [lastErr, ...earlier] = errors.reverse();
   throw new Error(lastErr.message + (earlier.length ? `\n\nWith reference images it failed too: ${earlier.map(e => e.message).join(' / ')}` : ''));
 }
-// The chat model describes the reference pictures (card first) for an image proxy that can't take them.
-// Descriptions are kept per picture, so each one is only described once.
+// The chat model describes the reference pictures for an image proxy that can't take them.
+// Descriptions are kept per set of pictures, so each set is only described once.
 const refKey = src => { let h = 2166136261; for (let i = 0; i < src.length; i += Math.max(1, src.length >> 12)) h = Math.imul(h ^ src.charCodeAt(i), 16777619); return 'desc_' + (h >>> 0).toString(36) + '_' + src.length; };
-async function describeRefs(imgs, name) {
-  const key = refKey(imgs.join('|'));
+async function describeRefs(list) {
+  const key = refKey(list.map(r => r.desc + r.url).join('|'));
   const kept = await idb.get(key).catch(() => null); if (kept) return kept;
   const a = api(); if (!a.url || !a.model) return '';
-  const which = imgs.length > 1 ? `Picture 1 is ${name}'s character card (the main reference); picture 2 is the last picture ${name} sent (for outfit, hair and setting; where they differ, picture 1 wins).` : `The picture is ${name}'s character card.`;
+  const which = list.map((r, i) => `Picture ${i + 1} is ${r.desc}.`).join('\n');
   const out = await streamChat([
     { role: 'system', content: 'You describe reference pictures for an image generator that cannot see them. Be concrete and visual. Output only the description, no preamble.' },
-    { role: 'user', content: [...imgs.map(url => ({ type: 'image_url', image_url: { url } })), { type: 'text', text: `${which}\n\nDescribe in detail, as one compact paragraph of at most 200 words: 1) ${name}'s appearance: face, age, skin, hair (colour, length, style), eyes, build, distinguishing marks, clothing and accessories; 2) the visual style: medium (photo, anime, oil painting, 3D…), rendering, line work, colour palette and lighting.` }] },
+    { role: 'user', content: [...list.map(r => ({ type: 'image_url', image_url: { url: r.url } })), { type: 'text', text: `${which}\n\nDescribe what is asked for each picture in detail, in at most 220 words. For a person: face, age, skin, hair (colour, length, style), eyes, build, distinguishing marks, clothing and accessories, and say whose appearance it is. For the visual style: medium (photo, anime, oil painting, 3D…), rendering, line work, colour palette and lighting.` }] },
   ], () => {}, { free: true });
-  const text = out.replace(TAG, '').trim().slice(0, 1800);
+  const text = out.replace(TAG, '').trim().slice(0, 2000);
   if (text) idb.put(key, text).catch(() => {});
   return text;
 }
@@ -4555,8 +4558,14 @@ function openGenImg() {
 $('giClose').onclick = () => { $('giPanel').hidden = true; document.activeElement?.blur(); };
 // Makes the user's picture: their persona's picture and description keep the looks
 async function userPicture(s, prompt) {
-  const p = s.p, ref = p?.img ? await idb.get(p.img).catch(() => null) : null;
-  return generateImage(prompt, { card: ref }, userName(p), fill(p?.personality || '', s.c, p));
+  const { c, p } = s, u = userName(p), cc = cn(c);
+  const card = c.img ? await idb.get(c.img).catch(() => null) : null;
+  const mine = p?.img ? await idb.get(p.img).catch(() => null) : null;
+  const list = [
+    card && { url: card, label: `${cc}'s character card: match ONLY its visual style (medium, rendering, line work, colour palette, lighting). Do not put ${cc} or anything else from it in the picture unless the description asks for it.`, desc: `${cc}'s character card: describe only the visual style, not the person` },
+    mine && { url: mine, label: `a picture of ${u}: how ${u} looks. Use it only if ${u} is in the picture, and draw ${u} in the visual style of the other reference.`, desc: `a picture of ${u}: describe ${u}'s appearance` },
+  ].filter(Boolean);
+  return generateImage(prompt, { list }, u, fill(p?.personality || '', c, p));
 }
 let giBusy = false;
 $('giGo').onclick = async () => {
@@ -4660,6 +4669,7 @@ $('attachFile').onchange = async () => {
   try { setAttached(await readImage(f, 1280)); } catch (e) { toast(e.message); }
 };
 $('attachRm').onclick = () => setAttached(null);
+$('attachPv').onclick = e => { if (attached && !e.target.closest('#attachRm')) openLightbox(attached); };
 $('composer').onsubmit = e => {
   e.preventDefault();
   if (busy) { if (e.submitter === $('send')) abortCtl?.abort(); return; }
