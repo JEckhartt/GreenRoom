@@ -189,6 +189,10 @@
   .cgroup > .swipe { border-radius: 0; }
   .cgroup > .swipe > .item { border: 0; border-radius: 0; }
   .cgroup .sublist { padding: 0 14px; }
+  /* Privacy: blurred pictures outside the chat and the editor */
+  body.blur-pics :is(#chars, #personas, #chats, #profile, #sheet, #home) .pic { filter: blur(10px); clip-path: inset(0 round 12px); }
+  body.blur-pics #profHero.pic { clip-path: inset(0 round 18px); }
+  body.blur-pics :is(#chats, #sheet) .av.pic { clip-path: circle(50%); }
   .badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 999px; }
   .list-empty { text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
 
@@ -946,6 +950,14 @@ Empty = send everything.</div>
     </div>
     </details>
 
+    <details class="sec" data-sec="privacy">
+    <summary class="group-title">Privacy</summary>
+    <div class="card">
+      <div class="line"><span>Blur character and persona pictures</span><input type="checkbox" class="tgl" data-k="blurPics"></div>
+      <div class="hint">Pictures are blurred in the lists, on the Chats screen and on the profile. Inside a chat and in the editor they stay sharp. Tap the picture on a profile to see it unblurred.</div>
+    </div>
+    </details>
+
     <details class="sec" data-sec="backup">
     <summary class="group-title">Backup</summary>
     <div class="card">
@@ -1238,6 +1250,7 @@ const MD_ELS = [
   const st = document.createElement('style'); st.textContent = css.join('\n'); document.head.append(st);
 })();
 function applyLook() {
+  document.body.classList.toggle('blur-pics', !!cfg.blurPics);
   const L = activeLook();
   const root = document.documentElement, s = root.style;
   root.dataset.theme = L.theme;
@@ -2673,13 +2686,13 @@ $('chatProfile').onclick = () => cur && openProfile(cur.c.id);
 // ---------- Character & persona lists ----------
 const avatarCache = new Map();
 async function setThumb(el, it) {
-  el.style.background = ''; el.textContent = (it.name || '?').trim().charAt(0).toUpperCase();
+  el.style.background = ''; el.classList.remove('pic'); el.textContent = (it.name || '?').trim().charAt(0).toUpperCase();
   if (!it.img) return;
   const key = it.img;
   if (!avatarCache.has(key)) avatarCache.set(key, idb.get(key).catch(() => null));
   const src = await avatarCache.get(key);
   // scaled to fit: the whole picture shows, never cropped
-  if (src && it.img === key) { el.style.background = `var(--accent-soft) url("${src}") center / contain no-repeat`; el.textContent = ''; }
+  if (src && it.img === key) { el.style.background = `var(--accent-soft) url("${src}") center / contain no-repeat`; el.textContent = ''; el.classList.add('pic'); }
 }
 
 const folderSvg = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
@@ -4638,7 +4651,17 @@ $('plusBtn').onclick = () => {
 };
 document.addEventListener('pointerdown', e => { if (!$('plusMenu').hidden && !e.target.closest('#plusMenu, #plusBtn')) hidePlus(); }, true);
 // tapping + (or an option in its menu) doesn't take the focus away from the text field, so the keyboard stays
-for (const el of [$('plusBtn'), $('plusMenu')]) el.addEventListener('pointerdown', e => { if (document.activeElement === input) e.preventDefault(); });
+// iOS takes the focus on touchstart, so while you're typing the touch is swallowed and the tap is done here
+for (const el of [$('plusBtn'), $('plusMenu')]) {
+  el.addEventListener('mousedown', e => { if (document.activeElement === input) e.preventDefault(); });
+  el.addEventListener('touchstart', e => { if (document.activeElement === input) e.preventDefault(); }, { passive: false });
+  el.addEventListener('touchend', e => {
+    if (document.activeElement !== input) return;
+    e.preventDefault();
+    const b = (document.elementFromPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY) || e.target).closest('button');
+    if (b && el.contains(b)) b.click();
+  }, { passive: false });
+}
 $('plusMenu').onclick = e => {
   const act = e.target.closest('button')?.dataset.act; if (!act) return;
   hidePlus();

@@ -10,6 +10,7 @@ A character chat app: create characters and chat with them. Built on the Nearly 
    - **Image proxy**: same, for images. **Generate images** off (or off per chat) makes it a normal roleplay: the character describes pictures in words. Only used when you explicitly ask for an image. With chat-style image models the character's image is sent as a style reference
    - **Generation**: presets with temperature, max reply length (the AI is also told to stay within it), top-p, top-k, min-p and repetition/frequency/presence penalties (empty = model default); show or hide the thinking of reasoning models; context size (oldest messages are left out beyond it)
    - **Prompt**: your system prompt, sent with every message, and forbidden words the AI is told never to use
+   - **Privacy**: blur character and persona pictures in the lists, Chats screen and profile (sharp inside a chat and in the editor; tap the profile picture to see it)
    - **Backup**: export / import everything as one file
    - **Themes**: Default / Light / Dark, accent color, AI message bubble
    - **Customization**: separately for AI text and your text: font, size, weight, spacing, glow, color/gradient, and a Markdown section that gives quoted text, italic, bold, strikethrough, code, headings, list bullets, quote blocks, links and dividers each their own color (chats only). **Match user** (under Style AI text) and **Match AI** (under Style your text) copy one side's style to the other
