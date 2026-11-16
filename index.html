@@ -231,6 +231,8 @@
   body[data-spacing=compact] #log { gap: 8px; } body[data-spacing=airy] #log { gap: 32px; }
   body[data-spacing=compact] .preview { gap: 6px; } body[data-spacing=airy] .preview { gap: 22px; }
   body.notime-ai .msg.ai .ts, body.notime-me .msg.me .ts { display: none; }
+  /* full width: edge to edge (the picture keeps its spot next to it) */
+  body.wide-ai :is(#log, #preview) .msg.ai, body.wide-me :is(#log, #preview) .msg.me { align-self: stretch; max-width: none; }
   @keyframes msgFade { from { opacity: 0; } }
   @keyframes msgSlide { from { opacity: 0; transform: translateY(16px); } }
   body[data-anim=fade] .msg.new { animation: msgFade .45s ease-out; }
@@ -1055,6 +1057,8 @@ Empty = send everything.</div>
         <button type="button" data-v="tail">Tail</button>
         <button type="button" data-v="sharp">Sharp</button>
       </div>
+      <div class="line"><span>Full width <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="wide"></div>
+      <div class="hint" style="margin-top:2px">The message fills the screen from side to side, bubble and all.</div>
       <div class="line"><span>Timestamps <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="showTimes"></div>
       <p class="sub" style="margin:16px 0 0">For all messages</p>
       <label class="f">Where messages sit</label>
@@ -1063,7 +1067,7 @@ Empty = send everything.</div>
         <button type="button" data-v="left">All left</button>
         <button type="button" data-v="right">All right</button>
       </div>
-      <div class="hint">All right puts everything on the right: the character's and your messages, pictures and names.</div>
+      <div class="hint">All left or All right puts everything on that side: the character's and your messages, pictures and names.</div>
       <label class="f">Space between messages</label>
       <div class="seg" data-k="spacing">
         <button type="button" data-v="compact">Compact</button>
@@ -1196,7 +1200,7 @@ const store = {
 const LOOK_DEFAULTS = {
   theme: 'original', accent: '', aiBubble: false,
   align: 'left', u_align: 'left', showNames: false, nameMode: 'theme', nameC: '#d9553b', showAvatars: false, avShape: 'circle',
-  bubbleShape: 'tail', showTimes: true,
+  bubbleShape: 'tail', showTimes: true, wide: false, u_wide: false,
   u_showNames: false, u_nameMode: 'theme', u_nameC: '#3d63f5', u_showAvatars: false, u_avShape: 'circle', u_bubbleShape: 'tail', u_showTimes: true,
   sides: 'default', spacing: 'normal', anim: 'none',
   aiFont: 'Fraunces', meFont: 'Inter',
@@ -1372,6 +1376,7 @@ function applyLook() {
   B.dataset.aialign = L.align || 'left'; B.dataset.mealign = L.u_align || 'left';
   for (const [side, pre] of [['ai', ''], ['me', 'u_']]) {
     B.classList.toggle('names-' + side, !!L[pre + 'showNames']); B.classList.toggle('avs-' + side, !!L[pre + 'showAvatars']);
+    B.classList.toggle('wide-' + side, !!L[pre + 'wide']);
     B.classList.toggle('avsq-' + side, L[pre + 'avShape'] === 'square'); B.classList.toggle('notime-' + side, L[pre + 'showTimes'] === false);
     B.dataset['bubble' + side] = L[pre + 'bubbleShape'] || 'tail';
     L[pre + 'nameMode'] === 'custom' ? s.setProperty('--name-' + side, L[pre + 'nameC']) : s.removeProperty('--name-' + side);
@@ -4083,7 +4088,7 @@ function setLookCtx(ctx) {
 
 // ---------- Settings page ----------
 // The text-style controls edit either the AI's or the user's text; user keys are stored with a u_ prefix
-const STYLE_KEYS = ['align', 'showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'showTimes', 'fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
+const STYLE_KEYS = ['align', 'wide', 'showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'showTimes', 'fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
 let styleTarget = 'ai';
 const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
 const fontKey = () => styleTarget === 'me' ? 'meFont' : 'aiFont';
