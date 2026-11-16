@@ -1411,9 +1411,12 @@ const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 // A chat can override any customization; lookCtx says whether the controls edit the global look or the open chat's
 let lookCtx = 'global';
 const LOOK_KEYS = Object.keys(LOOK_DEFAULTS);
-// A chat follows the global style (Global switch on) or has its own
-const followsGlobal = ch => ch.lookGlobal ?? !(ch.look && Object.keys(ch.look).length);
-const chatLook = () => cur?.chat && !followsGlobal(cur.chat) ? { ...cfg, ...(cur.chat.look || {}) } : cfg;
+// A chat follows the global style (Global switch on) or has its own. The theme always belongs to the chat.
+const THEME_KEYS = ['theme', 'accent'];
+const styleKeysOf = look => Object.keys(look || {}).filter(k => !THEME_KEYS.includes(k));
+const themeOf = look => Object.fromEntries(Object.entries(look || {}).filter(([k]) => THEME_KEYS.includes(k)));
+const followsGlobal = ch => ch.lookGlobal ?? !styleKeysOf(ch.look).length;
+const chatLook = () => !cur?.chat ? cfg : followsGlobal(cur.chat) ? { ...cfg, ...themeOf(cur.chat.look) } : { ...cfg, ...(cur.chat.look || {}) };
 const lookToChat = () => lookCtx === 'chat' && !!cur && !followsGlobal(cur.chat);
 const activeLook = () => lookCtx === 'global' && $('settings').classList.contains('open') ? cfg : chatLook();
 function isDark() { const t = activeLook().theme; return t === 'dark' || (t === 'original' && darkMQ.matches); }
@@ -4218,7 +4221,7 @@ const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
 const fontKey = () => styleTarget === 'me' ? 'meFont' : 'aiFont';
 
 const CONTROLS = '#settings [data-k], #lookBlock [data-k], #themeBlock [data-k]';
-const editLook = () => lookToChat() ? chatLook() : cfg;
+const editLook = () => lookCtx === 'chat' && cur ? chatLook() : cfg;
 let lastAnim = null;
 function syncControls() {
   const L = editLook();
@@ -4252,21 +4255,22 @@ function syncControls() {
     for (const m of document.querySelectorAll('#preview .msg')) { m.classList.remove('new'); void m.offsetWidth; m.classList.add('new'); }
   }
   const own = lookToChat();
-  if (lookCtx === 'chat' && cur) $('csGlobalLook').checked = !own;
+  if (lookCtx === 'chat' && cur) { $('csGlobalLook').checked = !own; $('chatLookHost').hidden = !own; }
   $('resetLook').hidden = lookCtx === 'chat';
   $('resetLook').textContent = lookCtx === 'chat' ? 'Use global style' : 'Reset customization';
   $('resetLook').disabled = lookCtx === 'chat' && !own;
-  $('chatLookState').textContent = own ? 'This chat has its own style. Changes here only apply to this chat.' : 'Global is on: this chat uses the global style, and changes here change it for every chat that uses it.';
+  $('chatLookState').textContent = own ? 'This chat has its own style. Changes here only apply to this chat.' : 'Uses the style from Settings. Turn off Global to give this chat its own.';
 }
 
 // Look keys go to the open chat in chat settings, otherwise to the global config
 function writeLook(k, v) {
-  if (lookToChat() && LOOK_KEYS.includes(k)) (cur.chat.look ||= {})[k] = v;
+  const toChat = lookCtx === 'chat' && cur && (lookToChat() || THEME_KEYS.includes(k));
+  if (toChat && LOOK_KEYS.includes(k)) (cur.chat.look ||= {})[k] = v;
   else cfg[k] = v;
 }
 function update(k, v) {
   writeLook(k, v);
-  lookToChat() && LOOK_KEYS.includes(k) ? store.set('chats', chats) : saveCfg();
+  lookCtx === 'chat' && cur && (lookToChat() || THEME_KEYS.includes(k)) && LOOK_KEYS.includes(k) ? store.set('chats', chats) : saveCfg();
   applyLook(); syncControls();
 }
 
@@ -4325,8 +4329,12 @@ function buildSettings() {
   $('accentReset').onclick = () => update('accent', '');
   $('csGlobalLook').onchange = () => {
     const ch = cur?.chat; if (!ch) return;
-    if ($('csGlobalLook').checked) { if (ch.look && Object.keys(ch.look).length) ch.lookStash = ch.look; delete ch.look; ch.lookGlobal = true; }
-    else { ch.look = ch.lookStash || {}; delete ch.lookStash; ch.lookGlobal = false; } // its own style comes back as it was
+    if ($('csGlobalLook').checked) {
+      // the style is put away (the theme stays with the chat)
+      const style = Object.fromEntries(Object.entries(ch.look || {}).filter(([k]) => !THEME_KEYS.includes(k)));
+      if (Object.keys(style).length) ch.lookStash = style;
+      ch.look = themeOf(ch.look); ch.lookGlobal = true;
+    } else { ch.look = { ...(ch.lookStash || {}), ...themeOf(ch.look) }; delete ch.lookStash; ch.lookGlobal = false; } // its own style comes back as it was
     store.set('chats', chats); applyLook(); syncControls();
   };
   $('resetLook').onclick = () => {
