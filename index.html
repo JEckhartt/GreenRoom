@@ -162,6 +162,7 @@
   .view { position: fixed; inset: 0; bottom: var(--kb); z-index: 20; background: var(--bg); display: flex; flex-direction: column;
     transform: translateX(100%); visibility: hidden; transition: transform .3s cubic-bezier(.2,.8,.2,1), visibility 0s .3s; }
   .view.open { transform: none; visibility: visible; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+  .page-head .act.plus { font-size: 30px; font-weight: 400; line-height: 1; padding: 0 6px; }
   .page-head .act { justify-self: end; background: none; border: 0; color: var(--accent); font-size: 17px; font-weight: 600; padding: 6px 4px; cursor: pointer; }
 
   /* ---------- Title screen ---------- */
@@ -185,6 +186,11 @@
   .item h3 { margin: 2px 0 4px; font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
   .item p { margin: 0; font-size: 14px; line-height: 1.4; color: var(--ink-soft); white-space: pre-line; overflow-wrap: anywhere;
     display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+  #charList .item p { -webkit-line-clamp: 4; }
+  #charList .thumb { aspect-ratio: 9 / 8; background-position: center top; }
+  .cexp { display: flex; gap: 8px; padding: 8px 2px 4px; animation: anIn .2s cubic-bezier(.2,.8,.2,1); }
+  .cexp button { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--field); color: var(--accent); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .cexp button:active { background: var(--accent-soft); }
   .badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 999px; }
   .list-empty { text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
 
@@ -488,9 +494,8 @@
 </section>
 
 <section id="chars" class="view" aria-label="Characters">
-  <div class="page-head"><button class="back" data-close="chars" type="button">‹ Back</button><h1>Characters</h1><span></span></div>
-  <div class="page-body"><div class="page-inner">
-    <div class="create linkrow" style="gap:8px"><button type="button" id="newChar" style="flex:2">+ Create new character</button><button type="button" id="genChar" style="flex:1">Generate</button></div>
+  <div class="page-head"><button class="back" data-close="chars" type="button">‹ Back</button><h1>Characters</h1><button class="act plus" id="charAdd" type="button" aria-label="New character">+</button></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="items" id="charList"></div>
   </div></div>
   <div class="selbar" id="charSel" hidden><span></span><button class="btn" type="button" data-act="move">Move</button><button class="btn danger" type="button" data-act="delete">Delete</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
@@ -1460,6 +1465,9 @@ const authHeaders = key => ({ 'Content-Type': 'application/json', ...(key ? { Au
 
 // ---------- Rendering ----------
 function scrollDown() { const s = $('scroller'); s.scrollTop = s.scrollHeight; }
+// Only follow the end of the chat when the reader is already there
+const nearBottom = () => { const s = $('scroller'); return s.scrollHeight - s.scrollTop - s.clientHeight < 80; };
+let rendering = false, toBottom = false;
 
 function addBubble(role, text) {
   $('log').querySelector('.empty')?.remove();
@@ -1468,7 +1476,7 @@ function addBubble(role, text) {
   if (role === 'err') { el.textContent = text; el.dataset.chat = cur?.chat.id || ''; console.warn(text); }
   else { const t = document.createElement('span'); t.className = 'txt'; rich(t, text); el.appendChild(t); }
   $('log').appendChild(el);
-  scrollDown();
+  if (!rendering) scrollDown();
   return el;
 }
 const setText = (bubble, text) => rich(bubble.querySelector('.txt'), text);
@@ -1571,7 +1579,8 @@ const stripMd = t => (t || '').replace(/gr:\/\/img\/[A-Za-z0-9_-]+/g, '').replac
 function addFigure(bubble) {
   const f = document.createElement('figure'); f.className = 'gen';
   f.innerHTML = '<div class="wait">Making an image…</div>';
-  bubble.appendChild(f); scrollDown();
+  const stick = !rendering && nearBottom();
+  bubble.appendChild(f); if (stick) scrollDown();
   return f;
 }
 // "14:05" today, otherwise "3 Nov, 14:05"
@@ -1605,7 +1614,7 @@ function addFileChip(bubble, file) {
 }
 function showImage(fig, src) {
   const img = new Image(); img.alt = ''; img.src = src;
-  img.onload = scrollDown;
+  img.onload = () => { if (nearBottom()) scrollDown(); };
   img.onerror = () => {
     const e = document.createElement('div'); e.className = 'wait'; e.style.animation = 'none'; e.style.padding = '12px'; e.style.textAlign = 'center';
     e.textContent = /^https?:/i.test(src) ? `The image could not be loaded (the link may have expired or be blocked): ${src.slice(0, 120)}` : 'The image data is damaged and could not be shown.';
@@ -1616,6 +1625,12 @@ function showImage(fig, src) {
 }
 
 function render() {
+  const sc = $('scroller'), keep = toBottom || nearBottom() ? null : sc.scrollTop;
+  toBottom = false; rendering = true;
+  try { renderLog(); } finally { rendering = false; }
+  if (keep === null) scrollDown(); else sc.scrollTop = keep;
+}
+function renderLog() {
   const notes = [...$('log').querySelectorAll('.msg.err')].filter(e => e.dataset.chat === (cur?.chat.id || ''));
   $('log').innerHTML = '';
   if (!history.length) {
@@ -1961,7 +1976,7 @@ async function streamChat(messages, onText, opts = {}) {
 // into: an existing reply that gets this as an extra alternative instead of a new message
 async function aiTurn(s, hist, messages, bubble, into) {
   const here = () => cur?.chat.id === s.chat.id;
-  const reply = await streamChat(messages, r => { setText(bubble, visible(r)); if (here() && !into) scrollDown(); },
+  const reply = await streamChat(messages, r => setText(bubble, visible(r)), // the screen stays put while it writes
     { onThink: (t, done, secs) => setThink(bubble, t, done, secs) });
   let imgPrompt = tagPrompt(reply);
   let msg = { role: 'assistant', content: visible(reply, true), t: Date.now() };
@@ -2345,7 +2360,7 @@ function openChat(id) {
   $('profile').classList.remove('open'); // the chat view sits below the profile
   history = store.get(msgsKey(id), []);
   applyLook();
-  renderChatHead(); render(); openView('chat'); syncTools(); applyChatBg();
+  toBottom = true; renderChatHead(); render(); openView('chat'); syncTools(); applyChatBg();
   if (!history.length) startChat();
 }
 // A chat you never wrote anything in isn't worth keeping
@@ -2649,6 +2664,7 @@ function renderList(kind) {
   bar.querySelector('span').textContent = `${sel.ids.size} selected`;
 }
 
+let openCharRow = null; // the character whose Profile / Chat buttons are unfolded
 function row(kind, it) {
   const w = document.createElement('div'); w.className = 'swipe';
   const acts = document.createElement('div'); acts.className = 'swipe-acts';
@@ -2667,9 +2683,18 @@ function row(kind, it) {
   w.append(acts, b);
   gestures(w, b, () => {
     if (sel.kind) return toggleSel(kind, it.id);
-    kind === 'char' ? charActions(it) : openEditor('persona', it.id);
+    if (kind !== 'char') return openEditor('persona', it.id);
+    openCharRow = openCharRow === it.id ? null : it.id; renderList('char');
   }, () => startSelect(kind, it.id));
-  return w;
+  if (kind !== 'char') return w;
+  const box = document.createElement('div'); box.append(w);
+  if (openCharRow === it.id && !sel.kind) {
+    const x = document.createElement('div'); x.className = 'cexp';
+    const pf = document.createElement('button'); pf.type = 'button'; pf.textContent = 'Profile'; pf.onclick = () => openProfile(it.id);
+    const ch = document.createElement('button'); ch.type = 'button'; ch.textContent = 'Chat'; ch.onclick = () => pickPersona(it);
+    x.append(pf, ch); box.append(x);
+  }
+  return box;
 }
 
 function closeSwipe() {
@@ -3084,13 +3109,15 @@ async function openSharedFile(url) {
   if (launch?.url) openSharedFile(launch.url);
 })();
 
-$('newChar').onclick = () => openEditor('char');
-
-$('genChar').onclick = () => {
+$('charAdd').onclick = () => showSheet('New character', [
+  { label: 'Create new character', onClick: () => openEditor('char') },
+  { label: 'Generate', onClick: openGenerator },
+]);
+function openGenerator() {
   $('genStatus').textContent = '';
   $('genImg').checked = imageProxyOk(); $('genImg').disabled = !imageProxyOk();
   openView('gen'); setTimeout(() => $('genIdea').focus(), 350);
-};
+}
 // Character generator: the AI writes a whole card (and optionally a picture) from a few words
 $('genGo').onclick = async () => {
   const idea = $('genIdea').value.trim();
@@ -4249,13 +4276,16 @@ function reveal(el, caretAtEnd) {
   } else if (r.bottom > b.bottom - pad) box.scrollTop += Math.min(r.bottom - b.bottom + pad, r.top - b.top - pad);
   else box.scrollTop -= b.top + pad - r.top;
 }
+// Was the chat at its end when you tapped the text field? Then it stays there when the keyboard opens.
+let kbFollow = true;
+for (const ev of ['pointerdown', 'focus']) $('input').addEventListener(ev, () => { if (!document.body.classList.contains('kb-open')) kbFollow = nearBottom(); });
 function setKb(h) {
   h = Math.max(0, Math.round(h || 0));
   document.documentElement.style.setProperty('--kb', h + 'px');
   document.body.classList.toggle('kb-open', h > 0);
   if (h > 0) setTimeout(() => {
     const a = document.activeElement;
-    if (a?.id === 'input') scrollDown(); else reveal(a);
+    if (a?.id === 'input') { if (kbFollow) scrollDown(); } else reveal(a);
   }, 80);
 }
 document.addEventListener('focusin', () => setTimeout(() => {
