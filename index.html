@@ -102,7 +102,13 @@
     -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
   .empty { text-align: center; color: var(--ink-soft); font-family: var(--ai-font); font-weight: 300; font-size: 22px; margin-top: 18vh; padding: 0 16px; }
 
-  figure.gen { margin: 10px 0 0; }
+  figure.gen { margin: 10px 0 0; position: relative; }
+  .imgfold { position: absolute; top: 6px; left: 6px; width: 22px; height: 22px; border-radius: 50%; border: 0; display: grid; place-items: center;
+    background: rgba(20,20,20,.35); color: rgba(255,255,255,.85); box-shadow: 0 0 0 1px rgba(255,255,255,.3); opacity: .55; cursor: pointer; padding: 0; transition: opacity .15s; }
+  .imgfold:active { opacity: 1; }
+  figure.gen.folded img { display: none; }
+  figure.gen.folded .imgfold { position: static; width: auto; height: auto; padding: 5px 12px; border-radius: 999px; opacity: 1;
+    background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink-soft); font: 500 12px 'Inter', system-ui, sans-serif; }
   figure.gen img { display: block; max-width: min(100%, 420px); border-radius: 14px; border: 1px solid var(--line); cursor: zoom-in; }
   figure.gen .wait { width: 260px; max-width: 100%; aspect-ratio: 1; border-radius: 14px; border: 1px solid var(--line);
     background: linear-gradient(110deg, var(--field) 30%, var(--accent-soft) 50%, var(--field) 70%); background-size: 250% 100%;
@@ -244,6 +250,15 @@
   #floatPic button { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(20,20,20,.7); color: #fff; font-size: 13px; cursor: pointer; }
   body.me-nobubble .msg.me { background: none; border: 0; padding: 0; border-radius: 0; }
   .more-msgs { align-self: center; border: 1px solid var(--line); background: var(--field); color: var(--accent); font: 600 14px 'Inter', system-ui, sans-serif; padding: 9px 16px; border-radius: 999px; cursor: pointer; }
+  #albPick { position: fixed; inset: 0; z-index: 46; background: rgba(0,0,0,.35); display: flex; align-items: flex-end; }
+  #albPick[hidden] { display: none; }
+  .apbox { width: 100%; max-height: 72vh; overflow-y: auto; background: var(--bg); border-radius: 20px 20px 0 0; padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); animation: anIn .22s cubic-bezier(.2,.8,.2,1); }
+  .aphead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .aphead button { border: 0; background: none; color: var(--accent); font: 600 15px 'Inter', system-ui, sans-serif; cursor: pointer; }
+  .apgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; }
+  .apimg { aspect-ratio: 1; border: 0; border-radius: 10px; background: var(--accent-soft) center / cover no-repeat; cursor: pointer; }
+  .cs-stylehead { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .cs-stylehead .glob { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); padding-top: 8px; }
   .badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 999px; }
   .list-empty { text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
 
@@ -678,10 +693,16 @@
 </section>
 
 <div id="msgMenu" hidden></div>
+<div id="albPick" hidden><div class="apbox">
+  <div class="aphead"><b>Send from album</b><button type="button" id="apClose">Close</button></div>
+  <div class="chips" id="apAlbums"></div>
+  <div class="apgrid" id="apGrid"></div>
+</div></div>
 <div id="floatPic" hidden><img alt=""><button type="button" aria-label="Close picture">✕</button></div>
 <div id="plusMenu" hidden>
   <button type="button" data-act="image">Upload image</button>
   <button type="button" data-act="genimg">Generate image</button>
+  <button type="button" data-act="album">From album</button>
   <button type="button" data-act="file">Upload file <small>text, PDF…</small></button>
   <button type="button" data-act="note">Author's note</button>
 </div>
@@ -768,7 +789,7 @@
       <div class="hint">Shown behind this chat only. Dim it a bit so the text stays easy to read.</div>
     </div>
     </details>
-    <p class="group-title">Style for this chat</p>
+    <div class="cs-stylehead"><p class="group-title">Style for this chat</p><label class="glob"><span>Global</span><input type="checkbox" class="tgl" id="csGlobalLook"></label></div>
     <div class="hint" id="chatLookState" style="margin:-4px 4px 10px"></div>
     <div id="chatLookHost"></div>
     <details class="sec" id="themeFold">
@@ -1390,7 +1411,10 @@ const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 // A chat can override any customization; lookCtx says whether the controls edit the global look or the open chat's
 let lookCtx = 'global';
 const LOOK_KEYS = Object.keys(LOOK_DEFAULTS);
-const chatLook = () => cur?.chat.look && Object.keys(cur.chat.look).length ? { ...cfg, ...cur.chat.look } : cfg;
+// A chat follows the global style (Global switch on) or has its own
+const followsGlobal = ch => ch.lookGlobal ?? !(ch.look && Object.keys(ch.look).length);
+const chatLook = () => cur?.chat && !followsGlobal(cur.chat) ? { ...cfg, ...(cur.chat.look || {}) } : cfg;
+const lookToChat = () => lookCtx === 'chat' && !!cur && !followsGlobal(cur.chat);
 const activeLook = () => lookCtx === 'global' && $('settings').classList.contains('open') ? cfg : chatLook();
 function isDark() { const t = activeLook().theme; return t === 'dark' || (t === 'original' && darkMQ.matches); }
 
@@ -1658,7 +1682,10 @@ const authHeaders = key => ({ 'Content-Type': 'application/json', ...(key ? { Au
 function scrollDown() { const s = $('scroller'); s.scrollTop = s.scrollHeight; }
 // Only follow the end of the chat when the reader is already there
 const nearBottom = () => { const s = $('scroller'); return s.scrollHeight - s.scrollTop - s.clientHeight < 80; };
-let rendering = false, toBottom = false;
+let rendering = false, toBottom = false, stickUntil = 0;
+// right after opening a chat it keeps to the end while pictures load, until you touch the screen
+const stickNow = () => Date.now() < stickUntil;
+for (const ev of ['touchstart', 'wheel', 'mousedown']) document.addEventListener(ev, e => { if (e.target.closest?.('#scroller')) stickUntil = 0; }, { passive: true });
 
 function addBubble(role, text) {
   $('log').querySelector('.empty')?.remove();
@@ -1815,9 +1842,16 @@ function addFileChip(bubble, file) {
   c.textContent = file.name;
   bubble.append(c);
 }
+// Small button on a picture in the chat: fold it away to a slim "Show picture", unfold again
+function addFold(fig, m) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'imgfold';
+  const set = () => { fig.classList.toggle('folded', !!m.imgFolded); b.innerHTML = m.imgFolded ? 'Show picture' : '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'; b.setAttribute('aria-label', m.imgFolded ? 'Show picture' : 'Fold picture away'); };
+  b.onclick = e => { e.stopPropagation(); if (m.imgFolded) delete m.imgFolded; else m.imgFolded = true; set(); if (cur) saveMsgs(cur.chat, history); };
+  set(); fig.append(b);
+}
 function showImage(fig, src) {
   const img = new Image(); img.alt = ''; img.src = src;
-  img.onload = () => { if (nearBottom()) scrollDown(); };
+  img.onload = () => { if (stickNow() || nearBottom()) scrollDown(); };
   img.onerror = () => {
     const e = document.createElement('div'); e.className = 'wait'; e.style.animation = 'none'; e.style.padding = '12px'; e.style.textAlign = 'center';
     e.textContent = /^https?:/i.test(src) ? `The image could not be loaded (the link may have expired or be blocked): ${src.slice(0, 120)}` : 'The image data is damaged and could not be shown.';
@@ -1860,7 +1894,7 @@ function renderLog() {
     const m = history[i];
     const b = addBubble(m.role === 'user' ? 'me' : 'ai', m.content);
     b.dataset.i = i;
-    if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => src ? showImage(f, src) : f.remove()).catch(() => f.remove()); }
+    if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => { if (!src) return f.remove(); showImage(f, src); addFold(f, m); }).catch(() => f.remove()); }
     if (m.file) addFileChip(b, m.file);
     if (m.role === 'user') addStamp(b, m);
     if (m.role === 'assistant' && m.thinking) setThink(b, m.thinking, true, m.thinkSecs);
@@ -2249,7 +2283,7 @@ async function attachImage(s, hist, msg, into, bubble, imgPrompt) {
     msg.img = id; msg.imgPrompt = imgPrompt;
     if (into) selectAlt(into, into.sel);
     saveMsgs(s.chat, hist);
-    showImage(fig, src);
+    showImage(fig, src); addFold(fig, msg);
   } catch (e) { fig.remove(); if (!isAbort(e) && here()) addBubble('err', 'Image failed: ' + e.message); }
 }
 // Continue: the AI carries on writing its reply from where it stopped
@@ -2585,7 +2619,8 @@ function openChat(id) {
   shownFrom = Math.max(0, history.length - SHOW_MAX);
   step(`open chat (${history.length} messages)`);
   applyLook();
-  toBottom = true; renderChatHead(); render(); openView('chat'); syncTools(); applyChatBg();
+  toBottom = true; stickUntil = Date.now() + 2500; renderChatHead(); render(); openView('chat');
+  for (const t of [80, 300, 700, 1300, 2200]) setTimeout(() => { if (stickNow() && cur?.chat.id === id) scrollDown(); }, t); syncTools(); applyChatBg();
   if (!history.length) startChat();
 }
 // A chat you never wrote anything in isn't worth keeping
@@ -4183,7 +4218,7 @@ const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
 const fontKey = () => styleTarget === 'me' ? 'meFont' : 'aiFont';
 
 const CONTROLS = '#settings [data-k], #lookBlock [data-k], #themeBlock [data-k]';
-const editLook = () => lookCtx === 'chat' && cur ? chatLook() : cfg;
+const editLook = () => lookToChat() ? chatLook() : cfg;
 let lastAnim = null;
 function syncControls() {
   const L = editLook();
@@ -4216,20 +4251,22 @@ function syncControls() {
     lastAnim = g('anim');
     for (const m of document.querySelectorAll('#preview .msg')) { m.classList.remove('new'); void m.offsetWidth; m.classList.add('new'); }
   }
-  const own = lookCtx === 'chat' && cur?.chat.look && Object.keys(cur.chat.look).length;
+  const own = lookToChat();
+  if (lookCtx === 'chat' && cur) $('csGlobalLook').checked = !own;
+  $('resetLook').hidden = lookCtx === 'chat';
   $('resetLook').textContent = lookCtx === 'chat' ? 'Use global style' : 'Reset customization';
   $('resetLook').disabled = lookCtx === 'chat' && !own;
-  $('chatLookState').textContent = own ? 'This chat has its own style. Changes here only apply to this chat.' : 'Using the global style. Change anything below to give this chat its own.';
+  $('chatLookState').textContent = own ? 'This chat has its own style. Changes here only apply to this chat.' : 'Global is on: this chat uses the global style, and changes here change it for every chat that uses it.';
 }
 
 // Look keys go to the open chat in chat settings, otherwise to the global config
 function writeLook(k, v) {
-  if (lookCtx === 'chat' && cur && LOOK_KEYS.includes(k)) (cur.chat.look ||= {})[k] = v;
+  if (lookToChat() && LOOK_KEYS.includes(k)) (cur.chat.look ||= {})[k] = v;
   else cfg[k] = v;
 }
 function update(k, v) {
   writeLook(k, v);
-  lookCtx === 'chat' && cur && LOOK_KEYS.includes(k) ? store.set('chats', chats) : saveCfg();
+  lookToChat() && LOOK_KEYS.includes(k) ? store.set('chats', chats) : saveCfg();
   applyLook(); syncControls();
 }
 
@@ -4286,6 +4323,12 @@ function buildSettings() {
     if (me) m.append(ts); else { const n = document.createElement('div'); n.className = 'alts'; n.style.marginTop = '6px'; n.append(ts); m.append(n); }
   }
   $('accentReset').onclick = () => update('accent', '');
+  $('csGlobalLook').onchange = () => {
+    const ch = cur?.chat; if (!ch) return;
+    if ($('csGlobalLook').checked) { if (ch.look && Object.keys(ch.look).length) ch.lookStash = ch.look; delete ch.look; ch.lookGlobal = true; }
+    else { ch.look = ch.lookStash || {}; delete ch.lookStash; ch.lookGlobal = false; } // its own style comes back as it was
+    store.set('chats', chats); applyLook(); syncControls();
+  };
   $('resetLook').onclick = () => {
     if (lookCtx === 'chat' && cur) { if (confirm('Drop this chat\'s own style and use the global one?')) { delete cur.chat.look; store.set('chats', chats); applyLook(); syncControls(); } return; }
     if (confirm('Reset all customization?')) { Object.assign(cfg, LOOK_DEFAULTS); update('theme', cfg.theme); }
@@ -4950,7 +4993,32 @@ $('plusMenu').onclick = e => {
   if (act === 'file') $('attachDoc').click();
   if (act === 'note') openNote();
   if (act === 'genimg') openGenImg();
+  if (act === 'album') openAlbumPick();
 };
+// Pick a picture from an album; it's added to your message like an upload
+let apAlbum = null;
+function openAlbumPick() {
+  if (!albums.some(a => a.images.length)) return toast('No pictures in your albums yet');
+  apAlbum = albums.find(a => a.id === apAlbum && a.images.length)?.id || albums.find(a => a.images.length).id;
+  renderAlbumPick(); $('albPick').hidden = false;
+}
+function renderAlbumPick() {
+  $('apAlbums').replaceChildren(...albums.filter(a => a.images.length).map(a => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = `${a.name} (${a.images.length})`;
+    b.className = a.id === apAlbum ? 'on' : ''; b.onclick = () => { apAlbum = a.id; renderAlbumPick(); };
+    return b;
+  }));
+  const a = albums.find(x => x.id === apAlbum), g = $('apGrid'); g.innerHTML = '';
+  for (const id of [...(a?.images || [])].reverse()) {
+    const t = document.createElement('button'); t.type = 'button'; t.className = 'apimg';
+    idb.get('alb_' + id).then(src => { if (src) t.style.backgroundImage = `url("${src}")`; else t.remove(); });
+    t.onclick = async () => { const src = await idb.get('alb_' + id).catch(() => null); if (!src) return; setAttached(src); $('albPick').hidden = true; toast('Picture added to your message'); };
+    g.append(t);
+  }
+}
+$('apClose').onclick = () => { $('albPick').hidden = true; };
+$('albPick').onclick = e => { if (e.target === $('albPick')) $('albPick').hidden = true; };
+
 // Generate a picture the user sends
 function openGenImg() {
   if (!cur) return;
