@@ -4576,13 +4576,16 @@ $('giGo').onclick = async () => {
   if (!match && !extra) return $('giText').focus();
   giBusy = true; $('giGo').disabled = true;
   try {
-    let prompt = extra;
+    // Typed straight in: {{user}}/user and {{char}}/char become names, and "me"/"I" are explained
+    const named = fill(extra, c, p).replace(/\buser\b/gi, userName(p)).replace(/\bchar\b/gi, cn(c));
+    let prompt = named;
+    if (!match) prompt += `\n\n(This picture is sent by ${userName(p)}: "me", "I", "my" and "myself" mean ${userName(p)}. "${cn(c)}" is the other character.)`;
     if (match) {
       $('giState').textContent = 'Working out the picture…';
       const recent = transcriptOf(history.slice(-6), c, p);
       prompt = (await streamChat([
         { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-        { role: 'user', content: `${userName(p)} is chatting with ${cn(c)}.${p?.personality?.trim() ? `\nAbout ${userName(p)}:\n${fill(p.personality, c, p).slice(0, 1500)}` : ''}\n\nThe chat so far (most recent part):\n${recent.slice(-3000)}\n\n${userName(p)} is about to send this message with a picture:\n"${typed}"${extra ? `\n\nExtra direction for the picture: ${extra}` : ''}\n\nDescribe the picture ${userName(p)} sends with that message, so it fits the message and the moment. Only include ${userName(p)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
+        { role: 'user', content: `${userName(p)} is chatting with ${cn(c)}.${p?.personality?.trim() ? `\nAbout ${userName(p)}:\n${fill(p.personality, c, p).slice(0, 1500)}` : ''}\n\nThe chat so far (most recent part):\n${recent.slice(-3000)}\n\n${userName(p)} is about to send this message with a picture:\n"${typed}"${extra ? `\n\nExtra direction for the picture: ${named}` : ''}\n\nDescribe the picture ${userName(p)} sends with that message, so it fits the message and the moment. Only include ${userName(p)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
       ], () => {}, { free: true })).replace(TAG, '').trim().slice(0, 1500);
     }
     $('giState').textContent = 'Making the picture…';
