@@ -189,10 +189,12 @@
   .cgroup > .swipe { border-radius: 0; }
   .cgroup > .swipe > .item { border: 0; border-radius: 0; }
   .cgroup .sublist { padding: 0 14px; }
-  /* Privacy: blurred pictures outside the chat and the editor */
-  body.blur-pics :is(#chars, #personas, #chats, #profile, #sheet, #home) .pic { filter: blur(10px); clip-path: inset(0 round 12px); }
-  body.blur-pics #profHero.pic { clip-path: inset(0 round 18px); }
-  body.blur-pics :is(#chats, #sheet) .av.pic { clip-path: circle(50%); }
+  /* Blurred cards (the eye on the profile): blurred outside the chat and the editor */
+  :is(#chars, #personas, #chats, #profile, #sheet, #home) .pic.blurred { filter: blur(10px); clip-path: inset(0 round 12px); }
+  #profHero.pic.blurred { clip-path: inset(0 round 18px); }
+  :is(#chats, #sheet) .av.pic.blurred { clip-path: circle(50%); }
+  .hero-wrap { position: relative; }
+  #profEye { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(20,20,20,.55); color: #fff; display: grid; place-items: center; cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
   .badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 999px; }
   .list-empty { text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
 
@@ -790,7 +792,7 @@ Empty = use the global setting.</div>
 <section id="profile" class="view" aria-label="Character profile">
   <div class="page-head"><button class="back" data-close="profile" type="button">‹ Back</button><h1>Character</h1><span></span></div>
   <div class="page-body"><div class="page-inner">
-    <div class="hero" id="profHero"></div>
+    <div class="hero-wrap"><div class="hero" id="profHero"></div><button type="button" id="profEye" aria-label="Blur picture"></button></div>
     <h2 class="prof-name" id="profName"></h2>
     <div id="profSecs"></div>
     <div class="save-bar"><button class="btn primary" type="button" id="profChat">Chat</button></div>
@@ -947,14 +949,6 @@ Empty = send everything.</div>
       <label class="f" for="forbidden">Forbidden words</label>
       <textarea id="forbidden" data-k="forbidden" placeholder="One per line or comma separated, e.g.&#10;shivers down the spine, ministrations"></textarea>
       <div class="hint">The AI is told never to use these words or phrases. Models follow this well, but it's an instruction, not a hard filter.</div>
-    </div>
-    </details>
-
-    <details class="sec" data-sec="privacy">
-    <summary class="group-title">Privacy</summary>
-    <div class="card">
-      <div class="line"><span>Blur character and persona pictures</span><input type="checkbox" class="tgl" data-k="blurPics"></div>
-      <div class="hint">Pictures are blurred in the lists, on the Chats screen and on the profile. Inside a chat and in the editor they stay sharp. Tap the picture on a profile to see it unblurred.</div>
     </div>
     </details>
 
@@ -1250,7 +1244,6 @@ const MD_ELS = [
   const st = document.createElement('style'); st.textContent = css.join('\n'); document.head.append(st);
 })();
 function applyLook() {
-  document.body.classList.toggle('blur-pics', !!cfg.blurPics);
   const L = activeLook();
   const root = document.documentElement, s = root.style;
   root.dataset.theme = L.theme;
@@ -2379,7 +2372,7 @@ function leaveChat() {
   const s = cur; cur = null;
   if (s) setTimeout(() => queueReachOut(s.chat), 0);
   applyLook();
-  if (s && !busy && !history.some(m => m.role === 'user')) deleteChat(s.chat.id);
+  if (s && !busy && !history.length) deleteChat(s.chat.id); // only chats with nothing in them go
 }
 function startChat() {
   const { c, p } = cur;
@@ -2647,7 +2640,7 @@ function openProfile(id) {
 }
 function renderProfile() {
   const c = chars.find(x => x.id === profileId); if (!c) return false;
-  setThumb($('profHero'), c);
+  setThumb($('profHero'), c); syncEye(c);
   $('profName').textContent = c.name + (c.chatName?.trim() && c.chatName.trim() !== c.name ? ` (${c.chatName.trim()})` : '');
   const gs = greetingsOf(c);
   const first = c.aiFirst ? 'Written by the AI at the start of every chat.'
@@ -2672,6 +2665,21 @@ $('profHero').onclick = async () => {
   const src = c?.img && await idb.get(c.img).catch(() => null);
   if (src) openLightbox(src);
 };
+// The eye: open = the picture is shown, closed = blurred everywhere outside the chat and the editor
+const EYE_OPEN = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_SHUT = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10c2.5 3 5.5 4.5 9 4.5s6.5-1.5 9-4.5"/><path d="M6 13.5 4.5 16M10 14.5 9.5 17.5M14 14.5l.5 3M18 13.5l1.5 2.5"/></svg>';
+function syncEye(c) {
+  const e = $('profEye'); e.hidden = !c.img;
+  e.innerHTML = c.blur ? EYE_SHUT : EYE_OPEN;
+  e.setAttribute('aria-label', c.blur ? 'Show picture' : 'Blur picture');
+}
+$('profEye').onclick = () => {
+  const c = chars.find(x => x.id === profileId); if (!c) return;
+  if (c.blur) delete c.blur; else c.blur = true;
+  store.set('chars', chars);
+  setThumb($('profHero'), c); syncEye(c);
+  renderList('char'); renderChats();
+};
 $('profChat').onclick = () => { const c = chars.find(x => x.id === profileId); if (c) pickPersona(c); };
 $('profEdit').onclick = () => openEditor('char', profileId);
 $('profDelete').onclick = () => { if (deleteItems('char', [profileId])) closeView('profile'); };
@@ -2686,13 +2694,13 @@ $('chatProfile').onclick = () => cur && openProfile(cur.c.id);
 // ---------- Character & persona lists ----------
 const avatarCache = new Map();
 async function setThumb(el, it) {
-  el.style.background = ''; el.classList.remove('pic'); el.textContent = (it.name || '?').trim().charAt(0).toUpperCase();
+  el.style.background = ''; el.classList.remove('pic', 'blurred'); el.textContent = (it.name || '?').trim().charAt(0).toUpperCase();
   if (!it.img) return;
   const key = it.img;
   if (!avatarCache.has(key)) avatarCache.set(key, idb.get(key).catch(() => null));
   const src = await avatarCache.get(key);
   // scaled to fit: the whole picture shows, never cropped
-  if (src && it.img === key) { el.style.background = `var(--accent-soft) url("${src}") center / contain no-repeat`; el.textContent = ''; el.classList.add('pic'); }
+  if (src && it.img === key) { el.style.background = `var(--accent-soft) url("${src}") center / contain no-repeat`; el.textContent = ''; el.classList.add('pic'); el.classList.toggle('blurred', !!it.blur); }
 }
 
 const folderSvg = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
@@ -4805,6 +4813,15 @@ $('composer').onsubmit = e => {
   input.value = ''; input.style.height = 'auto'; setAttached(null); setDoc(null); clearHelper();
   send(t, img, false, doc, ip);
 };
+
+// Tap the top of the screen: scroll the open screen back to the top
+function scrollTopOfView() {
+  const v = [...document.querySelectorAll('.view.open')].pop(); if (!v) return;
+  const sc = v.id === 'chat' ? $('scroller') : v.querySelector('.page-body'); if (!sc) return;
+  sc.scrollTo({ top: 0, behavior: 'smooth' });
+}
+window.addEventListener('statusTap', scrollTopOfView); // iOS status bar tap (Capacitor)
+document.addEventListener('click', e => { const h = e.target.closest('.page-head'); if (h && !e.target.closest('button, a, input, .chat-who')) scrollTopOfView(); });
 
 // ---------- Boot ----------
 // Earlier versions kept one chat per character under chat.<characterId> and had one "active" persona
