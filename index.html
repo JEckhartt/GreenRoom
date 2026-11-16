@@ -339,6 +339,9 @@
   .msg.me.editing { width: 85%; padding: 8px; }
   .msg.me.editing textarea { display: block; width: 100%; min-height: 60px; resize: none; overflow: hidden; border: 0; outline: none; background: none; color: var(--ink);
     font-family: var(--me-font); font-size: 16px; line-height: var(--u-lh); padding: 4px 6px; -webkit-user-select: text; user-select: text; }
+  .msg.ai.editing { width: 85%; padding: 8px; }
+  .msg.ai.editing textarea { display: block; width: 100%; min-height: 70px; resize: none; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; outline: none; background: var(--card, transparent); color: var(--ink);
+    font: inherit; font-size: 16px; padding: 8px 10px; -webkit-user-select: text; user-select: text; }
   .edit-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
   .edit-acts .btn { padding: 7px 14px; font-size: 14px; }
   .edit-acts .btn.primary { background: var(--accent); color: #fff; border: 0; }
@@ -1993,7 +1996,7 @@ function showMsgMenu(el) {
   hideMsgMenu();
   const pin = ['pin', m.pinned ? 'Unpin' : 'Pin'], branch = ['branch', 'Branch from here'];
   const acts = m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], pin, branch, ['delete', 'Delete']]
-    : [...(imagesOn() ? [['image', 'Create image']] : []), ['copy', 'Copy'], pin, branch, ['delete', 'Delete']];
+    : [...(i === 0 ? [['direct', 'Rewrite with a prompt']] : []), ...(imagesOn() ? [['image', 'Create image']] : []), ['copy', 'Copy'], pin, branch, ['delete', 'Delete']];
   const box = $('msgMenu'); box.innerHTML = '';
   for (const [a, label] of acts) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.textContent = label;
@@ -2036,7 +2039,22 @@ $('msgMenu').onclick = e => {
   if (act === 'image') imageForReply(i);
   if (act === 'continue') continueReply(i);
   if (act === 'rewrite') rewriteOpening();
+  if (act === 'direct') directOpening(el);
 };
+// First message: tell the AI what to change, it writes a new version (kept next to the old one)
+function directOpening(el) {
+  el.classList.add('editing'); el.textContent = '';
+  const t = document.createElement('textarea');
+  t.placeholder = 'What should change? For example: start in the rain outside the bar, make it shorter, more teasing.';
+  const acts = document.createElement('div'); acts.className = 'edit-acts';
+  const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = 'Cancel';
+  const send = document.createElement('button'); send.type = 'button'; send.className = 'btn primary'; send.textContent = 'Rewrite';
+  acts.append(cancel, send); el.append(t, acts);
+  const fit = () => { t.style.height = 'auto'; t.style.height = Math.max(t.scrollHeight, 70) + 'px'; };
+  t.addEventListener('input', fit); fit(); t.focus();
+  cancel.onclick = () => render();
+  send.onclick = () => { const v = t.value.trim(); if (!v) return t.focus(); render(); const b = $('log').querySelector('.msg.ai[data-i="0"]'); if (b) anotherReply(0, b, v); };
+}
 // Deletes message i and everything after it
 function deleteMessage(i) {
   if (busy) return;
@@ -2120,7 +2138,7 @@ function addAltNav(bubble, m, i) {
 }
 const openingAsk = (c, p) => `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.]`;
 // Writes another version of reply i, using only the conversation before it
-async function anotherReply(i, bubble) {
+async function anotherReply(i, bubble, direction = '') {
   if (busy || !ready()) return;
   const s = cur, hist = history, m = hist[i]; if (!m) return;
   setBusy(true);
@@ -2128,7 +2146,9 @@ async function anotherReply(i, bubble) {
   setText(bubble, '');
   try {
     const messages = i === 0
-      ? [...await buildMessages(s.c, s.p, [], s.chat.memory), { role: 'user', content: openingAsk(s.c, s.p) }]
+      ? [...await buildMessages(s.c, s.p, [], s.chat.memory), { role: 'user', content: direction
+          ? `[Rewrite ${cn(s.c)}'s opening message to start the roleplay with ${userName(s.p)}. The current version:\n\n${m.content}\n\nWhat to change: ${direction}\n\nStay fully in character. Reply with the new message only.]`
+          : openingAsk(s.c, s.p) }]
       : await buildMessages(s.c, s.p, hist.slice(0, i), s.chat.memory);
     await aiTurn(s, hist, messages, bubble, m);
   } catch (e) { if (!isAbort(e) && cur?.chat.id === s.chat.id) toast('Could not write another reply: ' + e.message); }
