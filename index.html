@@ -715,8 +715,8 @@
     </div>
     <div class="card" id="cImgBox"></div>
     <div class="card" style="margin-top:10px" id="csAutoPicsCard">
-      <div class="line" style="padding-top:12px"><span>Character sends pictures on its own</span><input type="checkbox" class="tgl" id="csAutoPics"></div>
-      <div class="hint">When the character says it sends a picture ("here's a pic of…"). Off: a 📷 appears under that reply instead; tap it to make the picture. Pictures you ask for are always made.</div>
+      <div class="line" style="padding-top:12px"><span>Make pictures automatically</span><input type="checkbox" class="tgl" id="csAutoPics"></div>
+      <div class="hint">On: a picture is made as soon as you ask for one or the character sends one ("here's a pic of…"). Off: a camera button appears under that reply instead; tap it to make the picture.</div>
     </div>
     <p class="group-title">Generation for this chat</p>
     <div class="card" id="cPresetBox"></div>
@@ -1843,7 +1843,9 @@ function splitThink(raw) {
 async function streamChat(messages, onText, opts = {}) {
   const a = api(opts.chat ?? cur?.chat), g = gen(opts.chat ?? cur?.chat);
   const body = { model: a.model, messages, stream: true, temperature: g.temperature };
-  if (!opts.free && g.maxTokens) body.max_tokens = g.maxTokens;
+  // The AI is asked to stay well under the max length; the hard limit gets room on top so a reply
+  // that runs a little long ends naturally instead of being chopped off mid-sentence
+  if (!opts.free && g.maxTokens) body.max_tokens = Math.round(g.maxTokens * 1.5) + 50;
   if (g.topP !== undefined) body.top_p = g.topP;
   if (g.topK !== undefined) body.top_k = g.topK;
   if (g.minP !== undefined) body.min_p = g.minP;
@@ -1869,6 +1871,8 @@ async function streamChat(messages, onText, opts = {}) {
   try { await readStream(); } catch (e) { if (isAbort(e) && reply) { finishThink(); return reply; } throw e; }
   finishThink();
   // Cut off at the max length: end at the last finished sentence instead of mid-word
+  const cap = body.max_tokens || body.max_completion_tokens;
+  if (!cutOff && cap && reply.length / 4 > cap * 0.85 && !/[.!?…*"”)]\s*$/.test(reply)) cutOff = true;
   if (cutOff && reply) {
     const m = reply.match(/^[\s\S]*[.!?…*"”)](?=\s|$)/);
     if (m && m[0].length > reply.length * 0.5) { reply = m[0]; onText(reply); }
@@ -1930,8 +1934,10 @@ async function aiTurn(s, hist, messages, bubble, into) {
   if (!imagesOn(s.chat)) return; // pictures off: the reply describes them in words
   // An image when the user's latest message asks for one, or when the character says it sends one now.
   // A tag on its own (without either) is ignored: models tend to copy them.
-  const asked = wantsImage(hist[idx - 1]) || (s.chat.autoPics !== false && replySendsImage(msg.content));
+  const asked = wantsImage(hist[idx - 1]) || replySendsImage(msg.content);
   if (!asked) imgPrompt = '';
+  // Automatic pictures off: keep the description, the camera under the reply makes it on tap
+  if (s.chat.autoPics === false) { if (imgPrompt && !into) { msg.pendingImg = imgPrompt; saveMsgs(s.chat, hist); } return; }
   // asked, but the model forgot the tag: describe it separately
   if (!imgPrompt && asked) {
     if (!imageEnabled()) { if (here()) addBubble('err', 'A picture was asked for or sent, but no image proxy is active. Add one in Settings → Image proxy (or in this chat\'s settings).'); return; }
@@ -2000,7 +2006,8 @@ async function imageForReply(i) {
   const bubble = [...$('log').querySelectorAll('.msg.ai')].find(b => +b.dataset.i === i); if (!bubble) return;
   setBusy(true);
   try {
-    const prompt = await describeImage(s, hist[i - 1]?.role === 'user' ? hist[i - 1].content : '', m.content);
+    const prompt = m.pendingImg || await describeImage(s, hist[i - 1]?.role === 'user' ? hist[i - 1].content : '', m.content);
+    delete m.pendingImg;
     let target = m;
     if (m.alts) target = m.alts[m.sel || 0];
     if (target.img) idb.del(target.img).catch(() => {});
@@ -2182,7 +2189,7 @@ function addAltNav(bubble, m, i) {
     nav.append(go);
   }
   // Auto pictures off: the character "sent" one, tap the camera to make it
-  if (cur && imagesOn() && cur.chat.autoPics === false && !m.img && replySendsImage(m.content)) {
+  if (cur && imagesOn() && cur.chat.autoPics === false && !m.img && (m.pendingImg || replySendsImage(m.content) || wantsImage(history[i - 1]))) {
     const cam = document.createElement('button'); cam.type = 'button'; cam.className = 'cam'; cam.disabled = busy;
     cam.setAttribute('aria-label', 'Make this picture');
     cam.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>';
@@ -3484,7 +3491,7 @@ function renderProxyBoxes() {
 // A token is a piece of a word: 100 tokens ≈ 75 English words ≈ one paragraph.
 const PRESET_FIELDS = [
   ['maxTokens', 'Max reply length', '1', 'e.g. 400',
-   'The longest one reply may be, in tokens (100 tokens ≈ 75 words ≈ one paragraph).\nReplies get cut off mid-sentence? Raise it. Replies too long? Lower it.\nTry 300 for short chat, 600–800 for long descriptive replies.'],
+   'How long replies should be, in tokens (100 tokens ≈ 75 words ≈ one paragraph).\nThe AI is told to stay under it; the hard limit is half again as much, so replies are not chopped off mid-sentence.\nTry 300 for short chat, 600–800 for long descriptive replies.'],
   ['topP', 'Top-p', '0.01', '0.1 – 1',
    'Throws away unlikely words before the AI picks one.\n1 = keep everything. 0.9 = drop the rarest 10%.\nReplies get weird or nonsense? Lower it to 0.9. Not sure? Leave it empty.'],
   ['topK', 'Top-k', '1', 'e.g. 40',
