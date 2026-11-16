@@ -195,6 +195,38 @@
   :is(#chats, #sheet) .av.pic.blurred { clip-path: circle(50%); }
   .hero-wrap { position: relative; }
   #profEye { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(20,20,20,.55); color: #fff; display: grid; place-items: center; cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  /* ---------- Chat layout options ---------- */
+  body[data-aialign=center] .msg.ai, body[data-mealign=center] .msg.me { text-align: center; }
+  body[data-aialign=right] .msg.ai, body[data-mealign=right] .msg.me { text-align: right; }
+  body:not(.ai-bubble):is([data-aialign=center], [data-aialign=right]) .msg.ai { align-self: stretch; max-width: 100%; }
+  body[data-aialign=center] .msg.ai .alts { justify-content: center; }
+  body[data-aialign=right] .msg.ai .alts { justify-content: flex-end; }
+  .mname { display: none; font: 600 13px/1.3 'Inter', system-ui, sans-serif; letter-spacing: .01em; margin-bottom: 4px; white-space: normal;
+    color: var(--name-c, var(--accent)); -webkit-text-fill-color: var(--name-c, var(--accent)); background: none; text-shadow: none; }
+  body.show-names .mname { display: block; }
+  .mav { display: none; }
+  body.show-avs :is(#log, #preview) .msg { position: relative; }
+  body.show-avs :is(#log, #preview) .msg.ai { margin-left: 42px; }
+  body.show-avs :is(#log, #preview) .msg.me { margin-right: 42px; }
+  body.show-avs .mav { display: grid; place-items: center; position: absolute; top: 0; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; cursor: pointer;
+    background: var(--accent-soft) center / cover no-repeat; color: var(--accent); font: 15px 'Fraunces', Georgia, serif; -webkit-text-fill-color: var(--accent); text-shadow: none; }
+  body.show-avs .msg.ai > .mav { left: -42px; }
+  body.show-avs .msg.me > .mav { right: -42px; }
+  body.av-square .mav { border-radius: 9px; }
+  body[data-bubble=round] .msg.me, body[data-bubble=round].ai-bubble .msg.ai { border-radius: 18px; }
+  body[data-bubble=sharp] .msg.me, body[data-bubble=sharp].ai-bubble .msg.ai { border-radius: 5px; }
+  body[data-spacing=compact] #log { gap: 8px; } body[data-spacing=airy] #log { gap: 32px; }
+  body[data-spacing=compact] .preview { gap: 6px; } body[data-spacing=airy] .preview { gap: 22px; }
+  body.hide-times .ts { display: none; }
+  @keyframes msgFade { from { opacity: 0; } }
+  @keyframes msgSlide { from { opacity: 0; transform: translateY(16px); } }
+  body[data-anim=fade] .msg.new { animation: msgFade .45s ease-out; }
+  body[data-anim=slide] .msg.new { animation: msgSlide .4s cubic-bezier(.2,.8,.2,1); }
+  /* Floating profile picture */
+  #floatPic { position: fixed; z-index: 45; width: 190px; border-radius: 16px; overflow: hidden; touch-action: none; background: #111;
+    box-shadow: 0 14px 40px -12px rgba(0,0,0,.55); -webkit-user-select: none; user-select: none; }
+  #floatPic img { display: block; width: 100%; pointer-events: none; -webkit-user-drag: none; }
+  #floatPic button { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(20,20,20,.7); color: #fff; font-size: 13px; cursor: pointer; }
   .badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 999px; }
   .list-empty { text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
 
@@ -629,6 +661,7 @@
 </section>
 
 <div id="msgMenu" hidden></div>
+<div id="floatPic" hidden><img alt=""><button type="button" aria-label="Close picture">✕</button></div>
 <div id="plusMenu" hidden>
   <button type="button" data-act="image">Upload image</button>
   <button type="button" data-act="genimg">Generate image</button>
@@ -718,13 +751,13 @@
       <div class="hint">Shown behind this chat only. Dim it a bit so the text stays easy to read.</div>
     </div>
     </details>
+    <p class="group-title">Style for this chat</p>
+    <div class="hint" id="chatLookState" style="margin:-4px 4px 10px"></div>
+    <div id="chatLookHost"></div>
     <details class="sec" id="themeFold">
     <summary class="group-title">Theme for this chat</summary>
     <div id="chatThemeHost"></div>
     </details>
-    <p class="group-title">Style for this chat</p>
-    <div class="hint" id="chatLookState" style="margin:-4px 4px 10px"></div>
-    <div id="chatLookHost"></div>
   </div>
   <div class="page-inner cs-pane" data-t="2" hidden>
     <p class="group-title">Proxy for this chat</p>
@@ -964,22 +997,6 @@ Empty = send everything.</div>
     </div>
     </details>
 
-    <details class="sec" data-sec="themes">
-    <summary class="group-title">Themes</summary>
-    <div id="globalThemeHost"><div class="card" id="themeBlock">
-      <label class="f" style="margin-top:4px">Mode</label>
-      <div class="seg" data-k="theme">
-        <button type="button" data-v="original">Default</button>
-        <button type="button" data-v="light">Light</button>
-        <button type="button" data-v="dark">Dark</button>
-      </div>
-      <div class="line"><span>Accent color</span><span style="display:flex;gap:8px;align-items:center">
-        <button class="btn" type="button" id="accentReset" style="padding:5px 10px;font-size:13px">Default</button>
-        <input type="color" data-k="accent" id="accent"></span></div>
-      <div class="line"><span>AI message bubble</span><input type="checkbox" class="tgl" data-k="aiBubble"></div>
-    </div></div>
-    </details>
-
     <details class="sec" data-sec="customization">
     <summary class="group-title">Customization</summary>
     <div id="globalLookHost"><div id="lookBlock">
@@ -996,6 +1013,52 @@ Empty = send everything.</div>
       <div class="msg ai"><span class="txt" data-rich>"Of course." *She pulls the blanket closer.* The rain **always** sounds ~~boring~~ different at night.&#10;&#10;> Old memory: the `porch` light.</span></div>
     </div>
 
+
+    <details class="card fold" data-sec="look-layout">
+      <summary class="sub">Layout</summary>
+      <label class="f" style="margin-top:6px">Text alignment <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></label>
+      <div class="seg" data-k="align">
+        <button type="button" data-v="left">Left</button>
+        <button type="button" data-v="center">Middle</button>
+        <button type="button" data-v="right">Right</button>
+      </div>
+      <div class="hint">Inside the bubble; without a bubble, across the whole screen.</div>
+      <div class="line"><span>Names above messages</span><input type="checkbox" class="tgl" data-k="showNames"></div>
+      <div id="nameColorRow">
+        <div class="seg" data-k="nameMode" style="margin-top:6px">
+          <button type="button" data-v="theme">Accent color</button>
+          <button type="button" data-v="custom">Own color</button>
+        </div>
+        <div class="line" id="nameCRow"><span>Name color</span><input type="color" data-k="nameC"></div>
+      </div>
+      <div class="line"><span>Profile pictures</span><input type="checkbox" class="tgl" data-k="showAvatars"></div>
+      <div id="avShapeRow">
+        <div class="seg" data-k="avShape" style="margin-top:6px">
+          <button type="button" data-v="circle">Circle</button>
+          <button type="button" data-v="square">Rounded square</button>
+        </div>
+        <div class="hint">In a chat, tap a picture to float it: pinch to resize, drag it anywhere, ✕ to close.</div>
+      </div>
+      <label class="f">Bubble shape</label>
+      <div class="seg" data-k="bubbleShape">
+        <button type="button" data-v="round">Rounded</button>
+        <button type="button" data-v="tail">Tail</button>
+        <button type="button" data-v="sharp">Sharp</button>
+      </div>
+      <label class="f">Space between messages</label>
+      <div class="seg" data-k="spacing">
+        <button type="button" data-v="compact">Compact</button>
+        <button type="button" data-v="normal">Normal</button>
+        <button type="button" data-v="airy">Airy</button>
+      </div>
+      <div class="line"><span>Timestamps</span><input type="checkbox" class="tgl" data-k="showTimes"></div>
+      <label class="f">New messages</label>
+      <div class="seg" data-k="anim">
+        <button type="button" data-v="none">Appear</button>
+        <button type="button" data-v="fade">Fade in</button>
+        <button type="button" data-v="slide">Slide up</button>
+      </div>
+    </details>
 
     <details class="card fold" data-sec="look-fonts">
       <summary class="sub">Font <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></summary>
@@ -1042,6 +1105,22 @@ Empty = send everything.</div>
       <div id="mdRows"></div>
       <div class="actions"><button class="btn" type="button" id="resetLook">Reset customization</button></div>
     </details>
+    </div></div>
+    </details>
+
+    <details class="sec" data-sec="themes">
+    <summary class="group-title">Themes</summary>
+    <div id="globalThemeHost"><div class="card" id="themeBlock">
+      <label class="f" style="margin-top:4px">Mode</label>
+      <div class="seg" data-k="theme">
+        <button type="button" data-v="original">Default</button>
+        <button type="button" data-v="light">Light</button>
+        <button type="button" data-v="dark">Dark</button>
+      </div>
+      <div class="line"><span>Accent color</span><span style="display:flex;gap:8px;align-items:center">
+        <button class="btn" type="button" id="accentReset" style="padding:5px 10px;font-size:13px">Default</button>
+        <input type="color" data-k="accent" id="accent"></span></div>
+      <div class="line"><span>AI message bubble</span><input type="checkbox" class="tgl" data-k="aiBubble"></div>
     </div></div>
     </details>
 
@@ -1098,6 +1177,8 @@ const store = {
 };
 const LOOK_DEFAULTS = {
   theme: 'original', accent: '', aiBubble: false,
+  align: 'left', u_align: 'left', showNames: false, nameMode: 'theme', nameC: '#d9553b', showAvatars: false, avShape: 'circle',
+  bubbleShape: 'tail', spacing: 'normal', showTimes: true, anim: 'none',
   aiFont: 'Fraunces', meFont: 'Inter',
   fs: 18, fw: 300, lh: 1.6, ls: 0, italic: false, underline: false, glow: false,
   colorMode: 'theme', c1: '#ff7a59', c2: '#c13584', angle: 135, qOn: false, qColor: '#e8a33d',
@@ -1262,6 +1343,12 @@ function applyLook() {
   document.body.dataset.color = L.colorMode;
   document.body.classList.toggle('glow', L.glow);
   document.body.classList.toggle('ai-bubble', L.aiBubble);
+  const B = document.body;
+  B.dataset.aialign = L.align || 'left'; B.dataset.mealign = L.u_align || 'left';
+  B.classList.toggle('show-names', !!L.showNames); B.classList.toggle('show-avs', !!L.showAvatars);
+  B.classList.toggle('av-square', L.avShape === 'square'); B.classList.toggle('hide-times', L.showTimes === false);
+  B.dataset.bubble = L.bubbleShape || 'tail'; B.dataset.spacing = L.spacing || 'normal'; B.dataset.anim = L.anim || 'none';
+  L.nameMode === 'custom' ? s.setProperty('--name-c', L.nameC) : s.removeProperty('--name-c');
   s.setProperty('--u-fs', L.u_fs + 'px');
   s.setProperty('--u-fw', L.u_fw);
   s.setProperty('--u-lh', L.u_lh);
@@ -1478,10 +1565,22 @@ function addBubble(role, text) {
   const el = document.createElement('div');
   el.className = 'msg ' + role;
   if (role === 'err') { el.textContent = text; el.dataset.chat = cur?.chat.id || ''; console.warn(text); }
-  else { const t = document.createElement('span'); t.className = 'txt'; rich(t, text); el.appendChild(t); }
+  else {
+    decorate(el, role);
+    const t = document.createElement('span'); t.className = 'txt'; rich(t, text); el.appendChild(t);
+  }
+  if (!rendering && role !== 'err') el.classList.add('new');
   $('log').appendChild(el);
   if (!rendering) scrollDown();
   return el;
+}
+// Name above the message and the small profile picture next to it (shown when switched on in Layout)
+function decorate(el, role, c = cur?.c, p = cur?.p) {
+  const nm = document.createElement('div'); nm.className = 'mname';
+  nm.textContent = role === 'ai' ? (c ? cn(c) : 'Character') : userName(p) === 'User' && !p ? 'You' : userName(p);
+  const av = document.createElement('span'); av.className = 'mav'; av.dataset.who = role;
+  setThumb(av, (role === 'ai' ? c : p) || { name: nm.textContent });
+  el.prepend(av, nm);
 }
 const setText = (bubble, text) => rich(bubble.querySelector('.txt'), text);
 
@@ -1605,7 +1704,7 @@ function setThink(bubble, text, done, secs) {
   if (!d) {
     d = document.createElement('details'); d.className = 'think';
     d.append(document.createElement('summary'), Object.assign(document.createElement('div'), { className: 'tbody' }));
-    bubble.prepend(d);
+    const nm = bubble.querySelector(':scope > .mname'); nm ? nm.after(d) : bubble.prepend(d);
   }
   d.classList.toggle('live', !done);
   d.querySelector('summary').textContent = done ? `Thought for ${secs || 1}s` : 'Thinking…';
@@ -2147,7 +2246,7 @@ function showMsgMenu(el, anchor = el, onImage = false) {
       timer = setTimeout(() => { pic.dataset.long = '1'; showMsgMenu(el, pic, true); }, 480);
       return;
     }
-    if (e.target.closest('button, a, img, .alts')) return;
+    if (e.target.closest('button, a, img, .alts, .mav')) return;
     const el = e.target.closest('.msg.me, .msg.ai'); if (!el || el.dataset.i === undefined || el.classList.contains('editing')) return;
     x0 = e.clientX; y0 = e.clientY;
     timer = setTimeout(() => showMsgMenu(el), 480);
@@ -2369,6 +2468,7 @@ function openChat(id) {
 }
 // A chat you never wrote anything in isn't worth keeping
 function leaveChat() {
+  $('floatPic').hidden = true;
   const s = cur; cur = null;
   if (s) setTimeout(() => queueReachOut(s.chat), 0);
   applyLook();
@@ -3955,13 +4055,14 @@ function setLookCtx(ctx) {
 
 // ---------- Settings page ----------
 // The text-style controls edit either the AI's or the user's text; user keys are stored with a u_ prefix
-const STYLE_KEYS = ['fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
+const STYLE_KEYS = ['align', 'fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
 let styleTarget = 'ai';
 const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
 const fontKey = () => styleTarget === 'me' ? 'meFont' : 'aiFont';
 
 const CONTROLS = '#settings [data-k], #lookBlock [data-k], #themeBlock [data-k]';
 const editLook = () => lookCtx === 'chat' && cur ? chatLook() : cfg;
+let lastAnim = null;
 function syncControls() {
   const L = editLook();
   for (const el of document.querySelectorAll(CONTROLS)) {
@@ -3980,6 +4081,19 @@ function syncControls() {
   for (const el of document.querySelectorAll('[data-mdc]')) el.hidden = !g(el.dataset.mdc + 'On');
   $('gradbar').style.background = `linear-gradient(90deg, ${g('c1')}, ${g('c2')})`;
   for (const t of document.querySelectorAll('#lookBlock .tgt')) t.textContent = styleTarget === 'me' ? '· you' : '· AI';
+  $('nameColorRow').hidden = !g('showNames'); $('nameCRow').hidden = g('nameMode') !== 'custom';
+  $('avShapeRow').hidden = !g('showAvatars');
+  // the mock-up uses the open chat's names and pictures when there is one
+  for (const m of document.querySelectorAll('#preview .msg')) {
+    const role = m.classList.contains('me') ? 'me' : 'ai';
+    m.querySelector(':scope > .mav')?.remove(); m.querySelector(':scope > .mname')?.remove();
+    decorate(m, role, lookCtx === 'chat' ? cur?.c : null, lookCtx === 'chat' ? cur?.p : null);
+  }
+  // replay the entrance animation when it changes
+  if (g('anim') !== lastAnim) {
+    lastAnim = g('anim');
+    for (const m of document.querySelectorAll('#preview .msg')) { m.classList.remove('new'); void m.offsetWidth; m.classList.add('new'); }
+  }
   const own = lookCtx === 'chat' && cur?.chat.look && Object.keys(cur.chat.look).length;
   $('resetLook').textContent = lookCtx === 'chat' ? 'Use global style' : 'Reset customization';
   $('resetLook').disabled = lookCtx === 'chat' && !own;
@@ -4045,6 +4159,12 @@ function buildSettings() {
     syncControls();
   };
   for (const t of document.querySelectorAll('#preview [data-rich]')) rich(t, t.textContent);
+  for (const m of document.querySelectorAll('#preview .msg')) {
+    const me = m.classList.contains('me');
+    decorate(m, me ? 'me' : 'ai', null, null);
+    const ts = document.createElement('span'); ts.className = 'ts'; ts.textContent = me ? '23:41' : '23:42';
+    if (me) m.append(ts); else { const n = document.createElement('div'); n.className = 'alts'; n.style.marginTop = '6px'; n.append(ts); m.append(n); }
+  }
   $('accentReset').onclick = () => update('accent', '');
   $('resetLook').onclick = () => {
     if (lookCtx === 'chat' && cur) { if (confirm('Drop this chat\'s own style and use the global one?')) { delete cur.chat.look; store.set('chats', chats); applyLook(); syncControls(); } return; }
@@ -4813,6 +4933,50 @@ $('composer').onsubmit = e => {
   input.value = ''; input.style.height = 'auto'; setAttached(null); setDoc(null); clearHelper();
   send(t, img, false, doc, ip);
 };
+
+// Floating profile picture: tap a picture next to a message; pinch to resize, drag anywhere, ✕ closes
+$('log').addEventListener('click', async e => {
+  const av = e.target.closest('.mav'); if (!av || !cur) return;
+  const it = av.dataset.who === 'ai' ? cur.c : cur.p;
+  const src = it?.img && await idb.get(it.img).catch(() => null);
+  if (!src) return toast('No picture yet');
+  openFloatPic(src);
+});
+function openFloatPic(src) {
+  const f = $('floatPic'); f.querySelector('img').src = src;
+  if (f.hidden) { f.style.width = '190px'; f.style.left = Math.round(innerWidth - 190 - 16) + 'px'; f.style.top = Math.round(innerHeight * 0.14) + 'px'; }
+  f.hidden = false;
+}
+$('floatPic').querySelector('button').onclick = () => { $('floatPic').hidden = true; };
+(() => {
+  const f = $('floatPic'), pts = new Map();
+  let start = null;
+  const snap = () => {
+    const r = f.getBoundingClientRect(), ps = [...pts.values()];
+    const mid = ps.reduce((a, q) => ({ x: a.x + q.x / ps.length, y: a.y + q.y / ps.length }), { x: 0, y: 0 });
+    start = { left: r.left, top: r.top, w: r.width, mid, dist: ps.length > 1 ? Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y) : 0 };
+  };
+  f.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    f.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); snap();
+  });
+  f.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId) || !start) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const ps = [...pts.values()];
+    const mid = ps.reduce((a, q) => ({ x: a.x + q.x / ps.length, y: a.y + q.y / ps.length }), { x: 0, y: 0 });
+    let w = start.w;
+    if (ps.length > 1 && start.dist) w = Math.max(110, Math.min(innerWidth - 16, start.w * Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y) / start.dist));
+    const k = w / start.w;
+    // grow around the fingers, follow them when they move
+    const left = mid.x - (start.mid.x - start.left) * k, top = mid.y - (start.mid.y - start.top) * k;
+    f.style.width = w + 'px';
+    f.style.left = Math.max(-w + 60, Math.min(innerWidth - 60, left)) + 'px';
+    f.style.top = Math.max(0, Math.min(innerHeight - 60, top)) + 'px';
+  });
+  const end = e => { pts.delete(e.pointerId); if (pts.size) snap(); else start = null; };
+  f.addEventListener('pointerup', end); f.addEventListener('pointercancel', end);
+})();
 
 // Tap the top of the screen: scroll the open screen back to the top
 function scrollTopOfView() {
