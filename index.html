@@ -508,8 +508,6 @@
 
   /* ---------- Chat settings ---------- */
   button.chat-who { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; color: inherit; }
-  .match { display: flex; gap: 6px; padding: 0 4px; margin-top: -6px; }
-  .match .btn { flex: 1; padding: 6px 8px; font-size: 12px; border: 0; background: none; color: var(--accent); }
 
   /* ---------- Character profile ---------- */
   .hero { width: 100%; aspect-ratio: 3 / 4; max-height: 62vh; margin-top: 12px; border-radius: 18px; background: var(--accent-soft) center / cover no-repeat;
@@ -808,6 +806,10 @@
     </div>
   </div>
   <div class="page-inner cs-pane" data-t="1" hidden>
+    <details class="sec" id="themeFold">
+    <summary class="group-title">Theme for this chat</summary>
+    <div id="chatThemeHost"></div>
+    </details>
     <details class="sec" id="bgFold">
     <summary class="group-title">Background</summary>
     <div class="card">
@@ -824,16 +826,13 @@
       <div class="hint">Shown behind this chat only. Dim it a bit so the text stays easy to read.</div>
     </div>
     </details>
-    <details class="sec" data-f="styles"><summary class="group-title"><span class="gt">Saved styles</span></summary>
-      <div class="card" id="cStylesBox"></div>
-    </details>
     <div class="cs-stylehead"><p class="group-title">Style for this chat</p><label class="glob"><span>Global</span><input type="checkbox" class="tgl" id="csGlobalLook"></label></div>
     <div class="hint" id="chatLookState" style="margin:-4px 4px 10px"></div>
-    <div id="chatLookHost"></div>
-    <details class="sec" id="themeFold">
-    <summary class="group-title">Theme for this chat</summary>
-    <div id="chatThemeHost"></div>
+    <details class="card fold" data-f="styles">
+      <summary class="sub">Saved styles</summary>
+      <div id="cStylesBox"></div>
     </details>
+    <div id="chatLookHost"></div>
   </div>
   <div class="page-inner cs-pane" data-t="2" hidden>
     <details class="sec gsec" data-g="proxy"><summary class="group-title"><span class="gt">Proxy</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
@@ -1075,37 +1074,12 @@ Empty = send everything.</div>
     </div>
     </details>
 
-    <details class="sec" data-sec="backup">
-    <summary class="group-title">Backup</summary>
-    <div class="card">
-      <div class="actions">
-        <button class="btn" type="button" id="bkExport">Export backup</button>
-        <button class="btn" type="button" id="bkImport">Import backup</button>
-      </div>
-      <input type="file" id="bkFile" accept="application/json,.json" hidden>
-      <div class="hint">Export saves all characters, personas, chats, images and settings (API keys included) in one file. Keep it in Files or iCloud Drive. Import restores it after reinstalling or on another phone, and replaces everything currently in the app.</div>
-    </div>
+    <details class="sec" data-sec="style">
+    <summary class="group-title">Style</summary>
+    <details class="card fold" data-sec="style-saved">
+      <summary class="sub">Saved styles</summary>
+      <div id="gStylesBox"></div>
     </details>
-
-    <details class="sec" data-sec="debug">
-    <summary class="group-title">Debug</summary>
-    <div class="card">
-      <div class="hint" id="dbgSummary" style="margin-top:0"></div>
-      <div class="actions">
-        <button class="btn" type="button" id="dbgReport">Download debug report</button>
-        <button class="btn" type="button" id="dbgClear">Clear log</button>
-      </div>
-      <div class="hint">For when the app crashes or something goes wrong: share this file when you report it. It holds errors, crashes, storage use and chat sizes, but no messages, prompts or API keys.</div>
-    </div>
-    </details>
-
-    <details class="sec" data-sec="saved-styles">
-    <summary class="group-title">Saved styles</summary>
-    <div class="card" id="gStylesBox"></div>
-    </details>
-
-    <details class="sec" data-sec="customization">
-    <summary class="group-title">Customization</summary>
     <div id="globalLookHost"><div id="lookBlock">
     <div class="preview" id="preview">
       <div class="seg" id="styleTarget">
@@ -1117,6 +1091,23 @@ Empty = send everything.</div>
       <div class="msg ai"><span class="txt" data-rich>"Of course." *She pulls the blanket closer.* The rain **always** sounds ~~boring~~ different at night.&#10;&#10;> Old memory: the `porch` light.</span></div>
     </div>
 
+
+    <details class="card fold" data-sec="look-theme" id="lookThemeFold">
+      <summary class="sub">Theme</summary>
+      <div id="globalThemeHost">
+<div class="card" id="themeBlock">
+      <label class="f" style="margin-top:4px">Mode</label>
+      <div class="seg" data-k="theme">
+        <button type="button" data-v="original">Default</button>
+        <button type="button" data-v="light">Light</button>
+        <button type="button" data-v="dark">Dark</button>
+      </div>
+      <div class="line"><span>Accent color</span><span style="display:flex;gap:8px;align-items:center">
+        <button class="btn" type="button" id="accentReset" style="padding:5px 10px;font-size:13px">Default</button>
+        <input type="color" data-k="accent" id="accent"></span></div>
+    </div>
+      </div>
+    </details>
 
     <details class="card fold" data-sec="look-layout">
       <summary class="sub">Layout</summary>
@@ -1220,24 +1211,33 @@ Empty = send everything.</div>
       <summary class="sub">Markdown <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></summary>
       <div class="hint" style="margin-top:0">Give each kind of formatting its own color. Only used in chats.</div>
       <div id="mdRows"></div>
-      <div class="actions"><button class="btn" type="button" id="resetLook">Reset customization</button></div>
     </details>
+    <div class="actions" id="resetRow"><button class="btn" type="button" id="resetLook">Reset style</button></div>
     </div></div>
     </details>
 
-    <details class="sec" data-sec="themes">
-    <summary class="group-title">Themes</summary>
-    <div id="globalThemeHost"><div class="card" id="themeBlock">
-      <label class="f" style="margin-top:4px">Mode</label>
-      <div class="seg" data-k="theme">
-        <button type="button" data-v="original">Default</button>
-        <button type="button" data-v="light">Light</button>
-        <button type="button" data-v="dark">Dark</button>
+    <details class="sec" data-sec="backup">
+    <summary class="group-title">Backup</summary>
+    <div class="card">
+      <div class="actions">
+        <button class="btn" type="button" id="bkExport">Export backup</button>
+        <button class="btn" type="button" id="bkImport">Import backup</button>
       </div>
-      <div class="line"><span>Accent color</span><span style="display:flex;gap:8px;align-items:center">
-        <button class="btn" type="button" id="accentReset" style="padding:5px 10px;font-size:13px">Default</button>
-        <input type="color" data-k="accent" id="accent"></span></div>
-    </div></div>
+      <input type="file" id="bkFile" accept="application/json,.json" hidden>
+      <div class="hint">Export saves all characters, personas, chats, images and settings (API keys included) in one file. Keep it in Files or iCloud Drive. Import restores it after reinstalling or on another phone, and replaces everything currently in the app.</div>
+    </div>
+    </details>
+
+    <details class="sec" data-sec="debug">
+    <summary class="group-title">Debug</summary>
+    <div class="card">
+      <div class="hint" id="dbgSummary" style="margin-top:0"></div>
+      <div class="actions">
+        <button class="btn" type="button" id="dbgReport">Download debug report</button>
+        <button class="btn" type="button" id="dbgClear">Clear log</button>
+      </div>
+      <div class="hint">For when the app crashes or something goes wrong: share this file when you report it. It holds errors, crashes, storage use and chat sizes, but no messages, prompts or API keys.</div>
+    </div>
     </details>
 
   </div></div>
@@ -1321,12 +1321,12 @@ const LOOK_DEFAULTS = {
   u_showNames: false, u_nameMode: 'theme', u_nameC: '#3d63f5', u_showAvatars: false, u_avShape: 'circle', u_bubbleShape: 'tail', u_showTimes: true,
   sides: 'default', spacing: 'normal', anim: 'none',
   aiFont: 'Fraunces', meFont: 'Inter',
-  fs: 18, fw: 300, lh: 1.6, ls: 0, italic: false, underline: false, glow: false,
+  fs: 18, fw: 300, lh: 1.6, ls: 0, glow: false,
   colorMode: 'theme', c1: '#ff7a59', c2: '#c13584', angle: 135, qOn: false, qColor: '#e8a33d',
   md_iOn: false, md_iColor: '#8e7cc3', md_bOn: false, md_bColor: '#d9553b', md_sOn: false, md_sColor: '#9aa0a6',
   md_codeOn: false, md_codeColor: '#2f9e8f', md_hOn: false, md_hColor: '#d9553b', md_liOn: false, md_liColor: '#d9553b',
   md_bqOn: false, md_bqColor: '#8a8a90', md_aOn: false, md_aColor: '#3d63f5', md_hrOn: false, md_hrColor: '#c9b8ad',
-  u_fs: 16, u_fw: 400, u_lh: 1.55, u_ls: 0, u_italic: false, u_underline: false, u_glow: false,
+  u_fs: 16, u_fw: 400, u_lh: 1.55, u_ls: 0, u_glow: false,
   u_colorMode: 'theme', u_c1: '#00c6ff', u_c2: '#0072ff', u_angle: 135, u_qOn: false, u_qColor: '#e8a33d',
   u_md_iOn: false, u_md_iColor: '#8e7cc3', u_md_bOn: false, u_md_bColor: '#d9553b', u_md_sOn: false, u_md_sColor: '#9aa0a6',
   u_md_codeOn: false, u_md_codeColor: '#2f9e8f', u_md_hOn: false, u_md_hColor: '#d9553b', u_md_liOn: false, u_md_liColor: '#d9553b',
@@ -4433,6 +4433,7 @@ function setLookCtx(ctx) {
   lookCtx = ctx;
   $(ctx === 'chat' ? 'chatLookHost' : 'globalLookHost').append($('lookBlock'));
   $(ctx === 'chat' ? 'chatThemeHost' : 'globalThemeHost').append($('themeBlock'));
+  $('lookThemeFold').hidden = ctx === 'chat'; $('resetRow').hidden = ctx === 'chat';
   applyLook(); syncControls();
 }
 
@@ -4492,7 +4493,6 @@ function syncControls() {
   const own = lookToChat();
   if (lookCtx === 'chat' && cur) { $('csGlobalLook').checked = !own; $('chatLookHost').hidden = !own; }
   $('resetLook').hidden = lookCtx === 'chat';
-  $('resetLook').textContent = lookCtx === 'chat' ? 'Use global style' : 'Reset customization';
   $('resetLook').disabled = lookCtx === 'chat' && !own;
   $('chatLookState').textContent = own ? 'This chat has its own style. Changes here only apply to this chat.' : 'Uses the style from Settings. Turn off Global to give this chat its own.';
 }
@@ -4585,7 +4585,7 @@ function buildSettings() {
   };
   $('resetLook').onclick = () => {
     if (lookCtx === 'chat' && cur) { if (confirm('Drop this chat\'s own style and use the global one?')) { delete cur.chat.look; store.set('chats', chats); applyLook(); syncControls(); } return; }
-    if (confirm('Reset all customization?')) { Object.assign(cfg, LOOK_DEFAULTS); update('theme', cfg.theme); }
+    if (confirm('Reset every style setting (theme, layout, fonts, colors) to the defaults? Saved styles are kept.')) { Object.assign(cfg, LOOK_DEFAULTS); update('theme', cfg.theme); }
   };
 }
 
