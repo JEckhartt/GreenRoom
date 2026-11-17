@@ -507,6 +507,9 @@
   details.sec { border-bottom: 1px solid var(--line); padding-bottom: 6px; }
   details.sec[open] { padding-bottom: 18px; }
   details.sec > summary.group-title { font-size: 13px; }
+  details.sec > summary > .gt { flex: 1; }
+  details.gsec > summary .glob { display: flex; align-items: center; gap: 8px; margin-right: 14px; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; }
+  details.gsec .gnote { margin: 0 4px; }
   details.fold { padding-bottom: 2px; }
   details.fold[open] { padding-bottom: 14px; }
   details.fold > summary.sub { margin: 0; padding: 14px 0 12px; }
@@ -806,45 +809,46 @@
     </details>
   </div>
   <div class="page-inner cs-pane" data-t="2" hidden>
-    <p class="group-title">Proxy for this chat</p>
-    <div class="card" id="cProxyBox"></div>
-    <p class="group-title">Image proxy for this chat</p>
-    <div class="card" style="margin-bottom:10px">
-      <div class="line" style="padding-top:12px"><span>Generate images in this chat</span><input type="checkbox" class="tgl" id="csGenImg"></div>
-      <div class="hint" id="csGenImgHint"></div>
-    </div>
-    <div class="card" id="cImgBox"></div>
-    <div class="card" style="margin-top:10px" id="csAutoPicsCard">
-      <div class="line" style="padding-top:12px"><span>Make pictures automatically</span><input type="checkbox" class="tgl" id="csAutoPics"></div>
-      <div class="hint">On: a picture is made as soon as you ask for one or the character sends one ("here's a pic of…"). Off: a camera button appears under that reply instead; tap it to make the picture.</div>
-    </div>
-    <p class="group-title">Generation for this chat</p>
-    <div class="card" id="cPresetBox"></div>
-    <div class="card prows" style="margin-top:10px">
-      <details class="prow">
-        <summary><span>Context size</span><em id="sumCsCtx"></em></summary>
-        <div class="hint">How much of this chat the AI gets to read, in tokens (100 tokens ≈ 75 words). When the chat is longer, the oldest messages are left out.
-Empty = use the global setting.</div>
-        <input id="csCtx" type="number" inputmode="numeric" min="0" step="1000">
-      </details>
-    </div>
+    <details class="sec gsec" data-g="proxy"><summary class="group-title"><span class="gt">Proxy</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
+      <div class="gbody"><div class="card" id="cProxyBox"></div></div><div class="hint gnote"></div>
+    </details>
+    <details class="sec gsec" data-g="img"><summary class="group-title"><span class="gt">Image proxy</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
+      <div class="gbody"><div class="card" id="cImgBox"></div></div><div class="hint gnote"></div>
+    </details>
+    <details class="sec" data-f="pics"><summary class="group-title"><span class="gt">Pictures</span></summary>
+      <div class="card" style="margin-bottom:10px">
+        <div class="line" style="padding-top:12px"><span>Generate images in this chat</span><input type="checkbox" class="tgl" id="csGenImg"></div>
+        <div class="hint" id="csGenImgHint"></div>
+      </div>
+      <div class="card" id="csAutoPicsCard">
+        <div class="line" style="padding-top:12px"><span>Make pictures automatically</span><input type="checkbox" class="tgl" id="csAutoPics"></div>
+        <div class="hint">On: a picture is made as soon as you ask for one or the character sends one ("here's a pic of…"). Off: a camera button appears under that reply instead; tap it to make the picture.</div>
+      </div>
+    </details>
+    <details class="sec gsec" data-g="gen"><summary class="group-title"><span class="gt">Generation</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
+      <div class="gbody"><div class="card" id="cPresetBox"></div></div><div class="hint gnote"></div>
+    </details>
+    <details class="sec gsec" data-g="ctx"><summary class="group-title"><span class="gt">Context size</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
+      <div class="gbody"><div class="card">
+        <div class="hint" style="margin-top:0">How much of this chat the AI gets to read, in tokens (100 tokens ≈ 75 words). When the chat is longer, the oldest messages are left out. Empty = no limit.</div>
+        <input id="csCtx" type="number" inputmode="numeric" min="0" step="1000" placeholder="No limit">
+      </div></div><div class="hint gnote"></div>
+    </details>
   </div>
   <div class="page-inner cs-pane" data-t="3" hidden>
-    <p class="group-title">Real time</p>
-    <div class="card">
-      <div class="line"><span>Send the real date and time</span><input type="checkbox" class="tgl" id="csRealTime"></div>
-      <div class="hint">With every message the AI gets your current date, day and time, and how long it has been since the previous message. The character can then say good morning at the right time, notice it's the weekend, or that you've been gone for hours.</div>
-    </div>
-    <p class="group-title">System prompt for this chat</p>
-    <div class="card">
-      <textarea id="csPrompt" class="big"></textarea>
-      <div class="hint">When filled in, it replaces the global system prompt in this chat only. {{char}} and {{user}} are filled in.</div>
-      <div class="actions">
-        <button class="btn" type="button" id="csPromptCopy">Start from global prompt</button>
-        <button class="btn" type="button" id="csPromptClear">Use global prompt</button>
+    <details class="sec" data-f="realtime"><summary class="group-title"><span class="gt">Real time</span></summary>
+      <div class="card">
+        <div class="line"><span>Send the real date and time</span><input type="checkbox" class="tgl" id="csRealTime"></div>
+        <div class="hint">With every message the AI gets your current date, day and time, and how long it has been since the previous message. The character can then say good morning at the right time, notice it's the weekend, or that you've been gone for hours.</div>
       </div>
-    </div>
-    <p class="group-title">Messages from the character</p>
+    </details>
+    <details class="sec gsec" data-g="prompt"><summary class="group-title"><span class="gt">System prompt</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
+      <div class="gbody"><div class="card">
+        <textarea id="csPrompt" class="big" placeholder="Empty: no system prompt in this chat"></textarea>
+        <div class="hint">Used instead of the global system prompt in this chat. {{char}} and {{user}} are filled in.</div>
+      </div></div><div class="hint gnote"></div>
+    </details>
+    <details class="sec" data-f="reach"><summary class="group-title"><span class="gt">Messages from the character</span></summary>
     <div class="card">
       <div class="line"><span>Character messages you first</span><input type="checkbox" class="tgl" id="csReach"></div>
       <div class="line" id="csReachRow"><span id="csReachLabel">When you've been away for</span>
@@ -855,16 +859,19 @@ Empty = use the global setting.</div>
       <div class="line" id="csReachRandRow"><span>Random moment</span><input type="checkbox" class="tgl" id="csReachRand"></div>
       <div class="hint" id="csReachHint">When you leave this chat, the character writes a message straight away; it arrives as a notification after the time above and is waiting in the chat. Random moment: it arrives at an unpredictable time, somewhere between a quarter of that time and the full time. Come back earlier and it's cancelled. Each time costs one AI request.</div>
     </div>
-    <p class="group-title">Lorebooks for this chat</p>
-    <div class="card">
-      <div class="chips" id="csLore"></div>
-      <div class="hint" id="csLoreHint"></div>
-    </div>
-    <p class="group-title">Forbidden words for this chat</p>
-    <div class="card">
-      <textarea id="csForbidden" placeholder="One per line or comma separated"></textarea>
-      <div class="hint">Added to the global forbidden words for this chat only.</div>
-    </div>
+    </details>
+    <details class="sec" data-f="lore"><summary class="group-title"><span class="gt">Lorebooks</span></summary>
+      <div class="card">
+        <div class="chips" id="csLore"></div>
+        <div class="hint" id="csLoreHint"></div>
+      </div>
+    </details>
+    <details class="sec gsec" data-g="forbid"><summary class="group-title"><span class="gt">Forbidden words</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
+      <div class="gbody"><div class="card">
+        <textarea id="csForbidden" placeholder="One per line or comma separated"></textarea>
+        <div class="hint">This chat's own list, used instead of the global forbidden words.</div>
+      </div></div><div class="hint gnote"></div>
+    </details>
   </div></div>
 </section>
 
@@ -1574,7 +1581,7 @@ function timeNote(hist, i) {
 }
 function systemFor(c, p, memory, lore, chat = cur?.chat, hist = null) {
   const f = t => fill((t || '').trim(), c, p);
-  const parts = [f(chat?.prompt?.trim() || cfg.systemPrompt)];
+  const parts = [f(chat && 'prompt' in chat ? chat.prompt : cfg.systemPrompt)];
   let ch = `--- Character: ${cn(c)} ---\nYou are ${cn(c)}. Stay in character.`;
   if (f(c.personality)) ch += `\n\nPersonality:\n${f(c.personality)}`;
   if (f(c.scenario)) ch += `\n\nScenario:\n${f(c.scenario)}`;
@@ -1585,7 +1592,7 @@ function systemFor(c, p, memory, lore, chat = cur?.chat, hist = null) {
   const maxT = gen(chat).maxTokens;
   if (maxT) parts.push(`--- Reply length (strict) ---\nEvery reply must stay under ${Math.max(15, Math.round(maxT * 0.6))} words. This is a hard limit, also for long scenes: write less, not faster. Always finish your last sentence.`);
   if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
-  const banned = [cfg.forbidden, chat?.forbidden].join('\n').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
+  const banned = String(chat && 'forbidden' in chat ? chat.forbidden : cfg.forbidden || '').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
   if (banned.length) parts.push(`--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.`);
   if (chat?.realTime) parts.push(timeFor());
   if (!imagesOn(chat)) parts.push('--- Pictures ---\nYou cannot send real pictures in this chat. When the user asks for a picture, photo or selfie, describe it vividly in words as part of your reply, as if showing it (for example: *sends you a photo: …*).');
@@ -2135,7 +2142,7 @@ const gen = (chat = cur?.chat) => {
   return {
     temperature: numOr(pr.temperature) ?? 0.9, maxTokens: numOr(pr.maxTokens), topP: numOr(pr.topP), topK: numOr(pr.topK), minP: numOr(pr.minP),
     repPenalty: numOr(pr.repPenalty), freqPenalty: numOr(pr.freqPenalty), presPenalty: numOr(pr.presPenalty),
-    contextSize: parseInt(chat?.contextSize || cfg.contextSize, 10) || 0,
+    contextSize: parseInt(chat && 'contextSize' in chat ? chat.contextSize : cfg.contextSize, 10) || 0,
   };
 };
 function ready() {
@@ -3936,26 +3943,67 @@ function openChatSettings() {
   renderProxyBoxes(); syncChatGen();
   $('csAutoPics').checked = cur.chat.autoPics !== false;
   syncGenImg();
-  $('csForbidden').value = cur.chat.forbidden || '';
   $('csRealTime').checked = !!cur.chat.realTime;
   $('csReach').checked = !!cur.chat.reachOut; $('csReachAfter').value = String(cur.chat.reachAfter || 180); syncReachRows();
   syncBgControls();
   renderCsLore();
-  $('csPrompt').value = cur.chat.prompt || '';
-  $('csPrompt').placeholder = cfg.systemPrompt ? 'Empty: the global system prompt is used.' : 'No global system prompt set.';
+  refreshChatSettings();
   setCsTab(0);
   setLookCtx('chat');
   $('chatset').querySelector('.page-body').scrollTop = 0;
   openView('chatset');
 }
 $('memory').addEventListener('input', () => { if (!cur) return; cur.chat.memory = $('memory').value; store.set('chats', chats); });
-$('csPrompt').addEventListener('input', () => { if (!cur) return; cur.chat.prompt = $('csPrompt').value; if (!cur.chat.prompt.trim()) delete cur.chat.prompt; store.set('chats', chats); });
-$('csPromptCopy').onclick = () => {
-  if (!cur || !cfg.systemPrompt) return toast('There is no global system prompt yet');
-  if ($('csPrompt').value.trim() && !confirm('Replace this chat\'s prompt with the global one?')) return;
-  $('csPrompt').value = cfg.systemPrompt; $('csPrompt').dispatchEvent(new Event('input', { bubbles: true }));
+$('csPrompt').addEventListener('input', () => { if (!cur) return; cur.chat.prompt = $('csPrompt').value; store.set('chats', chats); });
+
+// Global switches in Chat settings → Proxy / Prompt: on = the chat uses Settings and the section's controls hide;
+// off = the chat's own value (it starts from the global one, and comes back as it was after switching on and off)
+const GSECS = {
+  proxy: ['proxyId', () => cfg.proxyId || ''], img: ['imgProxyId', () => cfg.imgProxyId || ''],
+  gen: ['presetId', () => cfg.presetId || ''], ctx: ['contextSize', () => cfg.contextSize || ''],
+  prompt: ['prompt', () => cfg.systemPrompt || ''], forbid: ['forbidden', () => cfg.forbidden || ''],
 };
-$('csPromptClear').onclick = () => { if (!cur) return; delete cur.chat.prompt; store.set('chats', chats); $('csPrompt').value = ''; autosize($('csPrompt')); toast('This chat uses the global prompt'); };
+function gsum(g) {
+  const nm = (list, id) => list.find(x => x.id === id)?.name || 'none set';
+  if (g === 'proxy') return nm(cfg.proxies, cfg.proxyId);
+  if (g === 'img') return nm(cfg.imgProxies, cfg.imgProxyId);
+  if (g === 'gen') return cfg.presets.length ? nm(cfg.presets, cfg.presetId) : 'model defaults';
+  if (g === 'ctx') return cfg.contextSize ? Number(cfg.contextSize).toLocaleString() + ' tokens' : 'no limit';
+  if (g === 'prompt') return cfg.systemPrompt?.trim() ? `"${cfg.systemPrompt.trim().slice(0, 70)}${cfg.systemPrompt.trim().length > 70 ? '…' : ''}"` : 'none';
+  const n = (cfg.forbidden || '').split(/[\n,]+/).filter(w => w.trim()).length; return n ? `${n} word${n === 1 ? '' : 's'}` : 'none';
+}
+function syncGsecs() {
+  if (!cur) return;
+  for (const d of document.querySelectorAll('#chatset details.gsec')) {
+    const own = GSECS[d.dataset.g][0] in cur.chat;
+    d.querySelector('summary input').checked = !own;
+    d.querySelector('.gbody').hidden = !own;
+    const n = d.querySelector('.gnote'); n.hidden = own; n.textContent = 'Uses the global setting: ' + gsum(d.dataset.g) + '. Turn off Global to set this chat\'s own.';
+  }
+}
+function refreshChatSettings() {
+  const ch = cur.chat;
+  renderProxyBoxes(); syncChatGen(); syncGenImg();
+  $('csPrompt').value = ch.prompt ?? ''; $('csForbidden').value = ch.forbidden ?? '';
+  syncGsecs(); autosizeAll?.($('chatset'));
+}
+for (const d of document.querySelectorAll('#chatset details.gsec')) {
+  const inp = d.querySelector('summary input');
+  d.querySelector('summary .glob').addEventListener('click', e => e.stopPropagation()); // the switch doesn't fold the section
+  inp.onchange = () => {
+    if (!cur) return;
+    const ch = cur.chat, [k, start] = GSECS[d.dataset.g];
+    if (inp.checked) { if (k in ch) ch[k + 'Stash'] = ch[k]; delete ch[k]; }
+    else { ch[k] = (k + 'Stash') in ch ? ch[k + 'Stash'] : start(); delete ch[k + 'Stash']; d.open = true; }
+    store.set('chats', chats); refreshChatSettings();
+  };
+}
+// sections remember whether they're open
+for (const d of document.querySelectorAll('#chatset details[data-g], #chatset details[data-f]')) {
+  const key = d.dataset.g || d.dataset.f;
+  d.open = !!store.get('csFolds', {})[key];
+  d.addEventListener('toggle', () => { const f = store.get('csFolds', {}); f[key] = d.open; store.set('csFolds', f); if (d.open) autosizeAll?.(d); });
+}
 
 // ---------- Proxy lists: tap one to make it active; + New adds one ----------
 const PROXY_HINT = {
@@ -4000,17 +4048,16 @@ function prow(label, value, hint, ...controls) {
 }
 function renderPresetBox(box, scope) {
   const list = cfg.presets, chat = scope === 'chat' ? cur?.chat : null;
-  const selId = chat ? (list.some(x => x.id === chat.presetId) && chat.presetId !== cfg.presetId ? chat.presetId : '') : cfg.presetId;
-  const select = id => { if (chat) { if (id) chat.presetId = id; else delete chat.presetId; store.set('chats', chats); } else { cfg.presetId = id; saveCfg(); } renderProxyBoxes(); };
+  const selId = chat ? (list.some(x => x.id === chat.presetId) ? chat.presetId : '') : cfg.presetId;
+  const select = id => { if (chat) { chat.presetId = id; store.set('chats', chats); } else { cfg.presetId = id; saveCfg(); } renderProxyBoxes(); };
   box.innerHTML = '';
   const chips = document.createElement('div'); chips.className = 'chips';
   const chip = (label, on, fn, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; b.onclick = fn; chips.append(b); };
-  if (chat) { const g = list.find(x => x.id === cfg.presetId); chip('Global' + (g ? ` (${g.name || 'unnamed'})` : ''), !selId, () => select('')); }
-  for (const pr of list) { if (chat && pr.id === cfg.presetId) continue; chip(pr.name || 'Unnamed', pr.id === selId, () => select(pr.id)); }
+  for (const pr of list) chip(pr.name || 'Unnamed', pr.id === selId, () => select(pr.id));
   chip('+ New', false, () => { const base = presetFor(); const pr = { ...base, id: uid(), name: `Preset ${list.length + 1}` }; list.push(pr); saveCfg(); select(pr.id); }, 'add');
   box.append(chips);
   const pr = list.find(x => x.id === selId);
-  if (!pr) { const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '12px'; h.textContent = chat ? 'This chat uses the global preset. Pick another to use it in this chat only.' : 'No preset yet. Tap + New.'; return box.append(h); }
+  if (!pr) { const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '12px'; h.textContent = chat && list.length ? 'Pick a preset for this chat.' : 'No preset yet. Tap + New.'; return box.append(h); }
   // name
   const nm = document.createElement('input'); nm.type = 'text'; nm.value = pr.name || '';
   const nameRow = prow('Name', pr.name || '', 'The name shown on the preset buttons.', nm);
@@ -4044,15 +4091,13 @@ function renderPresetBox(box, scope) {
 }
 function renderProxyBox(box, kind, scope) {
   const list = proxyList(kind), k = proxyKey(kind), chat = scope === 'chat' ? cur?.chat : null;
-  const selId = chat ? (list.some(x => x.id === chat[k]) && chat[k] !== cfg[k] ? chat[k] : '') : cfg[k];
+  const selId = chat ? (list.some(x => x.id === chat[k]) ? chat[k] : '') : cfg[k];
   const save = () => { saveCfg(); if (chat) store.set('chats', chats); };
-  const select = id => { if (chat) { if (id) chat[k] = id; else delete chat[k]; } else cfg[k] = id; save(); renderProxyBoxes(); };
+  const select = id => { if (chat) chat[k] = id; else cfg[k] = id; save(); renderProxyBoxes(); };
   box.innerHTML = '';
   const chips = document.createElement('div'); chips.className = 'chips';
   const chip = (label, on, fn, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; b.onclick = fn; chips.append(b); };
-  if (chat) { const g = list.find(x => x.id === cfg[k]); chip('Global' + (g ? ` (${g.name || 'unnamed'})` : ''), !selId, () => select('')); }
   for (const pr of list) {
-    if (chat && pr.id === cfg[k]) continue; // already offered as "Global"
     chip(pr.name || 'Unnamed', pr.id === selId, () => select(pr.id));
   }
   chip('+ New', false, () => {
@@ -4063,7 +4108,7 @@ function renderProxyBox(box, kind, scope) {
   const pr = list.find(x => x.id === selId);
   if (!pr) {
     const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '12px';
-    h.textContent = chat ? 'This chat uses the global one. Pick another to use it in this chat only.' : 'No proxy yet. Tap + New.';
+    h.textContent = chat && list.length ? 'Pick one for this chat.' : 'No proxy yet. Tap + New.';
     return box.append(h);
   }
   const field = (label, f, type, ph) => {
@@ -4097,14 +4142,12 @@ function renderProxyBox(box, kind, scope) {
 function syncGenSummaries() {
   $('sumThinking').textContent = cfg.showThinking === false ? 'Off' : 'On';
   $('sumContext').textContent = cfg.contextSize ? Number(cfg.contextSize).toLocaleString() : 'everything';
-  if (cur) $('sumCsCtx').textContent = cur.chat.contextSize ? Number(cur.chat.contextSize).toLocaleString() : 'global';
 }
 for (const id of ['contextSize', 'csCtx']) $(id).addEventListener('input', () => setTimeout(syncGenSummaries));
 document.querySelector('[data-k=showThinking]').addEventListener('change', () => setTimeout(syncGenSummaries));
 function syncChatGen() {
   syncGenSummaries();
-  $('csCtx').value = cur?.chat.contextSize || '';
-  $('csCtx').placeholder = cfg.contextSize ? `Global: ${cfg.contextSize}` : 'Global: no limit';
+  $('csCtx').value = cur?.chat.contextSize ?? '';
 }
 function syncGenImg() {
   if (!cur) return;
@@ -4122,9 +4165,9 @@ $('csAutoPics').onchange = () => {
   if ($('csAutoPics').checked) delete cur.chat.autoPics; else cur.chat.autoPics = false;
   store.set('chats', chats); render();
 };
-$('csCtx').oninput = () => { if (!cur) return; const v = $('csCtx').value.trim(); if (v) cur.chat.contextSize = v; else delete cur.chat.contextSize; store.set('chats', chats); };
+$('csCtx').oninput = () => { if (!cur) return; cur.chat.contextSize = $('csCtx').value.trim(); store.set('chats', chats); };
 $('csRealTime').onchange = () => { if (!cur) return; if ($('csRealTime').checked) cur.chat.realTime = true; else delete cur.chat.realTime; store.set('chats', chats); };
-$('csForbidden').addEventListener('input', () => { if (!cur) return; cur.chat.forbidden = $('csForbidden').value; if (!cur.chat.forbidden.trim()) delete cur.chat.forbidden; store.set('chats', chats); });
+$('csForbidden').addEventListener('input', () => { if (!cur) return; cur.chat.forbidden = $('csForbidden').value; store.set('chats', chats); });
 
 // ---------- Summaries ----------
 const estTokens = t => Math.ceil((t || '').length / 4);
@@ -5307,6 +5350,8 @@ initFolds();
 applyLook();
 renderList('char');
 renderList('persona');
+// Forbidden words in a chat used to be added to the global ones: keep that as the chat's own list
+{ let ch2 = false; for (const ch of chats) if (ch.forbidden?.trim() && !ch.fbOwn) { ch.forbidden = [cfg.forbidden, ch.forbidden].filter(x => x?.trim()).join('\n'); ch.fbOwn = true; ch2 = true; } if (ch2) store.set('chats', chats); }
 loadMsgs().then(() => { deliverReach(); renderChats(); step('started'); });
 if (sessionStorage.getItem('restored')) { sessionStorage.removeItem('restored'); setTimeout(() => toast('Backup restored'), 0); }
 // Clean up the automatic-backup copy an earlier build wrote
