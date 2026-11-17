@@ -267,6 +267,16 @@
   #toBottom[hidden] { display: none; }
   @keyframes tbIn { from { opacity: 0; transform: translateY(6px); } }
   input.locked { opacity: .6; pointer-events: none; }
+  .pitem { border-bottom: 1px solid var(--line); }
+  .pitem > summary { justify-content: flex-start; gap: 12px; padding: 12px 2px; }
+  .pitem > summary .pname { flex: 1; font-size: 15px; }
+  .pdot { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); background: none; padding: 0; cursor: pointer; }
+  .pdot.on { border-color: var(--accent); background: radial-gradient(circle, var(--accent) 45%, transparent 50%); }
+  .pbody { padding: 0 0 12px; display: flex; flex-direction: column; gap: 8px; }
+  .pbody input { width: 100%; }
+  .srow2 { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
+  .srow2 .sname { flex: 1; text-align: left; border: 0; background: none; color: var(--ink); font: inherit; font-size: 15px; padding: 13px 2px; cursor: pointer; }
+  .srow2 .smore { border: 0; background: none; color: var(--ink-soft); font-size: 18px; padding: 6px 8px; cursor: pointer; }
   .badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 999px; }
   .list-empty { text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
 
@@ -801,6 +811,9 @@
       <div class="hint">Shown behind this chat only. Dim it a bit so the text stays easy to read.</div>
     </div>
     </details>
+    <details class="sec" data-f="styles"><summary class="group-title"><span class="gt">Saved styles</span></summary>
+      <div class="card" id="cStylesBox"></div>
+    </details>
     <div class="cs-stylehead"><p class="group-title">Style for this chat</p><label class="glob"><span>Global</span><input type="checkbox" class="tgl" id="csGlobalLook"></label></div>
     <div class="hint" id="chatLookState" style="margin:-4px 4px 10px"></div>
     <div id="chatLookHost"></div>
@@ -816,14 +829,14 @@
     <details class="sec gsec" data-g="img"><summary class="group-title"><span class="gt">Image proxy</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
       <div class="gbody"><div class="card" id="cImgBox"></div></div><div class="hint gnote"></div>
     </details>
-    <details class="sec" data-f="pics"><summary class="group-title"><span class="gt">Pictures</span></summary>
+    <details class="sec" data-f="pics"><summary class="group-title"><span class="gt">Images</span></summary>
       <div class="card" style="margin-bottom:10px">
         <div class="line" style="padding-top:12px"><span>Generate images in this chat</span><input type="checkbox" class="tgl" id="csGenImg"></div>
         <div class="hint" id="csGenImgHint"></div>
       </div>
       <div class="card" id="csAutoPicsCard">
-        <div class="line" style="padding-top:12px"><span>Make pictures automatically</span><input type="checkbox" class="tgl" id="csAutoPics"></div>
-        <div class="hint">On: a picture is made as soon as you ask for one or the character sends one ("here's a pic of…"). Off: a camera button appears under that reply instead; tap it to make the picture.</div>
+        <div class="line" style="padding-top:12px"><span>Make images automatically</span><input type="checkbox" class="tgl" id="csAutoPics"></div>
+        <div class="hint">On: an image is made as soon as you ask for one or the character sends one ("here's a pic of…"). Off: a camera button appears under that reply instead; tap it to make the image.</div>
       </div>
     </details>
     <details class="sec gsec" data-g="gen"><summary class="group-title"><span class="gt">Generation</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
@@ -844,10 +857,7 @@
       </div>
     </details>
     <details class="sec gsec" data-g="prompt"><summary class="group-title"><span class="gt">System prompt</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
-      <div class="gbody"><div class="card">
-        <textarea id="csPrompt" class="big" placeholder="Empty: no system prompt in this chat"></textarea>
-        <div class="hint">Used instead of the global system prompt in this chat. {{char}} and {{user}} are filled in.</div>
-      </div></div><div class="hint gnote"></div>
+      <div class="gbody"><div class="card" id="cPromptBox"></div></div><div class="hint gnote"></div>
     </details>
     <details class="sec" data-f="reach"><summary class="group-title"><span class="gt">Messages from the character</span></summary>
     <div class="card">
@@ -1030,9 +1040,8 @@ Empty = send everything.</div>
     <details class="sec" data-sec="prompt">
     <summary class="group-title">Prompt</summary>
     <div class="card">
-      <label class="f" for="systemPrompt">System prompt</label>
-      <textarea id="systemPrompt" data-k="systemPrompt" class="big" placeholder="Paste your complete system prompt here."></textarea>
-      <div class="hint">Sent with every message, before the character and persona. {{char}} and {{user}} are filled in.</div>
+      <label class="f">System prompts</label>
+      <div id="gPromptBox"></div>
       <label class="f" for="forbidden">Forbidden words</label>
       <textarea id="forbidden" data-k="forbidden" placeholder="One per line or comma separated, e.g.&#10;shivers down the spine, ministrations"></textarea>
       <div class="hint">The AI is told never to use these words or phrases. Models follow this well, but it's an instruction, not a hard filter.</div>
@@ -1061,6 +1070,11 @@ Empty = send everything.</div>
       </div>
       <div class="hint">For when the app crashes or something goes wrong: share this file when you report it. It holds errors, crashes, storage use and chat sizes, but no messages, prompts or API keys.</div>
     </div>
+    </details>
+
+    <details class="sec" data-sec="saved-styles">
+    <summary class="group-title">Saved styles</summary>
+    <div class="card" id="gStylesBox"></div>
     </details>
 
     <details class="sec" data-sec="customization">
@@ -1582,7 +1596,7 @@ function timeNote(hist, i) {
 }
 function systemFor(c, p, memory, lore, chat = cur?.chat, hist = null) {
   const f = t => fill((t || '').trim(), c, p);
-  const parts = [f(chat && 'prompt' in chat ? chat.prompt : cfg.systemPrompt)];
+  const parts = [f(promptText(chat))];
   let ch = `--- Character: ${cn(c)} ---\nYou are ${cn(c)}. Stay in character.`;
   if (f(c.personality)) ch += `\n\nPersonality:\n${f(c.personality)}`;
   if (f(c.scenario)) ch += `\n\nScenario:\n${f(c.scenario)}`;
@@ -3948,14 +3962,13 @@ function openChatSettings() {
   $('csReach').checked = !!cur.chat.reachOut; $('csReachAfter').value = String(cur.chat.reachAfter || 180); syncReachRows();
   syncBgControls();
   renderCsLore();
-  refreshChatSettings();
+  refreshChatSettings(); renderStyles();
   setCsTab(0);
   setLookCtx('chat');
   $('chatset').querySelector('.page-body').scrollTop = 0;
   openView('chatset');
 }
 $('memory').addEventListener('input', () => { if (!cur) return; cur.chat.memory = $('memory').value; store.set('chats', chats); });
-$('csPrompt').addEventListener('input', () => { if (!cur) return; cur.chat.prompt = $('csPrompt').value; store.set('chats', chats); });
 
 // Global switches in Chat settings → Proxy / Prompt: on = the chat uses Settings and the section's controls hide;
 // off = the chat's own value (it starts from the global one, and comes back as it was after switching on and off)
@@ -3970,8 +3983,67 @@ function gsum(g) {
   if (g === 'img') return nm(cfg.imgProxies, cfg.imgProxyId);
   if (g === 'gen') return cfg.presets.length ? nm(cfg.presets, cfg.presetId) : 'model defaults';
   if (g === 'ctx') return cfg.contextSize ? Number(cfg.contextSize).toLocaleString() + ' tokens' : 'no limit';
-  if (g === 'prompt') return cfg.systemPrompt?.trim() ? `"${cfg.systemPrompt.trim().slice(0, 70)}${cfg.systemPrompt.trim().length > 70 ? '…' : ''}"` : 'none';
+  if (g === 'prompt') { const t = globalPromptText().trim(), lp = promptLib().find(x => x.id === cfg.promptSel); return `${lp ? lp.name : 'Default'}${t ? ` ("${t.slice(0, 60)}${t.length > 60 ? '…' : ''}")` : ' (empty)'}`; }
   const n = (cfg.forbidden || '').split(/[\n,]+/).filter(w => w.trim()).length; return n ? `${n} word${n === 1 ? '' : 's'}` : 'none';
+}
+// System prompts: "Default" plus your own saved ones (shared). In a chat, Default is the chat's own copy:
+// changing it there doesn't touch Settings. The selected one (the dot) is what's sent.
+const promptLib = () => cfg.prompts || (cfg.prompts = []);
+const globalPromptText = () => promptLib().find(x => x.id === cfg.promptSel)?.text ?? cfg.systemPrompt ?? '';
+function promptText(chat) {
+  if (chat && 'prompt' in chat) { const lp = chat.promptSel && promptLib().find(x => x.id === chat.promptSel); return lp ? lp.text : chat.prompt; }
+  return globalPromptText();
+}
+const openPrompts = new Set();
+function renderPromptBox(box, scope) {
+  if (!box) return;
+  const chat = scope === 'chat' ? cur?.chat : null; if (scope === 'chat' && !chat) return;
+  const sel = (chat ? chat.promptSel : cfg.promptSel) || '';
+  const persist = () => { saveCfg(); if (chat) store.set('chats', chats); };
+  const items = [{ id: '', name: 'Default', def: true }, ...promptLib()];
+  box.innerHTML = '';
+  for (const it of items) {
+    if (it.id && !promptLib().includes(it)) continue;
+    const d = document.createElement('details'); d.className = 'pitem'; d.open = openPrompts.has(scope + it.id);
+    d.addEventListener('toggle', () => { d.open ? openPrompts.add(scope + it.id) : openPrompts.delete(scope + it.id); if (d.open) autosizeAll(d); });
+    const sm = document.createElement('summary');
+    const dot = document.createElement('button'); dot.type = 'button'; dot.className = 'pdot' + (sel === it.id ? ' on' : ''); dot.setAttribute('aria-label', 'Use this prompt');
+    dot.onclick = e => { e.preventDefault(); e.stopPropagation(); if (chat) chat.promptSel = it.id; else cfg.promptSel = it.id; persist(); renderPromptBox(box, scope); syncGsecs?.(); };
+    const nm = document.createElement('span'); nm.className = 'pname'; nm.textContent = it.name + (sel === it.id ? ' · in use' : '');
+    sm.append(dot, nm);
+    const body = document.createElement('div'); body.className = 'pbody';
+    if (!it.def) {
+      const ni = document.createElement('input'); ni.type = 'text'; ni.value = it.name; ni.placeholder = 'Name';
+      ni.oninput = () => { it.name = ni.value; nm.textContent = ni.value + (sel === it.id ? ' · in use' : ''); persist(); };
+      body.append(ni);
+    }
+    const ta = document.createElement('textarea'); ta.className = 'big';
+    ta.value = it.def ? (chat ? chat.prompt ?? '' : cfg.systemPrompt ?? '') : it.text || '';
+    ta.placeholder = 'Paste your complete system prompt here.';
+    ta.oninput = () => { if (it.def) { if (chat) chat.prompt = ta.value; else cfg.systemPrompt = ta.value; } else it.text = ta.value; autosize(ta); persist(); };
+    body.append(ta);
+    const h = document.createElement('div'); h.className = 'hint';
+    h.textContent = it.def ? (chat ? 'This chat\'s own copy: changes here don\'t change Settings.' : 'Sent with every message, before the character and persona. {{char}} and {{user}} are filled in.') : (chat ? 'Saved prompts are shared with Settings and other chats.' : '{{char}} and {{user}} are filled in.');
+    body.append(h);
+    if (!it.def) {
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete this prompt';
+      del.onclick = () => {
+        if (!confirm(`Delete "${it.name}"?`)) return;
+        promptLib().splice(promptLib().indexOf(it), 1);
+        if (cfg.promptSel === it.id) cfg.promptSel = '';
+        for (const ch of chats) if (ch.promptSel === it.id) ch.promptSel = '';
+        saveCfg(); store.set('chats', chats); renderPromptBox(box, scope);
+      };
+      const a = document.createElement('div'); a.className = 'actions'; a.append(del); body.append(a);
+    }
+    d.append(sm, body); box.append(d);
+  }
+  const add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.textContent = '+ New prompt';
+  add.onclick = () => { const it = { id: uid(), name: `Prompt ${promptLib().length + 1}`, text: '' }; promptLib().push(it); openPrompts.add(scope + it.id); saveCfg(); renderPromptBox(box, scope); };
+  const a = document.createElement('div'); a.className = 'actions'; a.append(add);
+  const hint = document.createElement('div'); hint.className = 'hint'; hint.textContent = 'Tap the dot to choose which prompt is used. Tap a name to open it.';
+  box.append(a, hint);
+  requestAnimationFrame(() => autosizeAll(box));
 }
 function syncGsecs() {
   if (!cur) return;
@@ -3985,7 +4057,7 @@ function syncGsecs() {
 function refreshChatSettings() {
   const ch = cur.chat;
   renderProxyBoxes(); syncChatGen(); syncGenImg();
-  $('csPrompt').value = ch.prompt ?? ''; $('csForbidden').value = ch.forbidden ?? '';
+  renderPromptBox($('cPromptBox'), 'chat'); $('csForbidden').value = ch.forbidden ?? '';
   syncGsecs(); autosizeAll?.($('chatset'));
 }
 for (const d of document.querySelectorAll('#chatset details.gsec')) {
@@ -3995,7 +4067,10 @@ for (const d of document.querySelectorAll('#chatset details.gsec')) {
     if (!cur) return;
     const ch = cur.chat, [k, start] = GSECS[d.dataset.g];
     if (inp.checked) { if (k in ch) ch[k + 'Stash'] = ch[k]; delete ch[k]; }
-    else { ch[k] = (k + 'Stash') in ch ? ch[k + 'Stash'] : start(); delete ch[k + 'Stash']; d.open = true; }
+    else {
+      ch[k] = (k + 'Stash') in ch ? ch[k + 'Stash'] : start(); delete ch[k + 'Stash']; d.open = true;
+      if (k === 'prompt' && !('promptSel' in ch)) ch.promptSel = cfg.promptSel || ''; // starts with the prompt Settings uses
+    }
     store.set('chats', chats); refreshChatSettings();
   };
 }
@@ -4053,31 +4128,34 @@ function renderPresetBox(box, scope) {
   const select = id => { if (chat) { chat.presetId = id; store.set('chats', chats); } else { cfg.presetId = id; saveCfg(); } renderProxyBoxes(); };
   box.innerHTML = '';
   const chips = document.createElement('div'); chips.className = 'chips';
-  const chip = (label, on, fn, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; b.onclick = fn; chips.append(b); };
-  for (const pr of list) chip(pr.name || 'Unnamed', pr.id === selId, () => select(pr.id));
-  chip('+ New', false, () => { const base = presetFor(); const pr = { ...base, id: uid(), name: `Preset ${list.length + 1}` }; list.push(pr); saveCfg(); select(pr.id); }, 'add');
+  const chip = (label, on, fn, cls = '', onLong) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; if (onLong) pressable(b, fn, onLong); else b.onclick = fn; chips.append(b); };
+  const dup = src => showSheet(src.name || 'Unnamed', [{ label: `Duplicate "${src.name || 'Unnamed'}"`, onClick: () => { const pr = { ...src, id: uid(), name: `${src.name || 'Unnamed'} copy` }; list.push(pr); saveCfg(); select(pr.id); toast(chat ? 'Duplicated. Change it in Settings → Generation.' : 'Duplicated'); } }]);
+  for (const pr of list) chip(pr.name || 'Unnamed', pr.id === selId, () => select(pr.id), '', () => { navigator.vibrate?.(12); dup(pr); });
+  if (!chat) chip('+ New', false, () => { const base = presetFor(); const pr = { ...base, id: uid(), name: `Preset ${list.length + 1}` }; list.push(pr); saveCfg(); select(pr.id); }, 'add');
   box.append(chips);
   const pr = list.find(x => x.id === selId);
   if (!pr) { const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '12px'; h.textContent = chat && list.length ? 'Pick a preset for this chat.' : 'No preset yet. Tap + New.'; return box.append(h); }
+  // in a chat the values can be seen, not changed (that's done in Settings)
+  const lock = el => { if (chat) { el.disabled = true; el.classList.add('locked'); } return el; };
   // name
-  const nm = document.createElement('input'); nm.type = 'text'; nm.value = pr.name || '';
+  const nm = lock(document.createElement('input')); nm.type = 'text'; nm.value = pr.name || '';
   const nameRow = prow('Name', pr.name || '', 'The name shown on the preset buttons.', nm);
   nm.oninput = () => { pr.name = nm.value; nameRow.setValue(nm.value); saveCfg(); }; nm.onchange = () => renderProxyBoxes();
   box.append(nameRow);
   // temperature
-  const tr = document.createElement('input'); tr.type = 'range'; tr.min = 0; tr.max = 2; tr.step = 0.05; tr.value = numOr(pr.temperature) ?? 0.9;
+  const tr = lock(document.createElement('input')); tr.type = 'range'; tr.min = 0; tr.max = 2; tr.step = 0.05; tr.value = numOr(pr.temperature) ?? 0.9;
   const tRow = prow('Temperature', (+tr.value).toFixed(2), 'How adventurous the writing is.\nLow (0.5): safe and predictable, can feel flat.\nHigh (1.2): surprising and creative, can lose the thread.\nFor roleplay try 0.8–1.0.', tr);
   tr.oninput = () => { pr.temperature = +tr.value; tRow.setValue((+tr.value).toFixed(2)); saveCfg(); };
   box.append(tRow);
   // the rest
   for (const [k, label, step, ph, hint] of PRESET_FIELDS) {
-    const i = document.createElement('input'); i.type = 'number'; i.step = step; i.inputMode = 'decimal'; i.placeholder = ph + ' (empty = model default)'; i.value = pr[k] ?? '';
+    const i = lock(document.createElement('input')); i.type = 'number'; i.step = step; i.inputMode = 'decimal'; i.placeholder = ph + ' (empty = model default)'; i.value = pr[k] ?? '';
     const row = prow(label, pr[k] ?? 'default', hint, i);
     i.oninput = () => { const v = i.value.trim(); if (v === '') delete pr[k]; else pr[k] = v; row.setValue(v === '' ? 'default' : v); saveCfg(); };
     box.append(row);
   }
-  if (chat) { const n = document.createElement('div'); n.className = 'hint'; n.style.marginTop = '10px'; n.textContent = 'Presets are shared with Settings and other chats.'; box.append(n); }
-  if (list.length > 1) {
+  { const n = document.createElement('div'); n.className = 'hint'; n.style.marginTop = '10px'; n.textContent = chat ? 'Presets can only be changed in Settings → Generation. Long press one to duplicate it.' : 'Long press a preset to duplicate it.'; box.append(n); }
+  if (!chat && list.length > 1) {
     const acts = document.createElement('div'); acts.className = 'actions';
     const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete this preset';
     del.onclick = () => {
@@ -4097,21 +4175,15 @@ function renderProxyBox(box, kind, scope) {
   const select = id => { if (chat) chat[k] = id; else cfg[k] = id; save(); renderProxyBoxes(); };
   box.innerHTML = '';
   const chips = document.createElement('div'); chips.className = 'chips';
-  const chip = (label, on, fn, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; b.onclick = fn; chips.append(b); };
+  const chip = (label, on, fn, cls = '', onLong) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; if (onLong) pressable(b, fn, onLong); else b.onclick = fn; chips.append(b); };
+  // long press a proxy: duplicate it
+  const dup = src => showSheet(src.name || 'Unnamed', [{ label: `Duplicate "${src.name || 'Unnamed'}"`, onClick: () => { const pr = { ...src, id: uid(), name: `${src.name || 'Unnamed'} copy` }; list.push(pr); select(pr.id); toast('Duplicated'); } }]);
   for (const pr of list) {
-    chip((pr.name || 'Unnamed') + (pr.id === cfg[k] ? ' · default' : ''), pr.id === selId, () => select(pr.id));
+    chip((pr.name || 'Unnamed') + (pr.id === cfg[k] ? ' · default' : ''), pr.id === selId, () => select(pr.id), '', () => { navigator.vibrate?.(12); dup(pr); });
   }
-  // + New: an empty one, or a copy of the default (the one active in Settings) to change without touching it
   chip('+ New', false, () => {
-    const what = kind === 'img' ? 'image proxy' : 'proxy', def = list.find(x => x.id === cfg[k]);
-    const make = src => {
-      const pr = src ? { ...src, id: uid(), name: `${src.name || 'Unnamed'} copy` } : { id: uid(), name: `${kind === 'img' ? 'Image proxy' : 'Proxy'} ${list.length + 1}`, url: '', key: '', model: '' };
-      list.push(pr); select(pr.id);
-    };
-    showSheet(`New ${what}`, [
-      { label: `Create new ${what}`, onClick: () => make(null) },
-      ...(def ? [{ label: `Duplicate default (${def.name || 'Unnamed'})`, onClick: () => make(def) }] : []),
-    ]);
+    const pr = { id: uid(), name: `${kind === 'img' ? 'Image proxy' : 'Proxy'} ${list.length + 1}`, url: '', key: '', model: '' };
+    list.push(pr); select(pr.id);
   }, 'add');
   box.append(chips);
   const pr = list.find(x => x.id === selId);
@@ -4136,8 +4208,8 @@ function renderProxyBox(box, kind, scope) {
   const h = document.createElement('div'); h.className = 'hint'; h.innerHTML = PROXY_HINT[kind]; box.append(h);
   field('API key', 'key', 'password', 'sk-or-…');
   field('Model', 'model', 'text', kind === 'img' ? 'google/gemini-2.5-flash-image' : 'anthropic/claude-sonnet-4.5');
-  if (locked) { const n = document.createElement('div'); n.className = 'hint'; n.textContent = 'This is the default from Settings and can only be changed there. To change it for this chat, tap + New → Duplicate default.'; box.append(n); return; }
-  if (chat) { const n = document.createElement('div'); n.className = 'hint'; n.textContent = 'Saved proxies are shared with Settings and other chats.'; box.append(n); }
+  if (locked) { const n = document.createElement('div'); n.className = 'hint'; n.textContent = 'This is the default from Settings and can only be changed there. To change it for this chat, long press it and duplicate it.'; box.append(n); return; }
+  { const n = document.createElement('div'); n.className = 'hint'; n.textContent = (chat ? 'Saved proxies are shared with Settings and other chats. ' : '') + 'Long press a proxy to duplicate it.'; box.append(n); }
   const acts = document.createElement('div'); acts.className = 'actions';
   const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete this proxy';
   del.onclick = () => {
@@ -4167,7 +4239,7 @@ function syncGenImg() {
   $('csGenImg').checked = on;
   $('csAutoPicsCard').hidden = !on;
   const h = $('csGenImgHint'); h.innerHTML = '';
-  h.append((on ? 'Pictures are made with the image proxy below.' : 'Off: no real pictures; the character describes them in words instead.') + ' ');
+  h.append((on ? 'Images are made with the image proxy.' : 'Off: no real images; the character describes them in words instead.') + ' ');
   if (own) { const b = document.createElement('a'); b.href = '#'; b.textContent = 'Follow Settings again'; b.style.color = 'var(--accent)'; b.onclick = e => { e.preventDefault(); delete cur.chat.genImages; store.set('chats', chats); syncGenImg(); render(); }; h.append(b); }
   else h.append(`Follows Settings (${cfg.genImages === false ? 'off' : 'on'}) until you change it here.`);
 }
@@ -4429,6 +4501,48 @@ function buildSettings() {
   };
 }
 
+// Saved styles: a snapshot of every look setting (fonts, colors, layout, theme…), applied in one tap
+const savedStyles = () => cfg.savedStyles || (cfg.savedStyles = []);
+function renderStyles() {
+  for (const [box, scope] of [[$('gStylesBox'), 'global'], [$('cStylesBox'), 'chat']]) {
+    if (!box || (scope === 'chat' && !cur)) continue;
+    box.innerHTML = '';
+    const list = savedStyles();
+    for (const st of list) {
+      const row = document.createElement('div'); row.className = 'srow2';
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'sname'; b.textContent = st.name;
+      pressable(b, () => applyStyle(st, scope), () => { navigator.vibrate?.(12); styleMenu(st, scope); });
+      const more = document.createElement('button'); more.type = 'button'; more.className = 'smore'; more.textContent = '⋯'; more.setAttribute('aria-label', 'Style options');
+      more.onclick = () => styleMenu(st, scope);
+      row.append(b, more); box.append(row);
+    }
+    const hint = document.createElement('div'); hint.className = 'hint';
+    hint.textContent = list.length ? (scope === 'chat' ? 'Tap a style to use it in this chat (Global switches off).' : 'Tap a style to use it everywhere that follows the global style.') : 'No saved styles yet.';
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.textContent = '+ Save current style';
+    add.onclick = () => {
+      const name = prompt('Name for this style', `Style ${list.length + 1}`)?.trim(); if (!name) return;
+      list.push({ id: uid(), name, look: currentLook(scope) }); saveCfg(); renderStyles(); toast('Style saved');
+    };
+    const acts = document.createElement('div'); acts.className = 'actions'; acts.append(add);
+    box.append(hint, acts);
+  }
+}
+const currentLook = scope => { const L = scope === 'chat' ? chatLook() : cfg; return Object.fromEntries(LOOK_KEYS.map(k => [k, L[k]])); };
+function applyStyle(st, scope) {
+  if (scope === 'chat' && cur) { const ch = cur.chat; ch.look = { ...st.look }; ch.lookGlobal = false; delete ch.lookStash; store.set('chats', chats); }
+  else { Object.assign(cfg, st.look); saveCfg(); }
+  applyLook(); syncControls(); toast(`"${st.name}" applied`);
+}
+function styleMenu(st, scope) {
+  const list = savedStyles();
+  showSheet(st.name, [
+    { label: 'Use this style', onClick: () => applyStyle(st, scope) },
+    { label: 'Save the current style into it', onClick: () => { if (confirm(`Replace "${st.name}" with the current style?`)) { st.look = currentLook(scope); saveCfg(); toast('Style updated'); } } },
+    { label: 'Rename', onClick: () => { const n = prompt('Name', st.name)?.trim(); if (n) { st.name = n; saveCfg(); renderStyles(); } } },
+    { label: 'Delete', onClick: () => { if (confirm(`Delete "${st.name}"?`)) { list.splice(list.indexOf(st), 1); saveCfg(); renderStyles(); } } },
+  ]);
+}
+
 // Collapsible sections remember their state
 function initFolds() {
   const saved = store.get('folds', {});
@@ -4477,7 +4591,7 @@ async function debugReport() {
   return L.join('\n');
 }
 function openSettings() {
-  syncDebug();
+  syncDebug(); renderStyles(); renderPromptBox($('gPromptBox'), 'global');
   loadFonts(Object.keys(FONTS));
   renderProxyBoxes(); syncGenSummaries();
   openView('settings');

@@ -65,3 +65,10 @@ Download it from the **latest-build** release (or the workflow run's artifacts) 
 OPENROUTER_API_KEY=sk-or-... node proxy.js
 ```
 Proxy URL: `http://localhost:8787/api/v1`. Keeps your key out of the browser.
+
+## Proxies, presets, prompts and styles
+
+- **Proxies** (chat and image): **+ New** makes an empty one straight away; long press a proxy to duplicate it. The proxy active in Settings is marked *default*; in Chat settings it can be picked but not changed.
+- **Generation presets** in Chat settings can only be picked, not changed (that's done in Settings → Generation); long press one to duplicate it.
+- **System prompts**: a list of collapsible prompts in Settings → Prompt and Chat settings → Prompt. **Default** plus your own (+ New prompt); the dot chooses which one is sent. In a chat, Default is the chat's own copy: changing it there leaves Settings alone. Your own prompts are shared.
+- **Saved styles**: at the top of Settings → Customization and Chat settings → Style. **+ Save current style** stores every look setting; tap one to use it (in a chat this switches Global off), ⋯ or long press to update, rename or delete.
