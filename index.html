@@ -1132,6 +1132,7 @@ Empty = send everything.</div>
         <div class="hint">In a chat, tap a picture to float it: pinch to resize, drag it anywhere, ✕ to close.</div>
       </div>
       <div class="line"><span>Message bubble <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="aiBubble"></div>
+      <div id="bubbleOpts">
       <label class="f">Bubble shape <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></label>
       <div class="seg" data-k="bubbleShape">
         <button type="button" data-v="round">Rounded</button>
@@ -1140,6 +1141,7 @@ Empty = send everything.</div>
       </div>
       <div class="line"><span>Full width <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="wide"></div>
       <div class="hint" style="margin-top:2px">The message fills the screen from side to side, bubble and all.</div>
+      </div>
       <div class="line"><span>Timestamps <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="showTimes"></div>
       <p class="sub" style="margin:16px 0 0">For all messages</p>
       <label class="f">Where messages sit</label>
@@ -4451,6 +4453,7 @@ function syncControls() {
   for (const t of document.querySelectorAll('#lookBlock .tgt')) t.textContent = styleTarget === 'me' ? '· you' : styleTarget === 'both' ? '· both' : '· AI';
   $('nameColorRow').hidden = !g('showNames'); $('nameCRow').hidden = g('nameMode') !== 'custom';
   $('avShapeRow').hidden = !g('showAvatars');
+  $('bubbleOpts').hidden = !g('aiBubble'); // bubble shape and full width only matter with a bubble
   // headings, lists, links and dividers join the mock-up when their color is switched on
   for (const t of document.querySelectorAll('#preview [data-rich]')) {
     const pre = t.closest('.msg').classList.contains('me') ? 'u_' : '', on = k => !!L[pre + k + 'On'];
