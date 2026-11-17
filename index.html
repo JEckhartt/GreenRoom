@@ -259,6 +259,13 @@
   .apimg { aspect-ratio: 1; border: 0; border-radius: 10px; background: var(--accent-soft) center / cover no-repeat; cursor: pointer; }
   .cs-stylehead { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
   .cs-stylehead .glob { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); padding-top: 8px; }
+  /* Arrow above the text field: jump to the newest message; hidden at the bottom */
+  .tb-wrap { position: relative; height: 0; z-index: 5; }
+  #toBottom { position: absolute; left: 50%; bottom: 12px; width: 40px; height: 40px; margin-left: -20px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+    border: 1px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--ink); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    box-shadow: 0 6px 18px -8px rgba(0,0,0,.35); animation: tbIn .18s ease-out; }
+  #toBottom[hidden] { display: none; }
+  @keyframes tbIn { from { opacity: 0; transform: translateY(6px); } }
   .badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 999px; }
   .list-empty { text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
 
@@ -638,6 +645,7 @@
     <button class="act" id="chatProfile" type="button">Profile</button>
   </div>
   <main id="scroller"><div id="log"></div></main>
+  <div class="tb-wrap"><button type="button" id="toBottom" aria-label="Scroll to the newest message" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button></div>
   <div id="helpBar" hidden><span id="helpState"></span><button type="button" id="helpRetry">Retry</button><button type="button" id="helpUndo">Delete</button></div>
   <div id="anPanel" hidden>
     <div class="anbox">
@@ -5229,6 +5237,13 @@ $('floatPic').querySelector('button').onclick = () => { $('floatPic').hidden = t
   const end = e => { pts.delete(e.pointerId); if (pts.size) snap(); else start = null; };
   f.addEventListener('pointerup', end); f.addEventListener('pointercancel', end);
 })();
+
+// Down arrow: shows when you're away from the newest message (also while a reply grows below), gone at the bottom
+const syncToBottom = () => { $('toBottom').hidden = nearBottom(); };
+$('scroller').addEventListener('scroll', syncToBottom, { passive: true });
+new ResizeObserver(syncToBottom).observe($('log'));
+new ResizeObserver(syncToBottom).observe($('scroller'));
+$('toBottom').onclick = () => { const sc = $('scroller'); sc.scrollTo({ top: sc.scrollHeight, behavior: 'smooth' }); };
 
 // Tap the top of the screen: scroll the open screen back to the top
 function scrollTopOfView() {
