@@ -266,6 +266,7 @@
     box-shadow: 0 6px 18px -8px rgba(0,0,0,.35); animation: tbIn .18s ease-out; }
   #toBottom[hidden] { display: none; }
   @keyframes tbIn { from { opacity: 0; transform: translateY(6px); } }
+  input.locked { opacity: .6; pointer-events: none; }
   .badge { font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 999px; }
   .list-empty { text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
 
@@ -4098,11 +4099,19 @@ function renderProxyBox(box, kind, scope) {
   const chips = document.createElement('div'); chips.className = 'chips';
   const chip = (label, on, fn, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; b.onclick = fn; chips.append(b); };
   for (const pr of list) {
-    chip(pr.name || 'Unnamed', pr.id === selId, () => select(pr.id));
+    chip((pr.name || 'Unnamed') + (pr.id === cfg[k] ? ' · default' : ''), pr.id === selId, () => select(pr.id));
   }
+  // + New: an empty one, or a copy of the default (the one active in Settings) to change without touching it
   chip('+ New', false, () => {
-    const pr = { id: uid(), name: `${kind === 'img' ? 'Image proxy' : 'Proxy'} ${list.length + 1}`, url: '', key: '', model: '' };
-    list.push(pr); select(pr.id);
+    const what = kind === 'img' ? 'image proxy' : 'proxy', def = list.find(x => x.id === cfg[k]);
+    const make = src => {
+      const pr = src ? { ...src, id: uid(), name: `${src.name || 'Unnamed'} copy` } : { id: uid(), name: `${kind === 'img' ? 'Image proxy' : 'Proxy'} ${list.length + 1}`, url: '', key: '', model: '' };
+      list.push(pr); select(pr.id);
+    };
+    showSheet(`New ${what}`, [
+      { label: `Create new ${what}`, onClick: () => make(null) },
+      ...(def ? [{ label: `Duplicate default (${def.name || 'Unnamed'})`, onClick: () => make(def) }] : []),
+    ]);
   }, 'add');
   box.append(chips);
   const pr = list.find(x => x.id === selId);
@@ -4111,9 +4120,11 @@ function renderProxyBox(box, kind, scope) {
     h.textContent = chat && list.length ? 'Pick one for this chat.' : 'No proxy yet. Tap + New.';
     return box.append(h);
   }
+  // In a chat the default can be used but not changed (that's done in Settings)
+  const locked = !!chat && pr.id === cfg[k];
   const field = (label, f, type, ph) => {
     const l = document.createElement('label'); l.className = 'f'; l.textContent = label;
-    const i = document.createElement('input'); i.type = type; i.value = pr[f] || ''; i.placeholder = ph;
+    const i = document.createElement('input'); i.type = type; i.value = pr[f] || ''; i.placeholder = ph; i.readOnly = locked; if (locked) i.classList.add('locked');
     i.autocomplete = 'off'; i.setAttribute('autocapitalize', 'off'); i.setAttribute('autocorrect', 'off');
     i.oninput = () => { pr[f] = i.value; if (f === 'url' || f === 'model') { delete pr.noRefs; delete pr.modalities; } saveCfg(); };
     if (f === 'name') i.onchange = () => renderProxyBoxes();
@@ -4125,6 +4136,7 @@ function renderProxyBox(box, kind, scope) {
   const h = document.createElement('div'); h.className = 'hint'; h.innerHTML = PROXY_HINT[kind]; box.append(h);
   field('API key', 'key', 'password', 'sk-or-…');
   field('Model', 'model', 'text', kind === 'img' ? 'google/gemini-2.5-flash-image' : 'anthropic/claude-sonnet-4.5');
+  if (locked) { const n = document.createElement('div'); n.className = 'hint'; n.textContent = 'This is the default from Settings and can only be changed there. To change it for this chat, tap + New → Duplicate default.'; box.append(n); return; }
   if (chat) { const n = document.createElement('div'); n.className = 'hint'; n.textContent = 'Saved proxies are shared with Settings and other chats.'; box.append(n); }
   const acts = document.createElement('div'); acts.className = 'actions';
   const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete this proxy';
