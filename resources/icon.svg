@@ -1,36 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="30%" r="85%">
-      <stop offset="0" stop-color="#2f8f66"/><stop offset=".55" stop-color="#17583f"/><stop offset="1" stop-color="#0a281d"/>
+    <radialGradient id="bg" cx="50%" cy="36%" r="78%">
+      <stop offset="0" stop-color="#1b4a38"/><stop offset=".6" stop-color="#0f2c21"/><stop offset="1" stop-color="#071710"/>
     </radialGradient>
-    <linearGradient id="light" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#fff1c9"/><stop offset="1" stop-color="#ffb84d"/>
+    <linearGradient id="bubble" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b7759"/><stop offset="1" stop-color="#184b38"/>
     </linearGradient>
-    <linearGradient id="spill" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffc861" stop-opacity=".75"/><stop offset="1" stop-color="#ffc861" stop-opacity="0"/>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7fd1aa" stop-opacity=".55"/><stop offset=".25" stop-color="#7fd1aa" stop-opacity="0"/>
     </linearGradient>
-    <linearGradient id="door" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#0f3b2b"/><stop offset="1" stop-color="#1c5a42"/>
-    </linearGradient>
-    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#ffd27a" stop-opacity=".45"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/>
+    <radialGradient id="wash" cx="512" cy="700" r="340" gradientUnits="userSpaceOnUse" gradientTransform="translate(512 700) scale(1.15 .8) translate(-512 -700)">
+      <stop offset="0" stop-color="#ffc56b" stop-opacity=".75"/><stop offset=".45" stop-color="#ffc56b" stop-opacity=".22"/><stop offset="1" stop-color="#ffc56b" stop-opacity="0"/>
     </radialGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffd48a" stop-opacity="0"/><stop offset=".14" stop-color="#ffe2a8"/><stop offset=".5" stop-color="#fff6e0"/><stop offset=".86" stop-color="#ffe2a8"/><stop offset="1" stop-color="#ffd48a" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="clip"><path d="M432 220 H592 A220 220 0 0 1 812 440 V540 A220 220 0 0 1 592 760 H252 A40 40 0 0 1 212 720 V440 A220 220 0 0 1 432 220 Z"/></clipPath>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feGaussianBlur stdDeviation="22"/></filter>
+    <filter id="bloom" x="-50%" y="-400%" width="200%" height="900%"><feGaussianBlur stdDeviation="18"/></filter>
   </defs>
   <rect width="1024" height="1024" fill="url(#bg)"/>
-  <g transform="translate(512 560) scale(1.22) translate(-512 -560)">
-  <ellipse cx="560" cy="500" rx="360" ry="380" fill="url(#halo)"/>
-  <!-- light spilling onto the floor -->
-  <path d="M520 800 L716 800 L930 1024 L470 1024 Z" fill="url(#spill)"/>
-  <!-- doorway (lit) -->
-  <path d="M332 800 V420 A180 180 0 0 1 692 420 V800 Z" fill="url(#light)"/>
-  <!-- door, ajar -->
-  <path d="M332 800 V420 A180 180 0 0 1 512 240 L590 262 L590 822 Z" fill="url(#door)"/>
-  <path d="M332 800 V420 A180 180 0 0 1 512 240 L590 262 L590 822 Z" fill="none" stroke="#0a281d" stroke-width="10" stroke-linejoin="round"/>
-  <!-- star on the door -->
-  <path transform="translate(462 470) scale(1.55)" d="M0 -58 L16 -18 L58 -16 L25 10 L36 52 L0 28 L-36 52 L-25 10 L-58 -16 L-16 -18 Z" fill="#ffcb52" stroke="#ffe7a3" stroke-width="5" stroke-linejoin="round"/>
-  <!-- door knob -->
-  <circle cx="556" cy="590" r="16" fill="#ffcb52"/>
-  <!-- step -->
-  <rect x="300" y="796" width="424" height="18" rx="9" fill="#0a281d" opacity=".6"/>
+  <!-- shadow -->
+  <path d="M432 220 H592 A220 220 0 0 1 812 440 V540 A220 220 0 0 1 592 760 H252 A40 40 0 0 1 212 720 V440 A220 220 0 0 1 432 220 Z" fill="#020a06" opacity=".45" transform="translate(0 26)" filter="url(#shadow)"/>
+  <!-- bubble -->
+  <path d="M432 220 H592 A220 220 0 0 1 812 440 V540 A220 220 0 0 1 592 760 H252 A40 40 0 0 1 212 720 V440 A220 220 0 0 1 432 220 Z" fill="url(#bubble)"/>
+  <g clip-path="url(#clip)">
+    <rect x="200" y="300" width="624" height="470" fill="url(#wash)"/>
   </g>
+  <path d="M432 220 H592 A220 220 0 0 1 812 440 V540 A220 220 0 0 1 592 760 H252 A40 40 0 0 1 212 720 V440 A220 220 0 0 1 432 220 Z" fill="none" stroke="url(#rim)" stroke-width="6"/>
+  <!-- light under the door -->
+  <rect x="332" y="676" width="360" height="40" rx="20" fill="#ffc56b" opacity=".85" filter="url(#bloom)"/>
+  <rect x="346" y="684" width="332" height="24" rx="12" fill="url(#core)"/>
 </svg>
