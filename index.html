@@ -207,6 +207,8 @@
   body:not(.ai-bubble):is([data-aialign=center], [data-aialign=right]) .msg.ai { align-self: stretch; max-width: 100%; }
   body[data-aialign=center] .msg.ai .alts { justify-content: center; }
   body[data-aialign=right] .msg.ai .alts { justify-content: flex-end; }
+  /* left-aligned replies: the time sits at the right end, like on your messages */
+  body:not([data-aialign=center]):not([data-aialign=right]) .msg.ai .alts .ts { margin-left: auto; }
   .mname { display: none; font: 600 13px/1.3 'Inter', system-ui, sans-serif; letter-spacing: .01em; margin-bottom: 4px; white-space: normal; background: none; text-shadow: none; }
   .msg.ai > .mname { color: var(--name-ai, var(--accent)); -webkit-text-fill-color: var(--name-ai, var(--accent)); }
   .msg.me > .mname { color: var(--name-me, var(--accent)); -webkit-text-fill-color: var(--name-me, var(--accent)); }
@@ -225,6 +227,13 @@
   body.avs-me:not([data-sides=left]) .msg.me > .mav { right: -42px; }
   body.avs-me[data-sides=left] :is(#log, #preview) .msg.me { margin-left: 42px; }
   body.avs-me[data-sides=left] .msg.me > .mav { left: -42px; }
+  /* right-aligned text: the portrait goes to the right of the message as well */
+  body.avs-ai[data-aialign=right] :is(#log, #preview) .msg.ai { margin-left: 0; margin-right: 42px; }
+  body.avs-ai[data-aialign=right] .msg.ai > .mav { left: auto; right: -42px; }
+  body.avs-me[data-mealign=right] :is(#log, #preview) .msg.me { margin-left: 0; margin-right: 42px; }
+  body.avs-me[data-mealign=right] .msg.me > .mav { left: auto; right: -42px; }
+  /* …and quote blocks get their bar on the right */
+  body[data-aialign=right] .msg.ai .txt blockquote, body[data-mealign=right] .msg.me .txt blockquote { padding-left: 0; padding-right: .8em; border-left-style: none; border-right: 3px solid var(--line); }
   /* which side messages sit on */
   body[data-sides=right] .msg.ai { align-self: flex-end; }
   body[data-sides=left] .msg.me { align-self: flex-start; }
@@ -310,8 +319,8 @@
   /* gradient text is painted through the text; boxes with their own background need a visible color */
   body[data-color="gradient"] .msg.ai .txt :is(code, pre) { -webkit-text-fill-color: var(--c1); color: var(--c1); }
   body[data-ucolor="gradient"] .msg.me .txt :is(code, pre) { -webkit-text-fill-color: var(--u-c1); color: var(--u-c1); }
-  body[data-color="gradient"] .msg.ai .txt blockquote { border-left-color: var(--c2); }
-  body[data-ucolor="gradient"] .msg.me .txt blockquote { border-left-color: var(--u-c2); }
+  body[data-color="gradient"] .msg.ai .txt blockquote { border-left-color: var(--c2); border-right-color: var(--c2); }
+  body[data-ucolor="gradient"] .msg.me .txt blockquote { border-left-color: var(--u-c2); border-right-color: var(--u-c2); }
   .md code { font-family: ui-monospace, Menlo, monospace; font-size: .88em; background: color-mix(in srgb, var(--ink) 8%, transparent); padding: .1em .35em; border-radius: 5px; }
   .md pre { white-space: pre-wrap; background: color-mix(in srgb, var(--ink) 6%, transparent); padding: 10px; border-radius: 10px; margin: 0 0 .65em; }
   .md pre code { background: none; padding: 0; }
@@ -1487,7 +1496,7 @@ const MD_ELS = [
     const v = `var(--md${side}-${m.id})`, scope = `body.md${side}-${m.id} :is(#log, #preview) .msg.${side} .txt`;
     if (m.line) css.push(`${scope} ${m.sel} { border-top-color: ${v}; }`);
     else if (m.marker) css.push(`${scope} ${m.sel} { color: ${v}; }`);
-    else css.push(`${scope} ${m.sel} { color: ${v}; -webkit-text-fill-color: ${v};${m.border ? ` border-left-color: ${v};` : ''} }`);
+    else css.push(`${scope} ${m.sel} { color: ${v}; -webkit-text-fill-color: ${v};${m.border ? ` border-left-color: ${v}; border-right-color: ${v};` : ''} }`);
   }
   // Inside quotes the quote color wins, including strikethrough lines and link underlines
   for (const side of ['ai', 'me']) css.push(`body.md${side}-q :is(#log, #preview) .msg.${side} .txt :is(s, a, code):has(> .q) { text-decoration-color: var(--md${side}-q); }`);
