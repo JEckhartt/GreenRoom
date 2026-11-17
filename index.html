@@ -266,7 +266,8 @@
     box-shadow: 0 6px 18px -8px rgba(0,0,0,.35); animation: tbIn .18s ease-out; }
   #toBottom[hidden] { display: none; }
   @keyframes tbIn { from { opacity: 0; transform: translateY(6px); } }
-  input.locked { opacity: .6; pointer-events: none; }
+  input.locked, textarea.locked { opacity: .6; }
+  input.locked { pointer-events: none; }
   .pitem { border-bottom: 1px solid var(--line); }
   .pitem > summary { justify-content: flex-start; gap: 12px; padding: 12px 2px; }
   .pitem > summary .pname { flex: 1; font-size: 15px; }
@@ -1042,7 +1043,12 @@ Empty = send everything.</div>
     <div class="card">
       <label class="f">System prompts</label>
       <div id="gPromptBox"></div>
-      <label class="f" for="forbidden">Forbidden words</label>
+    </div>
+    </details>
+
+    <details class="sec" data-sec="forbidden">
+    <summary class="group-title">Forbidden words</summary>
+    <div class="card">
       <textarea id="forbidden" data-k="forbidden" placeholder="One per line or comma separated, e.g.&#10;shivers down the spine, ministrations"></textarea>
       <div class="hint">The AI is told never to use these words or phrases. Models follow this well, but it's an instruction, not a hard filter.</div>
     </div>
@@ -3991,7 +3997,7 @@ function gsum(g) {
 const promptLib = () => cfg.prompts || (cfg.prompts = []);
 const globalPromptText = () => promptLib().find(x => x.id === cfg.promptSel)?.text ?? cfg.systemPrompt ?? '';
 function promptText(chat) {
-  if (chat && 'prompt' in chat) { const lp = chat.promptSel && promptLib().find(x => x.id === chat.promptSel); return lp ? lp.text : chat.prompt; }
+  if (chat && 'prompt' in chat) { const lp = chat.promptSel && promptLib().find(x => x.id === chat.promptSel); return lp ? lp.text : cfg.systemPrompt ?? ''; }
   return globalPromptText();
 }
 const openPrompts = new Set();
@@ -4018,12 +4024,13 @@ function renderPromptBox(box, scope) {
       body.append(ni);
     }
     const ta = document.createElement('textarea'); ta.className = 'big';
-    ta.value = it.def ? (chat ? chat.prompt ?? '' : cfg.systemPrompt ?? '') : it.text || '';
+    ta.value = it.def ? cfg.systemPrompt ?? '' : it.text || '';
+    if (it.def && chat) { ta.readOnly = true; ta.classList.add('locked'); }
     ta.placeholder = 'Paste your complete system prompt here.';
-    ta.oninput = () => { if (it.def) { if (chat) chat.prompt = ta.value; else cfg.systemPrompt = ta.value; } else it.text = ta.value; autosize(ta); persist(); };
+    ta.oninput = () => { if (it.def) { if (chat) return; cfg.systemPrompt = ta.value; } else it.text = ta.value; autosize(ta); persist(); };
     body.append(ta);
     const h = document.createElement('div'); h.className = 'hint';
-    h.textContent = it.def ? (chat ? 'This chat\'s own copy: changes here don\'t change Settings.' : 'Sent with every message, before the character and persona. {{char}} and {{user}} are filled in.') : (chat ? 'Saved prompts are shared with Settings and other chats.' : '{{char}} and {{user}} are filled in.');
+    h.textContent = it.def ? (chat ? 'The default prompt from Settings; it can only be changed there. Add a new prompt to write one for this chat.' : 'Sent with every message, before the character and persona. {{char}} and {{user}} are filled in.') : (chat ? 'Saved prompts are shared with Settings and other chats.' : '{{char}} and {{user}} are filled in.');
     body.append(h);
     if (!it.def) {
       const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete this prompt';
@@ -4129,14 +4136,15 @@ function renderPresetBox(box, scope) {
   box.innerHTML = '';
   const chips = document.createElement('div'); chips.className = 'chips';
   const chip = (label, on, fn, cls = '', onLong) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; if (onLong) pressable(b, fn, onLong); else b.onclick = fn; chips.append(b); };
-  const dup = src => showSheet(src.name || 'Unnamed', [{ label: `Duplicate "${src.name || 'Unnamed'}"`, onClick: () => { const pr = { ...src, id: uid(), name: `${src.name || 'Unnamed'} copy` }; list.push(pr); saveCfg(); select(pr.id); toast(chat ? 'Duplicated. Change it in Settings → Generation.' : 'Duplicated'); } }]);
+  const dup = src => showSheet(src.name || 'Unnamed', [{ label: `Duplicate "${src.name || 'Unnamed'}"`, onClick: () => { const pr = { ...src, id: uid(), name: `${src.name || 'Unnamed'} copy` }; list.push(pr); saveCfg(); select(pr.id); toast('Duplicated'); } }]);
   for (const pr of list) chip(pr.name || 'Unnamed', pr.id === selId, () => select(pr.id), '', () => { navigator.vibrate?.(12); dup(pr); });
-  if (!chat) chip('+ New', false, () => { const base = presetFor(); const pr = { ...base, id: uid(), name: `Preset ${list.length + 1}` }; list.push(pr); saveCfg(); select(pr.id); }, 'add');
+  chip('+ New', false, () => { const base = presetFor(); const pr = { ...base, id: uid(), name: `Preset ${list.length + 1}` }; list.push(pr); saveCfg(); select(pr.id); }, 'add');
   box.append(chips);
   const pr = list.find(x => x.id === selId);
   if (!pr) { const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '12px'; h.textContent = chat && list.length ? 'Pick a preset for this chat.' : 'No preset yet. Tap + New.'; return box.append(h); }
   // in a chat the values can be seen, not changed (that's done in Settings)
-  const lock = el => { if (chat) { el.disabled = true; el.classList.add('locked'); } return el; };
+  const locked = !!chat && pr.id === cfg.presetId;
+  const lock = el => { if (locked) { el.disabled = true; el.classList.add('locked'); } return el; };
   // name
   const nm = lock(document.createElement('input')); nm.type = 'text'; nm.value = pr.name || '';
   const nameRow = prow('Name', pr.name || '', 'The name shown on the preset buttons.', nm);
@@ -4154,8 +4162,8 @@ function renderPresetBox(box, scope) {
     i.oninput = () => { const v = i.value.trim(); if (v === '') delete pr[k]; else pr[k] = v; row.setValue(v === '' ? 'default' : v); saveCfg(); };
     box.append(row);
   }
-  { const n = document.createElement('div'); n.className = 'hint'; n.style.marginTop = '10px'; n.textContent = chat ? 'Presets can only be changed in Settings → Generation. Long press one to duplicate it.' : 'Long press a preset to duplicate it.'; box.append(n); }
-  if (!chat && list.length > 1) {
+  { const n = document.createElement('div'); n.className = 'hint'; n.style.marginTop = '10px'; n.textContent = locked ? 'This is the default from Settings and can only be changed there. Long press it to duplicate it.' : (chat ? 'Presets are shared with Settings and other chats. ' : '') + 'Long press a preset to duplicate it.'; box.append(n); }
+  if (!locked && list.length > 1) {
     const acts = document.createElement('div'); acts.className = 'actions';
     const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete this preset';
     del.onclick = () => {
