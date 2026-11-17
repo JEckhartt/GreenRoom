@@ -559,6 +559,8 @@
   input.tgl::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s; }
   input.tgl:checked { background: var(--accent); }
   input.tgl:checked::after { transform: translateX(18px); }
+  input.tgl:indeterminate { background: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  input.tgl:indeterminate::after { transform: translateX(9px); }
   input[type=color] { -webkit-appearance: none; appearance: none; width: 44px; height: 32px; border: 1px solid var(--line); border-radius: 9px; padding: 0; background: none; cursor: pointer; }
   input[type=color]::-webkit-color-swatch-wrapper { padding: 3px; }
   input[type=color]::-webkit-color-swatch { border: 0; border-radius: 6px; }
@@ -4452,23 +4454,28 @@ function syncControls() {
   const L = editLook();
   for (const el of document.querySelectorAll(CONTROLS)) {
     const k = el.dataset.k, v = LOOK_KEYS.includes(sk(k)) ? L[sk(k)] : cfg[k];
-    if (el.classList.contains('seg')) for (const b of el.children) b.classList.toggle('on', b.dataset.v === v);
-    else if (el.type === 'checkbox') el.checked = !!v;
+    // Both: a setting where the AI and you differ shows as mixed (no choice lit, switch half-way)
+    const mixed = styleTarget === 'both' && STYLE_KEYS.includes(k) && JSON.stringify(L[k]) !== JSON.stringify(L['u_' + k]);
+    if (el.classList.contains('seg')) for (const b of el.children) b.classList.toggle('on', !mixed && b.dataset.v === v);
+    else if (el.type === 'checkbox') { el.indeterminate = mixed; el.checked = !mixed && !!v; }
     else if (el.type === 'color') el.value = k === 'accent' ? (v || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#d9553b') : v;
     else if (document.activeElement !== el) el.value = v;
   }
   const g = k => L[sk(k)];
   const outs = { fs: g('fs') + 'px', fw: g('fw'), lh: (+g('lh')).toFixed(2), ls: (+g('ls')).toFixed(2) + 'em', angle: g('angle') + '°' };
   for (const o of document.querySelectorAll('[data-out]')) o.textContent = outs[o.dataset.out];
-  for (const b of $('fonts').children) b.classList.toggle('on', b.dataset.font === L[fontKey()]);
+  const fontMixed = styleTarget === 'both' && L.aiFont !== L.meFont;
+  for (const b of $('fonts').children) b.classList.toggle('on', !fontMixed && b.dataset.font === L[fontKey()]);
   $('colorControls').hidden = g('colorMode') === 'theme';
   for (const el of document.querySelectorAll('[data-grad]')) el.hidden = g('colorMode') !== 'gradient';
   for (const el of document.querySelectorAll('[data-mdc]')) el.hidden = !g(el.dataset.mdc + 'On');
   $('gradbar').style.background = `linear-gradient(90deg, ${g('c1')}, ${g('c2')})`;
   for (const t of document.querySelectorAll('#lookBlock .tgt')) t.textContent = styleTarget === 'me' ? '· you' : styleTarget === 'both' ? '· both' : '· AI';
-  $('nameColorRow').hidden = !g('showNames'); $('nameCRow').hidden = g('nameMode') !== 'custom';
-  $('avShapeRow').hidden = !g('showAvatars');
-  $('bubbleOpts').hidden = !g('aiBubble'); // bubble shape only matters with a bubble
+  // under Both, follow-up options show when either side uses them
+  const any = k => styleTarget === 'both' ? (L[k] || L['u_' + k]) : g(k);
+  $('nameColorRow').hidden = !any('showNames'); $('nameCRow').hidden = !(styleTarget === 'both' ? (L.nameMode === 'custom' || L.u_nameMode === 'custom') : g('nameMode') === 'custom');
+  $('avShapeRow').hidden = !any('showAvatars');
+  $('bubbleOpts').hidden = !any('aiBubble'); // bubble shape only matters with a bubble
   // headings, lists, links and dividers join the mock-up when their color is switched on
   for (const t of document.querySelectorAll('#preview [data-rich]')) {
     const pre = t.closest('.msg').classList.contains('me') ? 'u_' : '', on = k => !!L[pre + k + 'On'];
@@ -4550,17 +4557,7 @@ function buildSettings() {
 
   $('styleTarget').onclick = e => {
     const v = e.target.dataset?.v; if (!v) return;
-    // Both = one style for both sides: your side takes over the AI's settings first, so every switch shown is true for both
-    if (v === 'both' && styleTarget !== 'both') {
-      const L = editLook();
-      const diff = STYLE_KEYS.some(k => JSON.stringify(L[k]) !== JSON.stringify(L['u_' + k])) || L.aiFont !== L.meFont;
-      if (diff) {
-        for (const k of STYLE_KEYS) writeLook('u_' + k, L[k]);
-        writeLook('meFont', L.aiFont);
-        styleTarget = v; update('theme', L.theme);
-        toast('Your messages now use the AI style. Changes apply to both.');
-      }
-    }
+    if (v === 'both' && styleTarget !== 'both') toast('Changes now apply to both. Settings that differ show as mixed.');
     styleTarget = v;
     for (const b of $('styleTarget').children) b.classList.toggle('on', b.dataset.v === v);
     syncControls();
