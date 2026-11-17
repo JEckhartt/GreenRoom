@@ -533,6 +533,7 @@
   details.sec > summary > .gt { flex: 1; }
   details.gsec > summary .glob { display: flex; align-items: center; gap: 8px; margin-right: 14px; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; }
   details.gsec .gnote { margin: 0 4px; }
+  details.gsec .gview { margin-bottom: 8px; }
   details.fold { padding-bottom: 2px; }
   details.fold[open] { padding-bottom: 14px; }
   details.fold > summary.sub { margin: 0; padding: 14px 0 12px; }
@@ -875,7 +876,7 @@
     <details class="sec gsec" data-g="prompt"><summary class="group-title"><span class="gt">System prompt</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
       <div class="gbody"><div class="card" id="cPromptBox"></div></div><div class="hint gnote"></div>
     </details>
-    <details class="sec" data-f="reach"><summary class="group-title"><span class="gt">Messages from the character</span></summary>
+    <details class="sec" data-f="reach"><summary class="group-title"><span class="gt">Notifications from the character</span></summary>
     <div class="card">
       <div class="line"><span>Character messages you first</span><input type="checkbox" class="tgl" id="csReach"></div>
       <div class="line" id="csReachRow"><span id="csReachLabel">When you've been away for</span>
@@ -897,7 +898,8 @@
       <div class="gbody"><div class="card">
         <textarea id="csForbidden" placeholder="One per line or comma separated"></textarea>
         <div class="hint">This chat's own list, used instead of the global forbidden words.</div>
-      </div></div><div class="hint gnote"></div>
+      </div></div>
+      <div class="gview card"><textarea id="csForbidGlobal" class="locked" readonly placeholder="No global forbidden words"></textarea></div><div class="hint gnote"></div>
     </details>
   </div></div>
 </section>
@@ -4100,6 +4102,7 @@ function syncGsecs() {
     const own = GSECS[d.dataset.g][0] in cur.chat;
     d.querySelector('summary input').checked = !own;
     d.querySelector('.gbody').hidden = !own;
+    const gv = d.querySelector('.gview'); if (gv) { gv.hidden = own; gv.querySelector('textarea').value = cfg.forbidden || ''; }
     const n = d.querySelector('.gnote'); n.hidden = own; n.textContent = 'Uses the global setting: ' + gsum(d.dataset.g) + '. Turn off Global to set this chat\'s own.';
   }
 }
