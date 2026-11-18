@@ -2037,11 +2037,12 @@ function charRefs(refs, name) {
 async function generateImage(prompt, refs, who, about) {
   about = (about || '').trim().slice(0, 2000);
   const name = who || 'the character';
-  const extra = about ? `\n\nAbout ${name} (their looks and details; follow this whenever they appear):\n${about}` : '';
+  let extra = about ? `\n\nAbout ${name} (their looks and details; follow this whenever they appear):\n${about}` : '';
   const list = refs?.list ? refs.list.filter(r => r.url) : charRefs(refs, name);
   const only = refs?.list ? '' : `\nOnly put ${name} in the picture if the description below is about them; if it shows something else (a pet, food, a place), keep just the visual style.`;
   const ask = rs => [...rs.map(r => ({ type: 'image_url', image_url: { url: r.url } })),
     { type: 'text', text: `${rs.length > 1 ? rs.map((r, i) => `Reference ${i + 1} is ${r.label}`).join('\n') : `The reference image is ${rs[0].label}`}${only}\n\nImage to create: ${prompt}${extra}` }];
+  if (refs?.styleImg && list.length > 1) extra += '\nArt style: exactly that of reference 1, not of the other references.';
   return requestImage(list.length ? ask(list) : prompt + extra);
 }
 var IMAGE_TIMEOUT = 180000;
@@ -5312,18 +5313,22 @@ function openGenImg() {
   $('giText').focus();
 }
 $('giClose').onclick = () => { $('giPanel').hidden = true; document.activeElement?.blur(); };
-// Makes the user's picture. Your persona's picture comes first: it is who "me" is. The character's card is only
-// sent for its style (Image style: Character's picture), never as something to copy
+// Makes the user's picture. The style picture (Image style) goes first and is used only for its art style;
+// your persona's picture shows who "me" is and is redrawn in that style
 async function userPicture(s, prompt) {
-  const { c, p } = s, u = userName(p), cc = cn(c);
+  const { c, p } = s, u = userName(p);
   const mine = p?.img ? await idb.get(p.img).catch(() => null) : null;
-  const card = imgStyle(s.chat) === 'char' && c.img ? await idb.get(c.img).catch(() => null) : null;
-  const look = 'visual style (medium, rendering, line work, colour palette, lighting)';
-  const list = [
-    mine && { url: mine, label: `a picture of ${u}, who sends this picture: how ${u} looks (face, hair, body). Whenever ${u} is in the picture they must look like this person.${card ? '' : ` Also use its ${look}.`} Do not copy its pose, background or framing; follow the description.` },
-    card && { url: card, label: `a style sample: use ONLY its ${look}. Do NOT draw the person in it, and do not copy its pose, outfit, background or composition. It is not the subject.` },
-  ].filter(Boolean);
-  const note = `\nThe picture is sent by ${u}. Draw what the description asks for, not a copy of a reference image.`;
+  const card = c.img ? await idb.get(c.img).catch(() => null) : null;
+  const look = 'art style (medium, rendering, line work, colour palette, lighting)';
+  // "Your picture" with no persona picture: there is nothing of yours to take the style from, so the character's is used
+  const styleSrc = imgStyle(s.chat) === 'user' && mine ? mine : card || mine;
+  const list = [];
+  if (styleSrc && styleSrc !== mine) list.push({ url: styleSrc, label: `the STYLE reference: copy ONLY its ${look}. Do NOT draw the person in it and ignore its subject, pose, outfit, background and composition.` });
+  if (mine) list.push(styleSrc === mine
+    ? { url: mine, label: `${u}, who sends this picture: how ${u} looks (face, hair, body) AND the ${look} to use. Do not copy its pose, background or framing.` }
+    : { url: mine, label: `${u}, who sends this picture: copy how ${u} looks (face, hair, body) but NOT the art style of this picture; redraw ${u} in the art style of reference 1. Do not copy its pose, background or framing.` });
+  const styleNote = !list.length ? '' : list.length > 1 ? `\nArt style: exactly that of reference 1, not of reference 2.` : '';
+  const note = `\nThe picture is sent by ${u}. Draw what the description asks for, not a copy of a reference image.${styleNote}`;
   return generateImage(prompt + note, { list }, u, fill(p?.personality || '', c, p));
 }
 let giBusy = false;
