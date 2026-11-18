@@ -797,7 +797,8 @@
     <button type="button" data-t="0" class="on">Memory</button>
     <button type="button" data-t="1">Style</button>
     <button type="button" data-t="2">Proxy</button>
-    <button type="button" data-t="3">Prompt</button>
+    <button type="button" data-t="3">Image proxy</button>
+    <button type="button" data-t="4">Prompt</button>
   </div>
   <div class="page-body" id="csBody"><div class="page-inner cs-pane" data-t="0">
     <details class="sec" id="memFold" open>
@@ -854,23 +855,6 @@
     <details class="sec gsec" data-g="proxy"><summary class="group-title"><span class="gt">Proxy</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
       <div class="gbody"><div class="card" id="cProxyBox"></div></div><div class="hint gnote"></div>
     </details>
-    <details class="sec gsec" data-g="img"><summary class="group-title"><span class="gt">Image proxy</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
-      <div class="gbody"><div class="card" id="cImgBox"></div></div><div class="hint gnote"></div>
-    </details>
-    <details class="sec" data-f="pics"><summary class="group-title"><span class="gt">Images</span></summary>
-      <div class="card" style="margin-bottom:10px">
-        <div class="line" style="padding-top:12px"><span>Text only</span><input type="checkbox" class="tgl" id="csTextOnly"></div>
-        <div class="hint" id="csTextOnlyHint"></div>
-      </div>
-      <div class="card" style="margin-bottom:10px" id="csGenImgCard">
-        <div class="line" style="padding-top:12px"><span>Generate images in this chat</span><input type="checkbox" class="tgl" id="csGenImg"></div>
-        <div class="hint" id="csGenImgHint"></div>
-      </div>
-      <div class="card" id="csAutoPicsCard">
-        <div class="line" style="padding-top:12px"><span>Make images automatically</span><input type="checkbox" class="tgl" id="csAutoPics"></div>
-        <div class="hint">On: an image is made as soon as you ask for one or the character sends one ("here's a pic of…"). Off: a camera button appears under that reply instead; tap it to make the image.</div>
-      </div>
-    </details>
     <details class="sec gsec" data-g="gen"><summary class="group-title"><span class="gt">Generation</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
       <div class="gbody"><div class="card" id="cPresetBox"></div></div><div class="hint gnote"></div>
     </details>
@@ -882,6 +866,21 @@
     </details>
   </div>
   <div class="page-inner cs-pane" data-t="3" hidden>
+    <div class="card" style="margin-top:12px">
+      <div class="line" style="padding-top:12px"><span>Enable</span><input type="checkbox" class="tgl" id="csGenImg"></div>
+      <div class="hint" id="csGenImgHint"></div>
+    </div>
+    <div id="csImgOn">
+    <details class="sec gsec" data-g="img"><summary class="group-title"><span class="gt">Image proxy</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
+      <div class="gbody"><div class="card" id="cImgBox"></div></div><div class="hint gnote"></div>
+    </details>
+    <div class="card" id="csAutoPicsCard" style="margin-top:10px">
+      <div class="line" style="padding-top:12px"><span>Make images automatically</span><input type="checkbox" class="tgl" id="csAutoPics"></div>
+      <div class="hint">On: an image is made as soon as you ask for one or the character sends one ("here's a pic of…"). Off: a camera button appears under that reply instead; tap it to make the image.</div>
+    </div>
+    </div>
+  </div>
+  <div class="page-inner cs-pane" data-t="4" hidden>
     <details class="sec" data-f="realtime"><summary class="group-title"><span class="gt">Real time</span></summary>
       <div class="card">
         <div class="line"><span>Send the real date and time</span><input type="checkbox" class="tgl" id="csRealTime"></div>
@@ -1043,12 +1042,8 @@
     <details class="sec" data-sec="image-proxy">
     <summary class="group-title">Image proxy</summary>
     <div class="card" style="margin-bottom:10px">
-      <div class="line" style="padding-top:12px"><span>Text only</span><input type="checkbox" class="tgl" data-k="textOnly"></div>
-      <div class="hint">A plain text roleplay: no images are made, none are sent to the AI (it never looks at pictures), and the image buttons in chats are hidden. Can be changed per chat.</div>
-    </div>
-    <div class="card" style="margin-bottom:10px">
-      <div class="line" style="padding-top:12px"><span>Generate images</span><input type="checkbox" class="tgl" data-k="genImages"></div>
-      <div class="hint">Off: no images are made; when you ask for one, the character describes it in words instead. You can still send pictures, and the AI still sees them. Can be changed per chat.</div>
+      <div class="line" style="padding-top:12px"><span>Enable</span><input type="checkbox" class="tgl" data-k="genImages"></div>
+      <div class="hint">On: the character can send images, made with the image proxy below. Off: a regular chat, nothing about images. Can be changed per chat in Chat settings → Image proxy.</div>
     </div>
     <div class="card" id="gImgBox"></div>
     </details>
@@ -1350,6 +1345,7 @@ const DEFAULTS = {
   ...LOOK_DEFAULTS,
 };
 let cfg = { ...DEFAULTS, ...store.get('cfg', {}) };
+if ('textOnly' in cfg) { if (cfg.textOnly) cfg.genImages = false; delete cfg.textOnly; store.set('cfg', cfg); }
 // Layout options became per side: earlier choices apply to your side too
 for (const k of ['showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'showTimes']) {
   const raw = store.get('cfg', {});
@@ -1573,11 +1569,8 @@ const TAG = /\[\[?\s*(?:image|img|photo|picture|pic|selfie)\s*:\s*([^\]]+?)\s*\]
 const tagPrompt = t => { const m = [...t.matchAll(TAG)].pop(); return m ? (m[1] || m[2] || '').trim() : ''; };
 // An image proxy is set up / pictures are generated in this chat (Settings, overridable per chat)
 const imageProxyOk = (chat = cur?.chat) => { const a = imgApi(chat); return !!(a.url && a.model); };
-// Text only: no images anywhere (none made, none sent to the AI, image buttons hidden) — a plain text roleplay
-const textOnly = (chat = cur?.chat) => (chat?.textOnly ?? cfg.textOnly) === true;
-const imagesOn = (chat = cur?.chat) => !textOnly(chat) && (chat?.genImages ?? cfg.genImages) !== false;
-// The chat model can't take images (found by a failed request or the proxy test): pictures are left out
-const canSee = (chat = cur?.chat) => !textOnly(chat) && !proxyFor('chat', chat).noVision;
+// Image proxy enabled (Settings, overridable per chat): off = a regular chat, nothing about images
+const imagesOn = (chat = cur?.chat) => (chat?.genImages ?? cfg.genImages) !== false;
 const imageEnabled = (chat = cur?.chat) => imagesOn(chat) && imageProxyOk(chat);
 const personaOf = chat => personas.find(p => p.id === chat.personaId) || null;
 const userName = p => p?.name || 'User';
@@ -1652,7 +1645,6 @@ function systemFor(c, p, memory, lore, chat = cur?.chat, hist = null) {
   const banned = String(chat && 'forbidden' in chat ? chat.forbidden : cfg.forbidden || '').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
   if (banned.length) parts.push(`--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.`);
   if (chat?.realTime) parts.push(timeFor());
-  if (!imagesOn(chat) && !textOnly(chat)) parts.push('--- Pictures ---\nYou cannot send real pictures in this chat. When the user asks for a picture, photo or selfie, describe it vividly in words as part of your reply, as if showing it (for example: *sends you a photo: …*).');
   if (imageEnabled(chat)) parts.push('--- Images ---\nYou can send the user pictures. Only when the latest message from the user explicitly asks you for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never add the tag otherwise, not even when pictures were sent earlier in the chat.');
   return parts.filter(Boolean).join('\n\n');
 }
@@ -1680,10 +1672,9 @@ const SENDS_IMG = new RegExp([
   String.raw`\*[^*\n]{0,40}\b(shows?|holds? up)\b[^*\n]{0,15}\b(you|u|je)\b[^*\n]{0,25}\b${PIC}\b[^*\n]{0,60}\*`,
 ].join('|'), 'i');
 const replySendsImage = t => !!t && SENDS_IMG.test(t);
-const DESCRIBE_NOTE = '\n\n[Note from the app: the user is asking for a picture. Pictures are off in this chat, so describe it vividly in words in your reply.]';
 const IMG_NOTE = '\n\n[Note from the app: the user is asking for a picture. Reply in character and end your message with [[image: detailed English description of the picture]].]';
 async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
-  const withImg = canSee(chat) ? hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES) : [];
+  const withImg = hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES);
   const msgs = [];
   for (const m of hist) {
     let text = m.content;
@@ -1713,7 +1704,7 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
   // Nudge on the newest user message when it asks for a picture, and the max length
   const lastUser = hist.at(-1)?.role === 'user' ? msgs.at(-1) : null;
   const maxT = gen(chat).maxTokens;
-  const note0 = (lastUser && wantsImage(hist.at(-1)) ? (imageEnabled(chat) ? IMG_NOTE : !imagesOn(chat) && !textOnly(chat) ? DESCRIBE_NOTE : '') : '')
+  const note0 = (lastUser && wantsImage(hist.at(-1)) ? (imageEnabled(chat) ? IMG_NOTE : '') : '')
     + (lastUser && maxT ? `\n\n[Length: keep your reply under ${Math.max(15, Math.round(maxT * 0.6))} words.]` : '');
   if (note0) {
     if (Array.isArray(lastUser.content)) lastUser.content = lastUser.content.map(x => x.type === 'text' ? { ...x, text: x.text + note0 } : x);
@@ -2027,43 +2018,8 @@ async function generateImage(prompt, refs, who, about) {
   const only = refs?.list ? '' : `\nOnly put ${name} in the picture if the description below is about them; if it shows something else (a pet, food, a place), keep just the visual style.`;
   const ask = rs => [...rs.map(r => ({ type: 'image_url', image_url: { url: r.url } })),
     { type: 'text', text: `${rs.length > 1 ? rs.map((r, i) => `Reference ${i + 1} is ${r.label}`).join('\n') : `The reference image is ${rs[0].label}`}${only}\n\nImage to create: ${prompt}${extra}` }];
-  const attempts = [];
-  if (!imagesApi && list.length) { attempts.push(ask(list)); if (list.length > 1) attempts.push(ask(list.slice(0, 1))); }
-  const pr = proxyFor('img');
-  // This image proxy is known not to take reference images: go straight to the described version
-  if (pr.noRefs) attempts.length = 0;
-  const errors = [];
-  for (const a of attempts) {
-    try { return await requestImage(a); }
-    catch (e) { if (isAbort(e)) throw e; if (!errors.some(x => x.message === e.message)) errors.push(e); }
-  }
-  // No reference images possible: the chat model looks at them and describes them in words instead
-  let looks = '';
-  if (list.length) { try { looks = await describeRefs(list); } catch (e) { if (isAbort(e)) throw e; console.warn('Describing the reference pictures failed', e); } }
-  try {
-    const out = await requestImage(prompt + extra + (looks ? `\n\nFrom the reference pictures (described in words):\n${looks}\nThe visual style always applies. A person's described appearance only applies to that person, and only if they are in the picture; never give anyone else their looks.` : ''));
-    if (attempts.length && pr.id && !pr.noRefs) { pr.noRefs = true; saveCfg(); }
-    return out;
-  } catch (e) { if (isAbort(e)) throw e; errors.push(e); }
-  const [lastErr, ...earlier] = errors.reverse();
-  throw new Error(lastErr.message + (earlier.length ? `\n\nWith reference images it failed too: ${earlier.map(e => e.message).join(' / ')}` : ''));
-}
-// The chat model describes the reference pictures for an image proxy that can't take them.
-// Descriptions are kept per set of pictures, so each set is only described once.
-const refKey = src => { let h = 2166136261; for (let i = 0; i < src.length; i += Math.max(1, src.length >> 12)) h = Math.imul(h ^ src.charCodeAt(i), 16777619); return 'desc_' + (h >>> 0).toString(36) + '_' + src.length; };
-async function describeRefs(list) {
-  if (!canSee()) return '';
-  const key = refKey(list.map(r => r.desc + r.url).join('|'));
-  const kept = await idb.get(key).catch(() => null); if (kept) return kept;
-  const a = api(); if (!a.url || !a.model) return '';
-  const which = list.map((r, i) => `Picture ${i + 1} is ${r.desc}.`).join('\n');
-  const out = await streamChat([
-    { role: 'system', content: 'You describe reference pictures for an image generator that cannot see them. Be concrete and visual. Output only the description, no preamble.' },
-    { role: 'user', content: [...list.map(r => ({ type: 'image_url', image_url: { url: r.url } })), { type: 'text', text: `${which}\n\nDescribe what is asked for each picture in detail, in at most 220 words. For a person: face, age, skin, hair (colour, length, style), eyes, build, distinguishing marks, clothing and accessories, and say whose appearance it is. For the visual style: medium (photo, anime, oil painting, 3D…), rendering, line work, colour palette and lighting.` }] },
-  ], () => {}, { free: true, needImages: true });
-  const text = out.replace(TAG, '').trim().slice(0, 2000);
-  if (text) idb.put(key, text).catch(() => {});
-  return text;
+  // chat-style image models get the reference pictures; an /images/generations endpoint only takes text
+  return requestImage(!imagesApi && list.length ? ask(list) : prompt + extra);
 }
 var IMAGE_TIMEOUT = 180000;
 // Finds an image anywhere in a response: data URLs, base64 fields, or image links
@@ -2098,25 +2054,7 @@ async function keepImage(src) {
     return await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
   } catch { return src; }
 }
-// Chat-style image models differ in which output they accept: some want image + text, others image only.
-// The working combination is remembered on the image proxy.
-async function requestImage(prompt) {
-  const pr = proxyFor('img');
-  const order = pr.modalities ? [pr.modalities] : [['image', 'text'], ['image']];
-  let last;
-  for (const mods of order) {
-    try {
-      const out = await requestImageOnce(prompt, mods);
-      if (pr.id && pr.modalities?.join() !== mods.join()) { pr.modalities = mods; saveCfg(); }
-      return out;
-    } catch (e) {
-      last = e;
-      if (!/output modalit/i.test(e.message)) throw e;
-      if (pr.modalities) { delete pr.modalities; saveCfg(); return requestImage(prompt); } // remembered combo stopped working
-    }
-  }
-  throw new Error(`${last.message}\n\nThe model "${imgApi().model}" can't create images through this proxy. Pick an image model in Settings → Image proxy (on OpenRouter, filter the models list by output "image").`);
-}
+const requestImage = prompt => requestImageOnce(prompt, ['image', 'text']);
 async function requestImageOnce(prompt, modalities) {
   const a = imgApi(), url = endpoint(a.url);
   if (!a.url || !a.model) throw new Error('The image proxy has no URL or model filled in.');
@@ -2228,23 +2166,7 @@ function splitThink(raw) {
   return { think: m[1], text: m[2] ? raw.slice(m[0].length).replace(/^\s+/, '') : '' };
 }
 // opts: { onThink(text, done), free: true = no max length (summaries, generators) }
-const hasImgPart = m => Array.isArray(m.content) && m.content.some(x => x.type === 'image_url');
-const stripImgs = msgs => msgs.map(m => hasImgPart(m) ? { ...m, content: `${m.content.filter(x => x.type === 'text').map(x => x.text).join('\n')}\n[an image was attached here]`.trim() } : m);
-// opts.needImages: the request is about the pictures (describing them); then nothing is left out
 async function streamChat(messages, onText, opts = {}) {
-  const chat = opts.chat ?? cur?.chat, prx = proxyFor('chat', chat);
-  if (!opts.needImages && !canSee(chat) && messages.some(hasImgPart)) messages = stripImgs(messages);
-  try { return await streamChatOnce(messages, onText, opts); }
-  catch (e) {
-    if (isAbort(e) || opts.needImages || !messages.some(hasImgPart)) throw e;
-    // most likely the model can't take images: once more without them, and remember it for this proxy
-    let out;
-    try { out = await streamChatOnce(stripImgs(messages), onText, opts); } catch { throw e; }
-    if (prx.id && !prx.noVision) { prx.noVision = true; saveCfg(); toast(`"${prx.name || 'This proxy'}" can't see images, so pictures are left out of what it reads.`); dbg('info', 'Proxy without image input: ' + (prx.model || '')); }
-    return out;
-  }
-}
-async function streamChatOnce(messages, onText, opts = {}) {
   const a = api(opts.chat ?? cur?.chat), g = gen(opts.chat ?? cur?.chat);
   const body = { model: a.model, messages, stream: true, temperature: g.temperature };
   // The AI is asked to stay well under the max length; the hard limit gets room on top so a reply
@@ -2335,7 +2257,7 @@ async function aiTurn(s, hist, messages, bubble, into) {
   saveMsgs(s.chat, hist);
   const idx = hist.indexOf(into || msg);
   bubble.dataset.i = idx;
-  if (!imagesOn(s.chat)) return; // pictures off: the reply describes them in words
+  if (!imagesOn(s.chat)) return; // image proxy off: a regular chat
   // An image when the user's latest message asks for one, or when the character says it sends one now.
   // A tag on its own (without either) is ignored: models tend to copy them.
   const asked = wantsImage(hist[idx - 1]) || replySendsImage(msg.content);
@@ -4260,7 +4182,7 @@ function renderProxyBox(box, kind, scope) {
     const l = document.createElement('label'); l.className = 'f'; l.textContent = label;
     const i = document.createElement('input'); i.type = type; i.value = pr[f] || ''; i.placeholder = ph; i.readOnly = locked; if (locked) i.classList.add('locked');
     i.autocomplete = 'off'; i.setAttribute('autocapitalize', 'off'); i.setAttribute('autocorrect', 'off');
-    i.oninput = () => { pr[f] = i.value; if (f === 'url' || f === 'model') { delete pr.noRefs; delete pr.modalities; delete pr.noVision; delete testNotes[pr.id]; } saveCfg(); };
+    i.oninput = () => { pr[f] = i.value; if (f === 'url' || f === 'model') delete testNotes[pr.id]; saveCfg(); };
     // a quick check once URL and model are filled in (chat proxies): does it answer, and can it see images?
     if (kind === 'chat' && !locked && ['url', 'model', 'key'].includes(f)) i.onchange = () => { if (pr.url?.trim() && pr.model?.trim()) runProxyTest(pr); };
     if (f === 'name') i.onchange = () => renderProxyBoxes();
@@ -4273,7 +4195,7 @@ function renderProxyBox(box, kind, scope) {
   field('API key', 'key', 'password', 'sk-or-…');
   field('Model', 'model', 'text', kind === 'img' ? 'google/gemini-2.5-flash-image' : 'anthropic/claude-sonnet-4.5');
   if (kind === 'chat') {
-    const st = document.createElement('div'); st.className = 'hint ptest'; st.id = 'ptest-' + pr.id; st.textContent = testNotes[pr.id] || (pr.noVision ? 'This model can\'t see images: pictures are left out of what it reads.' : '');
+    const st = document.createElement('div'); st.className = 'hint ptest'; st.id = 'ptest-' + pr.id; st.textContent = testNotes[pr.id] || '';
     const tb = document.createElement('button'); tb.type = 'button'; tb.className = 'btn'; tb.textContent = 'Test connection'; tb.onclick = () => runProxyTest(pr);
     const ta = document.createElement('div'); ta.className = 'actions'; ta.append(tb);
     box.append(st, ta);
@@ -4292,21 +4214,15 @@ function renderProxyBox(box, kind, scope) {
   acts.append(del); box.append(acts);
 }
 
-// Proxy test: one tiny request with a 1x1 picture, then (if that fails) one without
+// Proxy test: one tiny request; it answers or it doesn't
 const testNotes = {};
-const TEST_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 async function runProxyTest(pr) {
   const a = clean(pr); if (!a.url || !a.model) return toast('Fill in the URL and model first');
-  const show = t => { testNotes[pr.id] = t; const el = $('ptest-' + pr.id); if (el) el.textContent = t; for (const e of document.querySelectorAll('#ptest-' + CSS.escape(pr.id))) e.textContent = t; };
+  const show = t => { testNotes[pr.id] = t; for (const e of document.querySelectorAll('#ptest-' + CSS.escape(pr.id))) e.textContent = t; };
   show('Testing…');
-  const call = content => fetch(endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify({ model: a.model, messages: [{ role: 'user', content }], stream: false }) });
   try {
-    let r = await call([{ type: 'text', text: 'Reply with: OK' }, { type: 'image_url', image_url: { url: TEST_PNG } }]);
-    if (r.ok) { delete pr.noVision; saveCfg(); return show('Works, and this model can see images.'); }
-    const first = await httpError(r);
-    r = await call('Reply with: OK');
-    if (r.ok) { pr.noVision = true; saveCfg(); return show('Works, but this model can\'t see images: pictures you send are left out of what it reads (it is told one was attached). Turn on Text only for a plain text roleplay.'); }
-    show('Doesn\'t work: ' + (await httpError(r)).message.slice(0, 220) + (first ? '' : ''));
+    const r = await fetch(endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify({ model: a.model, messages: [{ role: 'user', content: 'Reply with: OK' }], stream: false }) });
+    show(r.ok ? 'Works.' : 'Doesn\'t work: ' + (await httpError(r)).message.slice(0, 220));
   } catch (e) { show('Couldn\'t reach it: ' + (e.message || e)); }
 }
 
@@ -4323,21 +4239,13 @@ function syncChatGen() {
 }
 function syncGenImg() {
   if (!cur) return;
-  const t = textOnly(), ownT = cur.chat.textOnly !== undefined;
-  $('csTextOnly').checked = t; $('csGenImgCard').hidden = t;
-  const th = $('csTextOnlyHint'); th.innerHTML = '';
-  th.append((t ? 'On: no images at all in this chat; a plain text roleplay.' : 'On: no images are made or sent to the AI, and the image buttons are hidden.') + ' ');
-  if (ownT) { const b = document.createElement('a'); b.href = '#'; b.textContent = 'Follow Settings again'; b.style.color = 'var(--accent)'; b.onclick = e => { e.preventDefault(); delete cur.chat.textOnly; store.set('chats', chats); syncGenImg(); render(); }; th.append(b); }
-  else th.append(`Follows Settings (${cfg.textOnly ? 'on' : 'off'}) until you change it here.`);
   const on = imagesOn(), own = cur.chat.genImages !== undefined;
-  $('csGenImg').checked = on;
-  $('csAutoPicsCard').hidden = !on || t;
+  $('csGenImg').checked = on; $('csImgOn').hidden = !on;
   const h = $('csGenImgHint'); h.innerHTML = '';
-  h.append((on ? 'Images are made with the image proxy.' : 'Off: no real images; the character describes them in words instead.') + ' ');
+  h.append((on ? 'The character can send images, made with the image proxy below.' : 'Off: a regular chat, nothing about images.') + ' ');
   if (own) { const b = document.createElement('a'); b.href = '#'; b.textContent = 'Follow Settings again'; b.style.color = 'var(--accent)'; b.onclick = e => { e.preventDefault(); delete cur.chat.genImages; store.set('chats', chats); syncGenImg(); render(); }; h.append(b); }
   else h.append(`Follows Settings (${cfg.genImages === false ? 'off' : 'on'}) until you change it here.`);
 }
-$('csTextOnly').onchange = () => { if (!cur) return; cur.chat.textOnly = $('csTextOnly').checked; store.set('chats', chats); syncGenImg(); render(); };
 $('csGenImg').onchange = () => { if (!cur) return; cur.chat.genImages = $('csGenImg').checked; store.set('chats', chats); syncGenImg(); render(); };
 $('csAutoPics').onchange = () => {
   if (!cur) return;
@@ -4417,7 +4325,7 @@ function renderCsLore() {
 // Tabs: tap or swipe sideways
 let csTab = 0;
 function setCsTab(t) {
-  csTab = Math.max(0, Math.min(3, t));
+  csTab = Math.max(0, Math.min(4, t));
   for (const b of $('csTabs').children) b.classList.toggle('on', +b.dataset.t === csTab);
   for (const pane of document.querySelectorAll('#csBody .cs-pane')) pane.hidden = +pane.dataset.t !== csTab;
   $('csBody').scrollTop = 0;
@@ -5223,19 +5131,12 @@ async function runHelper(mode, original) {
     // The chat so far goes along (your own pictures included); the character's pictures are added
     // as real images too, so the AI can see what was sent
     const base = await buildMessages(c, p, history, s.chat.memory);
-    const sent = canSee(s.chat) ? history.filter(m => m.role === 'assistant' && m.img).slice(-SEND_IMAGES) : [];
+    const sent = history.filter(m => m.role === 'assistant' && m.img).slice(-SEND_IMAGES);
     const pics = (await Promise.all(sent.map(m => idb.get(m.img).catch(() => null)))).filter(Boolean);
     const withPics = pics.length ? [{ type: 'text', text: `${ask}\n\n(Attached: the last ${pics.length === 1 ? 'picture' : pics.length + ' pictures'} ${cn(c)} sent in this chat${pics.length > 1 ? ', oldest first' : ''}.)` },
       ...pics.map(url => ({ type: 'image_url', image_url: { url } }))] : ask;
     const show = r => { input.value = visible(r); input.dispatchEvent(new Event('input')); };
-    let text, note = '';
-    try { text = await streamChat([...base, { role: 'user', content: withPics }], show); }
-    catch (e) {
-      if (isAbort(e) || !pics.length) throw e;
-      // the chat model can't take images: try again without the character's pictures
-      const textOnly = base.map(m => Array.isArray(m.content) ? { ...m, content: `${m.content.filter(x => x.text).map(x => x.text).join('\n')}\n[an image was attached here]`.trim() } : m);
-      text = await streamChat([...textOnly, { role: 'user', content: ask }], show); note = ' (without pictures: this model can\'t see images)';
-    }
+    const text = await streamChat([...base, { role: 'user', content: withPics }], show), note = '';
     input.value = visible(text, true).replace(/^\s*\[[^\]]*\]\s*/, ''); input.dispatchEvent(new Event('input'));
     $('helpState').textContent = (mode === 'enhance' ? 'Enhanced by AI' : 'Written by AI') + note;
   } catch (e) {
@@ -5272,7 +5173,7 @@ function setDoc(doc) {
 function hidePlus() { $('plusMenu').hidden = true; $('plusBtn').classList.remove('open'); }
 $('plusBtn').onclick = () => {
   if (!$('plusMenu').hidden) return hidePlus();
-  for (const a of ['image', 'genimg', 'album']) $('plusMenu').querySelector(`[data-act=${a}]`).hidden = textOnly();
+  $('plusMenu').querySelector('[data-act=genimg]').hidden = !imagesOn();
   const m = $('plusMenu'); m.hidden = false; $('plusBtn').classList.add('open');
   const r = $('plusBtn').getBoundingClientRect();
   m.style.top = Math.max(12, r.top - m.offsetHeight - 8) + 'px';
@@ -5327,7 +5228,7 @@ $('albPick').onclick = e => { if (e.target === $('albPick')) $('albPick').hidden
 // Generate a picture the user sends
 function openGenImg() {
   if (!cur) return;
-  if (!imagesOn()) return toast('Pictures are off in this chat (Chat settings → Proxy)');
+  if (!imagesOn()) return toast('Images are off in this chat (Chat settings → Image proxy)');
   $('anPanel').hidden = true;
   $('giPanel').hidden = false; $('giState').textContent = '';
   $('giText').focus();
@@ -5575,6 +5476,7 @@ renderList('char');
 renderList('persona');
 // Forbidden words in a chat used to be added to the global ones: keep that as the chat's own list
 { let ch2 = false; for (const ch of chats) if (ch.forbidden?.trim() && !ch.fbOwn) { ch.forbidden = [cfg.forbidden, ch.forbidden].filter(x => x?.trim()).join('\n'); ch.fbOwn = true; ch2 = true; } if (ch2) store.set('chats', chats); }
+{ let ch3 = false; for (const ch of chats) if ('textOnly' in ch) { if (ch.textOnly) ch.genImages = false; delete ch.textOnly; ch3 = true; } if (ch3) store.set('chats', chats); }
 loadMsgs().then(() => { deliverReach(); renderChats(); step('started'); });
 if (sessionStorage.getItem('restored')) { sessionStorage.removeItem('restored'); setTimeout(() => toast('Backup restored'), 0); }
 // Clean up the automatic-backup copy an earlier build wrote
