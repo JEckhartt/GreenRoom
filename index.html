@@ -2016,12 +2016,12 @@ async function httpError(res) {
   return new Error(`${res.status}${res.statusText ? ' ' + res.statusText : ''}: ${msg || 'no details'}`);
 }
 
-// What the image proxy gets: the pictures (each named), the image prompt (Settings or chat), then what to make.
-// Nothing else is added
-async function generateImage(prompt, refs, guide = '') {
+// What the image proxy gets: the pictures, each saying who it shows, the image prompt (Settings or chat),
+// what to make, and the personality texts
+async function generateImage(prompt, refs, guide = '', about = '') {
   const list = (refs?.list || []).filter(r => r.url);
-  const names = list.length > 1 ? list.map((r, i) => `Picture ${i + 1}: ${r.label}`).join('\n') : list.length ? `Picture: ${list[0].label}` : '';
-  const text = [names, guide.trim(), prompt.trim()].filter(Boolean).join('\n\n');
+  const names = list.length > 1 ? list.map((r, i) => `Reference ${i + 1} is ${r.label}`).join('\n') : list.length ? `The reference image is ${list[0].label}` : '';
+  const text = [names, guide.trim(), prompt.trim() && (list.length ? 'Image to create: ' : '') + prompt.trim(), about.trim()].filter(Boolean).join('\n\n');
   return requestImage(list.length ? [...list.map(r => ({ type: 'image_url', image_url: { url: r.url } })), { type: 'text', text }] : text);
 }
 var IMAGE_TIMEOUT = 180000;
@@ -2286,7 +2286,12 @@ async function attachImage(s, hist, msg, into, bubble, imgPrompt) {
   const fig = addFigure(bubble);
   if (!imageEnabled()) { fig.remove(); if (here()) addBubble('err', 'Image requested, but no image proxy is active (Settings → Image proxy).'); return; }
   try {
-    const src = await generateImage(imgPrompt, { list: await peopleRefs(s) }, imagePrompt(s.chat, s.c, s.p));
+    // the character's most recent picture before this message (not the one being replaced)
+    const at = hist.indexOf(into || msg), before = at >= 0 ? hist.slice(0, at) : hist;
+    const prev = [...before].reverse().find(m => m.role === 'assistant' && m.img && m.img !== msg.img);
+    const last = prev ? await idb.get(prev.img).catch(() => null) : null;
+    const r = await peopleRefs(s, last);
+    const src = await generateImage(imgPrompt, { list: r.list }, imagePrompt(s.chat, s.c, s.p), r.about);
     const id = 'img_' + uid();
     await idb.put(id, src).catch(() => {});
     msg.img = id; msg.imgPrompt = imgPrompt;
@@ -5281,14 +5286,22 @@ function openGenImg() {
 $('giClose').onclick = () => { $('giPanel').hidden = true; document.activeElement?.blur(); };
 // Makes the user's picture
 async function userPicture(s, prompt) {
-  return generateImage(prompt, { list: await peopleRefs(s) }, imagePrompt(s.chat, s.c, s.p));
+  const u = userName(s.p), r = await peopleRefs(s);
+  const note = `\n(The picture is sent by ${u}: "me", "I" and "my" mean ${u}; "you" means ${cn(s.c)}.)`;
+  return generateImage(prompt + note, { list: r.list }, imagePrompt(s.chat, s.c, s.p), r.about);
 }
-// The character's and your profile pictures, named so the image proxy knows who is who
-async function peopleRefs(s) {
-  const { c, p } = s;
+// The people who can be in a picture: the character and you, each only if the description has them in it.
+// For the character's pictures, their last picture keeps outfit and hair consistent
+async function peopleRefs(s, last) {
+  const { c, p } = s, u = userName(p), cc = cn(c);
   const card = c.img ? await idb.get(c.img).catch(() => null) : null;
   const mine = p?.img ? await idb.get(p.img).catch(() => null) : null;
-  return [card && { url: card, label: cn(c) }, mine && { url: mine, label: userName(p) }].filter(Boolean);
+  const who = n => `a picture of ${n}: how ${n} looks (face, hair, body). Only include ${n} if the description has them in it ("us", "we" and "both" count).`;
+  const list = [card && { url: card, label: who(cc) }, mine && { url: mine, label: who(u) },
+    last && { url: last, label: `the last picture ${cc} sent in this chat: if ${cc} is in the image, keep outfit, hair and setting consistent with it.` }].filter(Boolean);
+  const about = [[cc, fill(c.personality || '', c, p)], [u, fill(p?.personality || '', c, p)]]
+    .filter(([, t]) => t.trim()).map(([n, t]) => `About ${n} (looks and details; follow this whenever they appear):\n${t.trim().slice(0, 1500)}`).join('\n\n');
+  return { list, about };
 }
 let giBusy = false;
 $('giGo').onclick = async () => {
