@@ -1665,14 +1665,18 @@ function systemFor(c, p, memory, lore, chat = cur?.chat, hist = null) {
 const SEND_IMAGES = 4;
 // Does a message ask the character for a picture? (English + Dutch)
 const IMG_WORD = /\b(pics?|pictures?|photos?|selfies?|images?|drawings?|draw|sketch|portrait|snapshot|foto'?s?|fotootjes?|selfie|afbeelding(en)?|plaatjes?|tekening(en)?|teken)\b/i;
-const IMG_VERB = /\b(send|show|share|take|snap|draw|make|give|stuur|stuurt|maak|teken|geef)\b|\b(can|could|would|will) (you|i)\b|\b(wanna|want to|would love to|let me) see\b|\b(mag ik|kun je|kan je|wil je|laat)\b/i;
+const IMG_VERB = /\b(send|show|share|take|snap|draw|make|give|want|wanna|need|get|got|have|love|like|asks?|asking|request|how about|what about|time|please|pls|plz|stuur|stuurt|maak|teken|geef|wil|mag)\b|\?|\b(can|could|would|will) (you|i)\b|\b(wanna|want to|would love to|let me) see\b|\b(mag ik|kun je|kan je|wil je|laat)\b/i;
+// a clear ask wins over "your selfie" / "that pic"
+const IMG_STRONG = /\b(send|show|share|take|snap|please|pls|plz|stuur)\b/i;
+// talking about photos in general is not a request: "I love taking photos"
+const IMG_HOBBY = /\b(taking|took|posting|posted|editing|nemen|maken van)\s+(pics|photos|pictures|selfies|foto'?s)\b|\bphotography\b|\bfotografie\b/i;
 const IMG_LOOK = /what do you look like|show (me )?(yourself|you|your face)|can i see you|let me see you|hoe zie je eruit|laat (je|jezelf|me je) (eens )?zien|mag ik je zien|wil je zien/i;
 // "pic?", "selfie pls", "foto?" on their own also count
 const IMG_SHORT = /^\s*(another|one more|a|een|nog een)?\s*(pics?|pictures?|photos?|selfies?|foto'?s?|fotootjes?)\s*(pls|please|plz|graag|\?|!)*\s*$/i;
 // talking about a picture that was already sent is not a request
-const IMG_PAST = /\b(sent|showed|shared|took|that|this|the|your|nice|cute|great|love|liked?|mooie?|leuke?)\s+(pics?|pictures?|photos?|selfies?|images?|foto'?s?)\b/i;
+const IMG_PAST = /\b(sent|showed|shared|took|that|this|the|your|my|old|nice|cute|great|love|liked?|mooie?|leuke?)\s+(pics?|pictures?|photos?|selfies?|images?|foto'?s?)\b/i;
 const IMG_MORE = /\b(another|one more|nog een|again|opnieuw)\b/i;
-const asksForImage = t => !!t && (IMG_LOOK.test(t) || IMG_SHORT.test(t) || (IMG_WORD.test(t) && IMG_VERB.test(t) && (!IMG_PAST.test(t) || IMG_MORE.test(t))));
+const asksForImage = t => !!t && (IMG_LOOK.test(t) || IMG_SHORT.test(t) || (IMG_WORD.test(t) && IMG_VERB.test(t) && !IMG_HOBBY.test(t) && (!IMG_PAST.test(t) || IMG_MORE.test(t) || IMG_STRONG.test(t))));
 const wantsImage = m => !!m && m.role === 'user' && (m.wantsImage || asksForImage(m.content));
 // The character says it sends a picture right now: "here's a pic of…", "*sends you a selfie*", "*snaps a photo and sends it*"
 const PIC = String.raw`(pics?|pictures?|photos?|selfies?|snapshots?|images?|foto'?s?|fotootjes?|selfie)`;
