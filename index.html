@@ -202,19 +202,14 @@
   .hero-wrap { position: relative; }
   #profEye { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(20,20,20,.55); color: #fff; display: grid; place-items: center; cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
   /* ---------- Chat layout options ---------- */
-  body[data-aialign=center] .msg.ai, body[data-mealign=center] .msg.me { text-align: center; }
-  body[data-aialign=right] .msg.ai, body[data-mealign=right] .msg.me { text-align: right; }
-  body:not(.ai-bubble):is([data-aialign=center], [data-aialign=right]) .msg.ai { align-self: stretch; max-width: 100%; }
-  body[data-aialign=center] .msg.ai .alts { justify-content: center; }
-  body[data-aialign=right] .msg.ai .alts { justify-content: flex-end; }
   /* Name and time: the name sits next to the portrait, the time at the other end. The portrait is on the outer side of
      the message (the character left, you right; "All left/right" moves them) and moves right with right-aligned text. */
   .msg.ai > .mname { text-align: left; }
   .msg.ai .alts .ts { margin-left: auto; }
-  body:is([data-sides=right], [data-aialign=right]) .msg.ai > .mname { text-align: right; }
-  body:is([data-sides=right], [data-aialign=right]) .msg.ai .alts .ts { margin-left: 0; margin-right: auto; order: -1; }
+  body[data-sides=right] .msg.ai > .mname { text-align: right; }
+  body[data-sides=right] .msg.ai .alts .ts { margin-left: 0; margin-right: auto; order: -1; }
   .msg.me > .mname { text-align: right; }
-  body[data-sides=left]:not([data-mealign=right]) .msg.me > .mname { text-align: left; }
+  body[data-sides=left] .msg.me > .mname { text-align: left; }
   .mname { display: none; font: 600 13px/1.3 'Inter', system-ui, sans-serif; letter-spacing: .01em; margin-bottom: 4px; white-space: normal; background: none; text-shadow: none; }
   .msg.ai > .mname { color: var(--name-ai, var(--accent)); -webkit-text-fill-color: var(--name-ai, var(--accent)); }
   .msg.me > .mname { color: var(--name-me, var(--accent)); -webkit-text-fill-color: var(--name-me, var(--accent)); }
@@ -233,13 +228,14 @@
   body.avs-me:not([data-sides=left]) .msg.me > .mav { right: -42px; }
   body.avs-me[data-sides=left] :is(#log, #preview) .msg.me { margin-left: 42px; }
   body.avs-me[data-sides=left] .msg.me > .mav { left: -42px; }
-  /* right-aligned text: the portrait goes to the right of the message as well */
-  body.avs-ai[data-aialign=right] :is(#log, #preview) .msg.ai { margin-left: 0; margin-right: 42px; }
-  body.avs-ai[data-aialign=right] .msg.ai > .mav { left: auto; right: -42px; }
-  body.avs-me[data-mealign=right] :is(#log, #preview) .msg.me { margin-left: 0; margin-right: 42px; }
-  body.avs-me[data-mealign=right] .msg.me > .mav { left: auto; right: -42px; }
-  /* …and quote blocks get their bar on the right */
-  body[data-aialign=right] .msg.ai .txt blockquote, body[data-mealign=right] .msg.me .txt blockquote { padding-left: 0; padding-right: .8em; border-left-style: none; border-right: 3px solid var(--line); }
+  /* Centered: every message in the middle, text centered, the picture above the name */
+  body[data-sides=center] :is(#log, #preview) .msg { align-self: center; text-align: center; margin-left: 0 !important; margin-right: 0 !important; }
+  body[data-sides=center] .msg > .mav { position: static; margin: 0 auto 6px; }
+  body[data-sides=center] .msg > .mname, body[data-sides=center] .msg.me .ts { text-align: center; }
+  body[data-sides=center] .msg.ai .alts { justify-content: center; }
+  body[data-sides=center] .msg.ai .alts .ts { margin-left: 0; }
+  body[data-sides=center] .msg .txt blockquote { border-left: 0; padding-left: 0; }
+  body[data-sides=center] .msg.me, body.ai-bubble[data-sides=center] .msg.ai { border-radius: 18px; }
   /* which side messages sit on */
   body[data-sides=right] .msg.ai { align-self: flex-end; }
   body[data-sides=left] .msg.me { align-self: flex-start; }
@@ -402,7 +398,7 @@
   .srow mark { background: var(--accent-soft); color: inherit; border-radius: 3px; padding: 0 1px; }
   .ts { font: 11px 'Inter', system-ui, sans-serif; color: var(--ink-soft); opacity: .7; -webkit-text-fill-color: var(--ink-soft); text-shadow: none; }
   .msg.me .ts { display: block; text-align: left; margin-top: 4px; }
-  body[data-sides=left]:not([data-mealign=right]) .msg.me .ts { text-align: right; }
+  body[data-sides=left] .msg.me .ts { text-align: right; }
   .alts .ts { margin-left: 8px; }
   .msg.flash { animation: flash 1.8s ease; border-radius: 12px; }
   @keyframes flash { 0%, 45% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent); background-color: color-mix(in srgb, var(--accent) 10%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
@@ -1120,13 +1116,6 @@ Empty = send everything.</div>
 
     <details class="card fold" data-sec="look-layout">
       <summary class="sub">Layout</summary>
-      <label class="f" style="margin-top:6px">Text alignment <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></label>
-      <div class="seg" data-k="align">
-        <button type="button" data-v="left">Left</button>
-        <button type="button" data-v="center">Middle</button>
-        <button type="button" data-v="right">Right</button>
-      </div>
-      <div class="hint">Inside the bubble; without a bubble, across the whole screen.</div>
       <div class="line"><span>Names above messages <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="showNames"></div>
       <div id="nameColorRow">
         <div class="seg" data-k="nameMode" style="margin-top:6px">
@@ -1158,11 +1147,12 @@ Empty = send everything.</div>
       <p class="sub" style="margin:16px 0 0">For all messages</p>
       <label class="f">Where messages sit</label>
       <div class="seg" data-k="sides">
-        <button type="button" data-v="default">AI left, you right</button>
+        <button type="button" data-v="default">Left &amp; right</button>
         <button type="button" data-v="left">All left</button>
+        <button type="button" data-v="center">Centered</button>
         <button type="button" data-v="right">All right</button>
       </div>
-      <div class="hint">All left or All right puts everything on that side: the character's and your messages, pictures and names.</div>
+      <div class="hint">Left &amp; right: the character on the left, you on the right. All left, Centered or All right puts every message there, with its picture, name and text.</div>
       <label class="f">Space between messages</label>
       <div class="seg" data-k="spacing">
         <button type="button" data-v="compact">Compact</button>
@@ -1325,7 +1315,7 @@ const store = {
 };
 const LOOK_DEFAULTS = {
   theme: 'original', accent: '', aiBubble: false,
-  align: 'left', u_align: 'left', showNames: false, nameMode: 'theme', nameC: '#d9553b', showAvatars: false, avShape: 'circle',
+  showNames: false, nameMode: 'theme', nameC: '#d9553b', showAvatars: false, avShape: 'circle',
   bubbleShape: 'tail', showTimes: true, wide: false, u_wide: false, u_aiBubble: true,
   u_showNames: false, u_nameMode: 'theme', u_nameC: '#3d63f5', u_showAvatars: false, u_avShape: 'circle', u_bubbleShape: 'tail', u_showTimes: true,
   sides: 'default', spacing: 'normal', anim: 'none',
@@ -1535,7 +1525,6 @@ function applyLook() {
   document.body.classList.toggle('ai-bubble', L.aiBubble);
   document.body.classList.toggle('me-nobubble', L.u_aiBubble === false);
   const B = document.body;
-  B.dataset.aialign = L.align || 'left'; B.dataset.mealign = L.u_align || 'left';
   for (const [side, pre] of [['ai', ''], ['me', 'u_']]) {
     B.classList.toggle('names-' + side, !!L[pre + 'showNames']); B.classList.toggle('avs-' + side, !!L[pre + 'showAvatars']);
     B.classList.toggle('wide-' + side, !!L[pre + 'wide']);
@@ -4448,7 +4437,7 @@ function setLookCtx(ctx) {
 
 // ---------- Settings page ----------
 // The text-style controls edit either the AI's or the user's text; user keys are stored with a u_ prefix
-const STYLE_KEYS = ['aiBubble', 'align', 'wide', 'showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'showTimes', 'fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
+const STYLE_KEYS = ['aiBubble', 'wide', 'showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'showTimes', 'fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
 let styleTarget = 'ai';
 const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
 const fontKey = () => styleTarget === 'me' ? 'meFont' : 'aiFont';

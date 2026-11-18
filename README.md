@@ -77,5 +77,5 @@ Proxy URL: `http://localhost:8787/api/v1`. Keeps your key out of the browser.
 
 ## Style, at a glance
 
-- **Settings → Style**: *Saved styles*; the mock-up with **AI / You / Both** (which side a change applies to; Both makes your side match the AI first); *Theme* (mode, accent); *Layout* (per side: bubble, bubble shape, alignment, full width, names, portraits, timestamps; for all messages: where they sit, spacing, how new ones appear); *Font*, *Text style*, *Text color*, *Markdown* (per side); **Reset style** (saved styles are kept).
+- **Settings → Style**: *Saved styles*; the mock-up with **AI / You / Both** (which side a change applies to; Both makes your side match the AI first); *Theme* (mode, accent); *Layout* (per side: bubble, bubble shape, full width, names, portraits, timestamps; for all messages: where they sit (left & right, all left, centered, all right), spacing, how new ones appear); *Font*, *Text style*, *Text color*, *Markdown* (per side); **Reset style** (saved styles are kept).
 - **Chat settings → Style**: *Theme for this chat* and *Background* (always this chat's own), then **Style for this chat** with its **Global** switch: on, the chat uses Settings and the controls are hidden; off, the same controls as in Settings, for this chat only. *Saved styles* can be applied here too (that switches Global off).
