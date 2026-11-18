@@ -228,6 +228,13 @@
   body.avs-me:not([data-sides=left]) .msg.me > .mav { right: -42px; }
   body.avs-me[data-sides=left] :is(#log, #preview) .msg.me { margin-left: 42px; }
   body.avs-me[data-sides=left] .msg.me > .mav { left: -42px; }
+  /* Without a bubble the text follows the side the message is on (with a bubble it stays left-aligned, like any chat app) */
+  body.me-nobubble:not([data-sides=left]):not([data-sides=center]) .msg.me { text-align: right; }
+  body.me-nobubble:not([data-sides=left]):not([data-sides=center]) .msg.me .ts { text-align: right; }
+  body:not(.ai-bubble)[data-sides=right] .msg.ai { text-align: right; }
+  /* …and so does the time: right next to the text instead of at the far end */
+  body:not(.ai-bubble) .msg.ai .alts .ts { margin-left: 8px; margin-right: 0; order: 0; }
+  body:not(.ai-bubble)[data-sides=right] .msg.ai .alts { justify-content: flex-end; }
   /* Centered: every message in the middle, text centered, the picture above the name */
   body[data-sides=center] :is(#log, #preview) .msg { align-self: center; text-align: center; margin-left: 0 !important; margin-right: 0 !important; }
   body[data-sides=center] .msg > .mav { position: static; margin: 0 auto 6px; }
