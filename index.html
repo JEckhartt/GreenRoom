@@ -2934,7 +2934,7 @@ function renderChats() {
     const meta = document.createElement('p'); meta.textContent = `${cs.length} chat${cs.length > 1 ? 's' : ''} · as ${names.join(', ')}`;
     const chev = document.createElement('span'); chev.className = 'chev';
     info.append(h, meta); head.append(th, info, chev);
-    head.onclick = () => { expanded.has(c.id) ? expanded.delete(c.id) : expanded.add(c.id); renderChats(); };
+    head.onclick = () => { const was = expanded.has(c.id); expanded.clear(); if (!was) expanded.add(c.id); renderChats(); }; // one character open at a time
     g.append(head);
     if (expanded.has(c.id)) {
       const sub = document.createElement('div'); sub.className = 'sublist';
