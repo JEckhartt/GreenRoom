@@ -298,6 +298,7 @@
   .pbody { padding: 0 0 12px; display: flex; flex-direction: column; gap: 8px; }
   .pbody input { width: 100%; }
   .ptest:empty { display: none; }
+  .ptest-img { display: block; width: 96px; height: 96px; object-fit: cover; border-radius: 10px; margin-top: 8px; }
   .srow2 { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
   .srow2 .pdot { margin-left: 2px; }
   .srow2 .sname { flex: 1; text-align: left; border: 0; background: none; color: var(--ink); font: inherit; font-size: 15px; padding: 13px 2px; cursor: pointer; }
@@ -1990,8 +1991,8 @@ function renderLog() {
 }
 
 // ---------- Image generation ----------
-// ref: the character's image. Chat-style image endpoints get it as a style reference; if the model refuses
-// an input image, or the endpoint is /images/generations, the text prompt alone is used.
+// Image proxies are chat-style only (OpenRouter image models and the like): they take the reference pictures.
+// /images/generations is refused: it only takes text, so characters wouldn't look like themselves.
 // Readable error from a provider response: their message, the upstream provider's raw error, code
 function errorText(j, raw = '') {
   const e = j?.error ?? j;
@@ -2037,13 +2038,11 @@ async function generateImage(prompt, refs, who, about) {
   about = (about || '').trim().slice(0, 2000);
   const name = who || 'the character';
   const extra = about ? `\n\nAbout ${name} (their looks and details; follow this whenever they appear):\n${about}` : '';
-  const imagesApi = /images\/generations$/.test(endpoint(imgApi().url));
   const list = refs?.list ? refs.list.filter(r => r.url) : charRefs(refs, name);
   const only = refs?.list ? '' : `\nOnly put ${name} in the picture if the description below is about them; if it shows something else (a pet, food, a place), keep just the visual style.`;
   const ask = rs => [...rs.map(r => ({ type: 'image_url', image_url: { url: r.url } })),
     { type: 'text', text: `${rs.length > 1 ? rs.map((r, i) => `Reference ${i + 1} is ${r.label}`).join('\n') : `The reference image is ${rs[0].label}`}${only}\n\nImage to create: ${prompt}${extra}` }];
-  // chat-style image models get the reference pictures; an /images/generations endpoint only takes text
-  return requestImage(!imagesApi && list.length ? ask(list) : prompt + extra);
+  return requestImage(list.length ? ask(list) : prompt + extra);
 }
 var IMAGE_TIMEOUT = 180000;
 // Finds an image anywhere in a response: data URLs, base64 fields, or image links
@@ -2078,14 +2077,14 @@ async function keepImage(src) {
     return await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
   } catch { return src; }
 }
-const requestImage = prompt => requestImageOnce(prompt, ['image', 'text']);
-async function requestImageOnce(prompt, modalities) {
-  const a = imgApi(), url = endpoint(a.url);
+const requestImage = (prompt, api) => requestImageOnce(prompt, ['image', 'text'], api);
+const IMAGES_API = /\/images\/generations\/?$/;
+const IMAGES_API_MSG = 'This image proxy uses /images/generations, which Green Room doesn\'t support: it only takes text, so it can\'t use reference pictures. Use a chat-style image model instead (a URL ending in /v1, like OpenRouter with an image model).';
+async function requestImageOnce(prompt, modalities, a = imgApi()) {
+  const url = endpoint(a.url);
   if (!a.url || !a.model) throw new Error('The image proxy has no URL or model filled in.');
-  const imagesApi = /images\/generations$/.test(url);
-  const body = imagesApi
-    ? { model: a.model, prompt, n: 1 }
-    : { model: a.model, messages: [{ role: 'user', content: prompt }], modalities };
+  if (IMAGES_API.test(a.url.trim())) throw new Error(IMAGES_API_MSG);
+  const body = { model: a.model, messages: [{ role: 'user', content: prompt }], modalities };
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), IMAGE_TIMEOUT);
   const outer = abortCtl?.signal; outer?.addEventListener('abort', () => ctl.abort());
   let res, raw;
@@ -2112,11 +2111,7 @@ async function requestImageOnce(prompt, modalities) {
   }
   if (j.error) throw new Error(errorText(j));
 
-  if (imagesApi) {
-    const d = j.data?.[0];
-    if (d?.b64_json) return 'data:image/png;base64,' + d.b64_json;
-    if (d?.url) return keepImage(d.url);
-  } else {
+  {
     const m = j.choices?.[0]?.message || {};
     const im = m.images?.[0];
     const fromImages = im?.image_url?.url || im?.url;
@@ -2138,7 +2133,6 @@ async function requestImageOnce(prompt, modalities) {
     m.refusal,
     ch?.finish_reason && ch.finish_reason !== 'stop' ? `finish reason: ${ch.finish_reason}` : '',
     ch?.native_finish_reason && ch.native_finish_reason !== ch.finish_reason ? `provider reason: ${ch.native_finish_reason}` : '',
-    imagesApi && j.data && !j.data.length ? 'the response contained no images' : '',
   ].filter(Boolean).join(' — ');
   throw new Error('The image model returned no image' + (said ? ': ' + said.slice(0, 1200) : '.'));
 }
@@ -4095,7 +4089,7 @@ for (const d of document.querySelectorAll('#chatset details[data-g], #chatset de
 // ---------- Proxy lists: tap one to make it active; + New adds one ----------
 const PROXY_HINT = {
   chat: 'OpenAI-compatible. <code>/chat/completions</code> is appended automatically.',
-  img: 'Used only when you explicitly ask for an image. Chat-style endpoints (OpenRouter image models) and <code>/images/generations</code> both work.',
+  img: 'A chat-style image model, like OpenRouter with an image model (URL ending in <code>/v1</code>). <code>/images/generations</code> isn\'t supported: it can\'t take reference pictures.',
 };
 function renderProxyBoxes() {
   renderProxyBox($('gProxyBox'), 'chat', 'global'); renderProxyBox($('gImgBox'), 'img', 'global');
@@ -4210,7 +4204,14 @@ function renderProxyBox(box, kind, scope) {
     const l = document.createElement('label'); l.className = 'f'; l.textContent = label;
     const i = document.createElement('input'); i.type = type; i.value = pr[f] || ''; i.placeholder = ph; i.readOnly = locked; if (locked) i.classList.add('locked');
     i.autocomplete = 'off'; i.setAttribute('autocapitalize', 'off'); i.setAttribute('autocorrect', 'off');
-    i.oninput = () => { pr[f] = i.value; if (f === 'url' || f === 'model') delete testNotes[pr.id]; saveCfg(); };
+    i.oninput = () => {
+      pr[f] = i.value; saveCfg();
+      if (f !== 'url' && f !== 'model') return;
+      delete testNotes[pr.id]; delete testPics[pr.id];
+      const st = box.querySelector('.ptest'), pic = box.querySelector('.ptest-img');
+      if (pic) pic.hidden = true;
+      if (st) st.textContent = kind === 'img' && IMAGES_API.test(pr.url || '') ? IMAGES_API_MSG : '';
+    };
     // a quick check once URL and model are filled in (chat proxies): does it answer, and can it see images?
     if (kind === 'chat' && !locked && ['url', 'model', 'key'].includes(f)) i.onchange = () => { if (pr.url?.trim() && pr.model?.trim()) runProxyTest(pr); };
     if (f === 'name') i.onchange = () => renderProxyBoxes();
@@ -4228,6 +4229,14 @@ function renderProxyBox(box, kind, scope) {
     const ti = document.createElement('button'); ti.type = 'button'; ti.className = 'btn'; ti.textContent = 'Test images'; ti.onclick = () => runProxyTest(pr, true);
     const ta = document.createElement('div'); ta.className = 'actions'; ta.append(tb, ti);
     box.append(st, ta);
+  } else {
+    // image proxy: one real test picture, made from a reference picture
+    const st = document.createElement('div'); st.className = 'hint ptest'; st.id = 'ptest-' + pr.id;
+    st.textContent = testNotes[pr.id] || (IMAGES_API.test(pr.url || '') ? IMAGES_API_MSG : '');
+    const pic = document.createElement('img'); pic.className = 'ptest-img'; pic.id = 'ptestimg-' + pr.id; pic.alt = ''; pic.hidden = !testPics[pr.id]; if (testPics[pr.id]) pic.src = testPics[pr.id];
+    const tb = document.createElement('button'); tb.type = 'button'; tb.className = 'btn'; tb.textContent = 'Test image proxy'; tb.onclick = () => runImgProxyTest(pr);
+    const ta = document.createElement('div'); ta.className = 'actions'; ta.append(tb);
+    box.append(st, pic, ta);
   }
   if (locked) { const n = document.createElement('div'); n.className = 'hint'; n.textContent = 'This is the default from Settings and can only be changed there. To change it for this chat, long press it and duplicate it.'; box.append(n); return; }
   { const n = document.createElement('div'); n.className = 'hint'; n.textContent = (chat ? 'Saved proxies are shared with Settings and other chats. ' : '') + 'Long press a proxy to duplicate it.'; box.append(n); }
@@ -4259,6 +4268,24 @@ async function runProxyTest(pr, img = false) {
     const said = (Array.isArray(m) ? m.map(x => x.text || '').join('') : String(m || '')).trim();
     show(/red/i.test(said) ? 'Sees images.' : `Answers, but didn't see the picture${said ? ` (it said: "${said.slice(0, 60)}")` : ''}. It probably can't see images.`);
   } catch (e) { show('Couldn\'t reach it: ' + (e.message || e)); }
+}
+
+// Image proxy test: asks for a picture in the colour of a reference square, so it checks both
+// that it makes images and that it takes reference pictures. Only reports; changes nothing
+const testPics = {};
+async function runImgProxyTest(pr) {
+  const a = clean(pr); if (!a.url || !a.model) return toast('Fill in the URL and model first');
+  const show = (t, img) => {
+    testNotes[pr.id] = t; if (img) testPics[pr.id] = img; else delete testPics[pr.id];
+    for (const e of document.querySelectorAll('#ptest-' + CSS.escape(pr.id))) e.textContent = t;
+    for (const e of document.querySelectorAll('#ptestimg-' + CSS.escape(pr.id))) { e.hidden = !img; if (img) e.src = img; }
+  };
+  show('Testing… making a test picture can take a minute.');
+  try {
+    const img = await requestImage([{ type: 'image_url', image_url: { url: redSquare() } },
+      { type: 'text', text: 'Reference: a red square. Create a simple picture of a red apple on a table, in exactly the colour of the reference.' }], a);
+    show('Works: it makes images and takes reference pictures.', img);
+  } catch (e) { show('Doesn\'t work: ' + String(e.message || e).slice(0, 300)); }
 }
 
 // Chat generation settings
