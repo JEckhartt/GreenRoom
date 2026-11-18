@@ -2023,12 +2023,6 @@ async function httpError(res) {
 function charRefs(refs, name) {
   const card = refs?.card, last = refs?.last && refs.last !== refs.card ? refs.last : null;
   const style = 'the visual style (photo or illustration, medium, rendering, colour palette, lighting)';
-  // Image style "Your picture": the user's profile picture sets the style, the card only shows how the character looks
-  if (refs?.styleImg) return [
-    { url: refs.styleImg, label: `the style reference: match ONLY ${style}. Do not put the person or anything else from it in the picture.` },
-    card && { url: card, label: `${name}'s character card: how ${name} looks. Show ${name} in the visual style of reference 1, not the style of this picture (a photo if reference 1 is a photo).` },
-    last && { url: last, label: `the last picture ${name} sent in this chat: keep outfit, hair, setting and mood consistent with it, in the visual style of reference 1.` },
-  ].filter(Boolean);
   return [
     card && { url: card, label: `${name}'s character card: the main reference for ${name}'s appearance and ${style}. Follow it first.`, desc: `${name}'s character card: describe ${name}'s appearance and the visual style` },
     last && { url: last, label: card ? `the last picture ${name} sent in this chat: keep outfit, hair, setting and mood consistent with it; where it differs from reference 1, reference 1 wins.` : `the last picture ${name} sent in this chat: keep ${name}'s appearance and ${style} consistent with it.`, desc: `the last picture ${name} sent: describe ${name}'s outfit, hair and setting${card ? '' : ', and the visual style'}` },
@@ -2037,12 +2031,11 @@ function charRefs(refs, name) {
 async function generateImage(prompt, refs, who, about) {
   about = (about || '').trim().slice(0, 2000);
   const name = who || 'the character';
-  let extra = about ? `\n\nAbout ${name} (their looks and details; follow this whenever they appear):\n${about}` : '';
+  const extra = about ? `\n\nAbout ${name} (their looks and details; follow this whenever they appear):\n${about}` : '';
   const list = refs?.list ? refs.list.filter(r => r.url) : charRefs(refs, name);
   const only = refs?.list ? '' : `\nOnly put ${name} in the picture if the description below is about them; if it shows something else (a pet, food, a place), keep just the visual style.`;
   const ask = rs => [...rs.map(r => ({ type: 'image_url', image_url: { url: r.url } })),
     { type: 'text', text: `${rs.length > 1 ? rs.map((r, i) => `Reference ${i + 1} is ${r.label}`).join('\n') : `The reference image is ${rs[0].label}`}${only}\n\nImage to create: ${prompt}${extra}` }];
-  if (refs?.styleImg && list.length > 1) extra += '\nVisual style: exactly that of reference 1 (a photo if it is a photo), not of the other references.';
   return requestImage(list.length ? ask(list) : prompt + extra);
 }
 var IMAGE_TIMEOUT = 180000;
@@ -2297,7 +2290,7 @@ async function describeImage(s, userText, replyText) {
   const { c, p } = s;
   const out = await streamChat([
     { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-    { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p).slice(0, 2000)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText.slice(0, 1500)}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), but also a pet, food, a place or anything else; only include ${cn(c)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
+    { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p).slice(0, 2000)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText.slice(0, 1500)}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), ${userName(p)}, both of them ("us"), but also a pet, food, a place or anything else; only include a person if the picture is of them, and name them (${cn(c)}, ${userName(p)}). Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
   ], () => {}, { free: true });
   return out.replace(TAG, '').trim().slice(0, 1500);
 }
@@ -2307,13 +2300,12 @@ async function attachImage(s, hist, msg, into, bubble, imgPrompt) {
   const fig = addFigure(bubble);
   if (!imageEnabled()) { fig.remove(); if (here()) addBubble('err', 'Image requested, but no image proxy is active (Settings → Image proxy).'); return; }
   try {
-    const card = s.c.img ? await idb.get(s.c.img).catch(() => null) : null;
     // the character's most recent picture before this message (not the one being replaced)
     const at = hist.indexOf(into || msg), before = at >= 0 ? hist.slice(0, at) : hist;
     const prev = [...before].reverse().find(m => m.role === 'assistant' && m.img && m.img !== msg.img);
     const last = prev ? await idb.get(prev.img).catch(() => null) : null;
-    const styleImg = imgStyle(s.chat) === 'user' && s.p?.img ? await idb.get(s.p.img).catch(() => null) : null;
-    const src = await generateImage(imgPrompt, { card, last, styleImg }, cn(s.c), fill(s.c.personality, s.c, s.p));
+    const r = await peopleRefs(s, last);
+    const src = await generateImage(imgPrompt + `\nGenerate what the description asks for, not a copy of a reference image.` + r.text, { list: r.list }, cn(s.c), '');
     const id = 'img_' + uid();
     await idb.put(id, src).catch(() => {});
     msg.img = id; msg.imgPrompt = imgPrompt;
@@ -5313,23 +5305,31 @@ function openGenImg() {
   $('giText').focus();
 }
 $('giClose').onclick = () => { $('giPanel').hidden = true; document.activeElement?.blur(); };
-// Makes the user's picture. The style picture (Image style) goes first and is used only for its visual style;
-// your persona's picture shows who "me" is, shown in that style
+// Makes the user's picture: both people's pictures go along, each only used if they're in it
 async function userPicture(s, prompt) {
-  const { c, p } = s, u = userName(p);
-  const mine = p?.img ? await idb.get(p.img).catch(() => null) : null;
+  const { c, p } = s, u = userName(p), cc = cn(c);
+  const r = await peopleRefs(s, null);
+  const note = `\nThe picture is sent by ${u}: "me", "I" and "my" mean ${u}; "you" means ${cc}. Generate what the description asks for, not a copy of a reference image.`;
+  return generateImage(prompt + note + r.text, { list: r.list }, u, '');
+}
+// The people who can be in a picture: the character and you, each as "how they look, only if they're in it".
+// Image style picks whose picture also sets the visual style; the other one's style is not used
+async function peopleRefs(s, last) {
+  const { c, p } = s, u = userName(p), cc = cn(c);
   const card = c.img ? await idb.get(c.img).catch(() => null) : null;
-  const look = 'visual style (photo or illustration, medium, rendering, colour palette, lighting)';
-  // "Your picture" with no persona picture: there is nothing of yours to take the style from, so the character's is used
-  const styleSrc = imgStyle(s.chat) === 'user' && mine ? mine : card || mine;
-  const list = [];
-  if (styleSrc && styleSrc !== mine) list.push({ url: styleSrc, label: `the STYLE reference: copy ONLY its ${look}. Do NOT put the person from it in the image and ignore its subject, pose, outfit, background and composition.` });
-  if (mine) list.push(styleSrc === mine
-    ? { url: mine, label: `${u}, who sends this picture: how ${u} looks (face, hair, body) AND the ${look} to use. Do not copy its pose, background or framing.` }
-    : { url: mine, label: `${u}, who sends this picture: copy how ${u} looks (face, hair, body) but NOT the visual style of this picture; show ${u} in the visual style of reference 1 (a photo if it is a photo). Do not copy its pose, background or framing.` });
-  const styleNote = !list.length ? '' : list.length > 1 ? `\nVisual style: exactly that of reference 1 (a photo if it is a photo), not of reference 2.` : '';
-  const note = `\nThe picture is sent by ${u}. Generate what the description asks for, not a copy of a reference image.${styleNote}`;
-  return generateImage(prompt + note, { list }, u, fill(p?.personality || '', c, p));
+  const mine = p?.img ? await idb.get(p.img).catch(() => null) : null;
+  const V = 'visual style (photo or illustration, medium, rendering, colour palette, lighting)';
+  const styleMine = !!mine && (imgStyle(s.chat) === 'user' || !card); // no picture of the chosen one: the other sets the style
+  const refs = [];
+  const add = (url, name, isStyle) => url && refs.push({ url, name, isStyle,
+    label: `a picture of ${name}: how ${name} looks (face, hair, body). Only include ${name} if the description has them in it ("us", "we" and "both" count). ${isStyle ? `Its ${V} is the style for the whole image.` : 'Do NOT use the visual style of this picture.'} Do not copy its pose, background or framing.` });
+  if (styleMine) { add(mine, u, true); add(card, cc, false); } else { add(card, cc, true); add(mine, u, false); }
+  if (last) refs.push({ url: last, label: `the last picture ${cc} sent in this chat: if ${cc} is in the image, keep outfit, hair and setting consistent with it. Do NOT use its visual style.` });
+  const si = refs.findIndex(r => r.isStyle);
+  const styleLine = si < 0 ? '' : `\nVisual style: exactly that of ${refs.length > 1 ? `reference ${si + 1}` : 'the reference image'} (the picture of ${refs[si].name}; a photo if it is a photo). Use the other references only for how people look.`;
+  const about = [[cc, fill(c.personality || '', c, p)], [u, fill(p?.personality || '', c, p)]]
+    .filter(([, t]) => t.trim()).map(([n, t]) => `About ${n} (looks and details; follow this whenever they appear):\n${t.trim().slice(0, 1500)}`).join('\n\n');
+  return { list: refs.map(({ url, label }) => ({ url, label })), text: styleLine + (about ? '\n\n' + about : '') };
 }
 let giBusy = false;
 $('giGo').onclick = async () => {
