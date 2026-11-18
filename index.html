@@ -293,6 +293,8 @@
     border: 1px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--ink); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
     box-shadow: 0 6px 18px -8px rgba(0,0,0,.35); animation: tbIn .18s ease-out; }
   #toBottom[hidden] { display: none; }
+  #scroller { transition: opacity .18s ease-out; }
+  #scroller.settling { opacity: 0; transition: none; }
   @keyframes tbIn { from { opacity: 0; transform: translateY(6px); } }
   input.locked, textarea.locked { opacity: .6; }
   input.locked { pointer-events: none; }
@@ -2699,6 +2701,20 @@ function newChat(charId, personaId) {
   chats.push(chat); store.set('chats', chats);
   openChat(chat.id);
 }
+// Opening a chat: the messages stay invisible until the layout stops moving and they sit at the end,
+// then fade in (no jumping while the chat slides in)
+function settleScroll(id) {
+  const sc = $('scroller'), t0 = performance.now(); let last = '', same = 0;
+  const step = () => {
+    if (cur?.chat.id !== id) return sc.classList.remove('settling');
+    scrollDown();
+    const size = sc.scrollHeight + '/' + sc.clientHeight;
+    same = size === last ? same + 1 : 0; last = size;
+    if (same >= 4 || performance.now() - t0 > 700) { scrollDown(); sc.classList.remove('settling'); }
+    else requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
 function openChat(id) {
   const chat = chats.find(x => x.id === id), c = chat && chars.find(x => x.id === chat.charId);
   if (!c) return;
@@ -2711,7 +2727,7 @@ function openChat(id) {
   shownFrom = Math.max(0, history.length - SHOW_MAX);
   step(`open chat (${history.length} messages)`);
   applyLook();
-  toBottom = true; stickUntil = Date.now() + 2500; renderChatHead(); render(); openView('chat');
+  toBottom = true; stickUntil = Date.now() + 2500; renderChatHead(); $('scroller').classList.add('settling'); render(); openView('chat'); settleScroll(id);
   for (const t of [80, 300, 700, 1300, 2200]) setTimeout(() => { if (stickNow() && cur?.chat.id === id) scrollDown(); }, t); syncTools(); applyChatBg();
   if (!history.length) startChat();
 }
