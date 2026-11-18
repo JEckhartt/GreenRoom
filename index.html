@@ -4197,7 +4197,8 @@ function renderProxyBox(box, kind, scope) {
   if (kind === 'chat') {
     const st = document.createElement('div'); st.className = 'hint ptest'; st.id = 'ptest-' + pr.id; st.textContent = testNotes[pr.id] || '';
     const tb = document.createElement('button'); tb.type = 'button'; tb.className = 'btn'; tb.textContent = 'Test connection'; tb.onclick = () => runProxyTest(pr);
-    const ta = document.createElement('div'); ta.className = 'actions'; ta.append(tb);
+    const ti = document.createElement('button'); ti.type = 'button'; ti.className = 'btn'; ti.textContent = 'Test images'; ti.onclick = () => runProxyTest(pr, true);
+    const ta = document.createElement('div'); ta.className = 'actions'; ta.append(tb, ti);
     box.append(st, ta);
   }
   if (locked) { const n = document.createElement('div'); n.className = 'hint'; n.textContent = 'This is the default from Settings and can only be changed there. To change it for this chat, long press it and duplicate it.'; box.append(n); return; }
@@ -4214,15 +4215,21 @@ function renderProxyBox(box, kind, scope) {
   acts.append(del); box.append(acts);
 }
 
-// Proxy test: one tiny request; it answers or it doesn't
+// Proxy test: one tiny request; it answers or it doesn't. With images: a red square, asked what color it is (only reports, changes nothing)
 const testNotes = {};
-async function runProxyTest(pr) {
+const redSquare = () => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#e00000'; g.fillRect(0, 0, 64, 64); return c.toDataURL('image/png'); };
+async function runProxyTest(pr, img = false) {
   const a = clean(pr); if (!a.url || !a.model) return toast('Fill in the URL and model first');
   const show = t => { testNotes[pr.id] = t; for (const e of document.querySelectorAll('#ptest-' + CSS.escape(pr.id))) e.textContent = t; };
-  show('Testing…');
+  show(img ? 'Testing images…' : 'Testing…');
+  const content = img ? [{ type: 'text', text: 'What color is this square? Answer with one word.' }, { type: 'image_url', image_url: { url: redSquare() } }] : 'Reply with: OK';
   try {
-    const r = await fetch(endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify({ model: a.model, messages: [{ role: 'user', content: 'Reply with: OK' }], stream: false }) });
-    show(r.ok ? 'Works.' : 'Doesn\'t work: ' + (await httpError(r)).message.slice(0, 220));
+    const r = await fetch(endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify({ model: a.model, messages: [{ role: 'user', content }], stream: false }) });
+    if (!r.ok) return show((img ? 'Can\'t see images: ' : 'Doesn\'t work: ') + (await httpError(r)).message.slice(0, 220));
+    if (!img) return show('Works.');
+    const j = await r.json().catch(() => ({})), m = j.choices?.[0]?.message?.content;
+    const said = (Array.isArray(m) ? m.map(x => x.text || '').join('') : String(m || '')).trim();
+    show(/red/i.test(said) ? 'Sees images.' : `Answers, but didn't see the picture${said ? ` (it said: "${said.slice(0, 60)}")` : ''}. It probably can't see images.`);
   } catch (e) { show('Couldn\'t reach it: ' + (e.message || e)); }
 }
 

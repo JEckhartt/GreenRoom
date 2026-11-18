@@ -72,7 +72,7 @@ Proxy URL: `http://localhost:8787/api/v1`. Keeps your key out of the browser.
 - **Generation presets** work like proxies: in Chat settings the default (the one active in Settings) is read-only, others can be added, edited and deleted; long press one to duplicate it.
 - **System prompts**: a list of collapsible prompts in Settings → Prompt and Chat settings → Prompt. **Default** plus your own (+ New prompt); the dot chooses which one is sent. In a chat, Default shows the prompt from Settings, read-only; add a new prompt to write one for the chat. Your own prompts are shared. **Forbidden words** have their own section.
 - **Saved styles**: at the top of Settings → Customization and Chat settings → Style. **+ Save current style** stores every look setting; tap one to use it (in a chat this switches Global off), ⋯ or long press to update, rename or delete.
-- **No workarounds**: a proxy either works or it doesn't. If a model can't see images or the image proxy fails, the error shows in the chat. **Test connection** (also run when URL and model are filled in) checks that the proxy answers.
+- **No workarounds**: a proxy either works or it doesn't. If a model can't see images or the image proxy fails, the error shows in the chat. **Test connection** (also run when URL and model are filled in) checks that the proxy answers; **Test images** sends a red square and asks its color, so you know whether the model can see images (it only reports, nothing changes).
 
 ## Style, at a glance
 
