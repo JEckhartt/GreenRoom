@@ -264,6 +264,13 @@
   @keyframes msgFade { from { opacity: 0; } }
   @keyframes msgSlide { from { opacity: 0; transform: translateY(16px); } }
   body[data-anim=fade] .msg.new { animation: msgFade .45s ease-out; }
+  /* a reply written out of sight (Appear / Fade in), with typing dots meanwhile */
+  .msg.hold .txt, .msg.hold details.think, .msg.hold figure { display: none; }
+  .msg.fadein .txt, .msg.fadein details.think { animation: msgFade 1.6s ease-in; }
+  .msg .dots { display: inline-flex; gap: 5px; padding: 6px 2px; }
+  .msg .dots i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .3; animation: dotBob 1.2s ease-in-out infinite; }
+  .msg .dots i:nth-child(2) { animation-delay: .15s; } .msg .dots i:nth-child(3) { animation-delay: .3s; }
+  @keyframes dotBob { 0%, 60%, 100% { opacity: .25; transform: none; } 30% { opacity: .8; transform: translateY(-3px); } }
   body[data-anim=slide] .msg.new { animation: msgSlide .4s cubic-bezier(.2,.8,.2,1); }
   /* Floating profile picture */
   #floatPic { position: fixed; z-index: 45; width: 190px; border-radius: 16px; overflow: hidden; touch-action: none; background: #111;
@@ -1182,6 +1189,7 @@ Empty = send everything.</div>
         <button type="button" data-v="fade">Fade in</button>
         <button type="button" data-v="slide">Slide up</button>
       </div>
+      <div class="hint">Appear: the reply is written out of sight (typing dots) and shows when it's finished. Fade in: the same, then it fades in slowly. Slide up: you watch it being written.</div>
     </details>
 
     <details class="card fold" data-sec="look-fonts">
@@ -1335,7 +1343,7 @@ const LOOK_DEFAULTS = {
   showNames: false, nameMode: 'theme', nameC: '#d9553b', showAvatars: false, avShape: 'circle',
   bubbleShape: 'tail', showTimes: true, wide: false, u_wide: false, u_aiBubble: true,
   u_showNames: false, u_nameMode: 'theme', u_nameC: '#3d63f5', u_showAvatars: false, u_avShape: 'circle', u_bubbleShape: 'tail', u_showTimes: true,
-  sides: 'default', spacing: 'normal', anim: 'none',
+  sides: 'default', spacing: 'normal', anim: 'slide',
   aiFont: 'Fraunces', meFont: 'Inter',
   fs: 18, fw: 300, lh: 1.6, ls: 0, glow: false,
   colorMode: 'theme', c1: '#ff7a59', c2: '#c13584', angle: 135, qOn: false, qColor: '#e8a33d',
@@ -1550,7 +1558,7 @@ function applyLook() {
     B.dataset['bubble' + side] = L[pre + 'bubbleShape'] || 'tail';
     L[pre + 'nameMode'] === 'custom' ? s.setProperty('--name-' + side, L[pre + 'nameC']) : s.removeProperty('--name-' + side);
   }
-  B.dataset.sides = L.sides || 'default'; B.dataset.spacing = L.spacing || 'normal'; B.dataset.anim = L.anim || 'none';
+  B.dataset.sides = L.sides || 'default'; B.dataset.spacing = L.spacing || 'normal'; B.dataset.anim = L.anim || 'slide';
   s.setProperty('--u-fs', L.u_fs + 'px');
   s.setProperty('--u-fw', L.u_fw);
   s.setProperty('--u-lh', L.u_lh);
@@ -2250,8 +2258,23 @@ async function streamChat(messages, onText, opts = {}) {
 async function aiTurn(s, hist, messages, bubble, into) {
   const here = () => cur?.chat.id === s.chat.id;
   clearErrs(); startFollow();
-  const reply = await streamChat(messages, r => { setText(bubble, visible(r)); follow(); },
-    { onThink: (t, done, secs) => { setThink(bubble, t, done, secs); follow(); } });
+  // How new messages appear: Slide up = you watch it being written; Appear / Fade in = written out of sight
+  // (typing dots), then shown all at once or faded in when it's finished
+  const live = document.body.dataset.anim === 'slide';
+  const dots = document.createElement('span'); dots.className = 'dots'; dots.innerHTML = '<i></i><i></i><i></i>'; bubble.append(dots);
+  if (!live) bubble.classList.add('hold');
+  const reveal = () => {
+    dots.remove();
+    if (!bubble.classList.contains('hold')) return;
+    bubble.classList.remove('hold');
+    if (document.body.dataset.anim === 'fade') { bubble.classList.remove('fadein'); void bubble.offsetWidth; bubble.classList.add('fadein'); }
+    follow();
+  };
+  let reply;
+  try {
+    reply = await streamChat(messages, r => { setText(bubble, visible(r)); if (live && visible(r)) dots.remove(); follow(); },
+      { onThink: (t, done, secs) => { setThink(bubble, t, done, secs); if (live) dots.remove(); follow(); } });
+  } finally { reveal(); } // stopped or failed: what was written so far shows
   let imgPrompt = tagPrompt(reply);
   let msg = { role: 'assistant', content: visible(reply, true), t: Date.now() };
   if (lastThink.text) { msg.thinking = lastThink.text; msg.thinkSecs = lastThink.secs; }
