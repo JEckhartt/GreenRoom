@@ -1766,7 +1766,7 @@ const stickNow = () => Date.now() < stickUntil;
 for (const ev of ['touchstart', 'wheel', 'mousedown']) document.addEventListener(ev, e => { if (e.target.closest?.('#scroller')) stickUntil = 0; }, { passive: true });
 // While a reply is written the screen follows it, until you scroll yourself; then it stays where you put it
 let following = false;
-const startFollow = () => { following = nearBottom(); };
+const startFollow = () => { following = true; scrollDown(); }; // a new reply always starts at the end
 for (const ev of ['touchmove', 'wheel']) document.addEventListener(ev, e => { if (e.target.closest?.('#scroller')) following = false; }, { passive: true });
 const follow = () => { if (following) scrollDown(); };
 // Error notes go away once you try again or pick another proxy
@@ -1936,7 +1936,7 @@ function addFold(fig, m) {
 }
 function showImage(fig, src) {
   const img = new Image(); img.alt = ''; img.src = src;
-  img.onload = () => { if (stickNow() || nearBottom()) scrollDown(); };
+  img.onload = () => { if (stickNow() || following || nearBottom()) scrollDown(); };
   img.onerror = () => {
     const e = document.createElement('div'); e.className = 'wait'; e.style.animation = 'none'; e.style.padding = '12px'; e.style.textAlign = 'center';
     e.textContent = /^https?:/i.test(src) ? `The image could not be loaded (the link may have expired or be blocked): ${src.slice(0, 120)}` : 'The image data is damaged and could not be shown.';
@@ -5312,18 +5312,19 @@ function openGenImg() {
   $('giText').focus();
 }
 $('giClose').onclick = () => { $('giPanel').hidden = true; document.activeElement?.blur(); };
-// Makes the user's picture: their persona's picture and description keep the looks
+// Makes the user's picture. Your persona's picture comes first: it is who "me" is. The character's card is only
+// sent for its style (Image style: Character's picture), never as something to copy
 async function userPicture(s, prompt) {
   const { c, p } = s, u = userName(p), cc = cn(c);
-  const card = c.img ? await idb.get(c.img).catch(() => null) : null;
   const mine = p?.img ? await idb.get(p.img).catch(() => null) : null;
-  // Image style "Your picture": your own picture sets both your looks and the style
-  if (imgStyle(s.chat) === 'user' && mine) return generateImage(prompt, { list: [{ url: mine, label: `a picture of ${u}: how ${u} looks AND the visual style to use (medium, rendering, line work, colour palette, lighting). Only put ${u} in the picture if the description asks for them.` }] }, u, fill(p?.personality || '', c, p));
+  const card = imgStyle(s.chat) === 'char' && c.img ? await idb.get(c.img).catch(() => null) : null;
+  const look = 'visual style (medium, rendering, line work, colour palette, lighting)';
   const list = [
-    card && { url: card, label: `${cc}'s character card: match ONLY its visual style (medium, rendering, line work, colour palette, lighting). Do not put ${cc} or anything else from it in the picture unless the description asks for it.`, desc: `${cc}'s character card: describe only the visual style, not the person` },
-    mine && { url: mine, label: `a picture of ${u}: how ${u} looks. Use it only if ${u} is in the picture, and draw ${u} in the visual style of the other reference.`, desc: `a picture of ${u}: describe ${u}'s appearance` },
+    mine && { url: mine, label: `a picture of ${u}, who sends this picture: how ${u} looks (face, hair, body). Whenever ${u} is in the picture they must look like this person.${card ? '' : ` Also use its ${look}.`} Do not copy its pose, background or framing; follow the description.` },
+    card && { url: card, label: `a style sample: use ONLY its ${look}. Do NOT draw the person in it, and do not copy its pose, outfit, background or composition. It is not the subject.` },
   ].filter(Boolean);
-  return generateImage(prompt, { list }, u, fill(p?.personality || '', c, p));
+  const note = `\nThe picture is sent by ${u}. Draw what the description asks for, not a copy of a reference image.`;
+  return generateImage(prompt + note, { list }, u, fill(p?.personality || '', c, p));
 }
 let giBusy = false;
 $('giGo').onclick = async () => {
