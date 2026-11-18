@@ -1043,7 +1043,7 @@
     <summary class="group-title">Image proxy</summary>
     <div class="card" style="margin-bottom:10px">
       <div class="line" style="padding-top:12px"><span>Enable</span><input type="checkbox" class="tgl" data-k="genImages"></div>
-      <div class="hint">On: the character can send images, made with the image proxy below. Off: a regular chat, nothing about images. Can be changed per chat in Chat settings → Image proxy.</div>
+      <div class="hint">On: the character can send images, made with the image proxy below. Off: a regular chat: no images made or sent to the AI, image buttons hidden. Can be changed per chat in Chat settings → Image proxy.</div>
     </div>
     <div class="card" id="gImgBox"></div>
     </details>
@@ -1674,7 +1674,8 @@ const SENDS_IMG = new RegExp([
 const replySendsImage = t => !!t && SENDS_IMG.test(t);
 const IMG_NOTE = '\n\n[Note from the app: the user is asking for a picture. Reply in character and end your message with [[image: detailed English description of the picture]].]';
 async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
-  const withImg = hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES);
+  // images off: no pictures go to the AI, only a note that one was attached
+  const withImg = imagesOn(chat) ? hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES) : [];
   const msgs = [];
   for (const m of hist) {
     let text = m.content;
@@ -4249,11 +4250,11 @@ function syncGenImg() {
   const on = imagesOn(), own = cur.chat.genImages !== undefined;
   $('csGenImg').checked = on; $('csImgOn').hidden = !on;
   const h = $('csGenImgHint'); h.innerHTML = '';
-  h.append((on ? 'The character can send images, made with the image proxy below.' : 'Off: a regular chat, nothing about images.') + ' ');
+  h.append((on ? 'The character can send images, made with the image proxy below.' : 'Off: a regular chat: no images made or sent to the AI, image buttons hidden.') + ' ');
   if (own) { const b = document.createElement('a'); b.href = '#'; b.textContent = 'Follow Settings again'; b.style.color = 'var(--accent)'; b.onclick = e => { e.preventDefault(); delete cur.chat.genImages; store.set('chats', chats); syncGenImg(); render(); }; h.append(b); }
   else h.append(`Follows Settings (${cfg.genImages === false ? 'off' : 'on'}) until you change it here.`);
 }
-$('csGenImg').onchange = () => { if (!cur) return; cur.chat.genImages = $('csGenImg').checked; store.set('chats', chats); syncGenImg(); render(); };
+$('csGenImg').onchange = () => { if (!cur) return; cur.chat.genImages = $('csGenImg').checked; if (!imagesOn()) setAttached(null); store.set('chats', chats); syncGenImg(); render(); };
 $('csAutoPics').onchange = () => {
   if (!cur) return;
   if ($('csAutoPics').checked) delete cur.chat.autoPics; else cur.chat.autoPics = false;
@@ -5138,7 +5139,7 @@ async function runHelper(mode, original) {
     // The chat so far goes along (your own pictures included); the character's pictures are added
     // as real images too, so the AI can see what was sent
     const base = await buildMessages(c, p, history, s.chat.memory);
-    const sent = history.filter(m => m.role === 'assistant' && m.img).slice(-SEND_IMAGES);
+    const sent = imagesOn() ? history.filter(m => m.role === 'assistant' && m.img).slice(-SEND_IMAGES) : [];
     const pics = (await Promise.all(sent.map(m => idb.get(m.img).catch(() => null)))).filter(Boolean);
     const withPics = pics.length ? [{ type: 'text', text: `${ask}\n\n(Attached: the last ${pics.length === 1 ? 'picture' : pics.length + ' pictures'} ${cn(c)} sent in this chat${pics.length > 1 ? ', oldest first' : ''}.)` },
       ...pics.map(url => ({ type: 'image_url', image_url: { url } }))] : ask;
@@ -5180,7 +5181,7 @@ function setDoc(doc) {
 function hidePlus() { $('plusMenu').hidden = true; $('plusBtn').classList.remove('open'); }
 $('plusBtn').onclick = () => {
   if (!$('plusMenu').hidden) return hidePlus();
-  $('plusMenu').querySelector('[data-act=genimg]').hidden = !imagesOn();
+  for (const a of ['image', 'genimg', 'album']) $('plusMenu').querySelector(`[data-act=${a}]`).hidden = !imagesOn();
   const m = $('plusMenu'); m.hidden = false; $('plusBtn').classList.add('open');
   const r = $('plusBtn').getBoundingClientRect();
   m.style.top = Math.max(12, r.top - m.offsetHeight - 8) + 'px';
