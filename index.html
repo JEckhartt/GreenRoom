@@ -876,9 +876,9 @@
       <div class="gbody"><div class="card" id="cImgBox"></div></div><div class="hint gnote"></div>
     </details>
     <div class="card" style="margin-top:10px">
-      <div class="line" style="padding-top:12px"><span>Image style</span></div>
-      <div class="seg" id="csImgStyle"><button type="button" data-v="char">Character's picture</button><button type="button" data-v="user">Your picture</button></div>
-      <div class="hint" id="csImgStyleHint"></div>
+      <div class="line" style="padding-top:12px"><span>Image prompt</span></div>
+      <textarea id="csImgPrompt"></textarea>
+      <div class="hint">Sent to the image proxy with every image in this chat. Empty: the image prompt from Settings is used.</div>
     </div>
     <div class="card" id="csAutoPicsCard" style="margin-top:10px">
       <div class="line" style="padding-top:12px"><span>Make images automatically</span><input type="checkbox" class="tgl" id="csAutoPics"></div>
@@ -1052,9 +1052,9 @@
       <div class="hint">On: the character can send images, made with the image proxy below. Off: a regular chat: no images made or sent to the AI, image buttons hidden. Can be changed per chat in Chat settings → Image proxy.</div>
     </div>
     <div class="card" style="margin-bottom:10px">
-      <div class="line" style="padding-top:12px"><span>Image style</span></div>
-      <div class="seg" id="gImgStyle"><button type="button" data-v="char">Character's picture</button><button type="button" data-v="user">Your picture</button></div>
-      <div class="hint">Every generated image, the character's and yours, is drawn in the style of this profile picture (anime, realistic, painted…). Your picture is your persona's. Can be changed per chat.</div>
+      <div class="line" style="padding-top:12px"><span>Image prompt</span></div>
+      <textarea id="imgPrompt" data-k="imgPrompt" placeholder="e.g. Realistic 4K photo. Natural light."></textarea>
+      <div class="hint">Sent to the image proxy with every image, before the description of the picture. {{char}} and {{user}} are filled in. Empty: nothing extra is sent. A chat can have its own (Chat settings → Image proxy).</div>
     </div>
     <div class="card" id="gImgBox"></div>
     </details>
@@ -2016,27 +2016,13 @@ async function httpError(res) {
   return new Error(`${res.status}${res.statusText ? ' ' + res.statusText : ''}: ${msg || 'no details'}`);
 }
 
-// References, in order of importance. The character's pictures: 1) the character card (looks + style),
-// 2) the last picture the character sent, for consistency. The user's pictures: 1) the character card for
-// the style only, 2) the persona's picture for the user's looks. refs.list overrides: [{ url, label, desc }].
-// If the model refuses two images it gets the first only, then the pictures described in words.
-function charRefs(refs, name) {
-  const card = refs?.card, last = refs?.last && refs.last !== refs.card ? refs.last : null;
-  const style = 'the visual style (photo or illustration, medium, rendering, colour palette, lighting)';
-  return [
-    card && { url: card, label: `${name}'s character card: the main reference for ${name}'s appearance and ${style}. Follow it first.`, desc: `${name}'s character card: describe ${name}'s appearance and the visual style` },
-    last && { url: last, label: card ? `the last picture ${name} sent in this chat: keep outfit, hair, setting and mood consistent with it; where it differs from reference 1, reference 1 wins.` : `the last picture ${name} sent in this chat: keep ${name}'s appearance and ${style} consistent with it.`, desc: `the last picture ${name} sent: describe ${name}'s outfit, hair and setting${card ? '' : ', and the visual style'}` },
-  ].filter(Boolean);
-}
-async function generateImage(prompt, refs, who, about) {
-  about = (about || '').trim().slice(0, 2000);
-  const name = who || 'the character';
-  const extra = about ? `\n\nAbout ${name} (their looks and details; follow this whenever they appear):\n${about}` : '';
-  const list = refs?.list ? refs.list.filter(r => r.url) : charRefs(refs, name);
-  const only = refs?.list ? '' : `\nOnly put ${name} in the picture if the description below is about them; if it shows something else (a pet, food, a place), keep just the visual style.`;
-  const ask = rs => [...rs.map(r => ({ type: 'image_url', image_url: { url: r.url } })),
-    { type: 'text', text: `${rs.length > 1 ? rs.map((r, i) => `Reference ${i + 1} is ${r.label}`).join('\n') : `The reference image is ${rs[0].label}`}${only}\n\nImage to create: ${prompt}${extra}` }];
-  return requestImage(list.length ? ask(list) : prompt + extra);
+// What the image proxy gets: the pictures (each named), the image prompt (Settings or chat), then what to make.
+// Nothing else is added
+async function generateImage(prompt, refs, guide = '') {
+  const list = (refs?.list || []).filter(r => r.url);
+  const names = list.length > 1 ? list.map((r, i) => `Picture ${i + 1}: ${r.label}`).join('\n') : list.length ? `Picture: ${list[0].label}` : '';
+  const text = [names, guide.trim(), prompt.trim()].filter(Boolean).join('\n\n');
+  return requestImage(list.length ? [...list.map(r => ({ type: 'image_url', image_url: { url: r.url } })), { type: 'text', text }] : text);
 }
 var IMAGE_TIMEOUT = 180000;
 // Finds an image anywhere in a response: data URLs, base64 fields, or image links
@@ -2300,12 +2286,7 @@ async function attachImage(s, hist, msg, into, bubble, imgPrompt) {
   const fig = addFigure(bubble);
   if (!imageEnabled()) { fig.remove(); if (here()) addBubble('err', 'Image requested, but no image proxy is active (Settings → Image proxy).'); return; }
   try {
-    // the character's most recent picture before this message (not the one being replaced)
-    const at = hist.indexOf(into || msg), before = at >= 0 ? hist.slice(0, at) : hist;
-    const prev = [...before].reverse().find(m => m.role === 'assistant' && m.img && m.img !== msg.img);
-    const last = prev ? await idb.get(prev.img).catch(() => null) : null;
-    const r = await peopleRefs(s, last);
-    const src = await generateImage(imgPrompt + `\nGenerate what the description asks for, not a copy of a reference image.` + r.text, { list: r.list }, cn(s.c), '');
+    const src = await generateImage(imgPrompt, { list: await peopleRefs(s) }, imagePrompt(s.chat, s.c, s.p));
     const id = 'img_' + uid();
     await idb.put(id, src).catch(() => {});
     msg.img = id; msg.imgPrompt = imgPrompt;
@@ -3398,7 +3379,7 @@ ${pers || '(none)'}${desc ? `
 Description:
 ${desc}` : ''}` },
     ], () => {}, { free: true })).trim().slice(0, 1500);
-    const src = await generateImage(prompt, {}, name, '');
+    const src = await generateImage(prompt);
     edit.img = src;
     const th = $('edThumb'); th.style.backgroundImage = `url("${src}")`; th.textContent = ''; $('edNoImg').hidden = false;
     toast('Image ready. Save to keep it.');
@@ -3524,7 +3505,7 @@ Reply with only a JSON object (no markdown fences) with these keys:
     let img = null;
     if ($('genImg').checked && imageProxyOk() && (c.appearance || c.personality)) {
       status.textContent = 'Making the picture…';
-      try { img = await generateImage(String(c.appearance || c.personality).slice(0, 1500) + '\nA character portrait.', {}, c.name, ''); }
+      try { img = await generateImage(String(c.appearance || c.personality).slice(0, 1500) + '\nA character portrait.'); }
       catch (e) { if (isAbort(e)) throw e; toast('Picture failed: ' + e.message); }
     }
     $('gen').classList.remove('open');
@@ -4293,7 +4274,7 @@ function syncChatGen() {
   $('csCtx').value = cur?.chat.contextSize ?? '';
 }
 function syncGenImg() {
-  syncImgStyle();
+  syncImgPrompt();
   if (!cur) return;
   const on = imagesOn(), own = cur.chat.genImages !== undefined;
   $('csGenImg').checked = on; $('csImgOn').hidden = !on;
@@ -4302,21 +4283,14 @@ function syncGenImg() {
   if (own) { const b = document.createElement('a'); b.href = '#'; b.textContent = 'Follow Settings again'; b.style.color = 'var(--accent)'; b.onclick = e => { e.preventDefault(); delete cur.chat.genImages; store.set('chats', chats); syncGenImg(); render(); }; h.append(b); }
   else h.append(`Follows Settings (${cfg.genImages === false ? 'off' : 'on'}) until you change it here.`);
 }
-// Image style: every generated image follows the look of the character's profile picture or yours
-const imgStyle = (chat = cur?.chat) => (chat?.imgStyle ?? cfg.imgStyle) === 'user' ? 'user' : 'char';
-const segOn = (id, v) => { for (const x of $(id).querySelectorAll('button')) x.classList.toggle('on', x.dataset.v === v); };
-function syncImgStyle() {
-  segOn('gImgStyle', imgStyle(null));
+// Image prompt: guidance sent with every image; a chat's own replaces the one from Settings
+const imagePrompt = (chat = cur?.chat, c = cur?.c, p = cur?.p) => fill((chat?.imgPrompt?.trim() || cfg.imgPrompt?.trim() || ''), c, p);
+function syncImgPrompt() {
   if (!cur) return;
-  segOn('csImgStyle', imgStyle());
-  const h = $('csImgStyleHint'); h.innerHTML = '';
-  h.append('Every generated image in this chat is drawn in the style of this profile picture. ');
-  if (cur.chat.imgStyle) { const b = document.createElement('a'); b.href = '#'; b.textContent = 'Follow Settings again'; b.style.color = 'var(--accent)'; b.onclick = e => { e.preventDefault(); delete cur.chat.imgStyle; store.set('chats', chats); syncImgStyle(); }; h.append(b); }
-  else h.append(`Follows Settings (${imgStyle(null) === 'user' ? 'your picture' : 'character\'s picture'}) until you change it here.`);
+  $('csImgPrompt').value = cur.chat.imgPrompt || '';
+  $('csImgPrompt').placeholder = cfg.imgPrompt?.trim() ? 'From Settings: ' + cfg.imgPrompt.trim() : 'e.g. Realistic 4K photo. Natural light.';
 }
-$('gImgStyle').onclick = e => { const v = e.target.closest('button')?.dataset.v; if (!v) return; cfg.imgStyle = v; saveCfg(); syncImgStyle(); };
-$('csImgStyle').onclick = e => { const v = e.target.closest('button')?.dataset.v; if (!v || !cur) return; cur.chat.imgStyle = v; store.set('chats', chats); syncImgStyle(); };
-syncImgStyle();
+$('csImgPrompt').oninput = () => { if (!cur) return; const v = $('csImgPrompt').value; if (v.trim()) cur.chat.imgPrompt = v; else delete cur.chat.imgPrompt; store.set('chats', chats); };
 $('csGenImg').onchange = () => { if (!cur) return; cur.chat.genImages = $('csGenImg').checked; if (!imagesOn()) setAttached(null); store.set('chats', chats); syncGenImg(); render(); };
 $('csAutoPics').onchange = () => {
   if (!cur) return;
@@ -5305,31 +5279,16 @@ function openGenImg() {
   $('giText').focus();
 }
 $('giClose').onclick = () => { $('giPanel').hidden = true; document.activeElement?.blur(); };
-// Makes the user's picture: both people's pictures go along, each only used if they're in it
+// Makes the user's picture
 async function userPicture(s, prompt) {
-  const { c, p } = s, u = userName(p), cc = cn(c);
-  const r = await peopleRefs(s, null);
-  const note = `\nThe picture is sent by ${u}: "me", "I" and "my" mean ${u}; "you" means ${cc}. Generate what the description asks for, not a copy of a reference image.`;
-  return generateImage(prompt + note + r.text, { list: r.list }, u, '');
+  return generateImage(prompt, { list: await peopleRefs(s) }, imagePrompt(s.chat, s.c, s.p));
 }
-// The people who can be in a picture: the character and you, each as "how they look, only if they're in it".
-// Image style picks whose picture also sets the visual style; the other one's style is not used
-async function peopleRefs(s, last) {
-  const { c, p } = s, u = userName(p), cc = cn(c);
+// The character's and your profile pictures, named so the image proxy knows who is who
+async function peopleRefs(s) {
+  const { c, p } = s;
   const card = c.img ? await idb.get(c.img).catch(() => null) : null;
   const mine = p?.img ? await idb.get(p.img).catch(() => null) : null;
-  const V = 'visual style (photo or illustration, medium, rendering, colour palette, lighting)';
-  const styleMine = !!mine && (imgStyle(s.chat) === 'user' || !card); // no picture of the chosen one: the other sets the style
-  const refs = [];
-  const add = (url, name, isStyle) => url && refs.push({ url, name, isStyle,
-    label: `a picture of ${name}: how ${name} looks (face, hair, body). Only include ${name} if the description has them in it ("us", "we" and "both" count). ${isStyle ? `Its ${V} is the style for the whole image.` : 'Do NOT use the visual style of this picture.'} Do not copy its pose, background or framing.` });
-  if (styleMine) { add(mine, u, true); add(card, cc, false); } else { add(card, cc, true); add(mine, u, false); }
-  if (last) refs.push({ url: last, label: `the last picture ${cc} sent in this chat: if ${cc} is in the image, keep outfit, hair and setting consistent with it. Do NOT use its visual style.` });
-  const si = refs.findIndex(r => r.isStyle);
-  const styleLine = si < 0 ? '' : `\nVisual style: exactly that of ${refs.length > 1 ? `reference ${si + 1}` : 'the reference image'} (the picture of ${refs[si].name}; a photo if it is a photo). Use the other references only for how people look.`;
-  const about = [[cc, fill(c.personality || '', c, p)], [u, fill(p?.personality || '', c, p)]]
-    .filter(([, t]) => t.trim()).map(([n, t]) => `About ${n} (looks and details; follow this whenever they appear):\n${t.trim().slice(0, 1500)}`).join('\n\n');
-  return { list: refs.map(({ url, label }) => ({ url, label })), text: styleLine + (about ? '\n\n' + about : '') };
+  return [card && { url: card, label: cn(c) }, mine && { url: mine, label: userName(p) }].filter(Boolean);
 }
 let giBusy = false;
 $('giGo').onclick = async () => {
@@ -5340,10 +5299,9 @@ $('giGo').onclick = async () => {
   if (!match && !extra) return $('giText').focus();
   giBusy = true; $('giGo').disabled = true;
   try {
-    // Typed straight in: {{user}}/user and {{char}}/char become names, and "me"/"I" are explained
+    // Typed straight in: {{user}}/user and {{char}}/char become names
     const named = fill(extra, c, p).replace(/\buser\b/gi, userName(p)).replace(/\bchar\b/gi, cn(c));
     let prompt = named;
-    if (!match) prompt += `\n\n(This picture is sent by ${userName(p)}: "me", "I", "my" and "myself" mean ${userName(p)}. "${cn(c)}" is the other character.)`;
     if (match) {
       $('giState').textContent = 'Working out the picture…';
       const recent = transcriptOf(history.slice(-6), c, p);
