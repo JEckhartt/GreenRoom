@@ -2,6 +2,10 @@
 <html lang="en" data-theme="original">
 <head>
 <meta charset="utf-8">
+<script>
+  // Theme first, before anything is drawn, so the app never flashes the light colors on start
+  try { var c = JSON.parse(localStorage.getItem('greenroom.cfg') || '{}'); if (c.theme) document.documentElement.dataset.theme = c.theme; if (c.accent) document.documentElement.style.setProperty('--accent', c.accent); } catch (e) {}
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Green Room</title>
