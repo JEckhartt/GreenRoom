@@ -2257,10 +2257,11 @@ async function streamChat(messages, onText, opts = {}) {
 // Runs one AI turn in chat s ({chat, c, p}); hist is that chat's array, so it stays valid if the user switches chats
 // into: an existing reply that gets this as an extra alternative instead of a new message
 // Fade in: the text shows a little behind what the AI has written, each new bit fading in
-function makeFader(bubble, onShow) {
+function makeFader(bubble, onShow, from = '') { // from: text already on screen (Continue)
   const el = bubble.querySelector('.txt'), FADE = 900, TICK = 50, t0 = performance.now();
-  let target = '', shown = 0, started = false, finished = false, lastGrow = 0, done = null;
+  let target = from, shown = from.length, started = false, finished = false, lastGrow = 0, done = null;
   const marks = []; // [visible length, time it appeared]
+  if (from) { rich(el, from); marks.push([el.textContent.length, t0 - 2 * FADE]); }
   const wrap = (from, to, op) => { // wraps visible characters from..to in a span with this opacity
     const nodes = [], w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n, pos = 0;
     while ((n = w.nextNode())) { nodes.push([n, pos]); pos += n.data.length; }
@@ -2285,7 +2286,7 @@ function makeFader(bubble, onShow) {
   };
   const timer = setInterval(() => {
     const now = performance.now();
-    if (!started) { if (target.length >= 80 || finished || now - t0 > 2500) started = true; else return; }
+    if (!started) { if (target.length - from.length >= 80 || finished || now - t0 > 2500) started = true; else return; }
     const lag = target.length - shown;
     if (lag > 0) {
       let step = finished ? Math.max(3, Math.ceil(lag / 30)) : 3 + Math.max(0, Math.floor((lag - 300) / 40));
@@ -2395,7 +2396,19 @@ async function continueReply(i) {
     const ask = '[Continue your last message exactly where it stopped. Do not repeat anything you already wrote and do not start over; write only what comes next.]';
     const messages = [...await buildMessages(s.c, s.p, hist.slice(0, i + 1), s.chat.memory), { role: 'user', content: ask }];
     clearErrs(); startFollow();
-    const out = await streamChat(messages, r => { setText(bubble, join(r)); follow(); });
+    // follows How new messages appear, like a new reply: live, shown when finished, or faded in word by word
+    const mode = document.body.dataset.anim;
+    const dots = document.createElement('span'); dots.className = 'dots'; dots.innerHTML = '<i></i><i></i><i></i>';
+    if (mode !== 'slide') bubble.append(dots);
+    const fader = mode === 'fade' ? makeFader(bubble, () => { dots.remove(); follow(); }, before) : null;
+    let out;
+    try {
+      out = await streamChat(messages, r => {
+        if (fader) return fader.set(join(r));
+        if (mode === 'slide') { setText(bubble, join(r)); follow(); }
+      });
+      if (fader) await fader.end();
+    } finally { fader?.flush(); dots.remove(); }
     const full = join(visible(out, true)).trimEnd();
     m.content = full; if (m.alts) m.alts[m.sel || 0].content = full;
     saveMsgs(s.chat, hist);
