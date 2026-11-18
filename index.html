@@ -874,6 +874,11 @@
     <details class="sec gsec" data-g="img"><summary class="group-title"><span class="gt">Image proxy</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
       <div class="gbody"><div class="card" id="cImgBox"></div></div><div class="hint gnote"></div>
     </details>
+    <div class="card" style="margin-top:10px">
+      <div class="line" style="padding-top:12px"><span>Image style</span></div>
+      <div class="seg" id="csImgStyle"><button type="button" data-v="char">Character's picture</button><button type="button" data-v="user">Your picture</button></div>
+      <div class="hint" id="csImgStyleHint"></div>
+    </div>
     <div class="card" id="csAutoPicsCard" style="margin-top:10px">
       <div class="line" style="padding-top:12px"><span>Make images automatically</span><input type="checkbox" class="tgl" id="csAutoPics"></div>
       <div class="hint">On: an image is made as soon as you ask for one or the character sends one ("here's a pic of…"). Off: a camera button appears under that reply instead; tap it to make the image.</div>
@@ -1044,6 +1049,11 @@
     <div class="card" style="margin-bottom:10px">
       <div class="line" style="padding-top:12px"><span>Enable</span><input type="checkbox" class="tgl" data-k="genImages"></div>
       <div class="hint">On: the character can send images, made with the image proxy below. Off: a regular chat: no images made or sent to the AI, image buttons hidden. Can be changed per chat in Chat settings → Image proxy.</div>
+    </div>
+    <div class="card" style="margin-bottom:10px">
+      <div class="line" style="padding-top:12px"><span>Image style</span></div>
+      <div class="seg" id="gImgStyle"><button type="button" data-v="char">Character's picture</button><button type="button" data-v="user">Your picture</button></div>
+      <div class="hint">Every generated image, the character's and yours, is drawn in the style of this profile picture (anime, realistic, painted…). Your picture is your persona's. Can be changed per chat.</div>
     </div>
     <div class="card" id="gImgBox"></div>
     </details>
@@ -1753,6 +1763,13 @@ let rendering = false, toBottom = false, stickUntil = 0;
 // right after opening a chat it keeps to the end while pictures load, until you touch the screen
 const stickNow = () => Date.now() < stickUntil;
 for (const ev of ['touchstart', 'wheel', 'mousedown']) document.addEventListener(ev, e => { if (e.target.closest?.('#scroller')) stickUntil = 0; }, { passive: true });
+// While a reply is written the screen follows it, until you scroll yourself; then it stays where you put it
+let following = false;
+const startFollow = () => { following = nearBottom(); };
+for (const ev of ['touchmove', 'wheel']) document.addEventListener(ev, e => { if (e.target.closest?.('#scroller')) following = false; }, { passive: true });
+const follow = () => { if (following) scrollDown(); };
+// Error notes go away once you try again or pick another proxy
+const clearErrs = () => { for (const n of $('log').querySelectorAll('.msg.err')) n.remove(); };
 
 function addBubble(role, text) {
   $('log').querySelector('.empty')?.remove();
@@ -2005,6 +2022,12 @@ async function httpError(res) {
 function charRefs(refs, name) {
   const card = refs?.card, last = refs?.last && refs.last !== refs.card ? refs.last : null;
   const style = 'the visual style (medium, rendering, line work, colour palette, lighting)';
+  // Image style "Your picture": the user's profile picture sets the style, the card only shows how the character looks
+  if (refs?.styleImg) return [
+    { url: refs.styleImg, label: `the style reference: match ONLY ${style}. Do not put the person or anything else from it in the picture.` },
+    card && { url: card, label: `${name}'s character card: how ${name} looks. Draw ${name} in the visual style of reference 1, not the style of this picture.` },
+    last && { url: last, label: `the last picture ${name} sent in this chat: keep outfit, hair, setting and mood consistent with it, in the visual style of reference 1.` },
+  ].filter(Boolean);
   return [
     card && { url: card, label: `${name}'s character card: the main reference for ${name}'s appearance and ${style}. Follow it first.`, desc: `${name}'s character card: describe ${name}'s appearance and the visual style` },
     last && { url: last, label: card ? `the last picture ${name} sent in this chat: keep outfit, hair, setting and mood consistent with it; where it differs from reference 1, reference 1 wins.` : `the last picture ${name} sent in this chat: keep ${name}'s appearance and ${style} consistent with it.`, desc: `the last picture ${name} sent: describe ${name}'s outfit, hair and setting${card ? '' : ', and the visual style'}` },
@@ -2247,8 +2270,9 @@ async function streamChat(messages, onText, opts = {}) {
 // into: an existing reply that gets this as an extra alternative instead of a new message
 async function aiTurn(s, hist, messages, bubble, into) {
   const here = () => cur?.chat.id === s.chat.id;
-  const reply = await streamChat(messages, r => setText(bubble, visible(r)), // the screen stays put while it writes
-    { onThink: (t, done, secs) => setThink(bubble, t, done, secs) });
+  clearErrs(); startFollow();
+  const reply = await streamChat(messages, r => { setText(bubble, visible(r)); follow(); },
+    { onThink: (t, done, secs) => { setThink(bubble, t, done, secs); follow(); } });
   let imgPrompt = tagPrompt(reply);
   let msg = { role: 'assistant', content: visible(reply, true), t: Date.now() };
   if (lastThink.text) { msg.thinking = lastThink.text; msg.thinkSecs = lastThink.secs; }
@@ -2258,6 +2282,7 @@ async function aiTurn(s, hist, messages, bubble, into) {
   saveMsgs(s.chat, hist);
   const idx = hist.indexOf(into || msg);
   bubble.dataset.i = idx;
+  setTimeout(follow, 60); // the ‹ › row under the reply comes into view too
   if (!imagesOn(s.chat)) return; // image proxy off: a regular chat
   // An image when the user's latest message asks for one, or when the character says it sends one now.
   // A tag on its own (without either) is ignored: models tend to copy them.
@@ -2292,7 +2317,8 @@ async function attachImage(s, hist, msg, into, bubble, imgPrompt) {
     const at = hist.indexOf(into || msg), before = at >= 0 ? hist.slice(0, at) : hist;
     const prev = [...before].reverse().find(m => m.role === 'assistant' && m.img && m.img !== msg.img);
     const last = prev ? await idb.get(prev.img).catch(() => null) : null;
-    const src = await generateImage(imgPrompt, { card, last }, cn(s.c), fill(s.c.personality, s.c, s.p));
+    const styleImg = imgStyle(s.chat) === 'user' && s.p?.img ? await idb.get(s.p.img).catch(() => null) : null;
+    const src = await generateImage(imgPrompt, { card, last, styleImg }, cn(s.c), fill(s.c.personality, s.c, s.p));
     const id = 'img_' + uid();
     await idb.put(id, src).catch(() => {});
     msg.img = id; msg.imgPrompt = imgPrompt;
@@ -2318,7 +2344,8 @@ async function continueReply(i) {
   try {
     const ask = '[Continue your last message exactly where it stopped. Do not repeat anything you already wrote and do not start over; write only what comes next.]';
     const messages = [...await buildMessages(s.c, s.p, hist.slice(0, i + 1), s.chat.memory), { role: 'user', content: ask }];
-    const out = await streamChat(messages, r => { setText(bubble, join(r)); });
+    clearErrs(); startFollow();
+    const out = await streamChat(messages, r => { setText(bubble, join(r)); follow(); });
     const full = join(visible(out, true)).trimEnd();
     m.content = full; if (m.alts) m.alts[m.sel || 0].content = full;
     saveMsgs(s.chat, hist);
@@ -2349,7 +2376,7 @@ async function send(text, img, forceImage, doc, imgPrompt) {
   step(`send (chat has ${history.length} messages)`);
   const s = cur, hist = history;
   setBusy(true);
-  for (const n of $('log').querySelectorAll('.msg.err')) n.remove();
+  clearErrs();
   const msg = { role: 'user', content: text, t: Date.now() };
   if (forceImage) msg.wantsImage = true;
   if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); if (msg.img && imgPrompt) msg.imgPrompt = imgPrompt; }
@@ -4055,7 +4082,7 @@ for (const d of document.querySelectorAll('#chatset details.gsec')) {
       ch[k] = (k + 'Stash') in ch ? ch[k + 'Stash'] : start(); delete ch[k + 'Stash']; d.open = true;
       if (k === 'prompt' && !('promptSel' in ch)) ch.promptSel = cfg.promptSel || ''; // starts with the prompt Settings uses
     }
-    store.set('chats', chats); refreshChatSettings();
+    store.set('chats', chats); if (k === 'proxyId' || k === 'imgProxyId') clearErrs(); refreshChatSettings();
   };
 }
 // sections remember whether they're open
@@ -4157,7 +4184,7 @@ function renderProxyBox(box, kind, scope) {
   const list = proxyList(kind), k = proxyKey(kind), chat = scope === 'chat' ? cur?.chat : null;
   const selId = chat ? (list.some(x => x.id === chat[k]) ? chat[k] : '') : cfg[k];
   const save = () => { saveCfg(); if (chat) store.set('chats', chats); };
-  const select = id => { if (chat) chat[k] = id; else cfg[k] = id; save(); renderProxyBoxes(); };
+  const select = id => { if (chat) chat[k] = id; else cfg[k] = id; save(); clearErrs(); renderProxyBoxes(); };
   box.innerHTML = '';
   const chips = document.createElement('div'); chips.className = 'chips';
   const chip = (label, on, fn, cls = '', onLong) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; if (onLong) pressable(b, fn, onLong); else b.onclick = fn; chips.append(b); };
@@ -4246,6 +4273,7 @@ function syncChatGen() {
   $('csCtx').value = cur?.chat.contextSize ?? '';
 }
 function syncGenImg() {
+  syncImgStyle();
   if (!cur) return;
   const on = imagesOn(), own = cur.chat.genImages !== undefined;
   $('csGenImg').checked = on; $('csImgOn').hidden = !on;
@@ -4254,6 +4282,21 @@ function syncGenImg() {
   if (own) { const b = document.createElement('a'); b.href = '#'; b.textContent = 'Follow Settings again'; b.style.color = 'var(--accent)'; b.onclick = e => { e.preventDefault(); delete cur.chat.genImages; store.set('chats', chats); syncGenImg(); render(); }; h.append(b); }
   else h.append(`Follows Settings (${cfg.genImages === false ? 'off' : 'on'}) until you change it here.`);
 }
+// Image style: every generated image follows the look of the character's profile picture or yours
+const imgStyle = (chat = cur?.chat) => (chat?.imgStyle ?? cfg.imgStyle) === 'user' ? 'user' : 'char';
+const segOn = (id, v) => { for (const x of $(id).querySelectorAll('button')) x.classList.toggle('on', x.dataset.v === v); };
+function syncImgStyle() {
+  segOn('gImgStyle', imgStyle(null));
+  if (!cur) return;
+  segOn('csImgStyle', imgStyle());
+  const h = $('csImgStyleHint'); h.innerHTML = '';
+  h.append('Every generated image in this chat is drawn in the style of this profile picture. ');
+  if (cur.chat.imgStyle) { const b = document.createElement('a'); b.href = '#'; b.textContent = 'Follow Settings again'; b.style.color = 'var(--accent)'; b.onclick = e => { e.preventDefault(); delete cur.chat.imgStyle; store.set('chats', chats); syncImgStyle(); }; h.append(b); }
+  else h.append(`Follows Settings (${imgStyle(null) === 'user' ? 'your picture' : 'character\'s picture'}) until you change it here.`);
+}
+$('gImgStyle').onclick = e => { const v = e.target.closest('button')?.dataset.v; if (!v) return; cfg.imgStyle = v; saveCfg(); syncImgStyle(); };
+$('csImgStyle').onclick = e => { const v = e.target.closest('button')?.dataset.v; if (!v || !cur) return; cur.chat.imgStyle = v; store.set('chats', chats); syncImgStyle(); };
+syncImgStyle();
 $('csGenImg').onchange = () => { if (!cur) return; cur.chat.genImages = $('csGenImg').checked; if (!imagesOn()) setAttached(null); store.set('chats', chats); syncGenImg(); render(); };
 $('csAutoPics').onchange = () => {
   if (!cur) return;
@@ -5247,6 +5290,8 @@ async function userPicture(s, prompt) {
   const { c, p } = s, u = userName(p), cc = cn(c);
   const card = c.img ? await idb.get(c.img).catch(() => null) : null;
   const mine = p?.img ? await idb.get(p.img).catch(() => null) : null;
+  // Image style "Your picture": your own picture sets both your looks and the style
+  if (imgStyle(s.chat) === 'user' && mine) return generateImage(prompt, { list: [{ url: mine, label: `a picture of ${u}: how ${u} looks AND the visual style to use (medium, rendering, line work, colour palette, lighting). Only put ${u} in the picture if the description asks for them.` }] }, u, fill(p?.personality || '', c, p));
   const list = [
     card && { url: card, label: `${cc}'s character card: match ONLY its visual style (medium, rendering, line work, colour palette, lighting). Do not put ${cc} or anything else from it in the picture unless the description asks for it.`, desc: `${cc}'s character card: describe only the visual style, not the person` },
     mine && { url: mine, label: `a picture of ${u}: how ${u} looks. Use it only if ${u} is in the picture, and draw ${u} in the visual style of the other reference.`, desc: `a picture of ${u}: describe ${u}'s appearance` },
