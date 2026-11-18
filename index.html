@@ -266,7 +266,6 @@
   body[data-anim=fade] .msg.new { animation: msgFade .45s ease-out; }
   /* a reply written out of sight (Appear / Fade in), with typing dots meanwhile */
   .msg.hold .txt, .msg.hold details.think, .msg.hold figure { display: none; }
-  .msg.fadein .txt, .msg.fadein details.think { animation: msgFade 1.6s ease-in; }
   .msg .dots { display: inline-flex; gap: 5px; padding: 6px 2px; }
   .msg .dots i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .3; animation: dotBob 1.2s ease-in-out infinite; }
   .msg .dots i:nth-child(2) { animation-delay: .15s; } .msg .dots i:nth-child(3) { animation-delay: .3s; }
@@ -1189,7 +1188,7 @@ Empty = send everything.</div>
         <button type="button" data-v="fade">Fade in</button>
         <button type="button" data-v="slide">Slide up</button>
       </div>
-      <div class="hint">Appear: the reply is written out of sight (typing dots) and shows when it's finished. Fade in: the same, then it fades in slowly. Slide up: you watch it being written.</div>
+      <div class="hint">Appear: the reply is written out of sight (typing dots) and shows when it's finished. Fade in: it starts showing once the AI is a little ahead, each new bit fading in, while the AI keeps writing ahead. Slide up: you watch it being written.</div>
     </details>
 
     <details class="card fold" data-sec="look-fonts">
@@ -2255,26 +2254,74 @@ async function streamChat(messages, onText, opts = {}) {
 
 // Runs one AI turn in chat s ({chat, c, p}); hist is that chat's array, so it stays valid if the user switches chats
 // into: an existing reply that gets this as an extra alternative instead of a new message
+// Fade in: the text shows a little behind what the AI has written, each new bit fading in
+function makeFader(bubble, onShow) {
+  const el = bubble.querySelector('.txt'), FADE = 900, TICK = 50, t0 = performance.now();
+  let target = '', shown = 0, started = false, finished = false, lastGrow = 0, done = null;
+  const marks = []; // [visible length, time it appeared]
+  const wrap = (from, to, op) => { // wraps visible characters from..to in a span with this opacity
+    const nodes = [], w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n, pos = 0;
+    while ((n = w.nextNode())) { nodes.push([n, pos]); pos += n.data.length; }
+    for (let k = nodes.length - 1; k >= 0; k--) {
+      let [node, start] = nodes[k]; const end = start + node.data.length;
+      if (end <= from || start >= to) continue;
+      if (to < end) node.splitText(to - start);
+      if (from > start) { node = node.splitText(from - start); }
+      const sp = document.createElement('span'); sp.style.opacity = op; node.replaceWith(sp); sp.append(node);
+    }
+  };
+  const draw = now => {
+    rich(el, target.slice(0, shown));
+    const len = el.textContent.length;
+    if (!marks.length || len > marks.at(-1)[0]) { marks.push([len, now]); lastGrow = now; }
+    while (marks.length > 1 && now - marks[1][1] > FADE) marks.shift();
+    for (let k = marks.length - 1; k >= 1; k--) {
+      const op = Math.min(1, (now - marks[k][1]) / FADE);
+      if (op < 1) wrap(marks[k - 1][0], Math.min(marks[k][0], len), op.toFixed(2));
+    }
+    onShow();
+  };
+  const timer = setInterval(() => {
+    const now = performance.now();
+    if (!started) { if (target.length >= 80 || finished || now - t0 > 2500) started = true; else return; }
+    const lag = target.length - shown;
+    if (lag > 0) {
+      let step = finished ? Math.max(3, Math.ceil(lag / 30)) : 3 + Math.max(0, Math.floor((lag - 300) / 40));
+      shown = Math.min(target.length, shown + step);
+      while (shown < target.length && !/\s/.test(target[shown])) shown++; // whole words
+    }
+    draw(now);
+    if (finished && shown >= target.length && now - lastGrow > FADE) flush();
+  }, TICK);
+  function flush() { clearInterval(timer); if (target) rich(el, target); done?.(); done = null; }
+  return {
+    set(t) { target = t; if (shown > t.length) shown = t.length; },
+    end() { finished = true; return new Promise(r => { done = r; }); },
+    flush,
+  };
+}
 async function aiTurn(s, hist, messages, bubble, into) {
   const here = () => cur?.chat.id === s.chat.id;
   clearErrs(); startFollow();
   // How new messages appear: Slide up = you watch it being written; Appear / Fade in = written out of sight
   // (typing dots), then shown all at once or faded in when it's finished
-  const live = document.body.dataset.anim === 'slide';
+  // How new messages appear: Slide up = you watch it being written; Appear = written out of sight (typing dots)
+  // and shown when finished; Fade in = it starts showing once the AI is a bit ahead, fading in word by word
+  const mode = document.body.dataset.anim, live = mode === 'slide';
   const dots = document.createElement('span'); dots.className = 'dots'; dots.innerHTML = '<i></i><i></i><i></i>'; bubble.append(dots);
-  if (!live) bubble.classList.add('hold');
-  const reveal = () => {
-    dots.remove();
-    if (!bubble.classList.contains('hold')) return;
-    bubble.classList.remove('hold');
-    if (document.body.dataset.anim === 'fade') { bubble.classList.remove('fadein'); void bubble.offsetWidth; bubble.classList.add('fadein'); }
-    follow();
-  };
+  const fader = mode === 'fade' ? makeFader(bubble, () => { dots.remove(); follow(); }) : null;
+  if (mode === 'none') bubble.classList.add('hold');
   let reply;
   try {
-    reply = await streamChat(messages, r => { setText(bubble, visible(r)); if (live && visible(r)) dots.remove(); follow(); },
-      { onThink: (t, done, secs) => { setThink(bubble, t, done, secs); if (live) dots.remove(); follow(); } });
-  } finally { reveal(); } // stopped or failed: what was written so far shows
+    reply = await streamChat(messages, r => {
+      if (fader) return fader.set(visible(r));
+      setText(bubble, visible(r)); if (live && visible(r)) dots.remove(); follow();
+    }, { onThink: (t, done, secs) => { setThink(bubble, t, done, secs); if (!bubble.classList.contains('hold')) dots.remove(); follow(); } });
+    if (fader) await fader.end(); // let the shown text catch up and finish fading
+  } finally { // stopped or failed: what was written so far shows
+    fader?.flush(); dots.remove();
+    if (bubble.classList.contains('hold')) { bubble.classList.remove('hold'); follow(); }
+  }
   let imgPrompt = tagPrompt(reply);
   let msg = { role: 'assistant', content: visible(reply, true), t: Date.now() };
   if (lastThink.text) { msg.thinking = lastThink.text; msg.thinkSecs = lastThink.secs; }
