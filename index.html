@@ -203,7 +203,8 @@
   :is(#chars, #personas, #chats, #profile, #sheet, #home) .pic.blurred { filter: blur(10px); clip-path: inset(0 round 12px); }
   #profHero.pic.blurred { clip-path: inset(0 round 18px); }
   :is(#chats, #sheet) .av.pic.blurred { clip-path: circle(50%); }
-  .hero-wrap { position: relative; }
+  /* the profile picture takes the picture's own shape (--r = width / height), at most ~2/3 of the screen high */
+  .hero-wrap { position: relative; --r: .75; width: min(100%, calc(62vh * var(--r))); margin: 0 auto; }
   #profEye { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(20,20,20,.55); color: #fff; display: grid; place-items: center; cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
   /* ---------- Chat layout options ---------- */
   /* Name and time: the name sits next to the portrait, the time at the other end. The portrait is on the outer side of
@@ -550,7 +551,7 @@
   button.chat-who { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; color: inherit; }
 
   /* ---------- Character profile ---------- */
-  .hero { width: 100%; aspect-ratio: 3 / 4; max-height: 62vh; margin-top: 12px; border-radius: 18px; background: var(--accent-soft) center / cover no-repeat;
+  .hero { width: 100%; aspect-ratio: var(--r); margin-top: 12px; border-radius: 18px; background: var(--accent-soft) center / cover no-repeat;
     display: grid; place-items: center; font-family: 'Fraunces', Georgia, serif; font-size: 90px; color: var(--accent); cursor: zoom-in; }
   .prof-name { font-family: 'Fraunces', Georgia, serif; font-size: 32px; font-weight: 400; margin: 18px 4px 12px; }
   .prof-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.5; margin-top: 2px; }
@@ -3173,12 +3174,14 @@ function frDraw() {
   $('frDone').onclick = () => { const { f, done } = frState; const r = n => Math.round(n * 1000) / 1000; done({ x: r(f.x), y: r(f.y), z: r(f.z) }); close(); };
 }
 async function setThumb(el, it) {
+  if (el.id === 'profHero') el.parentElement.style.removeProperty('--r');
   el.style.background = ''; el.classList.remove('pic', 'blurred'); el.textContent = (it.name || '?').trim().charAt(0).toUpperCase();
   if (!it.img) return;
   const key = it.img;
   if (!avatarCache.has(key)) avatarCache.set(key, idb.get(key).catch(() => null));
   const src = await avatarCache.get(key);
   if (!src || it.img !== key) return;
+  if (el.id === 'profHero') loadImg(src).then(i => { if (it.img === key) el.parentElement.style.setProperty('--r', (i.naturalWidth / i.naturalHeight).toFixed(4)); }).catch(() => {});
   // framed (Frame picture): the chosen part fills small pictures; otherwise scaled to fit, never cropped
   const framed = it.frame && !el.matches('#profHero, #edThumb');
   const url = framed ? await framedSrc(key, src, it.frame, el.classList.contains('thumb') ? 3 / 4 : 1).catch(() => src) : src;
