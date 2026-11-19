@@ -476,6 +476,23 @@
   .edit-acts .btn.primary { background: var(--accent); color: #fff; border: 0; }
 
   /* ---------- Bottom sheet ---------- */
+  #framer { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; }
+  #framer[hidden] { display: none; }
+  .fr-box { width: 100%; max-width: 560px; max-height: 94vh; overflow-y: auto; background: var(--bg); border-radius: 20px 20px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); animation: anIn .22s cubic-bezier(.2,.8,.2,1); }
+  .fr-box h2 { margin: 0 0 8px; font-size: 18px; text-align: center; }
+  .fr-stage { position: relative; width: min(78vw, 300px); aspect-ratio: 1; margin: 6px auto 10px; overflow: hidden; border-radius: 16px; background: #000; touch-action: none; cursor: grab; }
+  #frImg { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; user-select: none; -webkit-user-select: none; pointer-events: none; }
+  .fr-mask { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 999px rgba(0,0,0,.55); outline: 2px solid rgba(255,255,255,.85); outline-offset: -2px; pointer-events: none; }
+  #frZoom { width: 100%; accent-color: var(--accent); }
+  .fr-prev { display: flex; flex-wrap: wrap; gap: 14px 16px; justify-content: center; align-items: flex-end; margin: 14px 0 6px; }
+  .fr-prev > div { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .fr-prev small { font-size: 11px; color: var(--ink-soft); }
+  .fr-prev .fr-big { width: 44px; height: 44px; }
+  .fr-prev .fr-sq { border-radius: 10px; }
+  .fr-prev .fr-list { width: 72px; }
+  .fr-prev .fr-whole { background-size: contain !important; }
+  .fr-acts { display: flex; gap: 10px; margin-top: 12px; } .fr-acts .btn { flex: 1; padding: 12px; }
+  .fr-acts .btn.primary { background: var(--accent); color: #fff; border: 0; }
   #sheet { position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.35); display: flex; align-items: flex-end; justify-content: center;
     opacity: 0; visibility: hidden; transition: opacity .2s, visibility 0s .2s; }
   #sheet.open { opacity: 1; visibility: visible; transition: opacity .2s; }
@@ -972,11 +989,12 @@
           <button class="btn" type="button" id="edCard">Import character card</button>
           <button class="btn" type="button" id="edChub">Import from Chub link</button>
           <button class="btn" type="button" id="edGenImg">Generate image</button>
+          <button class="btn" type="button" id="edFrame">Frame picture</button>
           <button class="btn danger" type="button" id="edNoImg">Remove</button>
         </div>
       </div>
       <input type="file" id="edFile" accept="image/*" hidden>
-      <input type="file" id="edCardFile" accept="image/png,.png,application/json,.json" hidden>
+      <input type="file" id="edCardFile" accept="application/json,application/octet-stream" hidden>
 
       <label class="f" for="edName">Name</label>
       <input id="edName" type="text" autocomplete="off">
@@ -1038,6 +1056,21 @@
   <div class="bar bottom"><button type="button" id="lbSave">Save to Photos</button><button type="button" id="lbLink" hidden>Copy link</button></div>
 </div>
 <div id="toast"></div>
+<div id="framer" hidden><div class="fr-box">
+  <h2>Frame picture</h2>
+  <div class="fr-stage" id="frStage"><img id="frImg" alt=""><div class="fr-mask"></div></div>
+  <input type="range" id="frZoom" min="1" max="5" step="0.01" value="1" aria-label="Zoom">
+  <div class="hint">Drag to move, pinch or use the slider to zoom. The small pictures use this framing; the profile always shows the whole picture.</div>
+  <div class="fr-prev">
+    <div><span class="av" data-pv></span><small>Chat header</small></div>
+    <div><span class="av fr-big" data-pv></span><small>Message</small></div>
+    <div><span class="av fr-big fr-sq" data-pv></span><small>Message (square)</small></div>
+    <div><div class="thumb sm" data-pv></div><small>Chats list</small></div>
+    <div><div class="thumb fr-list" data-pv></div><small>Characters list</small></div>
+    <div><div class="thumb fr-list fr-whole" id="frWhole"></div><small>Profile</small></div>
+  </div>
+  <div class="fr-acts"><button class="btn" type="button" id="frCancel">Cancel</button><button class="btn primary" type="button" id="frDone">Done</button></div>
+</div></div>
 <div id="sheet"><div class="panel"><h2 id="sheetTitle"></h2><div id="sheetOpts"></div><button class="opt cancel" type="button" id="sheetCancel">Cancel</button></div></div>
 
 <section id="settings" class="view" aria-label="Settings">
@@ -3071,14 +3104,86 @@ $('chatProfile').onclick = () => cur && openProfile(cur.c.id);
 
 // ---------- Character & persona lists ----------
 const avatarCache = new Map();
+// Picture framing: { x, y } = centre of the circle as a fraction of the picture, z = zoom (1 = the circle
+// just fits the shorter side). Small pictures get a cropped copy, made once and kept in memory
+const framedCache = new Map();
+const loadImg = src => new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = src; });
+function framedSrc(key, src, f, aspect = 1) {
+  const ck = `${key}|${f.x}|${f.y}|${f.z}|${aspect}`;
+  if (!framedCache.has(ck)) framedCache.set(ck, loadImg(src).then(img => cropFrame(img, f, aspect, 320)));
+  return framedCache.get(ck);
+}
+function cropFrame(img, f, aspect, outW) {
+  const W = img.naturalWidth, H = img.naturalHeight, L = Math.min(W, H) / (f.z || 1);
+  const cw = L, ch = L / aspect, x0 = f.x * W - cw / 2, y0 = f.y * H - ch / 2;
+  const outH = Math.round(outW / aspect), k = outW / cw;
+  const c = document.createElement('canvas'); c.width = outW; c.height = outH;
+  // only the part inside the picture is drawn (the rest stays empty)
+  const sx = Math.max(0, x0), sy = Math.max(0, y0), ex = Math.min(W, x0 + cw), ey = Math.min(H, y0 + ch);
+  if (ex > sx && ey > sy) c.getContext('2d').drawImage(img, sx, sy, ex - sx, ey - sy, (sx - x0) * k, (sy - y0) * k, (ex - sx) * k, (ey - sy) * k);
+  return c.toDataURL('image/jpeg', .9);
+}
+// Frame picture: drag / pinch / slider, with live previews of every spot the picture appears
+let frState = null;
+async function openFramer(src, frame, done) {
+  const img = await loadImg(src).catch(() => null); if (!img) return;
+  const W = img.naturalWidth, H = img.naturalHeight;
+  frState = { img, W, H, f: { x: frame?.x ?? .5, y: frame?.y ?? .5, z: frame?.z ?? 1 }, done };
+  $('frImg').src = src; $('frZoom').value = frState.f.z;
+  $('frWhole').style.background = `var(--accent-soft) url("${src}") center / contain no-repeat`;
+  $('framer').hidden = false; frDraw();
+}
+function frClamp() {
+  const { f, W, H } = frState, L = Math.min(W, H) / f.z;
+  f.z = Math.min(5, Math.max(1, f.z));
+  f.x = Math.min(1 - L / 2 / W, Math.max(L / 2 / W, f.x));
+  f.y = Math.min(1 - L / 2 / H, Math.max(L / 2 / H, f.y));
+}
+let frRaf = 0;
+function frDraw() {
+  frClamp();
+  const { f, W, H, img } = frState, S = $('frStage').clientWidth, sc = S / Math.min(W, H) * f.z;
+  const fi = $('frImg'); fi.style.width = W + 'px'; fi.style.height = H + 'px';
+  fi.style.transform = `translate(${S / 2 - f.x * W * sc}px, ${S / 2 - f.y * H * sc}px) scale(${sc})`;
+  cancelAnimationFrame(frRaf);
+  frRaf = requestAnimationFrame(() => {
+    const sq = cropFrame(img, f, 1, 160), tall = cropFrame(img, f, 3 / 4, 160);
+    for (const el of document.querySelectorAll('#framer [data-pv]')) el.style.background = `var(--accent-soft) url("${el.classList.contains('thumb') ? tall : sq}") center / cover no-repeat`;
+  });
+}
+{
+  const pts = new Map(); let last = null;
+  const stage = $('frStage');
+  const snap = () => { const a = [...pts.values()]; return a.length > 1 ? { d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y), x: (a[0].x + a[1].x) / 2, y: (a[0].y + a[1].y) / 2 } : { d: 0, x: a[0].x, y: a[0].y }; };
+  stage.addEventListener('pointerdown', e => { stage.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); last = snap(); });
+  stage.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId) || !frState) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const now = snap(), { f, W, H } = frState, sc = stage.clientWidth / Math.min(W, H) * f.z;
+    f.x -= (now.x - last.x) / (W * sc); f.y -= (now.y - last.y) / (H * sc);
+    if (now.d && last.d) f.z *= now.d / last.d;
+    last = now; $('frZoom').value = f.z; frDraw();
+  });
+  const up = e => { pts.delete(e.pointerId); last = pts.size ? snap() : null; };
+  stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+  stage.addEventListener('wheel', e => { if (!frState) return; e.preventDefault(); frState.f.z *= Math.exp(-e.deltaY / 400); $('frZoom').value = frState.f.z; frDraw(); }, { passive: false });
+  $('frZoom').oninput = () => { if (!frState) return; frState.f.z = +$('frZoom').value; frDraw(); };
+  const close = () => { $('framer').hidden = true; frState = null; };
+  $('frCancel').onclick = close;
+  $('frDone').onclick = () => { const { f, done } = frState; const r = n => Math.round(n * 1000) / 1000; done({ x: r(f.x), y: r(f.y), z: r(f.z) }); close(); };
+}
 async function setThumb(el, it) {
   el.style.background = ''; el.classList.remove('pic', 'blurred'); el.textContent = (it.name || '?').trim().charAt(0).toUpperCase();
   if (!it.img) return;
   const key = it.img;
   if (!avatarCache.has(key)) avatarCache.set(key, idb.get(key).catch(() => null));
   const src = await avatarCache.get(key);
-  // scaled to fit: the whole picture shows, never cropped
-  if (src && it.img === key) { el.style.background = `var(--accent-soft) url("${src}") center / contain no-repeat`; el.textContent = ''; el.classList.add('pic'); el.classList.toggle('blurred', !!it.blur); }
+  if (!src || it.img !== key) return;
+  // framed (Frame picture): the chosen part fills small pictures; otherwise scaled to fit, never cropped
+  const framed = it.frame && !el.matches('#profHero, #edThumb');
+  const url = framed ? await framedSrc(key, src, it.frame, el.classList.contains('thumb') ? 3 / 4 : 1).catch(() => src) : src;
+  if (it.img !== key) return;
+  el.style.background = `var(--accent-soft) url("${url}") center / ${framed ? 'cover' : 'contain'} no-repeat`; el.textContent = ''; el.classList.add('pic'); el.classList.toggle('blurred', !!it.blur);
 }
 
 const folderSvg = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
@@ -3277,12 +3382,12 @@ function deleteItems(kind, ids) {
 }
 
 // ---------- Editor (shared by characters and personas) ----------
-let edit = null; // { kind, id, img: undefined = unchanged, null = removed, dataURL = new }
+let edit = null; // { kind, id, img: undefined = unchanged, null = removed, dataURL = new; frame: undefined = unchanged, null = none, object = new }
 const edItems = () => edit.kind === 'char' ? chars : personas;
 
 function openEditor(kind, id) {
   const it = (kind === 'char' ? chars : personas).find(x => x.id === id) || null;
-  edit = { kind, id: it?.id || null, img: undefined, lore: new Set(it?.lorebooks || []), pendingLore: null };
+  edit = { kind, id: it?.id || null, img: undefined, frame: undefined, lore: new Set(it?.lorebooks || []), pendingLore: null };
   const noun = kind === 'char' ? 'character' : 'persona';
   $('edTitle').textContent = (it ? 'Edit ' : 'New ') + noun;
   for (const el of document.querySelectorAll('#editor [data-for]')) el.hidden = el.dataset.for !== kind;
@@ -3300,7 +3405,7 @@ function openEditor(kind, id) {
   syncFirst();
   autosizeAll($('editor'));
   setThumb($('edThumb'), it || { name: '+' }); if (!it) $('edThumb').textContent = '+';
-  $('edNoImg').hidden = !it?.img;
+  $('edNoImg').hidden = $('edFrame').hidden = !it?.img;
   $('edDelete').hidden = !it || kind === 'char'; // characters are deleted from their profile
   $('edCard').hidden = $('edChub').hidden = kind !== 'char';
   renderEdLore(); renderCounts();
@@ -3398,14 +3503,20 @@ $('edFile').onchange = async () => {
   const f = $('edFile').files[0]; $('edFile').value = '';
   if (!f) return;
   try {
-    edit.img = await readImage(f);
+    edit.img = await readImage(f); edit.frame = null;
     const th = $('edThumb'); th.style.backgroundImage = `url("${edit.img}")`; th.textContent = '';
-    $('edNoImg').hidden = false;
+    $('edNoImg').hidden = $('edFrame').hidden = false;
+    openFramer(edit.img, null, fr => { edit.frame = fr; });
   } catch (e) { toast(e.message); }
 };
+$('edFrame').onclick = async () => {
+  const it = edItems().find(x => x.id === edit.id);
+  const src = edit.img || (it?.img && await idb.get(it.img).catch(() => null)); if (!src) return;
+  openFramer(src, edit.frame !== undefined ? edit.frame : it?.frame, fr => { edit.frame = fr; });
+};
 $('edNoImg').onclick = () => {
-  edit.img = null; const th = $('edThumb'); th.style.backgroundImage = ''; th.textContent = ($('edName').value.trim() || '+').charAt(0).toUpperCase();
-  $('edNoImg').hidden = true;
+  edit.img = null; edit.frame = null; const th = $('edThumb'); th.style.backgroundImage = ''; th.textContent = ($('edName').value.trim() || '+').charAt(0).toUpperCase();
+  $('edNoImg').hidden = $('edFrame').hidden = true;
 };
 
 async function saveEditor() {
@@ -3425,6 +3536,8 @@ async function saveEditor() {
     if (edit.pendingLore) { lorebooks.unshift(edit.pendingLore); saveLore(); edit.lore.add(edit.pendingLore.id); edit.pendingLore = null; }
     it.lorebooks = [...edit.lore].filter(id => lorebooks.some(b => b.id === id));
   }
+  if (edit.frame !== undefined) { if (edit.frame) it.frame = edit.frame; else delete it.frame; }
+  else if (edit.img !== undefined) delete it.frame; // a new picture starts unframed
   if (edit.img !== undefined) {
     if (it.img) { idb.del(it.img).catch(() => {}); avatarCache.delete(it.img); delete it.img; }
     if (edit.img) { const key = 'av_' + uid(); try { await idb.put(key, edit.img); it.img = key; } catch { toast('Could not store the image'); } }
@@ -3490,7 +3603,7 @@ ${desc}` : ''}` },
     ], () => {}, { free: true })).trim().slice(0, 1500);
     const src = await generateImage(prompt);
     edit.img = src;
-    const th = $('edThumb'); th.style.backgroundImage = `url("${src}")`; th.textContent = ''; $('edNoImg').hidden = false;
+    const th = $('edThumb'); th.style.backgroundImage = `url("${src}")`; th.textContent = ''; $('edNoImg').hidden = $('edFrame').hidden = false; edit.frame = null;
     toast('Image ready. Save to keep it.');
   } catch (e) { if (!isAbort(e)) toast('Could not make an image: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = 'Generate image'; setBusy(false); }
@@ -3544,7 +3657,7 @@ async function importCardInto(f) {
     syncFirst(); autosizeAll($('editor')); renderCounts();
     if (isPng) {
       edit.img = await readImage(f);
-      const th = $('edThumb'); th.style.backgroundImage = `url("${edit.img}")`; th.textContent = ''; $('edNoImg').hidden = false;
+      const th = $('edThumb'); th.style.backgroundImage = `url("${edit.img}")`; th.textContent = ''; $('edNoImg').hidden = $('edFrame').hidden = false; edit.frame = null;
     }
     toast(`Imported ${c.name || 'character'}${book ? ` with a lorebook (${book.entries.length} entries)` : ''}. Check the fields, then Save.`);
   } catch (e) { toast('Could not read that card: ' + (e.message || e)); }
@@ -3625,7 +3738,7 @@ Reply with only a JSON object (no markdown fences) with these keys:
     const gs = (Array.isArray(c.firstMessages) ? c.firstMessages : [c.firstMessages || c.firstMessage]).filter(x => typeof x === 'string' && x.trim());
     edit.greets = gs.length ? gs : ['']; edit.gi = 0; $('edFirst').value = edit.greets[0]; renderTabs();
     syncFirst(); autosizeAll($('editor')); renderCounts();
-    if (img) { edit.img = img; const th = $('edThumb'); th.style.backgroundImage = `url("${img}")`; th.textContent = ''; $('edNoImg').hidden = false; }
+    if (img) { edit.img = img; const th = $('edThumb'); th.style.backgroundImage = `url("${img}")`; th.textContent = ''; $('edNoImg').hidden = $('edFrame').hidden = false; edit.frame = null; }
     $('genIdea').value = ''; status.textContent = '';
     toast(`Here is ${c.name || 'your character'}. Change anything you like, then Save.`);
   } catch (e) {
@@ -3936,7 +4049,7 @@ function renderAlbums() {
     acts.append(rm);
     const b = document.createElement('button'); b.type = 'button'; b.className = 'item';
     const th = document.createElement('div'); th.className = 'thumb sm'; th.textContent = (a.name || '?').charAt(0).toUpperCase();
-    if (a.images[0]) idb.get('alb_' + a.images[0]).then(src => { if (src) { th.style.backgroundImage = `url("${src}")`; th.textContent = ''; } }).catch(() => {});
+    if (a.images.length) idb.get('alb_' + a.images.at(-1)).then(src => { if (src) { th.style.backgroundImage = `url("${src}")`; th.textContent = ''; } }).catch(() => {});
     const info = document.createElement('div'); info.className = 'info';
     const h = document.createElement('h3'); h.textContent = a.name;
     const p = document.createElement('p'); p.textContent = `${a.images.length} image${a.images.length === 1 ? '' : 's'}`;
@@ -3963,13 +4076,14 @@ function renderAlbum() {
   $('albumTitle').textContent = a.name;
   const grid = $('albumGrid'); grid.innerHTML = '';
   if (!a.images.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.style.gridColumn = '1 / -1'; e.textContent = 'No images yet.'; grid.append(e); }
-  a.images.forEach((id, i) => {
+  const order = [...a.images].reverse(); // last added first
+  order.forEach((id, i) => {
     const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Image ' + (i + 1));
     if (albumSel?.has(id)) b.classList.add('selected');
     idb.get('alb_' + id).then(src => { if (src) b.style.backgroundImage = `url("${src}")`; }).catch(() => {});
     pressable(b, () => {
       if (albumSel) { albumSel.has(id) ? albumSel.delete(id) : albumSel.add(id); if (!albumSel.size) albumSel = null; return renderAlbum(); }
-      openGallery(a.images, i);
+      openGallery(order, i);
     }, () => { albumSel = new Set([id]); navigator.vibrate?.(12); renderAlbum(); });
     grid.append(b);
   });

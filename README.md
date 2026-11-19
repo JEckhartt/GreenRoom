@@ -42,7 +42,8 @@ With **Enable** off it's a regular chat: no images are made or sent to the AI (e
 ## Characters and personas
 
 - **Characters**: image, name, optional chat name (used in chats and for `{{char}}`), description (shown in the list, never sent to the AI), personality, scenario, first messages (several options to flip through until you reply, or let the AI write the opening) and example dialogue. The editor shows characters and tokens of what is sent.
-- **Import character card** (PNG/JSON, SillyTavern/Chub/JanitorAI format) fills everything in; from Safari or Files, **Share → Green Room** does the same. **Generate** writes a whole character, with a picture, from a few words. **+** at the top right: create new or generate.
+- **Import character card** (PNG/JSON, SillyTavern/Chub/JanitorAI format; opens the file picker straight away) fills everything in; from Safari or Files, **Share → Green Room** does the same. **Generate** writes a whole character, with a picture, from a few words. **+** at the top right: create new or generate.
+- **Frame picture** (opens after you pick a picture, and from the editor any time): drag, pinch or slide to choose what shows in the circle, with live previews of the chat header, messages, chats list, characters list and profile. The small pictures use the framing; the profile always shows the whole picture. Works for characters and personas.
 - Tap a character to unfold its **Profile** and **+ Start new chat**. The eye on a picture blurs it everywhere except in a chat and the editor.
 - **Personas**: who *you* are: image, name, personality.
 - Swipe a character or persona left for **Move** (to a folder) and **Delete**; long press to select several.
@@ -50,7 +51,7 @@ With **Enable** off it's a regular chat: no images are made or sent to the AI (e
 ## Lorebooks and albums
 
 - **Lorebooks**: world info. Each entry has keywords and is only sent when one appears in the recent messages (or always, if marked). Use one everywhere, link it to a character or to a chat. Imported and exported with character cards; SillyTavern world info files work too.
-- **Albums**: collect images. Copy an image's link (`gr://img/…`) into a character's description to show it on the card. Long press to select several: copy links, copy or move, delete.
+- **Albums**: collect images, last added first. Copy an image's link (`gr://img/…`) into a character's description to show it on the card. Long press to select several: copy links, copy or move, delete.
 
 ## Settings
 
