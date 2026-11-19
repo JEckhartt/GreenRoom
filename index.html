@@ -3542,16 +3542,24 @@ function readImage(file, max = 1024) {
     img.src = url;
   });
 }
-$('edThumb').onclick = () => $('edFile').click();
+// The picture: from your phone (Photos / Files) or from one of your albums; then Frame picture opens
+function useEdImg(src) {
+  edit.img = src; edit.frame = null;
+  const th = $('edThumb'); th.style.backgroundImage = `url("${src}")`; th.textContent = '';
+  $('edNoImg').hidden = $('edFrame').hidden = false;
+  openFramer(src, null, fr => { edit.frame = fr; });
+}
+$('edThumb').onclick = () => {
+  if (!albums.some(a => a.images.length)) return $('edFile').click(); // no albums yet: straight to your phone
+  showSheet('Picture', [
+    { label: 'Choose from phone', onClick: () => $('edFile').click() },
+    { label: 'From album', onClick: () => openAlbumPick(useEdImg, 'Choose from album') },
+  ]);
+};
 $('edFile').onchange = async () => {
   const f = $('edFile').files[0]; $('edFile').value = '';
   if (!f) return;
-  try {
-    edit.img = await readImage(f); edit.frame = null;
-    const th = $('edThumb'); th.style.backgroundImage = `url("${edit.img}")`; th.textContent = '';
-    $('edNoImg').hidden = $('edFrame').hidden = false;
-    openFramer(edit.img, null, fr => { edit.frame = fr; });
-  } catch (e) { toast(e.message); }
+  try { useEdImg(await readImage(f)); } catch (e) { toast(e.message); }
 };
 $('edFrame').onclick = async () => {
   const it = edItems().find(x => x.id === edit.id);
@@ -5635,9 +5643,11 @@ $('plusMenu').onclick = e => {
   if (act === 'album') openAlbumPick();
 };
 // Pick a picture from an album; it's added to your message like an upload
-let apAlbum = null;
-function openAlbumPick() {
+let apAlbum = null, apOnPick = null;
+// onPick(src) gets the chosen picture; without one it's added to your message
+function openAlbumPick(onPick = null, title = 'Send from album') {
   if (!albums.some(a => a.images.length)) return toast('No pictures in your albums yet');
+  apOnPick = onPick; $('albPick').querySelector('.aphead b').textContent = title;
   apAlbum = albums.find(a => a.id === apAlbum && a.images.length)?.id || albums.find(a => a.images.length).id;
   renderAlbumPick(); $('albPick').hidden = false;
 }
@@ -5651,7 +5661,12 @@ function renderAlbumPick() {
   for (const id of [...(a?.images || [])].reverse()) {
     const t = document.createElement('button'); t.type = 'button'; t.className = 'apimg';
     idb.get('alb_' + id).then(src => { if (src) t.style.backgroundImage = `url("${src}")`; else t.remove(); });
-    t.onclick = async () => { const src = await idb.get('alb_' + id).catch(() => null); if (!src) return; setAttached(src); $('albPick').hidden = true; toast('Picture added to your message'); };
+    t.onclick = async () => {
+      const src = await idb.get('alb_' + id).catch(() => null); if (!src) return;
+      $('albPick').hidden = true;
+      if (apOnPick) return apOnPick(src);
+      setAttached(src); toast('Picture added to your message');
+    };
     g.append(t);
   }
 }
