@@ -51,7 +51,7 @@ With **Enable** off it's a regular chat: no images are made or sent to the AI (e
 ## Lorebooks and albums
 
 - **Lorebooks**: world info. Each entry has keywords and is only sent when one appears in the recent messages (or always, if marked). Use one everywhere, link it to a character or to a chat. Imported and exported with character cards; SillyTavern world info files work too.
-- **Albums**: collect images, last added first. Copy an image's link (`gr://img/…`) into a character's description to show it on the card. Long press to select several: copy links, copy or move, delete.
+- **Albums**: collect images, last added first. While selecting, slide your finger sideways over the pictures (or long press and keep moving) to select a whole run, like Photos; near the top or bottom the page scrolls along. In the viewer, swipe or flick for the next picture; zoomed in, pan freely (it glides) and pull past the edge to go to the next one. Copy an image's link (`gr://img/…`) into a character's description to show it on the card. Long press to select several: copy links, copy or move, delete.
 
 ## Settings
 

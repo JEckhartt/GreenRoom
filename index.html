@@ -4115,24 +4115,88 @@ function deleteAlbum(a) {
 
 let albumSel = null; // Set of selected image ids while selecting
 function openAlbum(id) { albumId = id; albumSel = null; renderAlbum(); openView('album'); }
+// Album pictures are kept in memory once loaded, so a re-render shows them at once (no flashing)
+const albSrc = new Map();
+let albumOrder = [];
 function renderAlbum() {
   const a = albums.find(x => x.id === albumId); if (!a) return;
   $('albumTitle').textContent = a.name;
   const grid = $('albumGrid'); grid.innerHTML = '';
   if (!a.images.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.style.gridColumn = '1 / -1'; e.textContent = 'No images yet.'; grid.append(e); }
-  const order = [...a.images].reverse(); // last added first
+  const order = albumOrder = [...a.images].reverse(); // last added first
   order.forEach((id, i) => {
-    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Image ' + (i + 1));
-    if (albumSel?.has(id)) b.classList.add('selected');
-    idb.get('alb_' + id).then(src => { if (src) b.style.backgroundImage = `url("${src}")`; }).catch(() => {});
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Image ' + (i + 1)); b.dataset.id = id;
+    if (albSrc.has(id)) b.style.backgroundImage = `url("${albSrc.get(id)}")`;
+    else idb.get('alb_' + id).then(src => { if (src) { albSrc.set(id, src); b.style.backgroundImage = `url("${src}")`; } }).catch(() => {});
     pressable(b, () => {
-      if (albumSel) { albumSel.has(id) ? albumSel.delete(id) : albumSel.add(id); if (!albumSel.size) albumSel = null; return renderAlbum(); }
+      if (albumSel) { albumSel.has(id) ? albumSel.delete(id) : albumSel.add(id); if (!albumSel.size) albumSel = null; return syncAlbumSel(); }
       openGallery(order, i);
-    }, () => { albumSel = new Set([id]); navigator.vibrate?.(12); renderAlbum(); });
+    }, () => {
+      albumSel = new Set([id]); navigator.vibrate?.(12); syncAlbumSel();
+      if (albDrag?.id === id) startAlbDrag(true); // keep the finger down and slide to select more
+    });
     grid.append(b);
   });
+  syncAlbumSel();
+}
+// Selection only changes the tiles' marks, nothing is rebuilt
+function syncAlbumSel() {
+  for (const b of $('albumGrid').querySelectorAll('button[data-id]')) b.classList.toggle('selected', !!albumSel?.has(b.dataset.id));
   $('albumSel').hidden = !albumSel;
   $('albumSel').querySelector('span').textContent = `${albumSel?.size || 0} selected`;
+}
+// Slide to select, like Photos: while selecting, drag sideways across the pictures (or long press and keep
+// moving) and every picture between where you started and your finger gets selected (or deselected, if you
+// started on a selected one). Near the top or bottom edge the page scrolls along
+let albDrag = null, albNoClick = false;
+const albTile = (x, y) => document.elementFromPoint(x, y)?.closest('#albumGrid button[data-id]');
+function startAlbDrag(fromLong) {
+  const d = albDrag; if (!d || d.active) return;
+  d.active = true; d.snap = new Set(albumSel || []);
+  d.mode = !fromLong && d.snap.has(d.id) ? 'remove' : 'add';
+  d.from = albumOrder.indexOf(d.id);
+  const sc = $('album').querySelector('.page-body');
+  const loop = () => {
+    if (!albDrag?.active) return;
+    const r = sc.getBoundingClientRect(), edge = 70;
+    const v = d.y < r.top + edge ? -(r.top + edge - d.y) / 4 : d.y > r.bottom - edge ? (d.y - (r.bottom - edge)) / 4 : 0;
+    if (v) { sc.scrollTop += v; albDragTo(d.x, d.y); }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}
+function albDragTo(x, y) {
+  const d = albDrag, t = albTile(x, y); if (!t) return;
+  const to = albumOrder.indexOf(t.dataset.id); if (to < 0 || to === d.to) return;
+  d.to = to;
+  const sel = new Set(d.snap), [lo, hi] = [Math.min(d.from, to), Math.max(d.from, to)];
+  for (let k = lo; k <= hi; k++) d.mode === 'add' ? sel.add(albumOrder[k]) : sel.delete(albumOrder[k]);
+  albumSel = sel; syncAlbumSel();
+}
+{
+  const grid = $('albumGrid');
+  grid.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { albDrag = null; return; }
+    const t = e.touches[0], tile = albTile(t.clientX, t.clientY);
+    albDrag = tile ? { id: tile.dataset.id, x0: t.clientX, y0: t.clientY, x: t.clientX, y: t.clientY, active: false } : null;
+  }, { passive: true });
+  grid.addEventListener('touchmove', e => {
+    const d = albDrag; if (!d) return;
+    const t = e.touches[0]; d.x = t.clientX; d.y = t.clientY;
+    if (!d.active) {
+      const dx = d.x - d.x0, dy = d.y - d.y0;
+      if (albumSel && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) startAlbDrag(false);
+      else { if (Math.hypot(dx, dy) > 10) albDrag = null; return; } // a normal scroll
+    }
+    e.preventDefault();
+    albDragTo(d.x, d.y);
+  }, { passive: false });
+  const end = () => {
+    if (albDrag?.active) { albNoClick = true; setTimeout(() => { albNoClick = false; }, 350); if (albumSel && !albumSel.size) { albumSel = null; syncAlbumSel(); } }
+    albDrag = null;
+  };
+  grid.addEventListener('touchend', end); grid.addEventListener('touchcancel', end);
+  grid.addEventListener('click', e => { if (albNoClick) { e.stopPropagation(); e.preventDefault(); } }, true);
 }
 // Tap / long press without swiping (album grid)
 function pressable(el, onTap, onLong) {
@@ -4146,7 +4210,7 @@ function pressable(el, onTap, onLong) {
 }
 $('albumSel').onclick = e => {
   const act = e.target.dataset?.act; if (!act) return;
-  if (act === 'cancel') { albumSel = null; return renderAlbum(); }
+  if (act === 'cancel') { albumSel = null; return syncAlbumSel(); }
   const a = albums.find(x => x.id === albumId), ids = [...(albumSel || [])];
   if (!a || !ids.length) return;
   const n = ids.length, s = n === 1 ? '' : 's';
@@ -5260,33 +5324,49 @@ function zoomAround(px, py, s0, tx0, ty0, s1) {
   const ux = (px - b.x - tx0) / s0, uy = (py - b.y - ty0) / s0;
   return { s: s1, tx: px - b.x - s1 * ux, ty: py - b.y - s1 * uy };
 }
+// How far the zoomed picture may move: { x: [lo, hi], y: [lo, hi] }
+function zBounds() {
+  const b = base(), w = b.w * Z.s, h = b.h * Z.s;
+  const ax = (start, size, view) => size > view ? [view - size - start, -start] : [(view - size) / 2 - start, (view - size) / 2 - start];
+  return { x: ax(b.x, w, innerWidth), y: ax(b.y, h, innerHeight) };
+}
 function zClamp() {
   if (Z.s <= 1.01) { Z.s = 1; Z.tx = 0; Z.ty = 0; return; }
-  const b = base(), vw = innerWidth, vh = innerHeight;
-  const w = b.w * Z.s, h = b.h * Z.s;
-  const clampAxis = (t, start, size, view) => {
-    const lo = size > view ? view - size - start : (view - size) / 2 - start;
-    const hi = size > view ? -start : (view - size) / 2 - start;
-    return Math.min(hi, Math.max(lo, t));
-  };
-  Z.tx = clampAxis(Z.tx, b.x, w, vw); Z.ty = clampAxis(Z.ty, b.y, h, vh);
+  const bd = zBounds();
+  Z.tx = Math.min(bd.x[1], Math.max(bd.x[0], Z.tx)); Z.ty = Math.min(bd.y[1], Math.max(bd.y[0], Z.ty));
 }
+// past the edge the picture follows the finger only a little (rubber band)
+const rubber = (t, [lo, hi]) => t > hi ? hi + (t - hi) * .3 : t < lo ? lo - (lo - t) * .3 : t;
+// pictures next to the open one are loaded ahead, so swiping shows them at once
+const lbPre = new Map();
+const lbLoad = k => { if (!lbPre.has(k)) lbPre.set(k, idb.get(k).catch(() => null)); return lbPre.get(k); };
+function lbPreload() { if (!lbGal) return; for (const d of [-1, 1]) { const k = lbGal.keys[lbGal.i + d]; if (k) lbLoad(k); } }
+let glide = 0;
 let lbGal = null; // { ids, i } when viewing an album
 function lbMeta() {
   $('lbLink').hidden = !lbGal?.album;
   $('lbCount').textContent = lbGal && lbGal.keys.length > 1 ? `${lbGal.i + 1} / ${lbGal.keys.length}` : '';
 }
+// next / previous picture: the open one slides out, the new one slides in from the other side
 async function lbStep(d) {
   const n = lbGal.i + d;
-  if (n < 0 || n >= lbGal.keys.length) { zApply(true); return; }
-  const src = await idb.get(lbGal.keys[n]).catch(() => null); if (!src) return zApply(true);
-  lbGal.i = n; lbImg.src = src; Z.s = 1; Z.tx = 0; Z.ty = 0; zApply(false); lbMeta();
+  if (n < 0 || n >= lbGal.keys.length) { Z.s > 1 ? (zClamp(), zApply(true)) : zApply(true); return; }
+  const src = await lbLoad(lbGal.keys[n]); if (!src) { zClamp(); return zApply(true); }
+  const W = innerWidth;
+  lbImg.style.transition = 'transform .2s ease-in';
+  lbImg.style.transform = `translate(${Z.tx - d * W}px, ${Z.ty}px) scale(${Z.s})`;
+  await new Promise(r => setTimeout(r, 190));
+  lbGal.i = n; lbImg.src = src; Z.s = 1; Z.tx = 0; Z.ty = 0; lbMeta();
+  lbImg.style.transition = 'none'; lbImg.style.transform = `translateX(${d * W}px)`;
+  void lbImg.offsetWidth;
+  lbImg.style.transition = 'transform .26s cubic-bezier(.2,.8,.2,1)'; lbImg.style.transform = 'translate(0px, 0px) scale(1)';
+  lbPreload();
 }
 $('lbLink').onclick = () => lbGal?.album && copyText(imgLink(lbGal.keys[lbGal.i].replace(/^alb_/, '')));
 function openLightbox(src, gal = null) {
   lbGal = gal ? { keys: [...gal.keys], i: gal.i, album: !!gal.album } : null; lbMeta();
   lbImg.src = src; Z.s = 1; Z.tx = 0; Z.ty = 0; zApply(false);
-  lb.classList.add('open');
+  lb.classList.add('open'); lbPreload();
 }
 function closeLightbox() { lb.classList.remove('open'); ptrs.clear(); gesture = null; }
 
@@ -5294,13 +5374,13 @@ lb.addEventListener('pointerdown', e => {
   if (e.target.closest('button')) return;
   lb.setPointerCapture(e.pointerId);
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  moved = false;
+  moved = false; cancelAnimationFrame(glide);
   const p = [...ptrs.values()];
   if (p.length === 2) {
     const mx = (p[0].x + p[1].x) / 2, my = (p[0].y + p[1].y) / 2;
     gesture = { type: 'pinch', d0: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), mx, my, s0: Z.s, tx0: Z.tx, ty0: Z.ty };
   } else if (p.length === 1) {
-    gesture = { type: 'pan', x0: e.clientX, y0: e.clientY, tx0: Z.tx, ty0: Z.ty };
+    gesture = { type: 'pan', x0: e.clientX, y0: e.clientY, tx0: Z.tx, ty0: Z.ty, hist: [{ x: e.clientX, y: e.clientY, t: performance.now() }] };
   }
 });
 lb.addEventListener('pointermove', e => {
@@ -5318,7 +5398,13 @@ lb.addEventListener('pointermove', e => {
   } else if (gesture?.type === 'pan') {
     const dx = e.clientX - gesture.x0, dy = e.clientY - gesture.y0;
     if (Math.hypot(dx, dy) > 6) moved = true;
-    if (Z.s > 1) { Z.tx = gesture.tx0 + dx; Z.ty = gesture.ty0 + dy; zApply(false); }
+    (gesture.hist ||= []).push({ x: e.clientX, y: e.clientY, t: performance.now() }); if (gesture.hist.length > 6) gesture.hist.shift();
+    if (Z.s > 1) {
+      const bd = zBounds(), rx = gesture.tx0 + dx;
+      Z.tx = rubber(rx, bd.x); Z.ty = rubber(gesture.ty0 + dy, bd.y);
+      gesture.over = rx > bd.x[1] ? rx - bd.x[1] : rx < bd.x[0] ? rx - bd.x[0] : 0; // pulled past the side edge
+      zApply(false);
+    }
     else if (moved) {
       gesture.axis ||= lbGal && Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
       lbImg.style.transition = 'none';
@@ -5335,12 +5421,33 @@ function endPtr(e) {
   if (ptrs.size) return;
   gesture = null;
   lb.style.background = '';
-  // swipe down to close when not zoomed
+  const h = g0?.hist || [], a = h[0], z = h.at(-1), dt = a && z ? Math.max(16, z.t - a.t) : 16;
+  const vx = a && z && performance.now() - z.t < 80 ? (z.x - a.x) / dt : 0, vy = a && z && performance.now() - z.t < 80 ? (z.y - a.y) / dt : 0;
+  // zoomed: pulled well past the side edge → next / previous picture; otherwise keep gliding a little
+  if (wasPan && Z.s > 1 && moved) {
+    if (lbGal && (g0.over < -90 || (g0.over < -30 && vx < -.6))) return lbStep(1);
+    if (lbGal && (g0.over > 90 || (g0.over > 30 && vx > .6))) return lbStep(-1);
+    let gx = vx * 16, gy = vy * 16, last = performance.now();
+    const step = now => {
+      const k = Math.min(3, (now - last) / 16); last = now;
+      const bd = zBounds();
+      Z.tx = Math.min(bd.x[1], Math.max(bd.x[0], Z.tx + gx * k)); Z.ty = Math.min(bd.y[1], Math.max(bd.y[0], Z.ty + gy * k));
+      gx *= Math.pow(.92, k); gy *= Math.pow(.92, k);
+      zApply(false);
+      if (Math.hypot(gx, gy) > .3) glide = requestAnimationFrame(step); else { zClamp(); zApply(true); }
+    };
+    zClamp(); // back inside first if it was rubber-banded
+    zApply(true);
+    if (Math.hypot(vx, vy) > .15) setTimeout(() => { last = performance.now(); glide = requestAnimationFrame(step); }, 0);
+    return;
+  }
+  // not zoomed: swipe sideways for the next / previous picture (a quick flick is enough)
   if (wasPan && Z.s === 1 && moved && g0?.axis === 'x') {
-    if (g0.dx < -60) return lbStep(1);
-    if (g0.dx > 60) return lbStep(-1);
+    if (g0.dx < -60 || (g0.dx < -20 && vx < -.5)) return lbStep(1);
+    if (g0.dx > 60 || (g0.dx > 20 && vx > .5)) return lbStep(-1);
     zApply(true); return;
   }
+  // swipe down to close when not zoomed
   if (wasPan && Z.s === 1 && moved) {
     if (parseFloat((lbImg.style.transform.match(/translateY\(([-\d.]+)px/) || [])[1] || 0) > 120) return closeLightbox();
     zApply(true); return;
