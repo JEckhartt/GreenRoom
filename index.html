@@ -1073,8 +1073,8 @@
     <div><span class="av fr-big" data-pv="msg"></span><small>Message</small></div>
     <div><span class="av fr-big fr-sq" data-pv="msg"></span><small>Message (square)</small></div>
     <div><div class="thumb sm" data-pv="chats"></div><small>Chats list</small></div>
-    <div><div class="thumb fr-list" data-pv="list"></div><small>Characters list</small></div>
-    <div><div class="thumb fr-list fr-whole" id="frWhole"></div><small>Profile</small></div>
+    <div><div class="thumb fr-list" data-pv="list"></div><small id="frListName">Characters list</small></div>
+    <div id="frWholeBox"><div class="thumb fr-list fr-whole" id="frWhole"></div><small>Profile</small></div>
   </div>
   <div class="fr-acts"><button class="btn" type="button" id="frCancel">Cancel</button><button class="btn primary" type="button" id="frDone">Done</button></div>
 </div></div>
@@ -3136,7 +3136,8 @@ const FR_SPOTS = { header: { name: 'Chat header', aspect: 1, round: true }, msg:
 const spotOf = el => el.id === 'chatAv' ? 'header' : el.closest?.('#log') ? 'msg' : el.classList.contains('thumb') ? (el.classList.contains('sm') ? 'chats' : 'list') : 'msg';
 const frameFor = (fr, spot) => fr?.spots?.[spot] || fr;
 let frState = null;
-async function openFramer(src, frame, done) {
+// kind 'persona': only the spots a persona appears in (messages and the personas list)
+async function openFramer(src, frame, done, kind = 'char') {
   const img = await loadImg(src).catch(() => null); if (!img) return;
   const W = img.naturalWidth, H = img.naturalHeight, cp = f => ({ x: f.x, y: f.y, z: f.z });
   const main = { x: frame?.x ?? .5, y: frame?.y ?? .5, z: frame?.z ?? 1 };
@@ -3144,6 +3145,10 @@ async function openFramer(src, frame, done) {
   frState = { img, W, H, main, spots, on: 'all', done };
   $('frImg').src = src;
   $('frWhole').style.background = `var(--accent-soft) url("${src}") center / contain no-repeat`;
+  const persona = kind === 'persona';
+  for (const pv of document.querySelectorAll('#framer [data-pv="header"], #framer [data-pv="chats"]')) pv.parentElement.hidden = persona;
+  $('frWholeBox').hidden = persona;
+  $('frListName').textContent = persona ? 'Personas list' : 'Characters list';
   $('framer').hidden = false; frSelect('all');
 }
 // the framing being edited: the main one, or the tapped spot's own (started from the main one)
@@ -3547,7 +3552,7 @@ function useEdImg(src) {
   edit.img = src; edit.frame = null;
   const th = $('edThumb'); th.style.backgroundImage = `url("${src}")`; th.textContent = '';
   $('edNoImg').hidden = $('edFrame').hidden = false;
-  openFramer(src, null, fr => { edit.frame = fr; });
+  openFramer(src, null, fr => { edit.frame = fr; }, edit.kind);
 }
 $('edThumb').onclick = () => {
   if (!albums.some(a => a.images.length)) return $('edFile').click(); // no albums yet: straight to your phone
@@ -3564,7 +3569,7 @@ $('edFile').onchange = async () => {
 $('edFrame').onclick = async () => {
   const it = edItems().find(x => x.id === edit.id);
   const src = edit.img || (it?.img && await idb.get(it.img).catch(() => null)); if (!src) return;
-  openFramer(src, edit.frame !== undefined ? edit.frame : it?.frame, fr => { edit.frame = fr; });
+  openFramer(src, edit.frame !== undefined ? edit.frame : it?.frame, fr => { edit.frame = fr; }, edit.kind);
 };
 $('edNoImg').onclick = () => {
   edit.img = null; edit.frame = null; const th = $('edThumb'); th.style.backgroundImage = ''; th.textContent = ($('edName').value.trim() || '+').charAt(0).toUpperCase();
