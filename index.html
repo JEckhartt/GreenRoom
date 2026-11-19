@@ -2711,7 +2711,9 @@ function addAltNav(bubble, m, i) {
   addStamp(nav, m);
   bubble.append(nav);
 }
-const openingAsk = (c, p) => `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.]`;
+// real time on: the opening is told the current date and time, so it fits the moment (morning, late night, weekend…)
+const openingTime = chat => chat?.realTime ? ` It is now ${clockText()} (the real current date and time): let it shape the opening naturally (time of day, day of the week, season) without announcing it.` : '';
+const openingAsk = (c, p, chat = cur?.chat) => `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.${openingTime(chat)}]`;
 // Writes another version of reply i, using only the conversation before it
 async function anotherReply(i, bubble, direction = '') {
   if (busy || !ready()) return;
@@ -2722,7 +2724,7 @@ async function anotherReply(i, bubble, direction = '') {
   try {
     const messages = i === 0
       ? [...await buildMessages(s.c, s.p, [], s.chat.memory), { role: 'user', content: direction
-          ? `[Rewrite ${cn(s.c)}'s opening message to start the roleplay with ${userName(s.p)}. The current version:\n\n${m.content}\n\nWhat to change: ${direction}\n\nStay fully in character. Reply with the new message only.]`
+          ? `[Rewrite ${cn(s.c)}'s opening message to start the roleplay with ${userName(s.p)}. The current version:\n\n${m.content}\n\nWhat to change: ${direction}${openingTime(s.chat)}\n\nStay fully in character. Reply with the new message only.]`
           : openingAsk(s.c, s.p) }]
       : await buildMessages(s.c, s.p, hist.slice(0, i), s.chat.memory);
     await aiTurn(s, hist, messages, bubble, m);
@@ -4506,30 +4508,42 @@ function renderPresetBox(box, scope) {
     acts.append(del); box.append(acts);
   }
 }
+// Proxies: a list of collapsible rows, like the prompts. Tap a proxy to use it and open it (tap the open one
+// again to fold it); long press to duplicate. In a chat the default (the one from Settings) can't be changed
+const openProx = new Set();
 function renderProxyBox(box, kind, scope) {
   const list = proxyList(kind), k = proxyKey(kind), chat = scope === 'chat' ? cur?.chat : null;
   const selId = chat ? (list.some(x => x.id === chat[k]) ? chat[k] : '') : cfg[k];
   const save = () => { saveCfg(); if (chat) store.set('chats', chats); };
-  const select = id => { if (chat) chat[k] = id; else cfg[k] = id; save(); clearErrs(); renderProxyBoxes(); };
-  box.innerHTML = '';
-  const chips = document.createElement('div'); chips.className = 'chips';
-  const chip = (label, on, fn, cls = '', onLong) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = (on ? 'on ' : '') + cls; if (onLong) pressable(b, fn, onLong); else b.onclick = fn; chips.append(b); };
-  // long press a proxy: duplicate it
+  const okey = id => scope + kind + id;
+  const select = id => { if (chat) chat[k] = id; else cfg[k] = id; for (const x of list) openProx.delete(okey(x.id)); openProx.add(okey(id)); save(); clearErrs(); renderProxyBoxes(); };
   const dup = src => showSheet(src.name || 'Unnamed', [{ label: `Duplicate "${src.name || 'Unnamed'}"`, onClick: () => { const pr = { ...src, id: uid(), name: `${src.name || 'Unnamed'} copy` }; list.push(pr); select(pr.id); toast('Duplicated'); } }]);
+  box.innerHTML = '';
   for (const pr of list) {
-    chip((pr.name || 'Unnamed') + (pr.id === cfg[k] ? ' · default' : ''), pr.id === selId, () => select(pr.id), '', () => { navigator.vibrate?.(12); dup(pr); });
+    const d = document.createElement('details'); d.className = 'pitem'; d.open = openProx.has(okey(pr.id));
+    const sm = document.createElement('summary');
+    const dot = document.createElement('span'); dot.className = 'pdot' + (pr.id === selId ? ' on' : '');
+    const nm = document.createElement('span'); nm.className = 'pname';
+    nm.textContent = (pr.name || 'Unnamed') + (pr.id === selId ? ' · in use' : '') + (chat && pr.id === cfg[k] ? ' · default' : '');
+    sm.append(dot, nm);
+    sm.addEventListener('click', e => e.preventDefault()); // opening is handled below
+    pressable(sm, () => {
+      if (pr.id !== selId) return select(pr.id);
+      openProx.has(okey(pr.id)) ? openProx.delete(okey(pr.id)) : openProx.add(okey(pr.id)); renderProxyBoxes();
+    }, () => { navigator.vibrate?.(12); dup(pr); });
+    const body = document.createElement('div'); body.className = 'pbody';
+    if (d.open) proxyBody(body, pr);
+    d.append(sm, body); box.append(d);
   }
-  chip('+ New', false, () => {
-    const pr = { id: uid(), name: `${kind === 'img' ? 'Image proxy' : 'Proxy'} ${list.length + 1}`, url: '', key: '', model: '' };
-    list.push(pr); select(pr.id);
-  }, 'add');
-  box.append(chips);
-  const pr = list.find(x => x.id === selId);
-  if (!pr) {
-    const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '12px';
-    h.textContent = chat && list.length ? 'Pick one for this chat.' : 'No proxy yet. Tap + New.';
-    return box.append(h);
-  }
+  if (chat && !selId && list.length) { const h = document.createElement('div'); h.className = 'hint'; h.textContent = 'Pick one for this chat.'; box.append(h); }
+  const add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.textContent = kind === 'img' ? '+ New image proxy' : '+ New proxy';
+  add.onclick = () => { const pr = { id: uid(), name: `${kind === 'img' ? 'Image proxy' : 'Proxy'} ${list.length + 1}`, url: '', key: '', model: '' }; list.push(pr); select(pr.id); };
+  const a = document.createElement('div'); a.className = 'actions'; a.append(add);
+  const hint = document.createElement('div'); hint.className = 'hint';
+  hint.textContent = (list.length ? 'Tap a proxy to use it and see its settings. Long press to duplicate it.' : 'No proxy yet. Tap + New.') + (chat ? ' Saved proxies are shared with Settings and other chats.' : '');
+  box.append(a, hint);
+
+  function proxyBody(body, pr) {
   // In a chat the default can be used but not changed (that's done in Settings)
   const locked = !!chat && pr.id === cfg[k];
   const field = (label, f, type, ph) => {
@@ -4540,19 +4554,19 @@ function renderProxyBox(box, kind, scope) {
       pr[f] = i.value; saveCfg();
       if (f !== 'url' && f !== 'model') return;
       delete testNotes[pr.id]; delete testPics[pr.id];
-      const st = box.querySelector('.ptest'), pic = box.querySelector('.ptest-img');
+      const st = body.querySelector('.ptest'), pic = body.querySelector('.ptest-img');
       if (pic) pic.hidden = true;
       if (st) st.textContent = kind === 'img' && IMAGES_API.test(pr.url || '') ? IMAGES_API_MSG : '';
     };
     // a quick check once URL and model are filled in (chat proxies): does it answer, and can it see images?
     if (kind === 'chat' && !locked && ['url', 'model', 'key'].includes(f)) i.onchange = () => { if (pr.url?.trim() && pr.model?.trim()) runProxyTest(pr); };
     if (f === 'name') i.onchange = () => renderProxyBoxes();
-    box.append(l, i);
+    body.append(l, i);
     return i;
   };
   field('Name', 'name', 'text', 'e.g. OpenRouter');
   field('Proxy URL', 'url', 'url', 'https://your-proxy.example.com/api/v1');
-  const h = document.createElement('div'); h.className = 'hint'; h.innerHTML = PROXY_HINT[kind]; box.append(h);
+  const h = document.createElement('div'); h.className = 'hint'; h.innerHTML = PROXY_HINT[kind]; body.append(h);
   field('API key', 'key', 'password', 'sk-or-…');
   field('Model', 'model', 'text', kind === 'img' ? 'google/gemini-2.5-flash-image' : 'anthropic/claude-sonnet-4.5');
   if (kind === 'chat') {
@@ -4560,7 +4574,7 @@ function renderProxyBox(box, kind, scope) {
     const tb = document.createElement('button'); tb.type = 'button'; tb.className = 'btn'; tb.textContent = 'Test connection'; tb.onclick = () => runProxyTest(pr);
     const ti = document.createElement('button'); ti.type = 'button'; ti.className = 'btn'; ti.textContent = 'Test images'; ti.onclick = () => runProxyTest(pr, true);
     const ta = document.createElement('div'); ta.className = 'actions'; ta.append(tb, ti);
-    box.append(st, ta);
+    body.append(st, ta);
   } else {
     // image proxy: one real test picture, made from a reference picture
     const st = document.createElement('div'); st.className = 'hint ptest'; st.id = 'ptest-' + pr.id;
@@ -4568,10 +4582,9 @@ function renderProxyBox(box, kind, scope) {
     const pic = document.createElement('img'); pic.className = 'ptest-img'; pic.id = 'ptestimg-' + pr.id; pic.alt = ''; pic.hidden = !testPics[pr.id]; if (testPics[pr.id]) pic.src = testPics[pr.id];
     const tb = document.createElement('button'); tb.type = 'button'; tb.className = 'btn'; tb.textContent = 'Test image proxy'; tb.onclick = () => runImgProxyTest(pr);
     const ta = document.createElement('div'); ta.className = 'actions'; ta.append(tb);
-    box.append(st, pic, ta);
+    body.append(st, pic, ta);
   }
-  if (locked) { const n = document.createElement('div'); n.className = 'hint'; n.textContent = 'This is the default from Settings and can only be changed there. To change it for this chat, long press it and duplicate it.'; box.append(n); return; }
-  { const n = document.createElement('div'); n.className = 'hint'; n.textContent = (chat ? 'Saved proxies are shared with Settings and other chats. ' : '') + 'Long press a proxy to duplicate it.'; box.append(n); }
+  if (locked) { const n = document.createElement('div'); n.className = 'hint'; n.textContent = 'This is the default from Settings and can only be changed there. To change it for this chat, long press it and duplicate it.'; body.append(n); return; }
   const acts = document.createElement('div'); acts.className = 'actions';
   const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete this proxy';
   del.onclick = () => {
@@ -4581,7 +4594,9 @@ function renderProxyBox(box, kind, scope) {
     for (const ch of chats) if (ch[k] === pr.id) delete ch[k];
     saveCfg(); store.set('chats', chats); renderProxyBoxes();
   };
-  acts.append(del); box.append(acts);
+  acts.append(del); body.append(acts);
+
+  }
 }
 
 // Proxy test: one tiny request; it answers or it doesn't. With images: a red square, asked what color it is (only reports, changes nothing)

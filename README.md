@@ -56,7 +56,7 @@ With **Enable** off it's a regular chat: no images are made or sent to the AI (e
 
 ## Settings
 
-- **Proxy**: save several (name, URL, API key, model) and tap one to make it active. OpenAI-compatible; `/chat/completions` is added automatically. Long press a proxy to duplicate it. **Test connection** checks that it answers; **Test images** asks it the colour of a red square, so you know whether it can see images (it only reports).
+- **Proxy**: a list of proxies (name, URL, API key, model), like the prompts: tap one to use it and open its settings, tap it again to fold it. OpenAI-compatible; `/chat/completions` is added automatically. Long press a proxy to duplicate it. **Test connection** checks that it answers; **Test images** asks it the colour of a red square, so you know whether it can see images (it only reports).
 - **Image proxy**: **Enable**; **Image prompt** (your own guidance for every image: style, quality, anything; `{{char}}` and `{{user}}` work); the image proxies. Only chat-style image models are supported (like OpenRouter with an image model, URL ending in `/v1`); `/images/generations` is refused because it can't take reference pictures. **Test image proxy** makes one small test picture from a reference and shows it.
 - **Generation**: presets with temperature, max reply length, top-p, top-k, min-p and penalties (empty = model default); show or hide the thinking of reasoning models; context size.
 - **Prompt**: a list of system prompts (Default plus your own; the dot picks which one is sent) and, in their own section, forbidden words the AI is told never to use.
@@ -74,7 +74,7 @@ Tabs (tap or swipe): **Memory**, **Style**, **Proxy**, **Image proxy**, **Prompt
 - **Style**: this chat's theme and background, and its style with a **Global** switch (on: the style from Settings, controls hidden; off: the same controls, for this chat only).
 - **Proxy**: proxy, generation preset and context size, each with a **Global** switch.
 - **Image proxy**: **Enable** (follows Settings until you change it), the image proxy (with **Global**), this chat's **Image prompt** (empty: the one from Settings) and **Make images automatically**.
-- **Prompt**: system prompt and forbidden words (each with **Global**), real time (sends the date and time, and marks when messages were sent and whether time passed), lorebooks, and **Character messages you first** (a notification after 30 minutes to 3 days).
+- **Prompt**: system prompt and forbidden words (each with **Global**), real time (sends the date and time, and marks when messages were sent and whether time passed; an opening the AI writes, also with › under the first message, fits the time of day), lorebooks, and **Character messages you first** (a notification after 30 minutes to 3 days).
 
 A **Global** switch that's off gives the chat its own value, starting from the one in Settings and kept when you switch back and forth. The default proxy and preset (the ones active in Settings) can be picked in a chat but only changed in Settings.
 
