@@ -483,12 +483,17 @@
   .fr-box h2 { margin: 0 0 8px; font-size: 18px; text-align: center; }
   .fr-stage { position: relative; width: min(78vw, 300px); aspect-ratio: 1; margin: 6px auto 10px; overflow: hidden; border-radius: 16px; background: #000; touch-action: none; cursor: grab; }
   #frImg { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; user-select: none; -webkit-user-select: none; pointer-events: none; }
-  .fr-mask { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 999px rgba(0,0,0,.55); outline: 2px solid rgba(255,255,255,.85); outline-offset: -2px; pointer-events: none; }
+  .fr-mask { position: absolute; width: 100%; height: 100%; border-radius: 50%; box-shadow: 0 0 0 999px rgba(0,0,0,.55); outline: 2px solid rgba(255,255,255,.85); outline-offset: -2px; pointer-events: none; }
   #frZoom { width: 100%; accent-color: var(--accent); }
   .fr-prev { display: flex; flex-wrap: wrap; gap: 14px 16px; justify-content: center; align-items: flex-end; margin: 14px 0 6px; }
   .fr-prev > div { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .fr-prev small { font-size: 11px; color: var(--ink-soft); }
   .fr-prev .fr-big { width: 44px; height: 44px; }
+  .fr-prev [data-pv] { cursor: pointer; }
+  .fr-prev [data-pv].sel { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .fr-on { text-align: center; font-size: 14px; font-weight: 600; margin: 4px 0 6px; }
+  .fr-on a { color: var(--accent); font-weight: 400; margin-left: 8px; }
+  .fr-mask { inset: auto; left: 50%; top: 50%; transform: translate(-50%, -50%); }
   .fr-prev .fr-sq { border-radius: 10px; }
   .fr-prev .fr-list { width: 72px; }
   .fr-prev .fr-whole { background-size: contain !important; }
@@ -1061,13 +1066,14 @@
   <h2>Frame picture</h2>
   <div class="fr-stage" id="frStage"><img id="frImg" alt=""><div class="fr-mask"></div></div>
   <input type="range" id="frZoom" min="1" max="5" step="0.01" value="1" aria-label="Zoom">
-  <div class="hint">Drag to move, pinch or use the slider to zoom. The small pictures use this framing; the profile always shows the whole picture.</div>
+  <div class="fr-on" id="frOn"></div>
+  <div class="hint">Drag to move, pinch or use the slider to zoom. Tap a preview below to frame just that spot; the others follow the main framing. The profile always shows the whole picture.</div>
   <div class="fr-prev">
-    <div><span class="av" data-pv></span><small>Chat header</small></div>
-    <div><span class="av fr-big" data-pv></span><small>Message</small></div>
-    <div><span class="av fr-big fr-sq" data-pv></span><small>Message (square)</small></div>
-    <div><div class="thumb sm" data-pv></div><small>Chats list</small></div>
-    <div><div class="thumb fr-list" data-pv></div><small>Characters list</small></div>
+    <div><span class="av" data-pv="header"></span><small>Chat header</small></div>
+    <div><span class="av fr-big" data-pv="msg"></span><small>Message</small></div>
+    <div><span class="av fr-big fr-sq" data-pv="msg"></span><small>Message (square)</small></div>
+    <div><div class="thumb sm" data-pv="chats"></div><small>Chats list</small></div>
+    <div><div class="thumb fr-list" data-pv="list"></div><small>Characters list</small></div>
     <div><div class="thumb fr-list fr-whole" id="frWhole"></div><small>Profile</small></div>
   </div>
   <div class="fr-acts"><button class="btn" type="button" id="frCancel">Cancel</button><button class="btn primary" type="button" id="frDone">Done</button></div>
@@ -3125,31 +3131,60 @@ function cropFrame(img, f, aspect, outW) {
   return c.toDataURL('image/jpeg', .9);
 }
 // Frame picture: drag / pinch / slider, with live previews of every spot the picture appears
+// Spots: where a small picture appears. Each can have its own framing; without one it follows the main framing
+const FR_SPOTS = { header: { name: 'Chat header', aspect: 1, round: true }, msg: { name: 'Messages', aspect: 1, round: true }, chats: { name: 'Chats list', aspect: 3 / 4 }, list: { name: 'Characters list', aspect: 3 / 4 } };
+const spotOf = el => el.id === 'chatAv' ? 'header' : el.closest?.('#log') ? 'msg' : el.classList.contains('thumb') ? (el.classList.contains('sm') ? 'chats' : 'list') : 'msg';
+const frameFor = (fr, spot) => fr?.spots?.[spot] || fr;
 let frState = null;
 async function openFramer(src, frame, done) {
   const img = await loadImg(src).catch(() => null); if (!img) return;
-  const W = img.naturalWidth, H = img.naturalHeight;
-  frState = { img, W, H, f: { x: frame?.x ?? .5, y: frame?.y ?? .5, z: frame?.z ?? 1 }, done };
-  $('frImg').src = src; $('frZoom').value = frState.f.z;
+  const W = img.naturalWidth, H = img.naturalHeight, cp = f => ({ x: f.x, y: f.y, z: f.z });
+  const main = { x: frame?.x ?? .5, y: frame?.y ?? .5, z: frame?.z ?? 1 };
+  const spots = {}; for (const [k, v] of Object.entries(frame?.spots || {})) spots[k] = cp(v);
+  frState = { img, W, H, main, spots, on: 'all', done };
+  $('frImg').src = src;
   $('frWhole').style.background = `var(--accent-soft) url("${src}") center / contain no-repeat`;
-  $('framer').hidden = false; frDraw();
+  $('framer').hidden = false; frSelect('all');
 }
-function frClamp() {
-  const { f, W, H } = frState, L = Math.min(W, H) / f.z;
+// the framing being edited: the main one, or the tapped spot's own (started from the main one)
+const frCur = () => frState.on === 'all' ? frState.main : (frState.spots[frState.on] ||= { ...frState.main });
+function frSelect(on) {
+  frState.on = on;
+  const sp = FR_SPOTS[on], el = $('frOn'); el.innerHTML = '';
+  el.append(on === 'all' ? 'Editing: all pictures' : `Editing: ${sp.name} only`);
+  if (on !== 'all') {
+    const a = document.createElement('a'); a.href = '#'; a.textContent = 'Back to all';
+    a.onclick = e => { e.preventDefault(); frSelect('all'); }; el.append(a);
+    if (frState.spots[on]) { const r = document.createElement('a'); r.href = '#'; r.textContent = 'Reset'; r.onclick = e => { e.preventDefault(); delete frState.spots[on]; frSelect(on); }; el.append(r); }
+  }
+  for (const p of document.querySelectorAll('#framer [data-pv]')) p.classList.toggle('sel', p.dataset.pv === on);
+  // the mask takes the spot's shape
+  const asp = sp?.aspect ?? 1, m = document.querySelector('#framer .fr-mask');
+  m.style.width = asp < 1 ? asp * 100 + '%' : '100%'; m.style.height = '100%';
+  m.style.borderRadius = sp && !sp.round ? '12px' : '50%';
+  $('frZoom').value = frCur().z; frDraw();
+}
+function frClamp(f, asp) {
+  const { W, H } = frState;
   f.z = Math.min(5, Math.max(1, f.z));
-  f.x = Math.min(1 - L / 2 / W, Math.max(L / 2 / W, f.x));
-  f.y = Math.min(1 - L / 2 / H, Math.max(L / 2 / H, f.y));
+  const cw = Math.min(W, H) / f.z, ch = cw / asp;
+  f.x = cw >= W ? .5 : Math.min(1 - cw / 2 / W, Math.max(cw / 2 / W, f.x));
+  f.y = ch >= H ? .5 : Math.min(1 - ch / 2 / H, Math.max(ch / 2 / H, f.y));
 }
 let frRaf = 0;
 function frDraw() {
-  frClamp();
-  const { f, W, H, img } = frState, S = $('frStage').clientWidth, sc = S / Math.min(W, H) * f.z;
+  const asp = FR_SPOTS[frState.on]?.aspect ?? 1, f = frCur(); frClamp(f, asp);
+  const { W, H, img } = frState, S = $('frStage').clientWidth;
+  const sc = S * Math.min(1, asp) / (Math.min(W, H) / f.z); // the crop's width fills the mask
   const fi = $('frImg'); fi.style.width = W + 'px'; fi.style.height = H + 'px';
   fi.style.transform = `translate(${S / 2 - f.x * W * sc}px, ${S / 2 - f.y * H * sc}px) scale(${sc})`;
   cancelAnimationFrame(frRaf);
   frRaf = requestAnimationFrame(() => {
-    const sq = cropFrame(img, f, 1, 160), tall = cropFrame(img, f, 3 / 4, 160);
-    for (const el of document.querySelectorAll('#framer [data-pv]')) el.style.background = `var(--accent-soft) url("${el.classList.contains('thumb') ? tall : sq}") center / cover no-repeat`;
+    const fr = { ...frState.main, spots: frState.spots };
+    for (const el of document.querySelectorAll('#framer [data-pv]')) {
+      const asp2 = el.classList.contains('thumb') ? 3 / 4 : 1;
+      el.style.background = `var(--accent-soft) url("${cropFrame(img, frameFor(fr, el.dataset.pv), asp2, 160)}") center / cover no-repeat`;
+    }
   });
 }
 {
@@ -3160,18 +3195,24 @@ function frDraw() {
   stage.addEventListener('pointermove', e => {
     if (!pts.has(e.pointerId) || !frState) return;
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const now = snap(), { f, W, H } = frState, sc = stage.clientWidth / Math.min(W, H) * f.z;
+    const now = snap(), f = frCur(), { W, H } = frState, sc = stage.clientWidth * Math.min(1, FR_SPOTS[frState.on]?.aspect ?? 1) / (Math.min(W, H) / f.z);
     f.x -= (now.x - last.x) / (W * sc); f.y -= (now.y - last.y) / (H * sc);
     if (now.d && last.d) f.z *= now.d / last.d;
     last = now; $('frZoom').value = f.z; frDraw();
   });
   const up = e => { pts.delete(e.pointerId); last = pts.size ? snap() : null; };
   stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
-  stage.addEventListener('wheel', e => { if (!frState) return; e.preventDefault(); frState.f.z *= Math.exp(-e.deltaY / 400); $('frZoom').value = frState.f.z; frDraw(); }, { passive: false });
-  $('frZoom').oninput = () => { if (!frState) return; frState.f.z = +$('frZoom').value; frDraw(); };
+  stage.addEventListener('wheel', e => { if (!frState) return; e.preventDefault(); const f = frCur(); f.z *= Math.exp(-e.deltaY / 400); $('frZoom').value = f.z; frDraw(); }, { passive: false });
+  $('frZoom').oninput = () => { if (!frState) return; frCur().z = +$('frZoom').value; frDraw(); };
+  for (const p of document.querySelectorAll('#framer [data-pv]')) p.onclick = () => frState && frSelect(frState.on === p.dataset.pv ? 'all' : p.dataset.pv);
   const close = () => { $('framer').hidden = true; frState = null; };
   $('frCancel').onclick = close;
-  $('frDone').onclick = () => { const { f, done } = frState; const r = n => Math.round(n * 1000) / 1000; done({ x: r(f.x), y: r(f.y), z: r(f.z) }); close(); };
+  $('frDone').onclick = () => {
+    const { main, spots, done } = frState, r = n => Math.round(n * 1000) / 1000, pack = f => ({ x: r(f.x), y: r(f.y), z: r(f.z) });
+    const out = pack(main), own = Object.entries(spots).filter(([, f]) => f.x !== main.x || f.y !== main.y || f.z !== main.z);
+    if (own.length) out.spots = Object.fromEntries(own.map(([k, f]) => [k, pack(f)]));
+    done(out); close();
+  };
 }
 async function setThumb(el, it) {
   if (el.id === 'profHero') el.parentElement.style.removeProperty('--r');
@@ -3184,7 +3225,7 @@ async function setThumb(el, it) {
   if (el.id === 'profHero') loadImg(src).then(i => { if (it.img === key) el.parentElement.style.setProperty('--r', (i.naturalWidth / i.naturalHeight).toFixed(4)); }).catch(() => {});
   // framed (Frame picture): the chosen part fills small pictures; otherwise scaled to fit, never cropped
   const framed = it.frame && !el.matches('#profHero, #edThumb');
-  const url = framed ? await framedSrc(key, src, it.frame, el.classList.contains('thumb') ? 3 / 4 : 1).catch(() => src) : src;
+  const url = framed ? await framedSrc(key, src, frameFor(it.frame, spotOf(el)), el.classList.contains('thumb') ? 3 / 4 : 1).catch(() => src) : src;
   if (it.img !== key) return;
   el.style.background = `var(--accent-soft) url("${url}") center / ${framed ? 'cover' : 'contain'} no-repeat`; el.textContent = ''; el.classList.add('pic'); el.classList.toggle('blurred', !!it.blur);
 }
