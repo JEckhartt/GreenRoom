@@ -190,6 +190,19 @@
   .create { position: sticky; top: 0; z-index: 2; padding: 12px 0; background: var(--bg); }
   .create button { width: 100%; padding: 15px; border-radius: 16px; border: 1.5px dashed var(--accent); background: var(--field); color: var(--accent); font-size: 16px; font-weight: 600; cursor: pointer; }
   .items { display: flex; flex-direction: column; gap: 10px; }
+  /* grid view (Characters, Personas, Albums): picture on top, then the name and the bio */
+  .head-acts { justify-self: end; display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+  .act.vbtn { display: grid; place-items: center; color: var(--accent); }
+  .items.gridview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  .items.gridview > .group, .items.gridview > .list-empty, .items.gridview > .hint { grid-column: 1 / -1; }
+  .items.gridview .folder-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .items.gridview .item { flex-direction: column; gap: 8px; padding: 8px; }
+  .items.gridview .item .thumb { width: 100%; font-size: 44px; }
+  #albumList.gridview .item .thumb { aspect-ratio: 1; }
+  .items.gridview .item .info { width: 100%; padding: 0 4px 4px; }
+  .items.gridview .item h3 { font-size: 15px; margin: 0 0 3px; }
+  .items.gridview .item p { font-size: 13px; -webkit-line-clamp: 3; line-clamp: 3; }
+  .items.gridview .swipe-acts { display: none; }
   .item { display: flex; gap: 14px; align-items: flex-start; width: 100%; padding: 12px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); text-align: left; cursor: pointer; }
   .thumb { flex: none; width: 96px; aspect-ratio: 3 / 4; border-radius: 12px; background: var(--accent-soft) center / cover no-repeat; display: grid; place-items: center; font-family: 'Fraunces', Georgia, serif; font-size: 34px; color: var(--accent); overflow: hidden; }
   .item .info { flex: 1; min-width: 0; }
@@ -321,6 +334,7 @@
   .pick .btns { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
   .card .line.tight { padding-top: 10px; }
   .save-bar { margin-top: 18px; }
+  #profile .actions { justify-content: center; }
   .save-bar .btn.primary { width: 100%; padding: 14px; border: 0; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; }
 
   /* ---------- Chat head ---------- */
@@ -499,6 +513,10 @@
   .fr-prev .fr-whole { background-size: contain !important; }
   .fr-acts { display: flex; gap: 10px; margin-top: 12px; } .fr-acts .btn { flex: 1; padding: 12px; }
   .fr-acts .btn.primary { background: var(--accent); color: #fff; border: 0; }
+  .pdesc { margin: -4px 0 10px; padding: 12px 14px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 14px 14px; background: var(--card); }
+  .pdesc-txt { font-size: 14px; line-height: 1.45; color: var(--ink-soft); white-space: pre-line; max-height: 40vh; overflow-y: auto; }
+  .pdesc .btn.primary { width: 100%; margin-top: 12px; padding: 12px; border: 0; background: var(--accent); color: #fff; font-weight: 600; }
+  #sheetOpts .opt.on { border-color: var(--accent); }
   #sheet { position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.35); display: flex; align-items: flex-end; justify-content: center;
     opacity: 0; visibility: hidden; transition: opacity .2s, visibility 0s .2s; }
   #sheet.open { opacity: 1; visibility: visible; transition: opacity .2s; }
@@ -642,7 +660,7 @@
 </section>
 
 <section id="chars" class="view" aria-label="Characters">
-  <div class="page-head"><button class="back" data-close="chars" type="button">‹ Back</button><h1>Characters</h1><button class="act plus" id="charAdd" type="button" aria-label="New character">+</button></div>
+  <div class="page-head"><button class="back" data-close="chars" type="button">‹ Back</button><h1>Characters</h1><span class="head-acts"><button class="act vbtn" id="charView" type="button" aria-label="Grid or list"></button><button class="act plus" id="charAdd" type="button" aria-label="New character">+</button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <input type="search" class="search" id="charSearch" placeholder="Search characters" autocomplete="off" style="margin-bottom:12px">
     <div class="items" id="charList"></div>
@@ -651,7 +669,7 @@
 </section>
 
 <section id="personas" class="view" aria-label="Personas">
-  <div class="page-head"><button class="back" data-close="personas" type="button">‹ Back</button><h1>Personas</h1><button class="act plus" id="newPersona" type="button" aria-label="New persona">+</button></div>
+  <div class="page-head"><button class="back" data-close="personas" type="button">‹ Back</button><h1>Personas</h1><span class="head-acts"><button class="act vbtn" id="personaView" type="button" aria-label="Grid or list"></button><button class="act plus" id="newPersona" type="button" aria-label="New persona">+</button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="items" id="personaList"></div>
   </div></div>
@@ -685,7 +703,7 @@
 </section>
 
 <section id="albums" class="view" aria-label="Albums">
-  <div class="page-head"><button class="back" data-close="albums" type="button">‹ Back</button><h1>Albums</h1><button class="act plus" id="newAlbum" type="button" aria-label="New album">+</button></div>
+  <div class="page-head"><button class="back" data-close="albums" type="button">‹ Back</button><h1>Albums</h1><span class="head-acts"><button class="act vbtn" id="albumView" type="button" aria-label="Grid or list"></button><button class="act plus" id="newAlbum" type="button" aria-label="New album">+</button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="items" id="albumList"></div>
   </div></div>
@@ -992,8 +1010,7 @@
       <div class="pick">
         <div class="thumb" id="edThumb" role="button" aria-label="Upload image">+</div>
         <div class="btns">
-          <button class="btn" type="button" id="edCard">Import character card</button>
-          <button class="btn" type="button" id="edChub">Import from Chub link</button>
+          <button class="btn" type="button" id="edImport">Import</button>
           <button class="btn" type="button" id="edGenImg">Generate image</button>
           <button class="btn" type="button" id="edFrame">Frame picture</button>
           <button class="btn danger" type="button" id="edNoImg">Remove</button>
@@ -2883,11 +2900,32 @@ function charActions(c) {
     { label: 'Chat', onClick: () => pickPersona(c) },
   ]);
 }
-function pickPersona(c, then = pid => newChat(c.id, pid)) {
+// Tapping a persona unfolds its description with a button to go ahead; No persona goes straight on
+function pickPersona(c, then = null) {
+  const go = then || (pid => newChat(c.id, pid));
   showSheet(`Chat with ${c.name} as…`, [
-    ...personas.map(p => ({ label: p.name, av: p, onClick: () => then(p.id) })),
-    { label: 'No persona', av: null, onClick: () => then('') },
+    ...personas.map(p => ({ label: p.name, av: p, onClick: () => go(p.id) })),
+    { label: 'No persona', av: null, onClick: () => go('') },
   ]);
+  const btns = [...$('sheetOpts').querySelectorAll('button.opt')];
+  personas.forEach((p, i) => {
+    const b = btns[i]; if (!b) return;
+    b.onclick = () => {
+      const open = b.nextElementSibling?.classList.contains('pdesc');
+      $('sheetOpts').querySelectorAll('.pdesc').forEach(x => x.remove());
+      btns.forEach(x => x.classList.remove('on'));
+      if (open) return;
+      b.classList.add('on');
+      const box = document.createElement('div'); box.className = 'pdesc';
+      const t = document.createElement('div'); t.className = 'pdesc-txt';
+      t.textContent = stripMd(fill(p.personality || '', c, p)).trim() || 'No description.';
+      const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'btn primary';
+      ok.textContent = then ? `Choose ${p.name}` : `Start chat as ${p.name}`;
+      ok.onclick = () => { hideSheet(); go(p.id); };
+      box.append(t, ok); b.after(box);
+      box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    };
+  });
 }
 function pickChar(title, then) {
   if (!chars.length) return toast('Make a character first');
@@ -3006,7 +3044,7 @@ function renderChats() {
         const av = document.createElement('span'); av.className = 'av'; setThumb(av, p || { name: ch.personaName || '–' });
         const txt = document.createElement('div');
         const who = document.createElement('div'); who.className = 'who';
-        const nm = document.createElement('span'); nm.textContent = 'as ' + (p?.name || ch.personaName || 'no persona') + (ch.branchOf ? ' · branch' : '');
+        const nm = document.createElement('span'); nm.textContent = (ch.title ? ch.title + ' · ' : '') + 'as ' + (p?.name || ch.personaName || 'no persona') + (ch.branchOf ? ' · branch' : '');
         if (ch.count == null) ch.count = msgGet(ch.id).length;
         const tm = document.createElement('time'); tm.textContent = `${ch.count} message${ch.count === 1 ? '' : 's'} · ${when(ch.updated)}`;
         who.append(nm, tm);
@@ -3026,21 +3064,49 @@ function renderChats() {
 
 function chatMenu(ch, c) {
   const pn = personaOf(ch)?.name || ch.personaName || 'User';
-  showSheet(`Chat with ${cn(c)} as ${pn}`, [
-    { label: 'Export chat as text', onClick: () => exportChat(ch, c, 'txt') },
-    { label: 'Export chat for SillyTavern (.jsonl)', onClick: () => exportChat(ch, c, 'jsonl') },
+  showSheet(ch.title || `Chat with ${cn(c)} as ${pn}`, [
+    { label: 'Rename chat', onClick: () => {
+      const t = prompt('Name for this chat (empty: no name)', ch.title || '');
+      if (t === null) return;
+      if (t.trim()) ch.title = t.trim().slice(0, 80); else delete ch.title;
+      store.set('chats', chats); renderChats(); if (cur?.chat.id === ch.id) renderChatHead();
+    } },
+    { label: 'Export', onClick: () => showSheet('Export as', EXPORTS.map(([fmt, name]) => ({ label: name, onClick: () => exportChat(ch, c, fmt) }))) },
     { label: 'Delete chat', onClick: () => { if (confirm(`Delete this chat with ${c.name}?`)) deleteChat(ch.id); } },
   ]);
 }
+const EXPORTS = [['txt', 'Text (.txt)'], ['md', 'Markdown (.md)'], ['html', 'Web page (.html)'], ['rtf', 'Rich text (.rtf)'], ['json', 'JSON (.json)'], ['jsonl', 'JSON Lines (.jsonl)'], ['csv', 'Spreadsheet (.csv)']];
+const escHtml = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 async function exportChat(ch, c, fmt) {
   const msgs = msgGet(ch.id), pn = personaOf(ch)?.name || ch.personaName || 'User', who = cn(c);
   const stamp = new Date(ch.updated || Date.now()).toISOString().slice(0, 10);
-  const base = `${who} - ${pn} - ${stamp}`.replace(/[^\p{L}\p{N} ._-]/gu, '').trim();
+  const base = `${ch.title || `${who} - ${pn}`} - ${stamp}`.replace(/[^\p{L}\p{N} ._-]/gu, '').trim();
+  const head = `Chat with ${who} as ${pn}`, title = ch.title || head;
+  const nameOf = m => m.role === 'user' ? pn : who, timeOf = m => m.t ? new Date(m.t).toLocaleString() : '';
   let blob;
   if (fmt === 'txt') {
-    const lines = [`Chat with ${who} as ${pn}`, `Exported ${new Date().toLocaleString()}`, ''];
-    for (const m of msgs) lines.push(`${m.role === 'user' ? pn : who}:`, (m.content || '') + (m.img ? '\n[image]' : ''), '');
+    const lines = [head, ...(ch.title ? [ch.title] : []), `Exported ${new Date().toLocaleString()}`, ''];
+    for (const m of msgs) lines.push(`${nameOf(m)}:`, (m.content || '') + (m.img ? '\n[image]' : ''), '');
     blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  } else if (fmt === 'md') {
+    const out = [`# ${title}`, '', `*${head} · exported ${new Date().toLocaleString()}*`, ''];
+    for (const m of msgs) out.push(`**${nameOf(m)}**${m.t ? ` · ${timeOf(m)}` : ''}`, '', (m.content || '') + (m.img ? '\n\n*[image]*' : ''), '', '---', '');
+    blob = new Blob([out.join('\n')], { type: 'text/markdown' });
+  } else if (fmt === 'html') {
+    const body = msgs.map(m => `<div class="m ${m.role === 'user' ? 'me' : 'ai'}"><div class="n">${escHtml(nameOf(m))}${m.t ? ` <span>${escHtml(timeOf(m))}</span>` : ''}</div><div class="t">${escHtml(m.content).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>').replace(/\n/g, '<br>')}${m.img ? '<br><i>[image]</i>' : ''}</div></div>`).join('\n');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escHtml(title)}</title><style>body{font:16px/1.55 Georgia,serif;max-width:720px;margin:24px auto;padding:0 16px;background:#f6ede6;color:#2b1d17}h1{font-size:24px}.m{margin:14px 0;padding:12px 14px;border-radius:14px;background:#fffaf6;border:1px solid #e2cfc3}.me{background:#fff;margin-left:15%}.n{font:600 13px system-ui,sans-serif;color:#d9553b;margin-bottom:4px}.n span{color:#7a6258;font-weight:400}</style></head><body><h1>${escHtml(title)}</h1><p><i>${escHtml(head)}</i></p>\n${body}\n</body></html>`;
+    blob = new Blob([html], { type: 'text/html' });
+  } else if (fmt === 'rtf') {
+    const r = t => String(t ?? '').replace(/[\\{}]/g, x => '\\' + x).replace(/\n/g, '\\line ').replace(/[^\x00-\x7f]/g, ch => [...ch].map(cp => { const n = cp.codePointAt(0); return n > 0xffff ? [...String.fromCodePoint(n)].map(u => `\\u${u.charCodeAt(0) - (u.charCodeAt(0) > 32767 ? 65536 : 0)}?`).join('') : `\\u${n > 32767 ? n - 65536 : n}?`; }).join(''));
+    const parts = msgs.map(m => `{\\b ${r(nameOf(m))}}${m.t ? ` {\\i ${r(timeOf(m))}}` : ''}\\par ${r(m.content)}${m.img ? ' [image]' : ''}\\par\\par`);
+    blob = new Blob([`{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Georgia;}}\\f0\\fs24{\\b\\fs32 ${r(title)}}\\par\\par ${parts.join('\n')}}`], { type: 'application/rtf' });
+  } else if (fmt === 'json') {
+    const data = { title, character: who, persona: pn, created: ch.created || null, updated: ch.updated || null, messages: msgs.map(m => ({ role: m.role, name: nameOf(m), content: m.content || '', t: m.t || null, ...(m.img ? { image: true } : {}) })) };
+    blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  } else if (fmt === 'csv') {
+    const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = [['time', 'name', 'role', 'message'], ...msgs.map(m => [m.t ? new Date(m.t).toISOString() : '', nameOf(m), m.role, m.content || ''])];
+    blob = new Blob(['\ufeff' + rows.map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv' });
   } else {
     const t = d => new Date(d).toISOString();
     const rows = [{ user_name: pn, character_name: who, create_date: t(ch.created || Date.now()), chat_metadata: {} },
@@ -3067,7 +3133,7 @@ function renderProfile() {
     : gs.length > 1 ? gs.map((g, i) => `**Option ${i + 1}**\n${g}`).join('\n\n---\n\n') : gs[0];
   const secs = [['Description', c.description], ['Personality', c.personality], ['Scenario', c.scenario],
     ['First message' + (gs.length > 1 && !c.aiFirst ? 's' : ''), first], ['Example dialogue', c.examples]];
-  const folds = store.get('profFolds', { Description: true });
+  const folds = { Description: true }; // standard view each time: description open, the rest folded
   $('profSecs').replaceChildren(...secs.filter(([, v]) => v?.trim()).map(([t, v]) => {
     const d = document.createElement('details'); d.className = 'card fold';
     const key = t.replace(/s$/, '');
@@ -3075,7 +3141,6 @@ function renderProfile() {
     const sm = document.createElement('summary'); sm.className = 'sub'; sm.textContent = t;
     const b = document.createElement('div'); b.className = 'prof-body'; rich(b, v);
     d.append(sm, b);
-    d.addEventListener('toggle', () => { const f = store.get('profFolds', { Description: true }); f[key] = d.open; store.set('profFolds', f); });
     return d;
   }));
   return true;
@@ -3245,12 +3310,21 @@ const SW = 168; // width of the swipe actions
 let openSwipe = null;
 
 const charQuery = () => ($('charSearch')?.value || '').trim().toLowerCase();
+// List or grid, remembered per screen
+const GRID_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>';
+const LIST_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>';
+const isGrid = k => store.get('view', {})[k] === 'grid';
+function syncViewBtn(k) { const b = $({ char: 'charView', persona: 'personaView', album: 'albumView' }[k]); b.innerHTML = isGrid(k) ? LIST_SVG : GRID_SVG; b.setAttribute('aria-label', isGrid(k) ? 'Show as list' : 'Show as grid'); }
+for (const [k, id] of [['char', 'charView'], ['persona', 'personaView'], ['album', 'albumView']]) {
+  $(id).onclick = () => { const v = store.get('view', {}); v[k] = isGrid(k) ? 'list' : 'grid'; store.set('view', v); syncViewBtn(k); k === 'album' ? renderAlbums() : renderList(k); };
+  syncViewBtn(k);
+}
 function renderList(kind) {
   const q = kind === 'char' ? charQuery() : '';
   const items = q ? itemsOf(kind).filter(it => [it.name, it.chatName, it.description, it.personality, it.scenario].some(v => (v || '').toLowerCase().includes(q))) : itemsOf(kind);
   const fs = q ? [] : folders.filter(f => f.kind === kind);
   const list = $(kind === 'char' ? 'charList' : 'personaList');
-  list.innerHTML = '';
+  list.innerHTML = ''; list.classList.toggle('gridview', isGrid(kind));
   openSwipe = null;
   if (!items.length && !fs.length) {
     const e = document.createElement('div'); e.className = 'list-empty';
@@ -3303,12 +3377,14 @@ function row(kind, it) {
   info.append(h, p); b.append(th, info);
   if (sel.kind === kind) { const c = document.createElement('span'); c.className = 'check'; c.textContent = sel.ids.has(it.id) ? '✓' : ''; b.append(c); }
   w.append(acts, b);
+  const grid = isGrid(kind);
   gestures(w, b, () => {
     if (sel.kind) return toggleSel(kind, it.id);
     if (kind !== 'char') return openEditor('persona', it.id);
+    if (grid) return openProfile(it.id); // grid: straight to the profile (Chat is there)
     openCharRow = openCharRow === it.id ? null : it.id; renderList('char');
-  }, () => startSelect(kind, it.id));
-  if (kind !== 'char' || openCharRow !== it.id || sel.kind) return w;
+  }, () => startSelect(kind, it.id), grid ? 0 : SW);
+  if (kind !== 'char' || grid || openCharRow !== it.id || sel.kind) return w;
   // unfolded: one card, the options attached underneath (like a character on the Chats screen)
   const box = document.createElement('div'); box.className = 'group open cgroup'; box.append(w);
   const sub = document.createElement('div'); sub.className = 'sublist';
@@ -3338,7 +3414,7 @@ function gestures(w, b, onTap, onLong, width = SW) {
     const mx = e.clientX - x0, my = e.clientY - y0;
     if (!mode && Math.hypot(mx, my) > 8) {
       clearTimeout(timer);
-      mode = Math.abs(mx) > Math.abs(my) && !sel.kind ? 'swipe' : 'scroll';
+      mode = Math.abs(mx) > Math.abs(my) && !sel.kind && width ? 'swipe' : 'scroll';
       if (mode === 'swipe') b.setPointerCapture(e.pointerId);
     }
     if (mode === 'swipe') {
@@ -3458,7 +3534,7 @@ function openEditor(kind, id) {
   setThumb($('edThumb'), it || { name: '+' }); if (!it) $('edThumb').textContent = '+';
   $('edNoImg').hidden = $('edFrame').hidden = !it?.img;
   $('edDelete').hidden = !it || kind === 'char'; // characters are deleted from their profile
-  $('edCard').hidden = $('edChub').hidden = kind !== 'char';
+  $('edImport').hidden = kind !== 'char';
   renderEdLore(); renderCounts();
   $('editor').querySelector('.page-body').scrollTop = 0;
   openView('editor');
@@ -3559,7 +3635,7 @@ function useEdImg(src) {
 $('edThumb').onclick = () => {
   if (!albums.some(a => a.images.length)) return $('edFile').click(); // no albums yet: straight to your phone
   showSheet('Picture', [
-    { label: 'Choose from phone', onClick: () => $('edFile').click() },
+    { label: 'From phone', onClick: () => $('edFile').click() },
     { label: 'From album', onClick: () => openAlbumPick(useEdImg, 'Choose from album') },
   ]);
 };
@@ -3611,7 +3687,10 @@ $('edSave').onclick = $('edSave2').onclick = saveEditor;
 
 $('edDelete').onclick = () => { if (edit.kind === 'persona' && deleteItems('persona', [edit.id])) closeView('editor'); };
 
-$('edCard').onclick = () => $('edCardFile').click();
+$('edImport').onclick = () => showSheet('Import', [
+  { label: 'Character card (file)', onClick: () => $('edCardFile').click() },
+  { label: 'From Chub link', onClick: () => importChubLink() },
+]);
 
 // Generate description: a short intro for the character list, from what is filled in
 $('edGenDesc').onclick = async () => {
@@ -3691,12 +3770,12 @@ async function importChub(link) {
     await importCardInto(new File([blob], `${path.split('/').pop()}.png`, { type: 'image/png' }));
   } catch (e) { toast('Could not import from Chub: ' + (e.message || e)); }
 }
-$('edChub').onclick = async () => {
+async function importChubLink() {
   let clip = '';
   try { clip = await navigator.clipboard.readText(); } catch {}
   const link = prompt('Paste a Chub character link', chubPath(clip) ? clip : '');
   if (link) importChub(link);
-};
+}
 $('edCardFile').onchange = () => {
   const f = $('edCardFile').files[0]; $('edCardFile').value = '';
   if (f) importCardInto(f);
@@ -4098,7 +4177,7 @@ const shortId = () => Math.random().toString(36).slice(2, 10);
 const imgLink = id => 'gr://img/' + id;
 
 function renderAlbums() {
-  const list = $('albumList'); list.innerHTML = ''; openSwipe = null;
+  const list = $('albumList'); list.innerHTML = ''; openSwipe = null; list.classList.toggle('gridview', isGrid('album'));
   if (!albums.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.textContent = 'No albums yet.'; return list.append(e); }
   for (const a of albums) {
     const w = document.createElement('div'); w.className = 'swipe';
@@ -4114,7 +4193,7 @@ function renderAlbums() {
     const p = document.createElement('p'); p.textContent = `${a.images.length} image${a.images.length === 1 ? '' : 's'}`;
     info.append(h, p); b.append(th, info);
     w.append(acts, b);
-    gestures(w, b, () => openAlbum(a.id), null, 84);
+    gestures(w, b, () => openAlbum(a.id), null, isGrid('album') ? 0 : 84);
     list.append(w);
   }
 }

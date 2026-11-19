@@ -7,7 +7,7 @@ The title screen has **Chats**, **Characters**, **Personas**, **Albums** and **S
 ## Chats
 
 - All chats, grouped per character, with the persona each was played as. Tap a character to unfold its chats (one character open at a time); open one, delete it, start a new chat or jump to the character card. Search all chats at the top.
-- Long press a chat to export it (text or SillyTavern `.jsonl`) or delete it. **+** at the top right: start a new chat, or **Import chat** (pick the character and persona, then a SillyTavern `.jsonl`, a Green Room text export or a JSON file).
+- Long press a chat to **Rename** it (the name shows in the list), **Export** it (Text, Markdown, Web page, Rich text, JSON, JSON Lines or Spreadsheet) or delete it. **+** at the top right: start a new chat, or **Import chat** (pick the character and persona, then a SillyTavern `.jsonl`, a Green Room text export or a JSON file).
 - A new chat is kept as soon as it has its first message; one you leave without writing anything is discarded.
 
 ### In a chat
@@ -42,10 +42,10 @@ With **Enable** off it's a regular chat: no images are made or sent to the AI (e
 ## Characters and personas
 
 - **Characters**: image, name, optional chat name (used in chats and for `{{char}}`), description (shown in the list, never sent to the AI), personality, scenario, first messages (several options to flip through until you reply, or let the AI write the opening) and example dialogue. The editor shows characters and tokens of what is sent.
-- **Import character card** (PNG/JSON, SillyTavern/Chub/JanitorAI format; opens the file picker straight away) fills everything in; from Safari or Files, **Share → Green Room** does the same. **Generate** writes a whole character, with a picture, from a few words. **+** at the top right: create new or generate.
+- **Import** → *Character card (file)* (PNG/JSON) or *From Chub link* fills everything in; from Safari or Files, **Share → Green Room** does the same. **Generate** writes a whole character, with a picture, from a few words. **+** at the top right: create new or generate.
 - The picture: tap it to choose one from your phone or **From album**.
 - **Frame picture** (opens after you pick a picture, and from the editor any time): drag, pinch or slide to choose what shows, with live previews of the chat header, messages, chats list, characters list and profile. Tap a preview to frame just that spot (its own shape: circle, or tall for the lists); the others follow the main framing. The profile shows the whole picture, in its own shape. Works for characters and personas.
-- Tap a character to unfold its **Profile** and **+ Start new chat**. The eye on a picture blurs it everywhere except in a chat and the editor.
+- Tap a character to unfold its **Profile** and **+ Start new chat**. The button next to + switches Characters, Personas and Albums between a list and a grid (picture, name, bio); in the grid, tapping a character opens the profile. The profile opens with the description unfolded and the rest folded. Starting a chat: tapping a persona shows its description, with **Start chat as …**. The eye on a picture blurs it everywhere except in a chat and the editor.
 - **Personas**: who *you* are: image, name, personality.
 - Swipe a character or persona left for **Move** (to a folder) and **Delete**; long press to select several.
 
