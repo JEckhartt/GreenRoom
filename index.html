@@ -3817,6 +3817,20 @@ function htmlToText(h) {
   return text.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+// The chat name in cards from other apps: "nickname" (Character Card V3), or a chat_name / chatName field,
+// also inside extensions (JanitorAI and others store it there). Only used when it differs from the name
+function cardChatName(d, name) {
+  const seen = new Set(), found = [];
+  const walk = (o, depth) => {
+    if (!o || typeof o !== 'object' || depth > 3 || seen.has(o)) return; seen.add(o);
+    for (const [k, v] of Object.entries(o)) {
+      if (typeof v === 'string' && /^(nickname|nick_name|chat_?name|chatname|display_?name)$/i.test(k) && v.trim()) found.push(htmlToText(v));
+      else if (v && typeof v === 'object' && !Array.isArray(v) && !/^(character_book|greenroom)$/.test(k)) walk(v, depth + 1);
+    }
+  };
+  walk(d, 0);
+  return found.find(n => n && n.length <= 60 && n !== name) || '';
+}
 // Card fields → ours. In other apps "description" is what the AI gets; our description is display-only.
 // JanitorAI-style cards put a public intro (HTML) in "personality"; that becomes our description.
 async function cardToFields(card) {
@@ -3830,7 +3844,7 @@ async function cardToFields(card) {
     scenario: htmlToText(d.scenario),
     firstMessages: (g?.firstMessages ?? (g?.firstMessage != null ? [g.firstMessage]
       : [htmlToText(d.first_mes), ...(d.alternate_greetings || []).map(htmlToText)])).filter(x => x?.trim()),
-    chatName: g?.chatName || '',
+    chatName: g?.chatName || cardChatName(d, htmlToText(d.name)),
     aiFirst: !!g?.aiFirst,
     examples: htmlToText(d.mes_example),
   };
@@ -3852,7 +3866,7 @@ async function exportCard(c) {
     for (const t of [c.description, c.personality, c.scenario, c.examples, ...gs])
       for (const m of (t || '').matchAll(IMG_LINK)) { const src = await idb.get('alb_' + m[1]).catch(() => null); if (src) images[m[1]] = src; }
     const card = { spec: 'chara_card_v2', spec_version: '2.0', data: {
-      name: c.name, description: c.personality || '', personality: '', scenario: c.scenario || '',
+      name: c.name, ...(c.chatName?.trim() ? { nickname: c.chatName.trim() } : {}), description: c.personality || '', personality: '', scenario: c.scenario || '',
       first_mes: c.aiFirst ? '' : (gs[0] || ''), mes_example: c.examples || '',
       creator_notes: stripLinks(c.description), system_prompt: '', post_history_instructions: '',
       alternate_greetings: c.aiFirst ? [] : gs.slice(1), tags: [], creator: '', character_version: '',
