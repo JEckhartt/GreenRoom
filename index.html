@@ -2293,7 +2293,13 @@ function nativeFetch(url, init = {}) {
         try { err ? ctrl.error(err) : ctrl.close(); } catch {}
       }
     });
-    init.signal?.addEventListener('abort', () => { if (!done) NS.cancel({ id }); });
+    // Stop: end it here at once (the reply stops right away); iOS cancels the request in the background
+    init.signal?.addEventListener('abort', () => {
+      if (done) return;
+      finish(); NS.cancel({ id });
+      const err = new DOMException('Aborted', 'AbortError');
+      if (!answered) reject(err); else try { ctrl.error(err); } catch {}
+    });
     if (init.signal?.aborted) { finish(); return reject(new DOMException('Aborted', 'AbortError')); }
     NS.start({ id, url, method: init.method || 'GET', headers: init.headers || {}, body: typeof init.body === 'string' ? init.body : undefined })
       .catch(e => { finish(); reject(new TypeError(e?.message || String(e))); });
