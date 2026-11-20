@@ -2932,7 +2932,9 @@ function deleteChat(id) {
 function openView(id) { $(id).classList.add('open'); requestAnimationFrame(() => autosizeAll($(id))); }
 function closeView(id) {
   document.activeElement?.blur(); $(id).classList.remove('open');
-  if (id === 'chats') { $('chatSearch').value = ''; }
+  if (id === 'chats') { $('chatSearch').value = ''; expanded.clear(); renderChats(); } // leaving: everything folds again
+  if (id === 'chars') { openCharRow = null; gridOpen.clear(); renderList('char'); }
+  if (id === 'personas') { gridOpen.clear(); renderList('persona'); }
   if (id === 'chat') { $('chat').classList.remove('has-bg'); leaveChat(); setAttached(null); setDoc(null); clearHelper(); hideSendMenu(); hidePlus(); $('anPanel').hidden = true; }
   if (id === 'settings') applyLook();
   if (id === 'chars' || id === 'personas') { endSelect(); closeSwipe(); }
