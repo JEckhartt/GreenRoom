@@ -60,6 +60,9 @@
     display: flex; flex-direction: column;
   }
   button { font: inherit; color: inherit; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  /* text can only be selected in text boxes */
+  body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input, textarea, select, [contenteditable] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
   #send svg { display: block; margin: auto; pointer-events: none; }
   button *, .crow, .crow *, .grid, .swipe, .swipe * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 
@@ -204,6 +207,13 @@
   .items.gridview .item h3 { font-size: 15px; margin: 0 0 3px; }
   .items.gridview .item p { font-size: 13px; -webkit-line-clamp: 3; line-clamp: 3; }
   .items.gridview .swipe-acts { display: none; }
+  .items.gridview .folder-head > .item { flex-direction: row; align-items: center; gap: 12px; padding: 8px 10px; }
+  .items.gridview .folder-head .folder-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .items.gridview .folder-head .info { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .items.gridview .folder-head .info h3 { margin: 0; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .items.gridview .folder-head .info p { white-space: nowrap; font-size: 13px; }
+  /* tapping the text of a tile shows the whole description */
+  .items.gridview .item.expanded p { display: block; -webkit-line-clamp: unset; line-clamp: unset; overflow: visible; }
   .item { display: flex; gap: 14px; align-items: flex-start; width: 100%; padding: 12px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); text-align: left; cursor: pointer; }
   .thumb { flex: none; width: 96px; aspect-ratio: 3 / 4; border-radius: 12px; background: var(--accent-soft) center / cover no-repeat; display: grid; place-items: center; font-family: 'Fraunces', Georgia, serif; font-size: 34px; color: var(--accent-ink); overflow: hidden; }
   .item .info { flex: 1; min-width: 0; }
@@ -2905,7 +2915,7 @@ function showSheet(title, opts) {
     if (o.av !== undefined) { const a = document.createElement('span'); a.className = 'av'; setThumb(a, o.av || { name: '–' }); b.append(a); }
     if (o.icon) { const a = document.createElement('span'); a.className = 'ico'; a.innerHTML = o.icon; b.append(a); }
     b.append(o.label);
-    b.onclick = () => { hideSheet(); o.onClick(); };
+    b.onclick = () => { if (!o.keep) hideSheet(); o.onClick(); }; // keep: the sheet stays (e.g. while the photo picker is open)
     return b;
   }));
   $('sheet').classList.add('open');
@@ -3064,7 +3074,8 @@ function renderChats() {
         const av = document.createElement('span'); av.className = 'av'; setThumb(av, p || { name: ch.personaName || '–' });
         const txt = document.createElement('div');
         const who = document.createElement('div'); who.className = 'who';
-        const nm = document.createElement('span'); nm.textContent = (ch.title ? ch.title + ' · ' : '') + 'as ' + (p?.name || ch.personaName || 'no persona') + (ch.branchOf ? ' · branch' : '');
+        const label = chatLabel(ch);
+        const nm = document.createElement('span'); nm.textContent = 'as ' + (p?.name || ch.personaName || 'no persona') + (label ? ' · ' + label : '');
         if (ch.count == null) ch.count = msgGet(ch.id).length;
         const tm = document.createElement('time'); tm.textContent = `${ch.count} message${ch.count === 1 ? '' : 's'} · ${when(ch.updated)}`;
         who.append(nm, tm);
@@ -3082,13 +3093,15 @@ function renderChats() {
   }
 }
 
+// The chat's own name, shown after "as Persona ·": what you named it, or "branch" for a branch
+const chatLabel = ch => ch.title ?? (ch.branchOf ? 'branch' : '');
 function chatMenu(ch, c) {
   const pn = personaOf(ch)?.name || ch.personaName || 'User';
-  showSheet(ch.title || `Chat with ${cn(c)} as ${pn}`, [
+  showSheet(`Chat with ${cn(c)} as ${pn}` + (chatLabel(ch) ? ` · ${chatLabel(ch)}` : ''), [
     { label: 'Rename chat', onClick: () => {
-      const t = prompt('Name for this chat (empty: no name)', ch.title || '');
+      const t = prompt(`Shown after "as ${pn} ·" (empty: nothing)`, chatLabel(ch));
       if (t === null) return;
-      if (t.trim()) ch.title = t.trim().slice(0, 80); else delete ch.title;
+      ch.title = t.trim().slice(0, 80);
       store.set('chats', chats); renderChats(); if (cur?.chat.id === ch.id) renderChatHead();
     } },
     { label: 'Export', onClick: () => showSheet('Export as', EXPORTS.map(([fmt, name]) => ({ label: name, onClick: () => exportChat(ch, c, fmt) }))) },
@@ -3100,12 +3113,12 @@ const escHtml = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;'
 async function exportChat(ch, c, fmt) {
   const msgs = msgGet(ch.id), pn = personaOf(ch)?.name || ch.personaName || 'User', who = cn(c);
   const stamp = new Date(ch.updated || Date.now()).toISOString().slice(0, 10);
-  const base = `${ch.title || `${who} - ${pn}`} - ${stamp}`.replace(/[^\p{L}\p{N} ._-]/gu, '').trim();
-  const head = `Chat with ${who} as ${pn}`, title = ch.title || head;
+  const base = `${who} - ${pn}${chatLabel(ch) ? ' - ' + chatLabel(ch) : ''} - ${stamp}`.replace(/[^\p{L}\p{N} ._-]/gu, '').trim();
+  const head = `Chat with ${who} as ${pn}`, title = chatLabel(ch) ? `${head} · ${chatLabel(ch)}` : head;
   const nameOf = m => m.role === 'user' ? pn : who, timeOf = m => m.t ? new Date(m.t).toLocaleString() : '';
   let blob;
   if (fmt === 'txt') {
-    const lines = [head, ...(ch.title ? [ch.title] : []), `Exported ${new Date().toLocaleString()}`, ''];
+    const lines = [title, `Exported ${new Date().toLocaleString()}`, ''];
     for (const m of msgs) lines.push(`${nameOf(m)}:`, (m.content || '') + (m.img ? '\n[image]' : ''), '');
     blob = new Blob([lines.join('\n')], { type: 'text/plain' });
   } else if (fmt === 'md') {
@@ -3198,6 +3211,15 @@ $('chatProfile').onclick = () => cur && openProfile(cur.c.id);
 
 // ---------- Character & persona lists ----------
 const avatarCache = new Map();
+// iOS storage can fail a read when many pictures load at once: try a few times, and don't remember a miss
+async function loadAvatar(key) {
+  for (let k = 0; k < 3; k++) {
+    try { const v = await idb.get(key); if (v) return v; } catch {}
+    await new Promise(r => setTimeout(r, 120 * (k + 1)));
+  }
+  avatarCache.delete(key);
+  return null;
+}
 // Picture framing: { x, y } = centre of the circle as a fraction of the picture, z = zoom (1 = the circle
 // just fits the shorter side). Small pictures get a cropped copy, made once and kept in memory
 const framedCache = new Map();
@@ -3311,7 +3333,7 @@ async function setThumb(el, it) {
   el.style.background = ''; el.classList.remove('pic', 'blurred'); el.textContent = (it.name || '?').trim().charAt(0).toUpperCase();
   if (!it.img) return;
   const key = it.img;
-  if (!avatarCache.has(key)) avatarCache.set(key, idb.get(key).catch(() => null));
+  if (!avatarCache.has(key)) avatarCache.set(key, loadAvatar(key));
   const src = await avatarCache.get(key);
   if (!src || it.img !== key) return;
   if (el.id === 'profHero') loadImg(src).then(i => { if (it.img === key) el.parentElement.style.setProperty('--r', (i.naturalWidth / i.naturalHeight).toFixed(4)); }).catch(() => {});
@@ -3380,6 +3402,7 @@ function renderList(kind) {
   bar.querySelector('span').textContent = `${sel.ids.size} selected`;
 }
 
+const gridOpen = new Set(); // grid tiles showing their whole description
 let openCharRow = null; // the character whose Profile / Chat buttons are unfolded
 function row(kind, it) {
   const w = document.createElement('div'); w.className = 'swipe';
@@ -3398,10 +3421,16 @@ function row(kind, it) {
   if (sel.kind === kind) { const c = document.createElement('span'); c.className = 'check'; c.textContent = sel.ids.has(it.id) ? '✓' : ''; b.append(c); }
   w.append(acts, b);
   const grid = isGrid(kind);
+  if (grid) {
+    if (gridOpen.has(it.id)) b.classList.add('expanded');
+    b.addEventListener('pointerdown', e => { b._onText = !!e.target.closest('.info'); });
+  }
   gestures(w, b, () => {
     if (sel.kind) return toggleSel(kind, it.id);
+    // grid: the text unfolds the whole description, the picture opens the profile (or the persona)
+    if (grid && b._onText) { gridOpen.has(it.id) ? gridOpen.delete(it.id) : gridOpen.add(it.id); b.classList.toggle('expanded', gridOpen.has(it.id)); return; }
     if (kind !== 'char') return openEditor('persona', it.id);
-    if (grid) return openProfile(it.id); // grid: straight to the profile (Chat is there)
+    if (grid) return openProfile(it.id);
     openCharRow = openCharRow === it.id ? null : it.id; renderList('char');
   }, () => startSelect(kind, it.id), grid ? 0 : SW);
   if (kind !== 'char' || grid || openCharRow !== it.id || sel.kind) return w;
@@ -3655,11 +3684,13 @@ function useEdImg(src) {
 $('edThumb').onclick = () => {
   if (!albums.some(a => a.images.length)) return $('edFile').click(); // no albums yet: straight to your phone
   showSheet('Picture', [
-    { label: 'From phone', onClick: () => $('edFile').click() },
+    { label: 'From phone', keep: true, onClick: () => $('edFile').click() },
     { label: 'From album', onClick: () => openAlbumPick(useEdImg, 'Choose from album') },
   ]);
 };
+$('edFile').addEventListener('cancel', hideSheet);
 $('edFile').onchange = async () => {
+  hideSheet();
   const f = $('edFile').files[0]; $('edFile').value = '';
   if (!f) return;
   try { useEdImg(await readImage(f)); } catch (e) { toast(e.message); }
@@ -6051,6 +6082,8 @@ renderList('persona');
 // Forbidden words in a chat used to be added to the global ones: keep that as the chat's own list
 { let ch2 = false; for (const ch of chats) if (ch.forbidden?.trim() && !ch.fbOwn) { ch.forbidden = [cfg.forbidden, ch.forbidden].filter(x => x?.trim()).join('\n'); ch.fbOwn = true; ch2 = true; } if (ch2) store.set('chats', chats); }
 { let ch3 = false; for (const ch of chats) if ('textOnly' in ch) { if (ch.textOnly) ch.genImages = false; delete ch.textOnly; ch3 = true; } if (ch3) store.set('chats', chats); }
+// a chat renamed to just "as <persona>" (before the name moved after it) gets its plain label back
+for (const ch of chats) if (ch.title != null && /^as\s/i.test(ch.title) && ch.title.trim().toLowerCase() === ('as ' + (personaOf(ch)?.name || ch.personaName || '')).toLowerCase()) delete ch.title;
 loadMsgs().then(() => { deliverReach(); renderChats(); step('started'); });
 if (sessionStorage.getItem('restored')) { sessionStorage.removeItem('restored'); setTimeout(() => toast('Backup restored'), 0); }
 // Clean up the automatic-backup copy an earlier build wrote
