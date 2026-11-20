@@ -2263,8 +2263,8 @@ function proxyFor(kind, chat = cur?.chat) {
   const list = proxyList(kind), k = proxyKey(kind);
   return list.find(x => x.id === chat?.[k]) || list.find(x => x.id === cfg[k]) || {};
 }
-const clean = pr => ({ url: (pr.url || '').trim(), key: (pr.key || '').trim(), model: (pr.model || '').trim(), native: !!pr.native });
-// Native connection (per proxy, iPhone app only): the request goes out from iOS itself instead of the web
+const clean = pr => ({ url: (pr.url || '').trim(), key: (pr.key || '').trim(), model: (pr.model || '').trim() });
+// In the iPhone app every proxy request goes out from iOS itself instead of the web
 // view, so it carries no "came from a web page" label (some services, like LoreBary, block that). The answer
 // streams back piece by piece through the NativeStream plugin and is handed over as a normal Response,
 // so live writing, Stop and everything else work the same
@@ -2299,8 +2299,8 @@ function nativeFetch(url, init = {}) {
       .catch(e => { finish(); reject(new TypeError(e?.message || String(e))); });
   });
 }
-// Every proxy request goes through here: native when the proxy has Native connection on (and it's the app)
-const pfetch = (a, url, init) => a?.native && NS ? nativeFetch(url, init) : fetch(url, init);
+// Every proxy request goes through here: from iOS in the app, the normal way in a browser
+const pfetch = (a, url, init) => NS ? nativeFetch(url, init) : fetch(url, init);
 const api = (chat = cur?.chat) => clean(proxyFor('chat', chat));
 const imgApi = (chat = cur?.chat) => clean(proxyFor('img', chat));
 // Generation presets; the open chat may pick its own, otherwise the globally active one
@@ -4928,16 +4928,6 @@ function renderProxyBox(box, kind, scope) {
   const h = document.createElement('div'); h.className = 'hint'; h.innerHTML = PROXY_HINT[kind]; body.append(h);
   field('API key', 'key', 'password', 'sk-or-…');
   field('Model', 'model', 'text', kind === 'img' ? 'google/gemini-2.5-flash-image' : 'anthropic/claude-sonnet-4.5');
-  {
-    const ln = document.createElement('div'); ln.className = 'line';
-    const sp = document.createElement('span'); sp.textContent = 'Native connection';
-    const tg = document.createElement('input'); tg.type = 'checkbox'; tg.className = 'tgl'; tg.checked = !!pr.native; tg.disabled = locked;
-    tg.onchange = () => { if (tg.checked) pr.native = true; else delete pr.native; saveCfg(); delete testNotes[pr.id]; };
-    ln.append(sp, tg);
-    const h = document.createElement('div'); h.className = 'hint';
-    h.textContent = 'Sends requests straight from the iPhone instead of from the app\'s web view. Turn it on for services that answer "Couldn\'t reach it" because they block web pages, like LoreBary. Replies are still written live.' + (NS ? '' : ' (Only in the iPhone app.)');
-    body.append(ln, h);
-  }
   if (kind === 'chat') {
     const st = document.createElement('div'); st.className = 'hint ptest'; st.id = 'ptest-' + pr.id; st.textContent = testNotes[pr.id] || '';
     const tb = document.createElement('button'); tb.type = 'button'; tb.className = 'btn'; tb.textContent = 'Test connection'; tb.onclick = () => runProxyTest(pr);
