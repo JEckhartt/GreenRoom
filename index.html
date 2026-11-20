@@ -5336,11 +5336,21 @@ function renderPresetBox(box, scope) {
 // Import JanitorAI's proxy configurations export: name, address, model and key (its prompts are left out).
 // The API key can be the one in the file or one of your Green Room proxies' keys for the same service
 function importJanitorProxies() {
-  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
-  inp.onchange = async () => {
-    const f = inp.files[0]; if (!f) return;
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,.txt,application/json,text/plain';
+  inp.onchange = async () => { const f = inp.files[0]; if (f) janProxiesFrom(await f.text()); };
+  inp.click();
+}
+// JanitorAI's "copy" puts the export on the clipboard
+async function pasteJanitorProxies() {
+  let t = '';
+  try { t = await navigator.clipboard.readText(); } catch {}
+  if (!t.trim().startsWith('[') && !t.trim().startsWith('{')) t = prompt('Paste the JanitorAI proxy export here') || '';
+  if (t.trim()) janProxiesFrom(t);
+}
+function janProxiesFrom(text) {
+  {
     let rows;
-    try { rows = JSON.parse(await f.text()); } catch { return toast('This file is not valid JSON.'); }
+    try { rows = JSON.parse(text.trim()); } catch { return toast('That is not a JanitorAI proxy export (not valid JSON).'); }
     if (!Array.isArray(rows)) rows = rows?.configs || rows?.proxies || [];
     const items = rows.filter(r => r && (r.apiUrl || r.url) && r.model).map(r => ({
       name: String(r.name || r.model).trim(), model: String(r.model).trim(), key: String(r.apiKey || r.key || '').trim(),
@@ -5368,10 +5378,9 @@ function importJanitorProxies() {
     if (!mine.length) return add('');
     showSheet(`Which API key for these ${items.length} proxies?`, [
       ...mine.map(m => ({ label: `My key from "${m.name}" (${tail(m.key)})`, onClick: () => add(m.key) })),
-      ...(items.some(it => it.key) ? [{ label: `The key in the file (${tail(items.find(it => it.key).key)})`, onClick: () => add('') }] : []),
+      ...(items.some(it => it.key) ? [{ label: `The key from JanitorAI (${tail(items.find(it => it.key).key)})`, onClick: () => add('') }] : []),
     ]);
-  };
-  inp.click();
+  }
 }
 // Proxies: a list of collapsible rows, like the prompts. Tap a proxy to use it and open it (tap the open one
 // again to fold it); long press to duplicate. In a chat the default (the one from Settings) can't be changed
@@ -5406,7 +5415,10 @@ function renderProxyBox(box, kind, scope) {
   const a = document.createElement('div'); a.className = 'actions'; a.append(add);
   if (!chat && kind === 'chat') {
     const imp = document.createElement('button'); imp.type = 'button'; imp.className = 'btn'; imp.textContent = 'Import';
-    imp.onclick = () => showSheet('Import proxies', [{ label: 'JanitorAI proxy file', onClick: importJanitorProxies }]);
+    imp.onclick = () => showSheet('Import JanitorAI proxies', [
+      { label: 'Paste from clipboard', onClick: pasteJanitorProxies },
+      { label: 'Choose a file', onClick: importJanitorProxies },
+    ]);
     a.append(imp);
   }
   const hint = document.createElement('div'); hint.className = 'hint';
