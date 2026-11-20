@@ -63,6 +63,24 @@ public class NativeStreamPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDele
         return streamIds[task.taskIdentifier]
     }
 
+    // A redirect to the same server (LoreBary sends …/chat/completions to the bare address) keeps the
+    // request's headers (the API key) and body; iOS would otherwise drop the Authorization header.
+    // Never for another server, so a key can't leak elsewhere.
+    public func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                           newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        var next = request
+        if let original = task.originalRequest, original.url?.host == request.url?.host, original.url?.scheme == request.url?.scheme {
+            for (name, value) in original.allHTTPHeaderFields ?? [:] where next.value(forHTTPHeaderField: name) == nil {
+                next.setValue(value, forHTTPHeaderField: name)
+            }
+            if response.statusCode == 307 || response.statusCode == 308 {
+                next.httpMethod = original.httpMethod
+                if next.httpBody == nil { next.httpBody = original.httpBody }
+            }
+        }
+        completionHandler(next)
+    }
+
     public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
                            completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
         if let id = streamId(dataTask), let http = response as? HTTPURLResponse {
