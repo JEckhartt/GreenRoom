@@ -3809,7 +3809,7 @@ let descDirty = false, descRange = null;
 const descEd = $('descEd');
 function descLoad() {
   const v = $('edDesc').value;
-  descEd.innerHTML = isHtml(v) ? sanitizeHtml(v) : mdToHtml(v);
+  descEd.innerHTML = isHtml(v) ? descHtml(v) : mdToHtml(v);
   for (const img of descEd.querySelectorAll('img')) {
     const gm = /^gr:\/\/img\/([A-Za-z0-9_-]+)/.exec(img.getAttribute('src'));
     if (gm) { img.dataset.gr = gm[1]; img.removeAttribute('src'); idb.get('alb_' + gm[1]).then(src => { if (src) img.src = src; }).catch(() => {}); }
@@ -4239,7 +4239,7 @@ function sanitizeHtml(html) {
   return doc.body.innerHTML.trim();
 }
 // Markdown / plain text → HTML (for descriptions written before the editor, or by the AI)
-function mdToHtml(t) {
+function mdToHtml(t, mixed = false) {
   const esc = x => x.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const inl = x => esc(x)
     .replace(/gr:\/\/img\/([A-Za-z0-9_-]+)/g, '<img src="gr://img/$1" alt="">')
@@ -4249,22 +4249,36 @@ function mdToHtml(t) {
     .replace(/\*\*\*(\S[\s\S]*?\S|\S)\*\*\*/g, '<b><i>$1</i></b>').replace(/\*\*(\S[\s\S]*?\S|\S)\*\*/g, '<b>$1</b>')
     .replace(/(^|[^*])\*(\S[^*]*?\S|\S)\*/g, '$1<i>$2</i>').replace(/~~(\S[\s\S]*?\S|\S)~~/g, '<s>$1</s>');
   const out = [], lines = (t || '').replace(/\r/g, '').split('\n');
+  const tagOnly = x => mixed && /^\s*(\u0001\d+\u0002\s*)+$/.test(x);
   for (let i = 0; i < lines.length;) {
     const l = lines[i]; let m;
     if (!l.trim()) { i++; continue; }
-    if ((m = /^\s*(#{1,6})\s+(.*)$/.exec(l))) { const n = Math.min(3, m[1].length); out.push(`<h${n}>${inl(m[2])}</h${n}>`); i++; }
+    if (tagOnly(l)) { out.push(l.trim()); i++; }
+    else if ((m = /^\s*(#{1,6})\s+(.*)$/.exec(l))) { const n = Math.min(3, m[1].length); out.push(`<h${n}>${inl(m[2])}</h${n}>`); i++; }
     else if (/^\s*(-{3,}|\*{3,}|_{3,}|———)\s*$/.test(l)) { out.push('<hr>'); i++; }
     else if (/^\s*>/.test(l)) { const b = []; while (i < lines.length && /^\s*>/.test(lines[i])) b.push(inl(lines[i++].replace(/^\s*>\s?/, ''))); out.push(`<blockquote>${b.join('<br>')}</blockquote>`); }
     else if (/^\s*([-*+•]|\d+[.)])\s+\S/.test(l)) { const b = []; while (i < lines.length && (m = /^\s*(?:[-*+•]|\d+[.)])\s+(.*)$/.exec(lines[i]))) { b.push(`<li>${inl(m[1])}</li>`); i++; } out.push(`<ul>${b.join('')}</ul>`); }
-    else { const b = [l]; i++; while (i < lines.length && lines[i].trim() && !/^\s*(#{1,6}\s|>|[-*+•]\s|\d+[.)]\s|-{3,}\s*$)/.test(lines[i])) b.push(lines[i++]); out.push(`<p>${b.map(inl).join('<br>')}</p>`); }
+    else { const b = [l]; i++; while (i < lines.length && lines[i].trim() && !tagOnly(lines[i]) && !/^\s*(#{1,6}\s|>|[-*+•]\s|\d+[.)]\s|-{3,}\s*$)/.test(lines[i])) b.push(lines[i++]); out.push(mixed && b.length === 1 && /^\s*\u0001/.test(l) ? inl(l) : `<p>${b.map(inl).join('<br>')}</p>`); }
   }
   return out.join('');
 }
+// HTML with Markdown in it (common in shared cards): the Markdown is applied too. HTML tags and entities
+// are set aside while the Markdown is converted, then put back
+const MD_HINT = /\*\*|__|~~|`|(^|\n)\s*(#{1,6}\s|[-*+]\s|>\s?|\d+[.)]\s)|\[[^\]]+\]\(https?:|(^|[\s(>])\*[^*\s][^*\n]*\*|gr:\/\/img\//;
+function mixMarkdown(html) {
+  const text = (html || '').replace(/<[^>]+>/g, '\n');
+  if (!MD_HINT.test(text)) return html;
+  const keep = [];
+  let src = html.replace(/<\/?(p|div|h[1-6]|li|ul|ol|blockquote|hr|table|tr|section|center|pre)\b[^>]*>/gi, m => '\n' + m + '\n').replace(/<br\s*\/?>/gi, m => m + '\n');
+  src = src.replace(/<[^>]+>|&#?\w+;/g, m => { keep.push(m); return '\u0001' + (keep.length - 1) + '\u0002'; });
+  return mdToHtml(src, true).replace(/\u0001(\d+)\u0002/g, (_, k) => keep[+k]);
+}
+const descHtml = t => sanitizeHtml(mixMarkdown(t)).replace(/<p>\s*<\/p>/g, ''); // a description as clean HTML, Markdown in it applied
 const descPlain = t => isHtml(t) ? htmlToText(t.replace(/<img[^>]*>/gi, '')) : stripMd(t);
 // Shows a description: formatted HTML, or Markdown for older ones. Album pictures load from storage
 function renderDesc(el, t) {
   if (!isHtml(t)) return rich(el, t);
-  el.classList.add('html'); el.innerHTML = sanitizeHtml(t);
+  el.classList.add('html'); el.innerHTML = descHtml(t);
   for (const img of el.querySelectorAll('img')) {
     const gm = /^gr:\/\/img\/([A-Za-z0-9_-]+)/.exec(img.getAttribute('src'));
     if (gm) { img.removeAttribute('src'); idb.get('alb_' + gm[1]).then(src => { if (src) { img.src = src; img.onclick = () => openLightbox(src); } else img.replaceWith('[missing image]'); }).catch(() => {}); }
@@ -4304,7 +4318,7 @@ async function cardToFields(card) {
   const pers = d.personality || '', persIsIntro = /<\/?[a-z][^>]*>/i.test(pers);
   const noteParts = [d.creator_notes || '', persIsIntro ? pers : ''].map(x => x.trim()).filter(Boolean);
   // the description keeps its formatting: HTML stays HTML (cleaned), plain parts are joined in
-  const notes = noteParts.some(isHtml) ? sanitizeHtml(noteParts.map(x => isHtml(x) ? x : mdToHtml(x)).join('')) : noteParts.join('\n\n');
+  const notes = noteParts.some(isHtml) ? sanitizeHtml(noteParts.map(x => isHtml(x) ? mixMarkdown(x) : mdToHtml(x)).join('')) : noteParts.join('\n\n');
   const out = {
     name: htmlToText(d.name),
     description: g?.description ?? notes,
