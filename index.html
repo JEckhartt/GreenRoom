@@ -1072,6 +1072,8 @@
       <div class="line"><span>Create personas I don't have yet</span><input type="checkbox" class="tgl" id="janOPers"></div>
       <div class="line"><span>Skip chats I already imported</span><input type="checkbox" class="tgl" id="janOSkip"></div>
       <div class="hint">Off: chats you imported before are updated with new messages.</div>
+      <div class="line"><span>Use JanitorAI's descriptions for characters I have</span><input type="checkbox" class="tgl" id="janODesc"></div>
+      <div class="hint">Switches on Replace mine for every matched character; you can still turn it off per character.</div>
       <button class="btn primary" type="button" id="janStart" style="width:100%;margin-top:14px">Import</button>
     </div>
     <div class="jan-h">Missing definitions</div>
@@ -4178,8 +4180,8 @@ $('goPersonas').onclick = () => openView('personas');
 $('goSettings').onclick = () => openSettings();
 // Opens JanitorAI in a browser window of the iPhone app, to record and save an inspection file
 // The JanitorAI page: import chats (with options), find missing definitions on JannyAI, open the site, log out
-const janOpts = Object.assign({ chars: true, pers: true, skipOld: false, onlyMissing: true }, store.get('janOpts', {}));
-for (const [id, k] of [['janOChars', 'chars'], ['janOPers', 'pers'], ['janOSkip', 'skipOld'], ['janOMiss', 'onlyMissing']]) {
+const janOpts = Object.assign({ chars: true, pers: true, skipOld: false, desc: false, onlyMissing: true }, store.get('janOpts', {}));
+for (const [id, k] of [['janOChars', 'chars'], ['janOPers', 'pers'], ['janOSkip', 'skipOld'], ['janODesc', 'desc'], ['janOMiss', 'onlyMissing']]) {
   $(id).checked = janOpts[k];
   $(id).onchange = () => { janOpts[k] = $(id).checked; store.set('janOpts', janOpts); };
 }
@@ -4249,7 +4251,7 @@ function janReview() {
     const jc = { ...(list[0].character || {}), ...(JAN.chars.get(id) || {}), id };
     const m = janExisting(jc);
     const off = new Set(janOpts.skipOld ? list.map(jr => String(jr.chat.id)).filter(jid => chats.some(ch => ch.jan === jid)) : []);
-    return { jc, list, to: m ? m.id : janOpts.chars ? 'new' : 'skip', off, desc: false };
+    return { jc, list, to: m ? m.id : janOpts.chars ? 'new' : 'skip', off, desc: !!m && janOpts.desc && !!String(jc.description || '').trim() };
   }).sort((a, b) => a.jc.name.localeCompare(b.jc.name));
   JAN.prows = [...byPersona.values()].map(({ jp, n }) => {
     const m = janMatch(jp.name, '', personas);
@@ -4305,7 +4307,9 @@ function janRender() {
     janPersPic(r.jp), r, personas, 'persona', () => janOpenPersona(r))));
   $('janPers').previousElementSibling.hidden = $('janPers').hidden = !JAN.prows.length;
   const nc = JAN.rows.reduce((a, r) => a + (r.to === 'skip' ? 0 : r.list.length - r.off.size), 0);
-  $('janGo').textContent = `Import ${nc} chat${nc === 1 ? '' : 's'}`; $('janGo').disabled = !nc;
+  const nd = JAN.rows.filter(r => r.desc && chars.some(c => c.id === r.to)).length;
+  $('janGo').textContent = nc || !nd ? `Import ${nc} chat${nc === 1 ? '' : 's'}${nd ? ` + ${nd} description${nd === 1 ? '' : 's'}` : ''}` : `Update ${nd} description${nd === 1 ? '' : 's'}`;
+  $('janGo').disabled = !nc && !nd;
 }
 function janField(label, value, { html = false, empty = 'Empty' } = {}) {
   const f = document.createElement('div'); f.className = 'jan-f';
@@ -4346,7 +4350,7 @@ function janOpenChar(r) {
       const fh = document.createElement('div'); fh.className = 'jan-fh';
       const lab = document.createElement('label'); lab.textContent = 'Replace mine';
       const tg = document.createElement('input'); tg.type = 'checkbox'; tg.className = 'tgl'; tg.checked = !!r.desc;
-      tg.onchange = () => { r.desc = tg.checked; };
+      tg.onchange = () => { r.desc = tg.checked; janRender(); };
       lab.append(tg); fh.append(descF.firstChild, lab); descF.prepend(fh);
     }
     info.append(janField('Name', jc.name), janField('Chat name', jc.chat_name), descF,
@@ -4488,10 +4492,14 @@ $('janGo').onclick = async () => {
       personas.unshift(p); pmap.set(r.jp.id, p); r.to = p.id;
     }
     savePersonas();
-    let n = 0, made = 0;
+    let n = 0, made = 0, nd = 0;
     for (const r of JAN.rows) {
-      if (r.to === 'skip' || r.list.every(jr => r.off.has(String(jr.chat.id)))) continue;
+      if (r.to === 'skip') continue;
       let c = chars.find(x => x.id === r.to);
+      if (r.list.every(jr => r.off.has(String(jr.chat.id)))) { // no chats: only the description, if asked
+        if (c && r.desc && String(r.jc.description || '').trim()) { c.description = janDesc(r.jc.description); nd++; }
+        continue;
+      }
       if (!c) {
         status.textContent = `Making ${r.jc.name}…`;
         const d = r.jc;
@@ -4501,7 +4509,7 @@ $('janGo').onclick = async () => {
           examples: (d.example_dialogs || '').trim(), firstMessages: greets, aiFirst: false, lorebooks: [] };
         const img = await janStorePic(d.avatar && JAN_PICS + 'bot-avatars/' + d.avatar); if (img) c.img = img;
         chars.unshift(c); made++; r.to = c.id;
-      } else if (r.desc && String(r.jc.description || '').trim()) { c.description = janDesc(r.jc.description); }
+      } else if (r.desc && String(r.jc.description || '').trim()) { c.description = janDesc(r.jc.description); nd++; }
       for (const jr of r.list) {
         if (r.off.has(String(jr.chat.id))) continue;
         const msgs = janMessages(jr);
@@ -4517,7 +4525,7 @@ $('janGo').onclick = async () => {
       }
     }
     saveChars(); saveChats(); renderList('char'); renderList('persona');
-    toast(`Imported ${n} chat${n === 1 ? '' : 's'}${made ? `, ${made} new character${made === 1 ? '' : 's'}` : ''}`);
+    toast(!n && nd ? `Updated ${nd} description${nd === 1 ? '' : 's'}` : `Imported ${n} chat${n === 1 ? '' : 's'}${made ? `, ${made} new character${made === 1 ? '' : 's'}` : ''}${nd ? `, ${nd} description${nd === 1 ? '' : 's'} updated` : ''}`);
     closeView('janImp'); openView('chats');
   } catch (e) { status.textContent = 'Import failed: ' + (e?.message || e); go.disabled = false; }
 };
