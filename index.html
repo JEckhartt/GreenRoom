@@ -4251,7 +4251,7 @@ function janReview() {
     const jc = { ...(list[0].character || {}), ...(JAN.chars.get(id) || {}), id };
     const m = janExisting(jc);
     const off = new Set(janOpts.skipOld ? list.map(jr => String(jr.chat.id)).filter(jid => chats.some(ch => ch.jan === jid)) : []);
-    return { jc, list, to: m ? m.id : janOpts.chars ? 'new' : 'skip', off, desc: !!m && janOpts.desc && !!String(jc.description || '').trim() };
+    return { jc, list, to: m ? m.id : janOpts.chars ? 'new' : 'skip', off, desc: !!m && janOpts.desc && !!String(jc.description || '').trim() && !janSameDesc(jc, m) };
   }).sort((a, b) => a.jc.name.localeCompare(b.jc.name));
   JAN.prows = [...byPersona.values()].map(({ jp, n }) => {
     const m = janMatch(jp.name, '', personas);
@@ -4344,16 +4344,24 @@ function janOpenChar(r) {
     if (janHidden(jc)) { const w = document.createElement('div'); w.className = 'hint'; w.style.textAlign = 'center'; w.textContent = 'The creator hid this character\'s definition on JanitorAI, so its personality, scenario and example dialogue can\'t be imported.'; info.append(w); }
     const hid = janHidden(jc) ? 'Hidden on JanitorAI' : 'Empty';
     const greets = (jc.first_messages?.length ? jc.first_messages : [jc.first_message]).filter(g => g?.trim() && !/^\[write your own\]$/i.test(g.trim()));
-    const descF = janField('Description', jc.description, { html: true });
-    if (chars.some(x => x.id === r.to) && String(jc.description || '').trim()) {
-      // matched to a character you have: optionally replace its description with this one
+    const mine = chars.find(x => x.id === r.to);
+    const descF = janField(mine ? 'Description on JanitorAI' : 'Description', jc.description, { html: true });
+    let yours = null;
+    if (mine && String(jc.description || '').trim()) {
+      // matched to a character you have: yours below it, and optionally replace yours with this one
       const fh = document.createElement('div'); fh.className = 'jan-fh';
-      const lab = document.createElement('label'); lab.textContent = 'Replace mine';
-      const tg = document.createElement('input'); tg.type = 'checkbox'; tg.className = 'tgl'; tg.checked = !!r.desc;
-      tg.onchange = () => { r.desc = tg.checked; janRender(); };
-      lab.append(tg); fh.append(descF.firstChild, lab); descF.prepend(fh);
+      const lab = document.createElement('label');
+      if (janSameDesc(jc, mine)) lab.textContent = 'Same as yours';
+      else {
+        lab.textContent = 'Replace mine';
+        const tg = document.createElement('input'); tg.type = 'checkbox'; tg.className = 'tgl'; tg.checked = !!r.desc;
+        tg.onchange = () => { r.desc = tg.checked; janRender(); };
+        lab.append(tg);
+        yours = janField('Your description', mine.description, { html: true });
+      }
+      fh.append(descF.firstChild, lab); descF.prepend(fh);
     }
-    info.append(janField('Name', jc.name), janField('Chat name', jc.chat_name), descF,
+    info.append(janField('Name', jc.name), janField('Chat name', jc.chat_name), descF, ...(yours ? [yours] : []),
       janField('Personality', jc.personality, { empty: hid }), janField('Scenario', jc.scenario, { empty: hid }),
       ...(greets.length ? greets.map((g, i) => janField(greets.length > 1 ? `First message ${i + 1}` : 'First message', g)) : [janField('First message', '')]),
       janField('Example dialogue', jc.example_dialogs, { empty: hid }));
@@ -4474,6 +4482,8 @@ async function janStorePic(url) {
   const key = 'av_' + uid();
   try { await idb.put(key, src); return key; } catch { return undefined; }
 }
+// Already the same text (formatting aside): nothing to replace
+const janSameDesc = (jc, c) => janNorm(descPlain(janDesc(jc.description))) === janNorm(descPlain(c?.description || ''));
 const janDesc = t => { t = String(t || '').trim(); return isHtml(t) ? sanitizeHtml(mixMarkdown(t)) : t; };
 $('janGo').onclick = async () => {
   const go = $('janGo'), status = $('janStatus');
