@@ -2463,10 +2463,12 @@ function makeFader(bubble, onShow, from = '') { // from: text already on screen 
     draw(now);
     if (finished && shown >= target.length && now - lastGrow > FADE) flush();
   }, TICK);
-  function flush() { clearInterval(timer); if (target) rich(el, target); done?.(); done = null; }
+  let flushed = false;
+  function flush() { flushed = true; clearInterval(timer); if (target) rich(el, target); done?.(); done = null; }
+  abortCtl?.signal?.addEventListener('abort', flush); // Stop: show what's written so far at once, no more fading
   return {
-    set(t) { target = t; if (shown > t.length) shown = t.length; },
-    end() { finished = true; return new Promise(r => { done = r; }); },
+    set(t) { target = t; if (shown > t.length) shown = t.length; if (flushed) rich(el, t); },
+    end() { finished = true; if (flushed) { rich(el, target); return Promise.resolve(); } return new Promise(r => { done = r; }); },
     flush,
   };
 }
