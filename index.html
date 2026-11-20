@@ -1562,7 +1562,7 @@ const LOOK_DEFAULTS = {
 const DEFAULTS = {
   proxyUrl: '', apiKey: '', model: '',
   imgUrl: '', imgKey: '', imgModel: '',
-  systemPrompt: '', forbidden: '', contextSize: '', genImages: true, showThinking: true, presets: [], presetId: '',
+  systemPrompt: '', forbidden: '', imgPrompt: '', contextSize: '', genImages: true, showThinking: true, presets: [], presetId: '',
   proxies: [], proxyId: '', imgProxies: [], imgProxyId: '',
   ...LOOK_DEFAULTS,
 };
@@ -5333,6 +5333,46 @@ function renderPresetBox(box, scope) {
     acts.append(del); box.append(acts);
   }
 }
+// Import JanitorAI's proxy configurations export: name, address, model and key (its prompts are left out).
+// The API key can be the one in the file or one of your Green Room proxies' keys for the same service
+function importJanitorProxies() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+  inp.onchange = async () => {
+    const f = inp.files[0]; if (!f) return;
+    let rows;
+    try { rows = JSON.parse(await f.text()); } catch { return toast('This file is not valid JSON.'); }
+    if (!Array.isArray(rows)) rows = rows?.configs || rows?.proxies || [];
+    const items = rows.filter(r => r && (r.apiUrl || r.url) && r.model).map(r => ({
+      name: String(r.name || r.model).trim(), model: String(r.model).trim(), key: String(r.apiKey || r.key || '').trim(),
+      url: String(r.apiUrl || r.url).trim().replace(/\/+$/, '').replace(/\/chat\/completions$/i, ''),
+    }));
+    if (!items.length) return toast('No proxies found in this file.');
+    const host = u => { try { return new URL(u).host; } catch { return ''; } };
+    // keys you already use in Green Room for the same services
+    const mine = [];
+    for (const pr of cfg.proxies) {
+      const key = (pr.key || '').trim();
+      if (key && items.some(it => host(it.url) === host(pr.url)) && !mine.some(m => m.key === key)) mine.push({ key, name: pr.name || 'Unnamed', host: host(pr.url) });
+    }
+    const add = useKey => {
+      let n = 0, same = 0;
+      for (const it of items) {
+        const key = useKey ? (mine.find(m => m.key === useKey && m.host === host(it.url))?.key || it.key) : it.key;
+        if (cfg.proxies.some(pr => (pr.url || '').replace(/\/+$/, '') === it.url && (pr.model || '').trim() === it.model && (pr.name || '') === it.name)) { same++; continue; }
+        cfg.proxies.push({ id: uid(), name: it.name, url: it.url, key, model: it.model }); n++;
+      }
+      saveCfg(); renderProxyBoxes();
+      toast(`Imported ${n} prox${n === 1 ? 'y' : 'ies'}${same ? ` (${same} you already had)` : ''}`);
+    };
+    const tail = k => '…' + k.slice(-4);
+    if (!mine.length) return add('');
+    showSheet(`Which API key for these ${items.length} proxies?`, [
+      ...mine.map(m => ({ label: `My key from "${m.name}" (${tail(m.key)})`, onClick: () => add(m.key) })),
+      ...(items.some(it => it.key) ? [{ label: `The key in the file (${tail(items.find(it => it.key).key)})`, onClick: () => add('') }] : []),
+    ]);
+  };
+  inp.click();
+}
 // Proxies: a list of collapsible rows, like the prompts. Tap a proxy to use it and open it (tap the open one
 // again to fold it); long press to duplicate. In a chat the default (the one from Settings) can't be changed
 const openProx = new Set();
@@ -5364,6 +5404,11 @@ function renderProxyBox(box, kind, scope) {
   const add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.textContent = kind === 'img' ? '+ New image proxy' : '+ New proxy';
   add.onclick = () => { const pr = { id: uid(), name: `${kind === 'img' ? 'Image proxy' : 'Proxy'} ${list.length + 1}`, url: '', key: '', model: '' }; list.push(pr); select(pr.id); };
   const a = document.createElement('div'); a.className = 'actions'; a.append(add);
+  if (!chat && kind === 'chat') {
+    const imp = document.createElement('button'); imp.type = 'button'; imp.className = 'btn'; imp.textContent = 'Import';
+    imp.onclick = () => showSheet('Import proxies', [{ label: 'JanitorAI proxy file', onClick: importJanitorProxies }]);
+    a.append(imp);
+  }
   const hint = document.createElement('div'); hint.className = 'hint';
   hint.textContent = (list.length ? 'Tap a proxy to use it and see its settings. Long press to duplicate it.' : 'No proxy yet. Tap + New.') + (chat ? ' Saved proxies are shared with Settings and other chats.' : '');
   box.append(a, hint);
@@ -5617,7 +5662,7 @@ function syncControls() {
     if (el.classList.contains('seg')) for (const b of el.children) b.classList.toggle('on', !mixed && b.dataset.v === v);
     else if (el.type === 'checkbox') { el.indeterminate = mixed; el.checked = !mixed && !!v; }
     else if (el.type === 'color') el.value = k === 'accent' ? (v || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#d9553b') : v;
-    else if (document.activeElement !== el) el.value = v;
+    else if (document.activeElement !== el) el.value = v ?? '';
   }
   const g = k => L[sk(k)];
   const outs = { fs: g('fs') + 'px', fw: g('fw'), lh: (+g('lh')).toFixed(2), ls: (+g('ls')).toFixed(2) + 'em', angle: g('angle') + '°' };
