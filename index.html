@@ -631,6 +631,17 @@
   .preview { position: sticky; top: 0; z-index: 2; margin-bottom: 10px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 2px 14px 14px; }
   .card + .card { margin-top: 10px; }
+  .jan-h { font-size: 13px; color: var(--ink-soft); margin: 18px 6px 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .jan-list { padding: 0 14px; }
+  .jrow { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 0; background: none; border: 0; border-top: 1px solid var(--line); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .jrow:first-child { border-top: 0; }
+  .jrow .av { width: 40px; height: 40px; background-size: cover; }
+  .jrow .jtxt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .jrow .jtxt b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .jrow .jtxt small { color: var(--ink-soft); font-size: 12px; }
+  .jrow .jto { flex: none; max-width: 45%; font-size: 13px; padding: 5px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .jrow .jto.new { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+  .jrow .jto.skip { background: transparent; color: var(--ink-soft); }
   .sub { font-size: 13px; font-weight: 600; margin: 14px 0 2px; }
   label.f { display: block; font-size: 13px; color: var(--ink-soft); margin: 14px 0 6px; font-weight: 500; }
   .card input[type=text], .card input[type=url], .card input[type=password], .card textarea {
@@ -1015,6 +1026,19 @@
       <button class="btn" type="button" id="profExport">Export card</button>
       <button class="btn danger" type="button" id="profDelete">Delete</button>
     </div>
+  </div></div>
+</section>
+
+<section id="janImp" class="view" aria-label="Import from JanitorAI">
+  <div class="page-head"><button class="back" data-close="janImp" type="button">‹ Cancel</button><h1>Import from JanitorAI</h1><span></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <div class="hint" id="janSum" style="margin:0 4px 12px"></div>
+    <div class="jan-h">Characters</div>
+    <div class="card jan-list" id="janChars"></div>
+    <div class="jan-h">Personas</div>
+    <div class="card jan-list" id="janPers"></div>
+    <div class="save-bar"><button class="btn primary" type="button" id="janGo">Import</button></div>
+    <div class="hint" id="janStatus" style="text-align:center;margin-top:12px"></div>
   </div></div>
 </section>
 
@@ -4086,7 +4110,173 @@ $('goSettings').onclick = () => openSettings();
 $('goJanitor').onclick = () => {
   const jb = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.JanitorBrowser;
   if (!jb) return toast('Only in the iPhone app');
+  janListen();
   jb.open({ url: 'https://janitorai.com' }).catch(e => toast('Couldn\'t open JanitorAI: ' + (e?.message || e)));
+};
+
+// ---------- Import from JanitorAI ----------
+// The JanitorAI window (Import chats) sends every character and chat here; then you check who each
+// character and persona goes to (matched by name, a new one, or skipped) and import.
+const JAN = { chars: new Map(), chats: [], rows: [], prows: [] };
+const JAN_PICS = 'https://janitorsunite.b-cdn.net/';
+let janListening = false;
+function janListen() {
+  const jb = window.Capacitor?.Plugins?.JanitorBrowser;
+  if (janListening || !jb) return; janListening = true;
+  jb.addListener('janitor', ev => {
+    if (ev.type === 'start') { JAN.chars.clear(); JAN.chats = []; }
+    else if (ev.type === 'char') { try { const c = JSON.parse(ev.json); if (c?.id) JAN.chars.set(c.id, c); } catch {} }
+    else if (ev.type === 'chat') { try { const c = JSON.parse(ev.json); if (c?.chat) JAN.chats.push(c); } catch {} }
+    else if (ev.type === 'done') janReview();
+    else if (ev.type === 'error' && ev.message !== 'cancelled') dbg('error', 'JanitorAI import: ' + ev.message);
+  });
+}
+const janNorm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+// Names on JanitorAI often carry a tagline ("Michael O'Connor - Detective (MalePOV)"): the part before it
+const janBase = s => janNorm(String(s || '').split(/\s[-–—|:•]\s|[([{]/)[0]);
+function janMatch(name, extra, list) {
+  const full = janNorm(name), base = janBase(name), alt = janNorm(extra);
+  const names = it => [janNorm(it.name), janBase(it.name), janNorm(it.chatName)].filter(Boolean);
+  return list.find(it => names(it).includes(full)) || list.find(it => names(it).some(n => n === base || (alt && n === alt))) || null;
+}
+function janPersonaOf(r) {
+  const ps = r.personas || [], id = r.chat?.persona_id || r.chatMessages?.find(m => m.metadata?.persona_id)?.metadata.persona_id;
+  return ps.find(p => p.id === id) || ps.find(p => p.is_default) || null;
+}
+function janReview() {
+  if (!JAN.chats.length) return toast('No chats found on JanitorAI');
+  const byChar = new Map(), byPersona = new Map();
+  for (const r of JAN.chats) {
+    const id = r.chat.character_id;
+    if (!byChar.has(id)) byChar.set(id, []);
+    byChar.get(id).push(r);
+    const jp = janPersonaOf(r);
+    if (jp && !byPersona.has(jp.id)) byPersona.set(jp.id, { jp, n: 0 });
+    if (jp) byPersona.get(jp.id).n++;
+  }
+  JAN.rows = [...byChar].map(([id, list]) => {
+    const jc = { ...(list[0].character || {}), ...(JAN.chars.get(id) || {}), id };
+    const before = chats.find(ch => ch.janChar === id && chars.some(c => c.id === ch.charId));
+    const m = before ? chars.find(c => c.id === before.charId) : janMatch(jc.name, jc.chat_name, chars);
+    return { jc, list, to: m ? m.id : 'new' };
+  }).sort((a, b) => a.jc.name.localeCompare(b.jc.name));
+  JAN.prows = [...byPersona.values()].map(({ jp, n }) => {
+    const m = janMatch(jp.name, '', personas);
+    return { jp, n, to: m ? m.id : 'new' };
+  }).sort((a, b) => b.n - a.n);
+  const nc = JAN.chats.length, nch = JAN.rows.length;
+  $('janSum').textContent = `${nc} chat${nc === 1 ? '' : 's'} with ${nch} character${nch === 1 ? '' : 's'}. Tap one to choose where it goes. Chats you imported before are updated, not doubled.`;
+  $('janStatus').textContent = ''; $('janGo').disabled = false;
+  janRender(); openView('janImp');
+}
+function janRowEl(name, sub, pic, it, list, kind, onPick) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'jrow';
+  const av = document.createElement('span'); av.className = 'av'; av.textContent = (name || '?').charAt(0).toUpperCase();
+  if (pic) { av.style.backgroundImage = `url("${pic}")`; av.textContent = ''; }
+  const t = document.createElement('span'); t.className = 'jtxt';
+  const bn = document.createElement('b'); bn.textContent = name; const sm = document.createElement('small'); sm.textContent = sub; t.append(bn, sm);
+  const to = document.createElement('span'); to.className = 'jto';
+  const target = list.find(x => x.id === it.to);
+  if (target) to.textContent = target.name;
+  else if (it.to === 'new') { to.textContent = kind === 'char' ? 'New character' : 'New persona'; to.classList.add('new'); }
+  else { to.textContent = kind === 'char' ? "Don't import" : 'No persona'; to.classList.add('skip'); }
+  b.append(av, t, to);
+  b.onclick = () => showSheet(name, [
+    { label: kind === 'char' ? 'Create a new character' : 'Create a new persona', onClick: () => onPick('new') },
+    { label: kind === 'char' ? "Don't import these chats" : 'No persona', onClick: () => onPick('skip') },
+    ...[...list].sort((a, b) => a.name.localeCompare(b.name)).map(x => ({ label: x.name, av: x, onClick: () => onPick(x.id) })),
+  ]);
+  return b;
+}
+function janRender() {
+  $('janChars').replaceChildren(...JAN.rows.map(r => janRowEl(r.jc.name, `${r.list.length} chat${r.list.length === 1 ? '' : 's'}`,
+    r.jc.avatar ? JAN_PICS + 'bot-avatars/' + r.jc.avatar : '', r, chars, 'char', v => { r.to = v; janRender(); })));
+  $('janPers').replaceChildren(...JAN.prows.map(r => janRowEl(r.jp.name, `in ${r.n} chat${r.n === 1 ? '' : 's'}`,
+    r.jp.avatar ? JAN_PICS + 'avatars/' + r.jp.avatar : '', r, personas, 'persona', v => { r.to = v; janRender(); })));
+  $('janPers').previousElementSibling.hidden = $('janPers').hidden = !JAN.prows.length;
+}
+// A JanitorAI chat → Green Room messages. Replies you swiped through become versions (‹ ›) of one reply
+function janMessages(r) {
+  const tm = m => Date.parse(m.created_at) || 0;
+  const ms = [...(r.chatMessages || [])].filter(m => String(m.message || '').trim()).sort((a, b) => tm(a) - tm(b) || a.id - b.id);
+  const out = []; let group = [];
+  const flush = () => {
+    if (!group.length) return;
+    const mains = group.filter(m => m.is_main), last = mains.at(-1);
+    for (const m of mains.slice(0, -1)) out.push({ role: 'assistant', content: m.message, t: tm(m) });
+    const vs = group.filter(m => m === last || !m.is_main);
+    const sel = last ? vs.indexOf(last) : vs.length - 1;
+    const msg = { role: 'assistant', content: vs[sel].message, t: tm(vs[sel]) };
+    if (vs.length > 1) { msg.alts = vs.map(m => ({ content: m.message })); msg.sel = sel; }
+    out.push(msg); group = [];
+  };
+  for (const m of ms) {
+    if (m.is_bot) { group.push(m); continue; }
+    flush();
+    if (m.is_main !== false) out.push({ role: 'user', content: m.message, t: tm(m) });
+  }
+  flush();
+  return out;
+}
+async function janPic(url) {
+  try {
+    const res = await (NS ? nativeFetch(url) : fetch(url));
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await readImage(new File([blob], 'pic', { type: blob.type || 'image/webp' }), 1024);
+  } catch { return null; }
+}
+async function janStorePic(url) {
+  const src = url && await janPic(url);
+  if (!src) return undefined;
+  const key = 'av_' + uid();
+  try { await idb.put(key, src); return key; } catch { return undefined; }
+}
+$('janGo').onclick = async () => {
+  const go = $('janGo'), status = $('janStatus');
+  go.disabled = true;
+  try {
+    const pmap = new Map();
+    for (const r of JAN.prows) {
+      if (r.to === 'skip') { pmap.set(r.jp.id, null); continue; }
+      if (r.to !== 'new') { pmap.set(r.jp.id, personas.find(p => p.id === r.to) || null); continue; }
+      status.textContent = `Making persona ${r.jp.name}…`;
+      const p = { id: uid(), created: Date.now(), name: r.jp.name || 'Persona', personality: (r.jp.appearance || '').trim() };
+      const img = await janStorePic(r.jp.avatar && JAN_PICS + 'avatars/' + r.jp.avatar); if (img) p.img = img;
+      personas.unshift(p); pmap.set(r.jp.id, p); r.to = p.id;
+    }
+    savePersonas();
+    let n = 0, made = 0;
+    for (const r of JAN.rows) {
+      if (r.to === 'skip') continue;
+      let c = chars.find(x => x.id === r.to);
+      if (!c) {
+        status.textContent = `Making ${r.jc.name}…`;
+        const d = r.jc, desc = String(d.description || '').trim();
+        const greets = (d.first_messages?.length ? d.first_messages : [d.first_message]).filter(g => g?.trim() && !/^\[write your own\]$/i.test(g.trim()));
+        c = { id: uid(), created: Date.now(), name: d.name || 'Character', chatName: (d.chat_name || '').trim(),
+          description: isHtml(desc) ? sanitizeHtml(mixMarkdown(desc)) : desc, personality: (d.personality || '').trim(), scenario: (d.scenario || '').trim(),
+          examples: (d.example_dialogs || '').trim(), firstMessages: greets, aiFirst: false, lorebooks: [] };
+        const img = await janStorePic(d.avatar && JAN_PICS + 'bot-avatars/' + d.avatar); if (img) c.img = img;
+        chars.unshift(c); made++; r.to = c.id;
+      }
+      for (const jr of r.list) {
+        const msgs = janMessages(jr);
+        if (!msgs.length) continue;
+        const jid = String(jr.chat.id), jp = janPersonaOf(jr), p = jp ? pmap.get(jp.id) : null;
+        let chat = chats.find(x => x.jan === jid);
+        if (!chat) { chat = { id: uid(), created: Date.parse(jr.chat.created_at) || msgs[0].t || Date.now() }; chats.push(chat); }
+        Object.assign(chat, { charId: c.id, personaId: p?.id || '', personaName: p?.name || '', jan: jid, janChar: r.jc.id });
+        if (jr.chat.summary?.trim() && !chat.memory) chat.memory = jr.chat.summary.trim();
+        msgSet(chat.id, msgs);
+        chat.preview = lastText(msgs); chat.count = msgs.length; chat.updated = msgs.at(-1).t || Date.now();
+        n++;
+      }
+    }
+    saveChars(); saveChats(); renderList('char'); renderList('persona');
+    toast(`Imported ${n} chat${n === 1 ? '' : 's'}${made ? `, ${made} new character${made === 1 ? '' : 's'}` : ''}`);
+    closeView('janImp'); openView('chats');
+  } catch (e) { status.textContent = 'Import failed: ' + (e?.message || e); go.disabled = false; }
 };
 $('goAlbums').onclick = () => { renderAlbums(); openView('albums'); };
 $('goLore').onclick = () => { renderLoreList(); openView('lorebooks'); };

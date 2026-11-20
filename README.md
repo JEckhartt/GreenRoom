@@ -56,7 +56,10 @@ With **Enable** off it's a regular chat: no images are made or sent to the AI (e
 
 ## Connect to JanitorAI
 
-iPhone app only. Opens JanitorAI in a browser window inside the app; log in as usual (it stays logged in). While you browse, the data the site loads (chat lists, messages, characters) is recorded; the count shows at the top. **Save inspection file** saves that recording plus the current page as a `.json` file and opens the share sheet. Login tokens, passwords, cookies and e-mail addresses are removed from it. This is step one toward importing JanitorAI chats.
+iPhone app only. Opens JanitorAI in a browser window inside the app; log in as usual (it stays logged in).
+
+- **Import chats** (top right): downloads every chat you have on JanitorAI, with its messages, characters and personas; the progress shows at the top. Then **Import from JanitorAI** lists each character and persona with where it goes: an existing one with the same name (taglines like "Name - Detective (MalePOV)" are ignored), a new one made from JanitorAI (picture, description, personality, scenario, first messages, example dialogue), or not imported. Tap one to change it, then **Import**. Replies you swiped through become versions (‹ ›); a chat's JanitorAI memory goes to its Memory. Importing again updates those chats instead of doubling them.
+- **Save file**: saves what the site loaded while you browsed plus the current page as a `.json` inspection file (for fixing the importer if JanitorAI changes). Login tokens, passwords, cookies and e-mail addresses are removed.
 
 ## Settings
 
