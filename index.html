@@ -2207,7 +2207,7 @@ async function requestImageOnce(prompt, modalities, a = imgApi()) {
   const outer = abortCtl?.signal; outer?.addEventListener('abort', () => ctl.abort());
   let res, raw;
   try {
-    res = await fetch(url, { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify(body), signal: ctl.signal });
+    res = await pfetch(a, url, { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify(body), signal: ctl.signal });
     if (!res.ok) throw await httpError(res);
     raw = await res.text();
   } catch (e) {
@@ -2263,7 +2263,44 @@ function proxyFor(kind, chat = cur?.chat) {
   const list = proxyList(kind), k = proxyKey(kind);
   return list.find(x => x.id === chat?.[k]) || list.find(x => x.id === cfg[k]) || {};
 }
-const clean = pr => ({ url: (pr.url || '').trim(), key: (pr.key || '').trim(), model: (pr.model || '').trim() });
+const clean = pr => ({ url: (pr.url || '').trim(), key: (pr.key || '').trim(), model: (pr.model || '').trim(), native: !!pr.native });
+// Native connection (per proxy, iPhone app only): the request goes out from iOS itself instead of the web
+// view, so it carries no "came from a web page" label (some services, like LoreBary, block that). The answer
+// streams back piece by piece through the NativeStream plugin and is handed over as a normal Response,
+// so live writing, Stop and everything else work the same
+const NS = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.NativeStream;
+const nsHandlers = new Map();
+NS?.addListener?.('ns', ev => nsHandlers.get(ev.id)?.(ev));
+function nativeFetch(url, init = {}) {
+  const id = uid();
+  return new Promise((resolve, reject) => {
+    let ctrl = null, answered = false, done = false;
+    const stream = new ReadableStream({ start(c) { ctrl = c; }, cancel() { NS.cancel({ id }); } });
+    const finish = () => { done = true; nsHandlers.delete(id); };
+    nsHandlers.set(id, ev => {
+      if (ev.type === 'head') {
+        answered = true;
+        const st = ev.status, empty = [101, 204, 205, 304].includes(st);
+        resolve(new Response(empty ? null : stream, { status: st >= 200 && st <= 599 ? st : 502, headers: ev.headers || {} }));
+      } else if (ev.type === 'data') {
+        const bin = atob(ev.b64), bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        try { ctrl.enqueue(bytes); } catch {}
+      } else if (ev.type === 'end') {
+        finish();
+        const err = ev.error === 'cancelled' ? new DOMException('Aborted', 'AbortError') : ev.error ? new TypeError(ev.error) : null;
+        if (!answered) return reject(err || new TypeError('No answer'));
+        try { err ? ctrl.error(err) : ctrl.close(); } catch {}
+      }
+    });
+    init.signal?.addEventListener('abort', () => { if (!done) NS.cancel({ id }); });
+    if (init.signal?.aborted) { finish(); return reject(new DOMException('Aborted', 'AbortError')); }
+    NS.start({ id, url, method: init.method || 'GET', headers: init.headers || {}, body: typeof init.body === 'string' ? init.body : undefined })
+      .catch(e => { finish(); reject(new TypeError(e?.message || String(e))); });
+  });
+}
+// Every proxy request goes through here: native when the proxy has Native connection on (and it's the app)
+const pfetch = (a, url, init) => a?.native && NS ? nativeFetch(url, init) : fetch(url, init);
 const api = (chat = cur?.chat) => clean(proxyFor('chat', chat));
 const imgApi = (chat = cur?.chat) => clean(proxyFor('img', chat));
 // Generation presets; the open chat may pick its own, otherwise the globally active one
@@ -2314,7 +2351,7 @@ async function streamChat(messages, onText, opts = {}) {
   if (g.repPenalty !== undefined) body.repetition_penalty = g.repPenalty;
   if (g.freqPenalty !== undefined) body.frequency_penalty = g.freqPenalty;
   if (g.presPenalty !== undefined) body.presence_penalty = g.presPenalty;
-  const send = () => fetch(endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), signal: opts.chat ? undefined : abortCtl?.signal, body: JSON.stringify(body) });
+  const send = () => pfetch(a, endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), signal: opts.chat ? undefined : abortCtl?.signal, body: JSON.stringify(body) });
   let res = await send();
   // Some models (OpenAI's newer ones) want max_completion_tokens instead of max_tokens
   if (!res.ok && body.max_tokens && res.status === 400) {
@@ -4891,6 +4928,16 @@ function renderProxyBox(box, kind, scope) {
   const h = document.createElement('div'); h.className = 'hint'; h.innerHTML = PROXY_HINT[kind]; body.append(h);
   field('API key', 'key', 'password', 'sk-or-…');
   field('Model', 'model', 'text', kind === 'img' ? 'google/gemini-2.5-flash-image' : 'anthropic/claude-sonnet-4.5');
+  {
+    const ln = document.createElement('div'); ln.className = 'line';
+    const sp = document.createElement('span'); sp.textContent = 'Native connection';
+    const tg = document.createElement('input'); tg.type = 'checkbox'; tg.className = 'tgl'; tg.checked = !!pr.native; tg.disabled = locked;
+    tg.onchange = () => { if (tg.checked) pr.native = true; else delete pr.native; saveCfg(); delete testNotes[pr.id]; };
+    ln.append(sp, tg);
+    const h = document.createElement('div'); h.className = 'hint';
+    h.textContent = 'Sends requests straight from the iPhone instead of from the app\'s web view. Turn it on for services that answer "Couldn\'t reach it" because they block web pages, like LoreBary. Replies are still written live.' + (NS ? '' : ' (Only in the iPhone app.)');
+    body.append(ln, h);
+  }
   if (kind === 'chat') {
     const st = document.createElement('div'); st.className = 'hint ptest'; st.id = 'ptest-' + pr.id; st.textContent = testNotes[pr.id] || '';
     const tb = document.createElement('button'); tb.type = 'button'; tb.className = 'btn'; tb.textContent = 'Test connection'; tb.onclick = () => runProxyTest(pr);
@@ -4930,7 +4977,7 @@ async function runProxyTest(pr, img = false) {
   show(img ? 'Testing images…' : 'Testing…');
   const content = img ? [{ type: 'text', text: 'What color is this square? Answer with one word.' }, { type: 'image_url', image_url: { url: redSquare() } }] : 'Reply with: OK';
   try {
-    const r = await fetch(endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify({ model: a.model, messages: [{ role: 'user', content }], stream: false }) });
+    const r = await pfetch(a, endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify({ model: a.model, messages: [{ role: 'user', content }], stream: false }) });
     if (!r.ok) return show((img ? 'Can\'t see images: ' : 'Doesn\'t work: ') + (await httpError(r)).message.slice(0, 220));
     if (!img) return show('Works.');
     const j = await r.json().catch(() => ({})), m = j.choices?.[0]?.message?.content;
