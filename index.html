@@ -194,6 +194,19 @@
   .create { position: sticky; top: 0; z-index: 2; padding: 12px 0; background: var(--bg); }
   .create button { width: 100%; padding: 15px; border-radius: 16px; border: 1.5px dashed var(--accent); background: var(--field); color: var(--accent-ink); font-size: 16px; font-weight: 600; cursor: pointer; }
   .items { display: flex; flex-direction: column; gap: 10px; }
+  /* description editor: formatting toolbar + what you see is what the card shows */
+  .rte-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+  .rte-bar select, .rte-bar button, .rte-col { height: 38px; min-width: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--field); color: var(--ink); display: inline-grid; place-items: center; padding: 0 8px; cursor: pointer; position: relative; }
+  .rte-bar select { padding: 0 10px; font-size: 15px; }
+  .rte-bar button.on { border-color: var(--accent); color: var(--accent-ink); }
+  .rte-col input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+  .rte { min-height: 130px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--field); outline: none; font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+  .rte:empty::before { content: attr(data-placeholder); color: var(--ink-soft); }
+  .rte img, .prof-body img { max-width: 100%; border-radius: 10px; display: block; margin: 6px 0; }
+  .rte h1, .prof-body h1 { font-size: 24px; margin: 8px 0; } .rte h2, .prof-body h2 { font-size: 20px; margin: 8px 0; } .rte h3, .prof-body h3 { font-size: 17px; margin: 6px 0; }
+  .rte blockquote, .prof-body blockquote { margin: 6px 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--ink-soft); }
+  .rte p, .prof-body.html p { margin: 0 0 8px; }
+  #edDesc.src { font-family: ui-monospace, Menlo, monospace; font-size: 13px; min-height: 160px; }
   /* grid view (Characters, Personas, Albums): picture on top, then the name and the bio */
   .head-acts { justify-self: end; display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
   .act.vbtn { display: grid; place-items: center; color: var(--accent-ink); }
@@ -1041,7 +1054,26 @@
 
       <details class="edf" data-for="char" data-f="desc" open>
         <summary>Description</summary>
-        <textarea id="edDesc" placeholder="Shown on the character list. Not sent to the AI."></textarea>
+        <div class="rte-bar" id="descBar">
+          <select id="rteBlock" aria-label="Text style"><option value="p">Paragraph</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option><option value="h3">Heading 3</option><option value="blockquote">Quote</option></select>
+          <button type="button" data-cmd="bold" aria-label="Bold"><b style="font-size:17px">B</b></button>
+          <button type="button" data-cmd="italic" aria-label="Italic"><i style="font-family:Georgia,serif;font-size:18px">I</i></button>
+          <button type="button" data-cmd="underline" aria-label="Underline"><u style="font-size:17px">U</u></button>
+          <button type="button" data-cmd="strikeThrough" aria-label="Strikethrough"><s style="font-size:17px">S</s></button>
+          <label class="rte-col" aria-label="Highlight"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h7M14.5 4.5l5 5L10 19H5v-5z"/></svg><input type="color" id="rteHilite" value="#fff59d"></label>
+          <label class="rte-col" aria-label="Text color"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20L12 4l7 16M8 14h8"/></svg><input type="color" id="rteColor" value="#d9553b"></label>
+          <button type="button" data-cmd="justifyLeft" aria-label="Align left"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+          <button type="button" data-cmd="justifyCenter" aria-label="Center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>
+          <button type="button" data-cmd="justifyRight" aria-label="Align right"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
+          <button type="button" data-cmd="justifyFull" aria-label="Justify"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg></button>
+          <button type="button" data-cmd="insertUnorderedList" aria-label="List"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></button>
+          <button type="button" data-cmd="insertHorizontalRule" aria-label="Divider"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/></svg></button>
+          <button type="button" id="rteImg" aria-label="Image from album"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg></button>
+          <button type="button" id="rteLink" aria-label="Link or web image"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></button>
+          <button type="button" id="rteSrc" aria-label="Show HTML"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg></button>
+        </div>
+        <div class="rte md" id="descEd" contenteditable="true" data-placeholder="Shown on the character list. Not sent to the AI."></div>
+        <textarea id="edDesc" hidden spellcheck="false" placeholder="HTML"></textarea>
         <div class="actions" style="margin-top:8px"><button class="btn" type="button" id="edGenDesc">Generate description</button></div>
         <div class="hint">Written by the AI from the personality, scenario and first message.</div>
       </details>
@@ -3172,7 +3204,7 @@ function renderProfile() {
     const key = t.replace(/s$/, '');
     d.open = folds[key] ?? false;
     const sm = document.createElement('summary'); sm.className = 'sub'; sm.textContent = t;
-    const b = document.createElement('div'); b.className = 'prof-body'; rich(b, v);
+    const b = document.createElement('div'); b.className = 'prof-body'; t === 'Description' ? renderDesc(b, v) : rich(b, v);
     d.append(sm, b);
     return d;
   }));
@@ -3416,7 +3448,7 @@ function row(kind, it) {
   const th = document.createElement('div'); th.className = 'thumb'; setThumb(th, it);
   const info = document.createElement('div'); info.className = 'info';
   const h = document.createElement('h3'); h.textContent = it.name;
-  const p = document.createElement('p'); p.textContent = stripMd(kind === 'char' ? it.description : it.personality);
+  const p = document.createElement('p'); p.textContent = kind === 'char' ? descPlain(it.description) : stripMd(it.personality);
   info.append(h, p); b.append(th, info);
   if (sel.kind === kind) { const c = document.createElement('span'); c.className = 'check'; c.textContent = sel.ids.has(it.id) ? '✓' : ''; b.append(c); }
   w.append(acts, b);
@@ -3570,7 +3602,7 @@ function openEditor(kind, id) {
   $('edName').value = it?.name || '';
   $('edName').placeholder = kind === 'char' ? 'Character name' : 'Your name';
   $('edPers').placeholder = kind === 'char' ? 'Who is this character? Looks, traits, how they talk.' : 'Who are you in the story? The character will know this.';
-  $('edDesc').value = it?.description || '';
+  $('edDesc').value = it?.description || ''; descShowEditor(); descLoad();
   $('edPers').value = it?.personality || '';
   $('edScen').value = it?.scenario || '';
   $('edChatName').value = it?.chatName || '';
@@ -3607,7 +3639,7 @@ function renderCounts() {
     edit && (edit.greets[edit.gi] = $('edFirst').value);
     const always = char ? [$('edPers').value, $('edScen').value, $('edEx').value].join('\n\n').trim() : $('edPers').value.trim();
     const first = char && !$('edAiFirst').checked ? (edit.greets[edit.gi] || '') : '';
-    const desc = char ? $('edDesc').value : '';
+    const desc = char ? descPlain($('edDesc').value) : '';
     let tk = null;
     try { tk = await loadTokenizer(); } catch {}
     const tokens = t => !t ? 0 : tk ? tk.encode(t).length : Math.ceil(t.length / 4);
@@ -3714,7 +3746,7 @@ async function saveEditor() {
   it.name = name;
   it.personality = $('edPers').value.trim();
   if (edit.kind === 'char') {
-    Object.assign(it, { description: $('edDesc').value.trim(), scenario: $('edScen').value.trim(),
+    Object.assign(it, { description: isHtml($('edDesc').value) ? sanitizeHtml($('edDesc').value) : $('edDesc').value.trim(), scenario: $('edScen').value.trim(),
       chatName: $('edChatName').value.trim(), aiFirst: $('edAiFirst').checked, examples: $('edEx').value.trim() });
     edit.greets[edit.gi] = $('edFirst').value;
     it.firstMessages = edit.greets.map(g => g.trim()).filter(Boolean);
@@ -3766,14 +3798,72 @@ ${scen}` : ''}${first ? `
 
 First message:
 ${first}` : ''}` },
-    ], r => { $('edDesc').value = r.trim(); autosize($('edDesc')); }, { free: true });
-    $('edDesc').value = out.trim(); autosize($('edDesc')); renderCounts();
-  } catch (e) { $('edDesc').value = before; autosize($('edDesc')); if (!isAbort(e)) toast('Could not write a description: ' + e.message); }
+    ], r => { $('edDesc').value = r.trim(); descLoad(); }, { free: true });
+    $('edDesc').value = out.trim(); descLoad(); renderCounts();
+  } catch (e) { $('edDesc').value = before; descLoad(); if (!isAbort(e)) toast('Could not write a description: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = 'Generate description'; setBusy(false); }
 };
+// The description editor: formatted text you edit directly; </> shows and edits the HTML itself.
+// #edDesc (hidden) always holds the value; the editor shows it
+let descDirty = false, descRange = null;
+const descEd = $('descEd');
+function descLoad() {
+  const v = $('edDesc').value;
+  descEd.innerHTML = isHtml(v) ? sanitizeHtml(v) : mdToHtml(v);
+  for (const img of descEd.querySelectorAll('img')) {
+    const gm = /^gr:\/\/img\/([A-Za-z0-9_-]+)/.exec(img.getAttribute('src'));
+    if (gm) { img.dataset.gr = gm[1]; img.removeAttribute('src'); idb.get('alb_' + gm[1]).then(src => { if (src) img.src = src; }).catch(() => {}); }
+  }
+  descDirty = false;
+}
+function descSerialize() {
+  const c = descEd.cloneNode(true);
+  for (const img of c.querySelectorAll('img[data-gr]')) { img.setAttribute('src', 'gr://img/' + img.dataset.gr); img.removeAttribute('data-gr'); }
+  const html = sanitizeHtml(c.innerHTML);
+  return c.textContent.trim() || c.querySelector('img, hr') ? html : '';
+}
+descEd.addEventListener('input', () => { descDirty = true; $('edDesc').value = descSerialize(); renderCounts?.(); });
+// remember where the cursor was, so toolbar actions (colour pickers, album) apply there
+document.addEventListener('selectionchange', () => { const s = getSelection(); if (s.rangeCount && descEd.contains(s.anchorNode)) descRange = s.getRangeAt(0).cloneRange(); });
+function descRestore() { descEd.focus(); if (descRange) { const s = getSelection(); s.removeAllRanges(); s.addRange(descRange); } }
+function descCmd(cmd, val = null) { descRestore(); document.execCommand('styleWithCSS', false, true); document.execCommand(cmd, false, val); descEd.dispatchEvent(new Event('input')); }
+for (const b of $('descBar').querySelectorAll('button[data-cmd]')) {
+  b.addEventListener('pointerdown', e => e.preventDefault()); // keep the selection
+  b.onclick = () => descCmd(b.dataset.cmd);
+}
+$('rteBlock').onchange = () => { descCmd('formatBlock', `<${$('rteBlock').value}>`); $('rteBlock').value = 'p'; };
+$('rteHilite').addEventListener('input', () => descCmd('hiliteColor', $('rteHilite').value));
+$('rteColor').addEventListener('input', () => descCmd('foreColor', $('rteColor').value));
+$('rteImg').addEventListener('pointerdown', e => e.preventDefault());
+$('rteImg').onclick = () => openAlbumPick((src, id) => descCmd('insertHTML', `<img src="${src}" data-gr="${id}" alt="">`), 'Add a picture from an album');
+$('rteLink').addEventListener('pointerdown', e => e.preventDefault());
+$('rteLink').onclick = () => {
+  const saved = descRange;
+  const url = (prompt('Web address (a link to a picture shows the picture)', 'https://') || '').trim();
+  if (!/^https?:\/\/\S+\.\S+/.test(url)) return;
+  descRange = saved;
+  const esc = url.replace(/"/g, '%22');
+  if (/\.(png|jpe?g|gif|webp|avif|bmp)(\?\S*)?$/i.test(url)) return descCmd('insertHTML', `<img src="${esc}" alt="">`);
+  const sel = descRange && !descRange.collapsed;
+  sel ? descCmd('createLink', url) : descCmd('insertHTML', `<a href="${esc}">${esc.replace(/</g, '&lt;')}</a>`);
+};
+function descShowEditor() { // back to the formatted view (e.g. when the editor opens)
+  $('edDesc').hidden = true; descEd.hidden = false; $('edDesc').classList.remove('src'); $('rteSrc').classList.remove('on');
+  for (const el of $('descBar').querySelectorAll('button, select, input')) el.disabled = false;
+}
+$('rteSrc').onclick = () => {
+  const src = !$('edDesc').hidden; // currently showing HTML → back to the editor
+  if (src) { descLoad(); descDirty = true; descEd.dispatchEvent(new Event('input')); }
+  else { $('edDesc').value = isHtml($('edDesc').value) || !$('edDesc').value.trim() ? $('edDesc').value : mdToHtml($('edDesc').value); }
+  $('edDesc').hidden = src; descEd.hidden = !src; $('edDesc').classList.toggle('src', !src);
+  $('rteSrc').classList.toggle('on', !src);
+  for (const el of $('descBar').querySelectorAll('button:not(#rteSrc), select, input')) el.disabled = !src;
+  if (!src) autosize($('edDesc'));
+};
+
 // Generate image: a portrait from the personality and description
 $('edGenImg').onclick = async () => {
-  const pers = $('edPers').value.trim(), desc = edit.kind === 'char' ? $('edDesc').value.trim() : '';
+  const pers = $('edPers').value.trim(), desc = edit.kind === 'char' ? descPlain($('edDesc').value) : '';
   if (!pers && !desc) return toast('Fill in the personality first');
   if (!imageProxyOk()) return toast('No image proxy is set up (Settings → Image proxy)');
   if (busy || !ready()) return;
@@ -3838,7 +3928,7 @@ async function importCardInto(f) {
     const card = isPng ? readCardPng(await f.arrayBuffer()) : JSON.parse(await f.text());
     const c = await cardToFields(card);
     if (!c.name && !c.personality) throw new Error('No character data found in this file.');
-    $('edName').value = c.name; $('edDesc').value = c.description; $('edPers').value = c.personality;
+    $('edName').value = c.name; $('edDesc').value = c.description; descLoad(); $('edPers').value = c.personality;
     $('edScen').value = c.scenario; $('edAiFirst').checked = c.aiFirst; $('edEx').value = c.examples; $('edChatName').value = c.chatName;
     edit.greets = c.firstMessages.length ? c.firstMessages : ['']; edit.gi = 0; $('edFirst').value = edit.greets[0]; renderTabs();
     const book = loreFromJson(card, `${c.name || 'Character'} lore`);
@@ -3922,7 +4012,7 @@ Reply with only a JSON object (no markdown fences) with these keys:
     $('gen').classList.remove('open');
     openEditor('char');
     $('edName').value = c.name || ''; $('edChatName').value = c.chatName || '';
-    $('edDesc').value = c.description || ''; $('edPers').value = c.personality || '';
+    $('edDesc').value = c.description || ''; descLoad(); $('edPers').value = c.personality || '';
     $('edScen').value = c.scenario || ''; $('edEx').value = Array.isArray(c.examples) ? c.examples.join('\n') : (c.examples || '');
     const gs = (Array.isArray(c.firstMessages) ? c.firstMessages : [c.firstMessages || c.firstMessage]).filter(x => typeof x === 'string' && x.trim());
     edit.greets = gs.length ? gs : ['']; edit.gi = 0; $('edFirst').value = edit.greets[0]; renderTabs();
@@ -4108,6 +4198,80 @@ function readCardPng(buf) {
   return JSON.parse(b64ToUtf8(b64));
 }
 
+// ---------- Description: formatted text (HTML) ----------
+// Only a safe set of tags and styles is kept; everything else is unwrapped or dropped. Album pictures are
+// stored as <img src="gr://img/id">; web pictures and links are kept
+const isHtml = t => /<\/?(p|div|br|b|i|u|s|em|strong|span|font|h[1-6]|ul|ol|li|img|a|blockquote|hr|strike|del|center|mark|sub|sup)\b[^>]*>/i.test(t || '');
+const RTE_TAGS = new Set(['P', 'DIV', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL', 'SPAN', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'HR', 'A', 'IMG', 'MARK', 'SUB', 'SUP', 'CODE', 'PRE']);
+const RTE_STYLE = /^(color|background-color|text-align|font-weight|font-style|text-decoration|text-decoration-line)$/;
+function sanitizeHtml(html) {
+  const doc = new DOMParser().parseFromString(`<body>${html || ''}</body>`, 'text/html');
+  const walk = node => {
+    for (const el of [...node.children]) {
+      const tag = el.tagName;
+      if (/^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|LINK|META|FORM|INPUT|BUTTON|TEXTAREA|SELECT|SVG|MATH|VIDEO|AUDIO|NOSCRIPT|TEMPLATE)$/.test(tag)) { el.remove(); continue; }
+      walk(el);
+      let out = el;
+      if (tag === 'FONT' || tag === 'CENTER') { // old tags → a span / centred paragraph
+        out = doc.createElement(tag === 'CENTER' ? 'p' : 'span');
+        if (tag === 'CENTER') out.style.textAlign = 'center';
+        if (el.getAttribute('color')) out.style.color = el.getAttribute('color');
+        out.append(...el.childNodes); el.replaceWith(out);
+      } else if (!RTE_TAGS.has(tag)) { el.replaceWith(...el.childNodes); continue; }
+      const style = out.getAttribute('style') || '', align = out.getAttribute('align');
+      const keep = {};
+      for (const a of [...out.attributes]) {
+        const n = a.name.toLowerCase(), v = a.value.trim();
+        if (tag === 'A' && n === 'href' && /^(https?:|mailto:)/i.test(v)) keep.href = v;
+        else if (tag === 'IMG' && n === 'src' && /^(https?:\/\/|gr:\/\/img\/|data:image\/)/i.test(v)) keep.src = v;
+        else if (tag === 'IMG' && n === 'alt') keep.alt = v;
+      }
+      for (const a of [...out.attributes]) out.removeAttribute(a.name);
+      for (const [k, v] of Object.entries(keep)) out.setAttribute(k, v);
+      const css = style.split(';').map(d => d.split(':')).filter(([k, v]) => k && v && RTE_STYLE.test(k.trim().toLowerCase()) && !/url\(|expression|javascript/i.test(v)).map(([k, v]) => `${k.trim().toLowerCase()}: ${v.trim()}`);
+      if (align && /^(left|center|right|justify)$/i.test(align)) css.push(`text-align: ${align.toLowerCase()}`);
+      if (css.length) out.setAttribute('style', css.join('; '));
+      if (tag === 'IMG' && !keep.src) out.remove();
+      if (tag === 'A') { out.setAttribute('target', '_blank'); out.setAttribute('rel', 'noopener'); }
+    }
+  };
+  walk(doc.body);
+  return doc.body.innerHTML.trim();
+}
+// Markdown / plain text → HTML (for descriptions written before the editor, or by the AI)
+function mdToHtml(t) {
+  const esc = x => x.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const inl = x => esc(x)
+    .replace(/gr:\/\/img\/([A-Za-z0-9_-]+)/g, '<img src="gr://img/$1" alt="">')
+    .replace(/!\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g, '<img src="$2" alt="$1">')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+    .replace(/\*\*\*(\S[\s\S]*?\S|\S)\*\*\*/g, '<b><i>$1</i></b>').replace(/\*\*(\S[\s\S]*?\S|\S)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[^*])\*(\S[^*]*?\S|\S)\*/g, '$1<i>$2</i>').replace(/~~(\S[\s\S]*?\S|\S)~~/g, '<s>$1</s>');
+  const out = [], lines = (t || '').replace(/\r/g, '').split('\n');
+  for (let i = 0; i < lines.length;) {
+    const l = lines[i]; let m;
+    if (!l.trim()) { i++; continue; }
+    if ((m = /^\s*(#{1,6})\s+(.*)$/.exec(l))) { const n = Math.min(3, m[1].length); out.push(`<h${n}>${inl(m[2])}</h${n}>`); i++; }
+    else if (/^\s*(-{3,}|\*{3,}|_{3,}|———)\s*$/.test(l)) { out.push('<hr>'); i++; }
+    else if (/^\s*>/.test(l)) { const b = []; while (i < lines.length && /^\s*>/.test(lines[i])) b.push(inl(lines[i++].replace(/^\s*>\s?/, ''))); out.push(`<blockquote>${b.join('<br>')}</blockquote>`); }
+    else if (/^\s*([-*+•]|\d+[.)])\s+\S/.test(l)) { const b = []; while (i < lines.length && (m = /^\s*(?:[-*+•]|\d+[.)])\s+(.*)$/.exec(lines[i]))) { b.push(`<li>${inl(m[1])}</li>`); i++; } out.push(`<ul>${b.join('')}</ul>`); }
+    else { const b = [l]; i++; while (i < lines.length && lines[i].trim() && !/^\s*(#{1,6}\s|>|[-*+•]\s|\d+[.)]\s|-{3,}\s*$)/.test(lines[i])) b.push(lines[i++]); out.push(`<p>${b.map(inl).join('<br>')}</p>`); }
+  }
+  return out.join('');
+}
+const descPlain = t => isHtml(t) ? htmlToText(t.replace(/<img[^>]*>/gi, '')) : stripMd(t);
+// Shows a description: formatted HTML, or Markdown for older ones. Album pictures load from storage
+function renderDesc(el, t) {
+  if (!isHtml(t)) return rich(el, t);
+  el.classList.add('html'); el.innerHTML = sanitizeHtml(t);
+  for (const img of el.querySelectorAll('img')) {
+    const gm = /^gr:\/\/img\/([A-Za-z0-9_-]+)/.exec(img.getAttribute('src'));
+    if (gm) { img.removeAttribute('src'); idb.get('alb_' + gm[1]).then(src => { if (src) { img.src = src; img.onclick = () => openLightbox(src); } else img.replaceWith('[missing image]'); }).catch(() => {}); }
+    else img.onclick = () => openLightbox(img.src);
+  }
+}
+
 // HTML (common in JanitorAI/Chub cards) → readable plain text
 function htmlToText(h) {
   if (!h || !/<\/?[a-z][^>]*>/i.test(h)) return (h || '').trim();
@@ -4138,7 +4302,9 @@ function cardChatName(d, name) {
 async function cardToFields(card) {
   const d = card?.data || card || {}, g = d.extensions?.greenroom;
   const pers = d.personality || '', persIsIntro = /<\/?[a-z][^>]*>/i.test(pers);
-  const notes = [htmlToText(d.creator_notes), persIsIntro ? htmlToText(pers) : ''].filter(Boolean).join('\n\n');
+  const noteParts = [d.creator_notes || '', persIsIntro ? pers : ''].map(x => x.trim()).filter(Boolean);
+  // the description keeps its formatting: HTML stays HTML (cleaned), plain parts are joined in
+  const notes = noteParts.some(isHtml) ? sanitizeHtml(noteParts.map(x => isHtml(x) ? x : mdToHtml(x)).join('')) : noteParts.join('\n\n');
   const out = {
     name: htmlToText(d.name),
     description: g?.description ?? notes,
@@ -4170,7 +4336,7 @@ async function exportCard(c) {
     const card = { spec: 'chara_card_v2', spec_version: '2.0', data: {
       name: c.name, ...(c.chatName?.trim() ? { nickname: c.chatName.trim() } : {}), description: c.personality || '', personality: '', scenario: c.scenario || '',
       first_mes: c.aiFirst ? '' : (gs[0] || ''), mes_example: c.examples || '',
-      creator_notes: stripLinks(c.description), system_prompt: '', post_history_instructions: '',
+      creator_notes: isHtml(c.description) ? c.description.replace(/<img[^>]*src="gr:\/\/img\/[^"]*"[^>]*>/gi, '').trim() : stripLinks(c.description), system_prompt: '', post_history_instructions: '',
       alternate_greetings: c.aiFirst ? [] : gs.slice(1), tags: [], creator: '', character_version: '',
       ...(() => {
         const books = lorebooks.filter(b => c.lorebooks?.includes(b.id));
@@ -5814,7 +5980,7 @@ function renderAlbumPick() {
     t.onclick = async () => {
       const src = await idb.get('alb_' + id).catch(() => null); if (!src) return;
       $('albPick').hidden = true;
-      if (apOnPick) return apOnPick(src);
+      if (apOnPick) return apOnPick(src, id);
       setAttached(src); toast('Picture added to your message');
     };
     g.append(t);
