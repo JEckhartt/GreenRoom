@@ -129,6 +129,7 @@
   #lightbox .bar { position: absolute; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 16px; pointer-events: none; }
   #lightbox .bar.top { top: max(12px, env(safe-area-inset-top)); }
   #lightbox .bar.bottom { bottom: max(16px, env(safe-area-inset-bottom)); justify-content: center; }
+  #lightbox #lbDel { color: #ff6b6b; }
   #lightbox .bar button { pointer-events: auto; background: rgba(40,40,40,.75); color: #fff; border: 0; border-radius: 999px; padding: 10px 18px; font-size: 15px; cursor: pointer; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
   #toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px); z-index: 40; background: rgba(30,30,30,.9); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -745,7 +746,7 @@
     <div class="grid" id="albumGrid"></div>
     <input type="file" id="albumFile" accept="image/*" multiple hidden>
   </div></div>
-  <div class="selbar" id="albumSel" hidden><span></span><button class="btn" type="button" data-act="actions">Actions</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
+  <div class="selbar" id="albumSel" hidden><span></span><button class="btn danger" type="button" data-act="delete">Delete</button><button class="btn" type="button" data-act="actions" aria-label="More">⋯</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
 </section>
 
 <section id="chats" class="view" aria-label="Chats">
@@ -1123,7 +1124,7 @@
 <div id="lightbox">
   <div class="stage"><img alt="" draggable="false"></div>
   <div class="bar top"><button type="button" id="lbClose" aria-label="Close" style="width:44px;height:44px;padding:0">✕</button><span id="lbCount"></span></div>
-  <div class="bar bottom"><button type="button" id="lbSave">Save to Photos</button><button type="button" id="lbLink" hidden>Copy link</button></div>
+  <div class="bar bottom"><button type="button" id="lbSave">Save to Photos</button><button type="button" id="lbLink" hidden>Copy link</button><button type="button" id="lbDel" hidden>Delete</button></div>
 </div>
 <div id="toast"></div>
 <div id="framer" hidden><div class="fr-box">
@@ -4548,15 +4549,17 @@ $('albumSel').onclick = e => {
   const a = albums.find(x => x.id === albumId), ids = [...(albumSel || [])];
   if (!a || !ids.length) return;
   const n = ids.length, s = n === 1 ? '' : 's';
+  const del = () => {
+    if (!confirm(`Delete ${n} image${s} from "${a.name}"?`)) return;
+    a.images = a.images.filter(x => !ids.includes(x)); saveAlbums(); dropImages(ids); ids.forEach(id => albSrc.delete(id));
+    albumSel = null; renderAlbum(); renderAlbums();
+  };
+  if (act === 'delete') return del();
   showSheet(`${n} image${s}`, [
     { label: `Copy link${s}`, onClick: () => copyText(ids.map(imgLink).join('\n'), n === 1 ? 'Link copied' : `${n} links copied`) },
     { label: 'Copy to album…', onClick: () => pickAlbum(a, ids, false) },
     { label: 'Move to album…', onClick: () => pickAlbum(a, ids, true) },
-    { label: `Delete image${s}`, onClick: () => {
-      if (!confirm(`Delete ${n} image${s} from "${a.name}"?`)) return;
-      a.images = a.images.filter(x => !ids.includes(x)); saveAlbums(); dropImages(ids);
-      albumSel = null; renderAlbum(); renderAlbums();
-    } },
+    { label: `Delete image${s}`, onClick: del },
   ]);
 };
 function pickAlbum(from, ids, move) {
@@ -5691,7 +5694,7 @@ function lbPreload() { if (!lbGal) return; for (const d of [-1, 1]) { const k = 
 let glide = 0;
 let lbGal = null; // { ids, i } when viewing an album
 function lbMeta() {
-  $('lbLink').hidden = !lbGal?.album;
+  $('lbLink').hidden = $('lbDel').hidden = !lbGal?.album;
   $('lbCount').textContent = lbGal && lbGal.keys.length > 1 ? `${lbGal.i + 1} / ${lbGal.keys.length}` : '';
 }
 // next / previous picture: the open one slides out, the new one slides in from the other side
@@ -5709,6 +5712,20 @@ async function lbStep(d) {
   lbImg.style.transition = 'transform .26s cubic-bezier(.2,.8,.2,1)'; lbImg.style.transform = 'translate(0px, 0px) scale(1)';
   lbPreload();
 }
+// Delete the picture being viewed from its album; the next one shows (or the viewer closes)
+$('lbDel').onclick = async () => {
+  const a = albums.find(x => x.id === albumId); if (!lbGal?.album || !a) return;
+  const key = lbGal.keys[lbGal.i], id = key.replace(/^alb_/, '');
+  if (!confirm(`Delete this image from "${a.name}"?`)) return;
+  a.images = a.images.filter(x => x !== id); saveAlbums(); dropImages([id]); albSrc.delete(id);
+  lbGal.keys.splice(lbGal.i, 1);
+  renderAlbum(); renderAlbums();
+  if (!lbGal.keys.length) return closeLightbox();
+  if (lbGal.i >= lbGal.keys.length) lbGal.i = lbGal.keys.length - 1;
+  const src = await lbLoad(lbGal.keys[lbGal.i]);
+  if (!src) return closeLightbox();
+  lbImg.src = src; Z.s = 1; Z.tx = 0; Z.ty = 0; zApply(false); lbMeta(); lbPreload();
+};
 $('lbLink').onclick = () => lbGal?.album && copyText(imgLink(lbGal.keys[lbGal.i].replace(/^alb_/, '')));
 function openLightbox(src, gal = null) {
   lbGal = gal ? { keys: [...gal.keys], i: gal.i, album: !!gal.album } : null; lbMeta();
