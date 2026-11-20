@@ -660,6 +660,10 @@
   .jchat .jtxt small { display: block; color: var(--ink-soft); font-size: 12px; }
   .jchat .jtxt p { margin: 4px 0 0; font-size: 13px; color: var(--ink-soft); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .jchat.off .jtxt { opacity: .45; }
+  .jlink { display: block; padding: 11px 0; border-top: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+  .jlink:first-child { border-top: 0; }
+  .jlink b { display: block; font-weight: 500; }
+  .jlink small { display: block; font-size: 12px; color: var(--accent-ink); overflow-wrap: anywhere; }
   .jmsg { padding: 10px 0; border-top: 1px solid var(--line); }
   .jmsg:first-child { border-top: 0; }
   .jmsg > small { display: block; font-size: 12px; color: var(--ink-soft); margin-bottom: 3px; }
@@ -1056,6 +1060,7 @@
   <div class="page-head"><button class="back" data-close="janImp" type="button">‹ Cancel</button><h1>Import from JanitorAI</h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="hint" id="janSum" style="margin:0 4px 12px"></div>
+    <button class="btn" type="button" id="janHid" style="width:100%;margin-bottom:6px" hidden></button>
     <div class="jan-h">Characters</div>
     <div class="card jan-list" id="janChars"></div>
     <div class="jan-h">Personas</div>
@@ -4248,6 +4253,8 @@ function janRender() {
   $('janPers').previousElementSibling.hidden = $('janPers').hidden = !JAN.prows.length;
   const nc = JAN.rows.reduce((a, r) => a + (r.to === 'skip' ? 0 : r.list.length - r.off.size), 0);
   $('janGo').textContent = `Import ${nc} chat${nc === 1 ? '' : 's'}`; $('janGo').disabled = !nc;
+  const miss = janMissing();
+  $('janHid').hidden = !miss.length; $('janHid').textContent = `Hidden definitions (${miss.length})`;
 }
 function janField(label, value, { html = false, empty = 'Empty' } = {}) {
   const f = document.createElement('div'); f.className = 'jan-f';
@@ -4319,6 +4326,32 @@ function janOpenPersona(r) {
   };
   draw(); body.parentElement.scrollTop = 0; openView('janItem');
 }
+// Characters whose definition is hidden on JanitorAI and still missing here (new, not imported, or
+// matched to a character without a personality), with their page on JannyAI
+function janSlug(name) {
+  return String(name || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/['’`]/g, '')
+    .replace(/(\d)([a-z])/g, '$1-$2').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+const janJanny = jc => `https://jannyai.com/characters/${jc.id}_character-${janSlug(jc.name)}`;
+function janMissing() {
+  return JAN.rows.filter(r => janHidden(r.jc) && !String(chars.find(x => x.id === r.to)?.personality || '').trim());
+}
+$('janHid').onclick = () => {
+  const miss = janMissing(), body = $('janItBody');
+  $('janItTitle').textContent = 'Hidden definitions';
+  const h = document.createElement('div'); h.className = 'hint'; h.style.margin = '0 4px 12px';
+  h.textContent = `${miss.length} character${miss.length === 1 ? '' : 's'} with a hidden definition and no personality here yet. Each link is its JanitorAI page with janitorai.com changed to jannyai.com.`;
+  const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'btn'; copy.style.width = '100%'; copy.style.marginBottom = '10px';
+  copy.textContent = 'Copy list';
+  copy.onclick = () => copyText(miss.map(r => `${r.jc.name}\n${janJanny(r.jc)}`).join('\n\n'), 'List copied');
+  const card = document.createElement('div'); card.className = 'card jan-list';
+  for (const r of [...miss].sort((a, b) => a.jc.name.localeCompare(b.jc.name))) {
+    const a = document.createElement('a'); a.className = 'jlink'; a.href = janJanny(r.jc); a.target = '_blank'; a.rel = 'noopener';
+    const b = document.createElement('b'); b.textContent = r.jc.name; const sm = document.createElement('small'); sm.textContent = a.href;
+    a.append(b, sm); card.append(a);
+  }
+  body.replaceChildren(h, copy, card); body.parentElement.scrollTop = 0; openView('janItem');
+};
 // Read a chat exactly as it will be imported
 function janOpenChat(jr, jc) {
   const msgs = janMessages(jr), jp = janPersonaOf(jr), body = $('janChBody');

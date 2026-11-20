@@ -3,9 +3,7 @@ import WebKit
 import Capacitor
 
 // "Connect to JanitorAI": opens JanitorAI in a browser window inside the app. You log in as usual (the
-// login is remembered). While you browse, the data the site's own page loads (chat lists, messages,
-// characters) is recorded, so an inspection file can be saved and shared to work out a chat import.
-// Login tokens, passwords, cookies and e-mail addresses are removed from the file.
+// login is remembered). Import chats downloads your chats and passes them to Green Room for review.
 @objc(JanitorBrowserPlugin)
 public class JanitorBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "JanitorBrowserPlugin"
@@ -43,8 +41,6 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
     private var importing = false
     private let importButton = UIButton(type: .system)
     private var webView: WKWebView!
-    private var recorded: [[String: Any]] = []
-    private var recordedBytes = 0
     private let countLabel = UILabel()
 
     init(start: URL, plugin: JanitorBrowserPlugin) {
@@ -61,9 +57,8 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default() // stays logged in
         let content = WKUserContentController()
-        content.add(WeakMessageHandler(self), name: "gr")
         content.add(WeakMessageHandler(self), name: "grImport")
-        content.addUserScript(WKUserScript(source: JanitorBrowserController.recorder, injectionTime: .atDocumentStart, forMainFrameOnly: false))
+        content.addUserScript(WKUserScript(source: JanitorBrowserController.loginHeaders, injectionTime: .atDocumentStart, forMainFrameOnly: false))
         config.userContentController = content
 
         webView = WKWebView(frame: .zero, configuration: config)
@@ -77,25 +72,17 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
         close.titleLabel?.font = .systemFont(ofSize: 17)
         close.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
 
-        let save = UIButton(type: .system)
-        save.setTitle("Save file", for: .normal)
-        save.titleLabel?.font = .systemFont(ofSize: 15)
-        save.addTarget(self, action: #selector(saveTapped(_:)), for: .touchUpInside)
-
         importButton.setTitle("Import chats", for: .normal)
         importButton.titleLabel?.font = .boldSystemFont(ofSize: 16)
         importButton.addTarget(self, action: #selector(importTapped), for: .touchUpInside)
 
         countLabel.font = .systemFont(ofSize: 12)
         countLabel.textColor = .secondaryLabel
-        countLabel.text = "Log in first"
+        countLabel.text = ""
         countLabel.adjustsFontSizeToFitWidth = true
         countLabel.minimumScaleFactor = 0.7
 
-        let right = UIStackView(arrangedSubviews: [save, importButton])
-        right.axis = .horizontal
-        right.spacing = 16
-        let bar = UIStackView(arrangedSubviews: [close, countLabel, right])
+        let bar = UIStackView(arrangedSubviews: [close, countLabel, importButton])
         bar.axis = .horizontal
         bar.alignment = .center
         bar.distribution = .equalSpacing
@@ -119,15 +106,10 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
         webView.load(URLRequest(url: start))
     }
 
-    // One recorded response from the page, or a message from the importer
+    // A message from the importer
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let entry = message.body as? [String: Any] else { return }
-        if message.name == "grImport" { return importMessage(entry) }
-        let size = ((entry["body"] as? String)?.utf8.count ?? 0) + ((entry["sent"] as? String)?.utf8.count ?? 0)
-        if recorded.count >= 800 || recordedBytes + size > 25_000_000 { return }
-        recorded.append(entry)
-        recordedBytes += size
-        countLabel.text = "\(recorded.count) recorded"
+        importMessage(entry)
     }
 
     @objc private func importTapped() {
@@ -177,50 +159,6 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
         if importing { webView.evaluateJavaScript("window.__grStop = true") }
         if importing { plugin?.send(["type": "error", "message": "cancelled"]) }
         dismiss(animated: true)
-    }
-
-    @objc private func saveTapped(_ sender: UIButton) {
-        webView.evaluateJavaScript("[location.href, document.title, document.documentElement.outerHTML]") { [weak self] result, _ in
-            guard let self = self else { return }
-            let page = result as? [Any] ?? []
-            let html = (page.count > 2 ? page[2] as? String : nil) ?? ""
-            let file: [String: Any] = [
-                "app": "Green Room",
-                "kind": "janitorai-inspection",
-                "version": 1,
-                "created": ISO8601DateFormatter().string(from: Date()),
-                "page": (page.first as? String) ?? "",
-                "title": (page.count > 1 ? page[1] as? String : nil) ?? "",
-                "html": String(html.prefix(2_000_000)),
-                "requests": self.recorded
-            ]
-            guard let data = try? JSONSerialization.data(withJSONObject: file, options: [.prettyPrinted]),
-                  let raw = String(data: data, encoding: .utf8) else { return }
-            let text = JanitorBrowserController.redact(raw)
-            let stamp = DateFormatter()
-            stamp.dateFormat = "yyyy-MM-dd-HHmm"
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("janitorai-inspection-\(stamp.string(from: Date())).json")
-            do { try text.write(to: url, atomically: true, encoding: .utf8) } catch { return }
-            let share = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-            share.popoverPresentationController?.sourceView = sender
-            self.present(share, animated: true)
-        }
-    }
-
-    // Removes login tokens (JWTs), secret-looking fields and e-mail addresses from the file
-    static func redact(_ input: String) -> String {
-        var text = input
-        let rules: [(String, String)] = [
-            (#"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}"#, "[removed]"),
-            (#"(?i)(\\?"(?:[a-z_]*token|authorization|cookie|password|secret|api_?key|session[a-z_]*|refresh[a-z_]*)\\?"\s*:\s*\\?")[^"\\]*(\\?")"#, "$1[removed]$2"),
-            (#"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"#, "[email removed]")
-        ]
-        for (pattern, template) in rules {
-            if let re = try? NSRegularExpression(pattern: pattern) {
-                text = re.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: template)
-            }
-        }
-        return text
     }
 
     // Import chats: runs in the JanitorAI page (so it is logged in, like the site itself) and asks the
@@ -279,31 +217,20 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
     0;
     """#
 
-    // Runs in every page before the site's own code: records the data the page fetches (not images,
-    // scripts, styles or trackers). Request headers are never recorded, so no login headers are kept
-    static let recorder = #"""
+    // Runs in every page before the site's own code. Nothing is recorded: it only notes the login headers
+    // the site sends to its own API, in memory, so Import chats is logged in the same way
+    static let loginHeaders = #"""
     (function () {
-      if (window.__grRecorder) return; window.__grRecorder = true;
-      var post = function (d) { try { window.webkit.messageHandlers.gr.postMessage(d); } catch (e) {} };
-      var skip = function (u) {
-        return /\.(js|mjs|css|png|jpe?g|gif|webp|avif|svg|woff2?|ttf|otf|ico|mp4|webm|mp3)(\?|$)/i.test(u) ||
-          /google-analytics|googletagmanager|doubleclick|sentry|clarity|hotjar|facebook|cloudflareinsights|cdn-cgi|stripe|recaptcha|hcaptcha|turnstile/i.test(u);
-      };
-      var cleanUrl = function (u) {
-        try { var x = new URL(u, location.href); Array.from(x.searchParams.keys()).forEach(function (k) { if (/token|key|auth|sig|session|secret|code/i.test(k)) x.searchParams.set(k, 'removed'); }); return x.href; }
-        catch (e) { return String(u); }
-      };
-      var LIMIT = 300000;
-      var realFetch = window.fetch;
-      window.__grFetch = realFetch;
-      // The site's own login headers for its API, kept in memory for the importer (never saved to the file)
+      if (window.__grWatch) return; window.__grWatch = true;
       window.__grAuth = window.__grAuth || {};
       var keep = function (u, name, value) {
-        if (!/janitorai\.com\/hampter\//.test(new URL(u, location.href).href)) return;
-        var n = String(name).toLowerCase();
-        if (n === 'authorization' || (/^x-/.test(n))) window.__grAuth[n] = String(value);
+        try {
+          if (!/janitorai\.com\/hampter\//.test(new URL(u, location.href).href)) return;
+          var n = String(name).toLowerCase();
+          if (n === 'authorization' || /^x-/.test(n)) window.__grAuth[n] = String(value);
+        } catch (e) {}
       };
-      var noteHeaders = function (u, h) {
+      var note = function (u, h) {
         try {
           if (!h) return;
           if (typeof h.forEach === 'function' && !Array.isArray(h)) h.forEach(function (v, k) { keep(u, k, v); });
@@ -311,41 +238,17 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
           else Object.keys(h).forEach(function (k) { keep(u, k, h[k]); });
         } catch (e) {}
       };
+      var realFetch = window.fetch;
+      window.__grFetch = realFetch;
       window.fetch = function (input, init) {
         var url = typeof input === 'string' ? input : (input && input.url) || String(input);
-        noteHeaders(url, input && typeof input !== 'string' && input.headers);
-        noteHeaders(url, init && init.headers);
-        var method = (init && init.method) || (input && input.method) || 'GET';
-        var sent = init && typeof init.body === 'string' ? init.body.slice(0, 20000) : '';
-        var p = realFetch.apply(this, arguments);
-        if (!skip(url)) p.then(function (r) {
-          var ct = r.headers.get('content-type') || '';
-          if (!/json|text|event-stream/i.test(ct)) return;
-          r.clone().text().then(function (t) {
-            post({ via: 'fetch', method: method, url: cleanUrl(url), status: r.status, type: ct, sent: sent, body: t.slice(0, LIMIT), truncated: t.length > LIMIT, at: Date.now() });
-          }).catch(function () {});
-        }).catch(function () {});
-        return p;
+        note(url, input && typeof input !== 'string' && input.headers);
+        note(url, init && init.headers);
+        return realFetch.apply(this, arguments);
       };
-      var open = XMLHttpRequest.prototype.open, send = XMLHttpRequest.prototype.send;
-      XMLHttpRequest.prototype.open = function (m, u) { this.__gr = { method: m, url: String(u) }; return open.apply(this, arguments); };
-      var setHeader = XMLHttpRequest.prototype.setRequestHeader;
-      XMLHttpRequest.prototype.setRequestHeader = function (k, v) { try { if (this.__gr) keep(this.__gr.url, k, v); } catch (e) {} return setHeader.apply(this, arguments); };
-      XMLHttpRequest.prototype.send = function (b) {
-        var info = this.__gr, xhr = this;
-        if (info && !skip(info.url)) {
-          info.sent = typeof b === 'string' ? b.slice(0, 20000) : '';
-          xhr.addEventListener('load', function () {
-            try {
-              var ct = xhr.getResponseHeader('content-type') || '';
-              if (!/json|text/i.test(ct)) return;
-              var t = typeof xhr.responseText === 'string' ? xhr.responseText : '';
-              post({ via: 'xhr', method: info.method, url: cleanUrl(info.url), status: xhr.status, type: ct, sent: info.sent, body: t.slice(0, LIMIT), truncated: t.length > LIMIT, at: Date.now() });
-            } catch (e) {}
-          });
-        }
-        return send.apply(this, arguments);
-      };
+      var open = XMLHttpRequest.prototype.open, setHeader = XMLHttpRequest.prototype.setRequestHeader;
+      XMLHttpRequest.prototype.open = function (m, u) { this.__grUrl = String(u); return open.apply(this, arguments); };
+      XMLHttpRequest.prototype.setRequestHeader = function (k, v) { if (this.__grUrl) keep(this.__grUrl, k, v); return setHeader.apply(this, arguments); };
     })();
     """#
 }
