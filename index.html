@@ -220,6 +220,10 @@
   .items.gridview .item h3 { font-size: 15px; margin: 0 0 3px; }
   .items.gridview .item p { font-size: 13px; -webkit-line-clamp: 3; line-clamp: 3; }
   .items.gridview .swipe-acts { display: none; }
+  #albumList .item { position: relative; padding-right: 48px; }
+  .alb-more { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; display: grid; place-items: center; color: var(--ink-soft); font-size: 22px; line-height: 1; cursor: pointer; }
+  #albumList.gridview .item { padding-right: 8px; }
+  #albumList.gridview .alb-more { top: auto; bottom: 4px; transform: none; }
   .items.gridview .folder-head > .item { flex-direction: row; align-items: center; gap: 12px; padding: 8px 10px; }
   .items.gridview .folder-head .folder-icon { width: 34px; height: 34px; border-radius: 10px; }
   .items.gridview .folder-head .info { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
@@ -734,7 +738,7 @@
 </section>
 
 <section id="album" class="view" aria-label="Album">
-  <div class="page-head"><button class="back" data-close="album" type="button">‹ Albums</button><h1 id="albumTitle"></h1><button class="act" id="albumMenu" type="button" aria-label="Album options">•••</button></div>
+  <div class="page-head"><button class="back" data-close="album" type="button">‹ Albums</button><h1 id="albumTitle"></h1><span></span></div>
   <div class="page-body"><div class="page-inner">
     <div class="create"><button type="button" id="albumAdd">+ Add images</button></div>
     <div class="hint" style="margin:0 4px 10px">Tap an image to view it and copy its link; paste the link in a character's description to show it on the card. Long press to select several.</div>
@@ -4422,7 +4426,10 @@ function renderAlbums() {
     const info = document.createElement('div'); info.className = 'info';
     const h = document.createElement('h3'); h.textContent = a.name;
     const p = document.createElement('p'); p.textContent = `${a.images.length} image${a.images.length === 1 ? '' : 's'}`;
-    info.append(h, p); b.append(th, info);
+    const more = document.createElement('span'); more.className = 'alb-more'; more.setAttribute('role', 'button'); more.setAttribute('aria-label', 'Album options'); more.textContent = '⋯';
+    more.addEventListener('pointerdown', e => e.stopPropagation()); // not a tap on the album
+    more.addEventListener('click', e => { e.stopPropagation(); albumOptions(a); });
+    info.append(h, p); b.append(th, info, more);
     w.append(acts, b);
     gestures(w, b, () => openAlbum(a.id), null, isGrid('album') ? 0 : 84);
     list.append(w);
@@ -4588,13 +4595,13 @@ $('albumFile').onchange = async () => {
   }
   saveAlbums(); renderAlbum(); renderAlbums();
 };
-$('albumMenu').onclick = () => {
-  const a = albums.find(x => x.id === albumId); if (!a) return;
+// Album options: the ⋯ on each album in the Albums list
+function albumOptions(a) {
   showSheet(a.name, [
-    { label: 'Rename album', onClick: () => { const n = prompt('Album name', a.name)?.trim(); if (n) { a.name = n; saveAlbums(); renderAlbum(); renderAlbums(); } } },
-    { label: 'Delete album', onClick: () => { if (deleteAlbum(a)) closeView('album'); } },
+    { label: 'Rename album', onClick: () => { const n = prompt('Album name', a.name)?.trim(); if (n) { a.name = n; saveAlbums(); renderAlbums(); if (albumId === a.id) renderAlbum(); } } },
+    { label: 'Delete album', onClick: () => { if (deleteAlbum(a) && albumId === a.id) closeView('album'); } },
   ]);
-};
+}
 
 // ---------- Chat settings: memory + this chat's own style ----------
 function openChatSettings() {
