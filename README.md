@@ -2,7 +2,7 @@
 
 A character chat app: create characters and personas and chat with them. Built on the Nearly codebase. Everything is stored on the device (`localStorage` for text, IndexedDB for messages and images).
 
-The title screen has **Chats**, **Characters**, **Personas**, **Albums** and **Settings**. Swipe from the left edge to go back.
+The title screen has **Chats**, **Characters**, **Personas**, **Lorebooks**, **Albums**, **Settings** and **Connect to JanitorAI**. Swipe from the left edge to go back.
 
 ## Chats
 
@@ -53,6 +53,10 @@ With **Enable** off it's a regular chat: no images are made or sent to the AI (e
 
 - **Lorebooks**: world info. Each entry has keywords and is only sent when one appears in the recent messages (or always, if marked). Use one everywhere, link it to a character or to a chat. Imported and exported with character cards; SillyTavern world info files work too.
 - **Albums**: collect images, last added first. While selecting, slide your finger sideways over the pictures (or long press and keep moving) to select a whole run, like Photos; near the top or bottom the page scrolls along. In the viewer, swipe or flick for the next picture; zoomed in, pan freely (it glides) and pull past the edge to go to the next one. Copy an image's link (`gr://img/…`) into a character's description to show it on the card. Long press to select several: copy links, copy or move, delete.
+
+## Connect to JanitorAI
+
+iPhone app only. Opens JanitorAI in a browser window inside the app; log in as usual (it stays logged in). While you browse, the data the site loads (chat lists, messages, characters) is recorded; the count shows at the top. **Save inspection file** saves that recording plus the current page as a `.json` file and opens the share sheet. Login tokens, passwords, cookies and e-mail addresses are removed from it. This is step one toward importing JanitorAI chats.
 
 ## Settings
 

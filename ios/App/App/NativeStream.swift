@@ -1,10 +1,11 @@
 import Foundation
 import Capacitor
 
-// The app's main screen: Capacitor's view controller, plus Green Room's own native plugin.
+// The app's main screen: Capacitor's view controller, plus Green Room's own native plugins.
 class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(NativeStreamPlugin())
+        bridge?.registerPluginInstance(JanitorBrowserPlugin())
     }
 }
 

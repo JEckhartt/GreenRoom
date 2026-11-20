@@ -685,6 +685,7 @@
     <button type="button" id="goLore">Lorebooks</button>
     <button type="button" id="goAlbums">Albums</button>
     <button type="button" id="goSettings">Settings</button>
+    <button type="button" id="goJanitor">Connect to JanitorAI</button>
   </nav>
 </section>
 
@@ -4081,6 +4082,12 @@ $('goChats').onclick = () => { deliverReach(); renderChats(); openView('chats');
 $('goChars').onclick = () => openView('chars');
 $('goPersonas').onclick = () => openView('personas');
 $('goSettings').onclick = () => openSettings();
+// Opens JanitorAI in a browser window of the iPhone app, to record and save an inspection file
+$('goJanitor').onclick = () => {
+  const jb = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.JanitorBrowser;
+  if (!jb) return toast('Only in the iPhone app');
+  jb.open({ url: 'https://janitorai.com' }).catch(e => toast('Couldn\'t open JanitorAI: ' + (e?.message || e)));
+};
 $('goAlbums').onclick = () => { renderAlbums(); openView('albums'); };
 $('goLore').onclick = () => { renderLoreList(); openView('lorebooks'); };
 
