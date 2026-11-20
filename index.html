@@ -631,6 +631,7 @@
   .preview { position: sticky; top: 0; z-index: 2; margin-bottom: 10px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 2px 14px 14px; }
   .card + .card { margin-top: 10px; }
+  #janHub .btn.primary { border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; padding: 13px; }
   .jan-h { font-size: 13px; color: var(--ink-soft); margin: 18px 6px 6px; text-transform: uppercase; letter-spacing: .04em; }
   .jan-list { padding: 0 14px; }
   .jrow { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 0; background: none; border: 0; border-top: 1px solid var(--line); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
@@ -660,7 +661,12 @@
   .jchat .jtxt small { display: block; color: var(--ink-soft); font-size: 12px; }
   .jchat .jtxt p { margin: 4px 0 0; font-size: 13px; color: var(--ink-soft); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .jchat.off .jtxt { opacity: .45; }
-  .jlink { display: block; padding: 11px 0; border-top: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+  .jlink { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+  .jlink .av { width: 40px; height: 40px; background-size: cover; }
+  .jlink > span:last-child { flex: 1; min-width: 0; }
+  .jan-f .jan-fh { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+  .jan-f .jan-fh small { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; }
+  .jan-f .jan-fh label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); }
   .jlink:first-child { border-top: 0; }
   .jlink b { display: block; font-weight: 500; }
   .jlink small { display: block; font-size: 12px; color: var(--accent-ink); overflow-wrap: anywhere; }
@@ -1056,11 +1062,37 @@
   </div></div>
 </section>
 
+<section id="janHub" class="view" aria-label="JanitorAI">
+  <div class="page-head"><button class="back" data-close="janHub" type="button">‹ Back</button><h1>JanitorAI</h1><span></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:4px">
+    <div class="jan-h">Import chats</div>
+    <div class="card">
+      <div class="hint" style="padding-top:12px;margin-top:0">Downloads your chats from JanitorAI. You review every character, persona and chat before anything is added.</div>
+      <div class="line"><span>Create characters I don't have yet</span><input type="checkbox" class="tgl" id="janOChars"></div>
+      <div class="line"><span>Create personas I don't have yet</span><input type="checkbox" class="tgl" id="janOPers"></div>
+      <div class="line"><span>Skip chats I already imported</span><input type="checkbox" class="tgl" id="janOSkip"></div>
+      <div class="hint">Off: chats you imported before are updated with new messages.</div>
+      <button class="btn primary" type="button" id="janStart" style="width:100%;margin-top:14px">Import</button>
+    </div>
+    <div class="jan-h">Missing definitions</div>
+    <div class="card">
+      <div class="hint" style="padding-top:12px;margin-top:0">Characters whose creator hid the definition on JanitorAI, with their page on JannyAI. Only looks at your characters, so it's quick.</div>
+      <div class="line"><span>Only ones I'm missing</span><input type="checkbox" class="tgl" id="janOMiss"></div>
+      <div class="hint">Off: every character with a hidden definition, also ones you already filled in.</div>
+      <button class="btn" type="button" id="janFind" style="width:100%;margin-top:14px">Find on JannyAI</button>
+    </div>
+    <div class="jan-h">Website</div>
+    <div class="card" style="padding-top:14px">
+      <button class="btn" type="button" id="janBrowse" style="width:100%">Open JanitorAI</button>
+      <button class="btn" type="button" id="janLogout" style="width:100%;margin-top:10px">Log out of JanitorAI</button>
+    </div>
+  </div></div>
+</section>
+
 <section id="janImp" class="view" aria-label="Import from JanitorAI">
   <div class="page-head"><button class="back" data-close="janImp" type="button">‹ Cancel</button><h1>Import from JanitorAI</h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="hint" id="janSum" style="margin:0 4px 12px"></div>
-    <button class="btn" type="button" id="janHid" style="width:100%;margin-bottom:6px" hidden></button>
     <div class="jan-h">Characters</div>
     <div class="card jan-list" id="janChars"></div>
     <div class="jan-h">Personas</div>
@@ -4145,11 +4177,27 @@ $('goChars').onclick = () => openView('chars');
 $('goPersonas').onclick = () => openView('personas');
 $('goSettings').onclick = () => openSettings();
 // Opens JanitorAI in a browser window of the iPhone app, to record and save an inspection file
-$('goJanitor').onclick = () => {
+// The JanitorAI page: import chats (with options), find missing definitions on JannyAI, open the site, log out
+const janOpts = Object.assign({ chars: true, pers: true, skipOld: false, onlyMissing: true }, store.get('janOpts', {}));
+for (const [id, k] of [['janOChars', 'chars'], ['janOPers', 'pers'], ['janOSkip', 'skipOld'], ['janOMiss', 'onlyMissing']]) {
+  $(id).checked = janOpts[k];
+  $(id).onchange = () => { janOpts[k] = $(id).checked; store.set('janOpts', janOpts); };
+}
+$('goJanitor').onclick = () => openView('janHub');
+function janOpen(mode) {
   const jb = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.JanitorBrowser;
   if (!jb) return toast('Only in the iPhone app');
   janListen();
-  jb.open({ url: 'https://janitorai.com' }).catch(e => toast('Couldn\'t open JanitorAI: ' + (e?.message || e)));
+  jb.open({ url: 'https://janitorai.com', mode }).catch(e => toast('Couldn\'t open JanitorAI: ' + (e?.message || e)));
+}
+$('janStart').onclick = () => janOpen('import');
+$('janFind').onclick = () => janOpen('chars');
+$('janBrowse').onclick = () => janOpen('browse');
+$('janLogout').onclick = async () => {
+  const jb = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.JanitorBrowser;
+  if (!jb) return toast('Only in the iPhone app');
+  if (!confirm('Log out of JanitorAI in this app?')) return;
+  try { await jb.logout(); toast('Logged out of JanitorAI'); } catch (e) { toast('Could not log out: ' + (e?.message || e)); }
 };
 
 // ---------- Import from JanitorAI ----------
@@ -4165,7 +4213,7 @@ function janListen() {
     if (ev.type === 'start') { JAN.chars.clear(); JAN.chats = []; }
     else if (ev.type === 'char') { try { const c = JSON.parse(ev.json); if (c?.id) JAN.chars.set(c.id, c); } catch {} }
     else if (ev.type === 'chat') { try { const c = JSON.parse(ev.json); if (c?.chat) JAN.chats.push(c); } catch {} }
-    else if (ev.type === 'done') janReview();
+    else if (ev.type === 'done') ev.mode === 'chars' ? janMissingPage() : janReview();
     else if (ev.type === 'error' && ev.message !== 'cancelled') dbg('error', 'JanitorAI import: ' + ev.message);
   });
 }
@@ -4181,6 +4229,11 @@ function janPersonaOf(r) {
   const ps = r.personas || [], id = r.chat?.persona_id || r.chatMessages?.find(m => m.metadata?.persona_id)?.metadata.persona_id;
   return ps.find(p => p.id === id) || ps.find(p => p.is_default) || null;
 }
+// The Green Room character a JanitorAI character belongs to: the one its chats went to before, or the same name
+function janExisting(jc) {
+  const before = chats.find(ch => ch.janChar === jc.id && chars.some(c => c.id === ch.charId));
+  return before ? chars.find(c => c.id === before.charId) : janMatch(jc.name, jc.chat_name, chars);
+}
 function janReview() {
   if (!JAN.chats.length) return toast('No chats found on JanitorAI');
   const byChar = new Map(), byPersona = new Map();
@@ -4194,13 +4247,13 @@ function janReview() {
   }
   JAN.rows = [...byChar].map(([id, list]) => {
     const jc = { ...(list[0].character || {}), ...(JAN.chars.get(id) || {}), id };
-    const before = chats.find(ch => ch.janChar === id && chars.some(c => c.id === ch.charId));
-    const m = before ? chars.find(c => c.id === before.charId) : janMatch(jc.name, jc.chat_name, chars);
-    return { jc, list, to: m ? m.id : 'new', off: new Set() };
+    const m = janExisting(jc);
+    const off = new Set(janOpts.skipOld ? list.map(jr => String(jr.chat.id)).filter(jid => chats.some(ch => ch.jan === jid)) : []);
+    return { jc, list, to: m ? m.id : janOpts.chars ? 'new' : 'skip', off, desc: false };
   }).sort((a, b) => a.jc.name.localeCompare(b.jc.name));
   JAN.prows = [...byPersona.values()].map(({ jp, n }) => {
     const m = janMatch(jp.name, '', personas);
-    return { jp, n, to: m ? m.id : 'new' };
+    return { jp, n, to: m ? m.id : janOpts.pers ? 'new' : 'skip' };
   }).sort((a, b) => b.n - a.n);
   const nc = JAN.chats.length, nch = JAN.rows.length;
   $('janSum').textContent = `${nc} chat${nc === 1 ? '' : 's'} with ${nch} character${nch === 1 ? '' : 's'}. Tap a character or persona to review it, choose where it goes and read its chats. Chats you imported before are updated, not doubled.`;
@@ -4253,8 +4306,6 @@ function janRender() {
   $('janPers').previousElementSibling.hidden = $('janPers').hidden = !JAN.prows.length;
   const nc = JAN.rows.reduce((a, r) => a + (r.to === 'skip' ? 0 : r.list.length - r.off.size), 0);
   $('janGo').textContent = `Import ${nc} chat${nc === 1 ? '' : 's'}`; $('janGo').disabled = !nc;
-  const miss = janMissing();
-  $('janHid').hidden = !miss.length; $('janHid').textContent = `Hidden definitions (${miss.length})`;
 }
 function janField(label, value, { html = false, empty = 'Empty' } = {}) {
   const f = document.createElement('div'); f.className = 'jan-f';
@@ -4281,7 +4332,7 @@ function janOpenChar(r) {
     const top = document.createElement('div'); top.className = 'card';
     top.append(janToLine(r, chars, 'char', jc.name, draw));
     const h = document.createElement('div'); h.className = 'hint'; h.style.paddingBottom = '2px';
-    h.textContent = r.to === 'new' ? 'A new character is made from what is below.' : r.to === 'skip' ? 'Nothing from this character is imported.' : 'The chats go to this character; it stays as it is.';
+    h.textContent = r.to === 'new' ? 'A new character is made from what is below.' : r.to === 'skip' ? 'Nothing from this character is imported.' : 'The chats go to this character; it stays as it is (unless you switch on Replace mine at Description).';
     top.append(h);
     const info = document.createElement('div'); info.className = 'card';
     const pic = document.createElement('div'); pic.className = 'jan-pic'; if (janCharPic(jc)) pic.style.backgroundImage = `url("${janCharPic(jc)}")`;
@@ -4289,7 +4340,16 @@ function janOpenChar(r) {
     if (janHidden(jc)) { const w = document.createElement('div'); w.className = 'hint'; w.style.textAlign = 'center'; w.textContent = 'The creator hid this character\'s definition on JanitorAI, so its personality, scenario and example dialogue can\'t be imported.'; info.append(w); }
     const hid = janHidden(jc) ? 'Hidden on JanitorAI' : 'Empty';
     const greets = (jc.first_messages?.length ? jc.first_messages : [jc.first_message]).filter(g => g?.trim() && !/^\[write your own\]$/i.test(g.trim()));
-    info.append(janField('Name', jc.name), janField('Chat name', jc.chat_name), janField('Description', jc.description, { html: true }),
+    const descF = janField('Description', jc.description, { html: true });
+    if (chars.some(x => x.id === r.to) && String(jc.description || '').trim()) {
+      // matched to a character you have: optionally replace its description with this one
+      const fh = document.createElement('div'); fh.className = 'jan-fh';
+      const lab = document.createElement('label'); lab.textContent = 'Replace mine';
+      const tg = document.createElement('input'); tg.type = 'checkbox'; tg.className = 'tgl'; tg.checked = !!r.desc;
+      tg.onchange = () => { r.desc = tg.checked; };
+      lab.append(tg); fh.append(descF.firstChild, lab); descF.prepend(fh);
+    }
+    info.append(janField('Name', jc.name), janField('Chat name', jc.chat_name), descF,
       janField('Personality', jc.personality, { empty: hid }), janField('Scenario', jc.scenario, { empty: hid }),
       ...(greets.length ? greets.map((g, i) => janField(greets.length > 1 ? `First message ${i + 1}` : 'First message', g)) : [janField('First message', '')]),
       janField('Example dialogue', jc.example_dialogs, { empty: hid }));
@@ -4333,25 +4393,32 @@ function janSlug(name) {
     .replace(/(\d)([a-z])/g, '$1-$2').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 const janJanny = jc => `https://jannyai.com/characters/${jc.id}_character-${janSlug(jc.name)}`;
-function janMissing() {
-  return JAN.rows.filter(r => janHidden(r.jc) && !String(chars.find(x => x.id === r.to)?.personality || '').trim());
+function janMissing(only) {
+  return [...JAN.chars.values()].filter(janHidden).map(jc => ({ jc, have: janExisting(jc) }))
+    .filter(x => !only || !String(x.have?.personality || '').trim());
 }
-$('janHid').onclick = () => {
-  const miss = janMissing(), body = $('janItBody');
-  $('janItTitle').textContent = 'Hidden definitions';
+function janMissingPage() {
+  const miss = janMissing(janOpts.onlyMissing).sort((a, b) => a.jc.name.localeCompare(b.jc.name)), body = $('janItBody');
+  $('janItTitle').textContent = 'Missing definitions';
   const h = document.createElement('div'); h.className = 'hint'; h.style.margin = '0 4px 12px';
-  h.textContent = `${miss.length} character${miss.length === 1 ? '' : 's'} with a hidden definition and no personality here yet. Each link is its JanitorAI page with janitorai.com changed to jannyai.com.`;
+  h.textContent = miss.length
+    ? `${miss.length} character${miss.length === 1 ? '' : 's'} with a hidden definition${janOpts.onlyMissing ? ' and no personality here yet' : ''}. Tap one to open it on JannyAI (its JanitorAI link with janitorai.com changed to jannyai.com).`
+    : janOpts.onlyMissing ? 'Nothing missing: every character with a hidden definition already has a personality here.' : 'None of your characters has a hidden definition.';
   const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'btn'; copy.style.width = '100%'; copy.style.marginBottom = '10px';
-  copy.textContent = 'Copy list';
-  copy.onclick = () => copyText(miss.map(r => `${r.jc.name}\n${janJanny(r.jc)}`).join('\n\n'), 'List copied');
-  const card = document.createElement('div'); card.className = 'card jan-list';
-  for (const r of [...miss].sort((a, b) => a.jc.name.localeCompare(b.jc.name))) {
-    const a = document.createElement('a'); a.className = 'jlink'; a.href = janJanny(r.jc); a.target = '_blank'; a.rel = 'noopener';
-    const b = document.createElement('b'); b.textContent = r.jc.name; const sm = document.createElement('small'); sm.textContent = a.href;
-    a.append(b, sm); card.append(a);
+  copy.textContent = 'Copy list'; copy.hidden = !miss.length;
+  copy.onclick = () => copyText(miss.map(x => `${x.jc.name}\n${janJanny(x.jc)}`).join('\n\n'), 'List copied');
+  const card = document.createElement('div'); card.className = 'card jan-list'; card.hidden = !miss.length;
+  for (const { jc, have } of miss) {
+    const a = document.createElement('a'); a.className = 'jlink'; a.href = janJanny(jc); a.target = '_blank'; a.rel = 'noopener';
+    const av = document.createElement('span'); av.className = 'av'; janAv(av, jc.name, janCharPic(jc));
+    const t = document.createElement('span');
+    const b = document.createElement('b'); b.textContent = jc.name;
+    const st = document.createElement('small'); st.style.color = 'var(--ink-soft)'; st.textContent = have ? `Here as ${have.name}` : 'Not in Green Room yet';
+    const sm = document.createElement('small'); sm.textContent = a.href;
+    t.append(b, st, sm); a.append(av, t); card.append(a);
   }
   body.replaceChildren(h, copy, card); body.parentElement.scrollTop = 0; openView('janItem');
-};
+}
 // Read a chat exactly as it will be imported
 function janOpenChat(jr, jc) {
   const msgs = janMessages(jr), jp = janPersonaOf(jr), body = $('janChBody');
@@ -4403,6 +4470,7 @@ async function janStorePic(url) {
   const key = 'av_' + uid();
   try { await idb.put(key, src); return key; } catch { return undefined; }
 }
+const janDesc = t => { t = String(t || '').trim(); return isHtml(t) ? sanitizeHtml(mixMarkdown(t)) : t; };
 $('janGo').onclick = async () => {
   const go = $('janGo'), status = $('janStatus');
   go.disabled = true;
@@ -4426,14 +4494,14 @@ $('janGo').onclick = async () => {
       let c = chars.find(x => x.id === r.to);
       if (!c) {
         status.textContent = `Making ${r.jc.name}…`;
-        const d = r.jc, desc = String(d.description || '').trim();
+        const d = r.jc;
         const greets = (d.first_messages?.length ? d.first_messages : [d.first_message]).filter(g => g?.trim() && !/^\[write your own\]$/i.test(g.trim()));
         c = { id: uid(), created: Date.now(), name: d.name || 'Character', chatName: (d.chat_name || '').trim(),
-          description: isHtml(desc) ? sanitizeHtml(mixMarkdown(desc)) : desc, personality: (d.personality || '').trim(), scenario: (d.scenario || '').trim(),
+          description: janDesc(d.description), personality: (d.personality || '').trim(), scenario: (d.scenario || '').trim(),
           examples: (d.example_dialogs || '').trim(), firstMessages: greets, aiFirst: false, lorebooks: [] };
         const img = await janStorePic(d.avatar && JAN_PICS + 'bot-avatars/' + d.avatar); if (img) c.img = img;
         chars.unshift(c); made++; r.to = c.id;
-      }
+      } else if (r.desc && String(r.jc.description || '').trim()) { c.description = janDesc(r.jc.description); }
       for (const jr of r.list) {
         if (r.off.has(String(jr.chat.id))) continue;
         const msgs = janMessages(jr);

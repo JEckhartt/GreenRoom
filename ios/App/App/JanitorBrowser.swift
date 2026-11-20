@@ -3,13 +3,15 @@ import WebKit
 import Capacitor
 
 // "Connect to JanitorAI": opens JanitorAI in a browser window inside the app. You log in as usual (the
-// login is remembered). Import chats downloads your chats and passes them to Green Room for review.
+// login is remembered). Mode "import" downloads your characters and chats, "chars" only your characters,
+// and passes them to Green Room for review; "browse" just shows the site.
 @objc(JanitorBrowserPlugin)
 public class JanitorBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "JanitorBrowserPlugin"
     public let jsName = "JanitorBrowser"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "logout", returnType: CAPPluginReturnPromise)
     ]
 
     // Forwards what the importer collected to Green Room's own page
@@ -18,10 +20,22 @@ public class JanitorBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func open(_ call: CAPPluginCall) {
         let start = URL(string: call.getString("url") ?? "") ?? URL(string: "https://janitorai.com")!
         DispatchQueue.main.async {
-            let browser = JanitorBrowserController(start: start, plugin: self)
+            let browser = JanitorBrowserController(start: start, plugin: self, mode: call.getString("mode") ?? "browse")
             browser.modalPresentationStyle = .fullScreen
             self.bridge?.viewController?.present(browser, animated: true)
             call.resolve()
+        }
+    }
+
+    // Log out: removes JanitorAI's saved login (cookies and site data) from the app; nothing else
+    @objc func logout(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let store = WKWebsiteDataStore.default()
+            let types = WKWebsiteDataStore.allWebsiteDataTypes()
+            store.fetchDataRecords(ofTypes: types) { records in
+                let mine = records.filter { $0.displayName.lowercased().contains("janitorai") }
+                store.removeData(ofTypes: types, for: mine) { call.resolve(["removed": mine.count]) }
+            }
         }
     }
 }
@@ -38,14 +52,17 @@ private class WeakMessageHandler: NSObject, WKScriptMessageHandler {
 class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
     private let start: URL
     private weak var plugin: JanitorBrowserPlugin?
+    private let mode: String
     private var importing = false
+    private var finished = false
     private let importButton = UIButton(type: .system)
     private var webView: WKWebView!
     private let countLabel = UILabel()
 
-    init(start: URL, plugin: JanitorBrowserPlugin) {
+    init(start: URL, plugin: JanitorBrowserPlugin, mode: String) {
         self.start = start
         self.plugin = plugin
+        self.mode = mode
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -72,13 +89,14 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
         close.titleLabel?.font = .systemFont(ofSize: 17)
         close.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
 
-        importButton.setTitle("Import chats", for: .normal)
+        importButton.setTitle("Continue", for: .normal)
+        importButton.isHidden = true
         importButton.titleLabel?.font = .boldSystemFont(ofSize: 16)
         importButton.addTarget(self, action: #selector(importTapped), for: .touchUpInside)
 
         countLabel.font = .systemFont(ofSize: 12)
         countLabel.textColor = .secondaryLabel
-        countLabel.text = ""
+        countLabel.text = mode == "browse" ? "" : "Opening JanitorAI…"
         countLabel.adjustsFontSizeToFitWidth = true
         countLabel.minimumScaleFactor = 0.7
 
@@ -112,13 +130,18 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
         importMessage(entry)
     }
 
+    // Starts by itself once the page has loaded; after logging in, again (or with Continue)
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if mode != "browse" && !importing && !finished && webView.url?.host?.contains("janitorai.com") == true { importTapped() }
+    }
+
     @objc private func importTapped() {
-        if importing { return }
+        if importing || finished || mode == "browse" { return }
         importing = true
-        importButton.isEnabled = false
+        importButton.isHidden = true
         countLabel.text = "Starting…"
-        plugin?.send(["type": "start"])
-        webView.evaluateJavaScript(JanitorBrowserController.importer) { [weak self] _, error in
+        plugin?.send(["type": "start", "mode": mode])
+        webView.evaluateJavaScript("window.__grMode = '\(mode == "chars" ? "chars" : "import")';" + JanitorBrowserController.importer) { [weak self] _, error in
             if let error = error { self?.importMessage(["kind": "error", "message": error.localizedDescription]) }
         }
     }
@@ -131,13 +154,18 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
             countLabel.text = m["label"] as? String ?? ""
         case "char", "chat":
             plugin?.send(["type": kind, "json": m["json"] as? String ?? ""])
+        case "login":
+            importing = false
+            countLabel.text = "Log in to continue"
+            importButton.isHidden = false
         case "done":
             importing = false
-            plugin?.send(["type": "done"])
+            finished = true
+            plugin?.send(["type": "done", "mode": mode])
             dismiss(animated: true)
         case "error":
             importing = false
-            importButton.isEnabled = true
+            importButton.isHidden = false
             let text = m["message"] as? String ?? "Something went wrong."
             countLabel.text = "Import failed"
             plugin?.send(["type": "error", "message": text])
@@ -175,7 +203,7 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
           if (window.__grStop) throw new Error('cancelled');
           var r = await f.call(window, 'https://janitorai.com/hampter/' + path, { credentials: 'include', headers: Object.assign({ accept: 'application/json' }, window.__grAuth || {}) });
           if (r.status === 429 || r.status >= 500) { await wait(1500 * (attempt + 1)); continue; }
-          if (r.status === 401 || r.status === 403) throw new Error('JanitorAI says you are not logged in (' + r.status + '). Log in, open your chats once, then try again.');
+          if (r.status === 401 || r.status === 403) throw new Error('login');
           if (!r.ok) throw new Error('JanitorAI answered ' + r.status + ' for ' + path.split('?')[0]);
           await wait(120);
           return await r.text();
@@ -197,6 +225,7 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
           post({ kind: 'progress', label: 'Character ' + (i + 1) + ' of ' + chars.length });
           try { post({ kind: 'char', json: await get('characters/' + c.character_id) }); }
           catch (e) { if (e.message === 'cancelled') throw e; post({ kind: 'char', json: JSON.stringify({ id: c.character_id, name: c.name, avatar: c.avatar, gone: true }) }); }
+          if (window.__grMode === 'chars') continue;
           for (var cp = 1; cp < 50; cp++) {
             var cl = JSON.parse(await get('chats/character/' + c.character_id + '/chats' + (cp > 1 ? '?page=' + cp : '')));
             var got = (cl.chats || []).map(function (x) { return x.id; }).filter(function (id) { return chatIds.indexOf(id) < 0; });
@@ -211,6 +240,7 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
         post({ kind: 'done' });
       } catch (e) {
         if (e && e.message === 'cancelled') return;
+        if (e && e.message === 'login') return post({ kind: 'login' });
         post({ kind: 'error', message: String((e && e.message) || e) });
       }
     })();

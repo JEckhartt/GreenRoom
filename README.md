@@ -56,11 +56,16 @@ With **Enable** off it's a regular chat: no images are made or sent to the AI (e
 
 ## Connect to JanitorAI
 
-iPhone app only. Opens JanitorAI in a browser window inside the app; log in as usual (it stays logged in).
+iPhone app only. **Connect to JanitorAI** on the title screen opens a page with:
 
-- **Import chats** (top right): downloads every chat you have on JanitorAI, with its messages, characters and personas; the progress shows at the top. Then **Import from JanitorAI** lists each character and persona with where it goes: an existing one with the same name (taglines like "Name - Detective (MalePOV)" are ignored), a new one made from JanitorAI (picture, description, personality, scenario, first messages, example dialogue), or not imported. Tap a character to review it: where it goes, everything JanitorAI has for it (characters whose creator hid the definition are marked "definition hidden"; their personality, scenario and example dialogue can't be imported), and its chats, each with a switch to leave it out; tap a chat to read it exactly as it will be imported. Tap a persona to see its picture and personality. Then **Import**. Replies you swiped through become versions (‹ ›); a chat's JanitorAI memory goes to its Memory. Importing again updates those chats instead of doubling them.
-- **Hidden definitions** (on the review screen): the characters whose definition is hidden on JanitorAI and that have no personality here yet, each with its page on JannyAI (the JanitorAI link with janitorai.com changed to jannyai.com). Tap one to open it, or **Copy list**.
-- Nothing you browse is recorded; the window only notes the site's login headers in memory, so Import chats is logged in the same way.
+- **Import chats**, with options: *Create characters I don't have yet*, *Create personas I don't have yet* (off: those go to "Don't import" / "No persona" until you pick one) and *Skip chats I already imported* (off: they're updated with new messages). **Import** opens JanitorAI and starts by itself; if you're not logged in, log in and it continues (or tap **Continue**). The progress shows at the top; when it's done the window closes and **Import from JanitorAI** opens:
+  - Each character and persona with where it goes: an existing one with the same name (taglines like "Name - Detective (MalePOV)" are ignored), a new one made from JanitorAI (picture, description, personality, scenario, first messages, example dialogue), or not imported.
+  - Tap a character to review it: where it goes, everything JanitorAI has for it (characters whose creator hid the definition are marked "definition hidden"; their personality, scenario and example dialogue can't be imported), and its chats, each with a switch; tap a chat to read it exactly as it will be imported. For a character you already have, **Replace mine** at Description swaps your description for JanitorAI's (nothing else changes). Tap a persona to see its picture and personality.
+  - **Import**: replies you swiped through become versions (‹ ›); a chat's JanitorAI memory goes to its Memory; chats imported before are updated, not doubled.
+- **Missing definitions → Find on JannyAI**: looks only at your characters (quick) and lists those whose definition is hidden on JanitorAI, with *Only ones I'm missing* (no personality in Green Room yet) on or off. Each has its picture and its JannyAI link (the JanitorAI link with janitorai.com changed to jannyai.com); tap to open it, or **Copy list**.
+- **Open JanitorAI** (just the site) and **Log out of JanitorAI** (removes its saved login from the app).
+
+Nothing you browse is recorded; the window only notes the site's login headers in memory, so the import is logged in the same way.
 
 ## Settings
 
