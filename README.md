@@ -2,12 +2,14 @@
 
 A character chat app: create characters and personas and chat with them. Built on the Nearly codebase. Everything is stored on the device (`localStorage` for text, IndexedDB for messages and images).
 
-The title screen has **Chats**, **Characters**, **Personas**, **Lorebooks**, **Albums**, **Settings** and **Connect to JanitorAI**. Swipe from the left edge to go back.
+The title screen has **Chats**, **Characters**, **Personas**, **Lorebooks**, **Albums** and **Settings**. Swipe from the left edge to go back.
 
 ## Chats
 
 - All chats, grouped per character, with the persona each was played as. Tap a character to unfold its chats (one character open at a time); open one, delete it, start a new chat or jump to the character card. Search all chats at the top.
-- Long press a chat to **Rename** it (the name shows in the list), **Export** it (Text, Markdown, Web page, Rich text, JSON, JSON Lines or Spreadsheet) or delete it. **+** at the top right: start a new chat, or **Import chat** (pick the character and persona, then a SillyTavern `.jsonl`, a Green Room text export or a JSON file).
+- The button next to **+** switches between a list and a compact list.
+- Long press a chat to **Move to folder** (folders sit at the top of Chats; the chat also stays under its character; ⋯ on a folder renames or deletes it), **Rename** it (the name shows in the list), **Export** it (Text, Markdown, Web page, Rich text, JSON, JSON Lines or Spreadsheet) or delete it. **+** at the top right: start a new chat, or **Import chat** (pick the character and persona, then a SillyTavern `.jsonl`, a Green Room text export or a JSON file).
+- A new chat starts with the chat settings of the chat you used last (proxy, preset, prompt, style, image settings, real time…; not its memory, author's note or lorebooks). For characters whose opening the AI writes, Settings → New chats → **Wait before the AI writes the opening** shows a **Start** button first, so you can change Chat settings.
 - A new chat is kept as soon as it has its first message; one you leave without writing anything is discarded.
 
 ### In a chat
@@ -45,7 +47,7 @@ With **Enable** off it's a regular chat: no images are made or sent to the AI (e
 - **Import** → *Character card (file)* (PNG/JSON) or *From Chub link* fills everything in; from Safari or Files, **Share → Green Room** does the same. **Generate** writes a whole character, with a picture, from a few words. **+** at the top right: create new or generate.
 - The picture: tap it to choose one from your phone or **From album**.
 - **Frame picture** (opens after you pick a picture, and from the editor any time): drag, pinch or slide to choose what shows, with live previews of the chat header, messages, chats list, characters list and profile. Tap a preview to frame just that spot (its own shape: circle, or tall for the lists); the others follow the main framing. The profile shows the whole picture, in its own shape. Works for characters and personas.
-- Tap a character to unfold its **Profile** and **+ Start new chat**. The button next to + switches Characters, Personas and Albums between a list and a grid (picture, name, bio); in the grid, tapping a character opens the profile. The profile opens with the description unfolded and the rest folded. Starting a chat: tapping a persona shows its description, with **Start chat as …**. The eye on a picture blurs it everywhere except in a chat and the editor.
+- Tap a character to unfold its **Profile** and **+ Start new chat**. The button next to + switches Characters between a list, a compact list and a grid, and Personas and Albums between a list and a grid (picture, name, bio); in the grid, tapping a character opens the profile. The profile opens with the description unfolded and the rest folded. Starting a chat: tapping a persona shows its description, with **Start chat as …**. The eye on a picture blurs it everywhere except in a chat and the editor.
 - **Personas**: who *you* are: image, name, personality.
 - Swipe a character or persona left for **Move** (to a folder) and **Delete**; long press to select several.
 
@@ -56,7 +58,7 @@ With **Enable** off it's a regular chat: no images are made or sent to the AI (e
 
 ## Connect to JanitorAI
 
-iPhone app only. **Connect to JanitorAI** on the title screen opens a page with:
+iPhone app only. **Settings → JanitorAI → Connect to JanitorAI** opens a page with:
 
 - **Import chats**, with options: *Create characters I don't have yet*, *Create personas I don't have yet* (off: those go to "Don't import" / "No persona" until you pick one) and *Skip chats I already imported* (off: they're updated with new messages) and *Use JanitorAI's descriptions for characters I have* (switches on Replace mine for every matched character, also ones without new chats). **Import** opens JanitorAI and starts by itself; if you're not logged in, log in and it continues (or tap **Continue**). The progress shows at the top; when it's done the window closes and **Import from JanitorAI** opens:
   - Each character and persona with where it goes: an existing one with the same name (taglines like "Name - Detective (MalePOV)" are ignored), a new one made from JanitorAI (picture, description, personality, scenario, first messages, example dialogue), or not imported.
@@ -73,10 +75,12 @@ Nothing you browse is recorded (except, while importing custom prompts, what the
 - **Proxy**: a list of proxies (name, URL, API key, model), like the prompts: tap one to use it and open its settings, tap it again to fold it. OpenAI-compatible; `/chat/completions` is added automatically. Long press a proxy to duplicate it. **Import** adds the proxies from JanitorAI's proxy export (**Paste from clipboard**, as JanitorAI copies it, or **Choose a file**) (name, address, model; its prompts are left out) and asks which API key they get: the one from JanitorAI, or one you already use in Green Room for the same service. Proxies you already have are skipped. **Test connection** checks that it answers; **Test images** asks it the colour of a red square, so you know whether it can see images (it only reports). In the iPhone app, requests go out from iOS itself (not from the app's web view), so services that block web pages, like LoreBary, work too; replies are still written live.
 - **Image proxy**: **Enable**; **Image prompt** (your own guidance for every image: style, quality, anything; `{{char}}` and `{{user}}` work); the image proxies. Only chat-style image models are supported (like OpenRouter with an image model, URL ending in `/v1`); `/images/generations` is refused because it can't take reference pictures. **Test image proxy** makes one small test picture from a reference and shows it.
 - **Generation**: presets with temperature, max reply length, top-p, top-k, min-p and penalties (empty = model default); show or hide the thinking of reasoning models; context size.
-- **Prompt**: a list of system prompts (Default plus your own; the dot picks which one is sent) and, in their own section, forbidden words the AI is told never to use.
+- **Prompt**: a list of system prompts (the dot picks which one is sent; tap it again for none). Every prompt, Default included, can be renamed, edited and deleted. Forbidden words (the AI is told never to use them) have their own section.
+- **New chats**: wait with a Start button before an AI-written opening.
+- **JanitorAI**: Connect to JanitorAI (see above).
 - **Customization**: see Style below.
 - **Debug**: a log of errors and crashes, and **Download debug report** (device, storage, chat sizes and the log; no messages, prompts or API keys).
-- **Backup**: export / import everything as one file.
+- **Backup**: export / import everything as one file; **automatic backup** (iPhone app): pick a folder (Files opens straight away), then choose when (on open, daily, every 3 days, weekly) and how many to keep; it runs when you open or return to the app and it's due. Only its own older backups are removed.
 
 No workarounds: a proxy either works or it doesn't. If a model can't see images or the image proxy fails, the error shows in the chat.
 
@@ -90,7 +94,7 @@ Tabs (tap or swipe): **Memory**, **Style**, **Proxy**, **Image proxy**, **Prompt
 - **Image proxy**: **Enable** (follows Settings until you change it), the image proxy (with **Global**), this chat's **Image prompt** (empty: the one from Settings) and **Make images automatically**.
 - **Prompt**: system prompt and forbidden words (each with **Global**), real time (sends the date and time, and marks when messages were sent and whether time passed; an opening the AI writes, also with › under the first message, fits the time of day), lorebooks, and **Character messages you first** (a notification after 30 minutes to 3 days).
 
-A **Global** switch that's off gives the chat its own value, starting from the one in Settings and kept when you switch back and forth. The default proxy and preset (the ones active in Settings) can be picked in a chat but only changed in Settings.
+A **Global** switch that's off gives the chat its own value, starting from the one in Settings and kept when you switch back and forth. Proxies, presets and prompts can be edited and deleted from a chat too (they're shared with Settings).
 
 ## Style
 
@@ -98,12 +102,12 @@ Settings → Customization, and per chat under Chat settings → Style.
 
 - **Saved styles** at the top: **+ Save current style**; tap one to use it (the dot shows which one is in use); ⋯ or long press to update, rename or delete.
 - The mock-up with **AI / You / Both**: which side a change applies to. Under Both, a setting that differs between the sides shows as mixed until you change it.
-- **Theme**: Default / Light / Dark and accent colour (always per chat).
+- **Theme**: Default / Light / Dark / Green (the start-up screen's colours) and accent colour (always per chat).
 - **Layout**: per side: bubble on/off, bubble shape and full width (with a bubble), names, profile pictures (circle or rounded square; tap one in a chat to float it), timestamps. For all messages: where they sit (left & right, all left, centered, all right), space between them, and how new messages appear:
   - **Appear**: typing dots while the AI writes, then the whole reply at once
   - **Fade in**: it starts showing once the AI is a little ahead, each new bit fading in, while the AI keeps writing ahead
   - **Slide up**: you watch it being written
-- **Font**, **Text style**, **Text color** and **Markdown** colours, per side.
+- **Font** (**+ Add font** adds your own .ttf, .otf, .woff or .woff2; long press a font to delete it, built-in ones can be brought back), **Text style**, **Text color** and **Markdown** colours, per side.
 - **Reset style** (saved styles are kept).
 
 ## What the AI receives

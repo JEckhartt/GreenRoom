@@ -722,6 +722,8 @@
 
   .fonts { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; margin-top: 10px; }
   .fonts button { padding: 12px 8px; border-radius: 11px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 17px; line-height: 1.2; text-align: center; }
+  #abKeep { font: inherit; font-size: 15px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  #abEvery button { font-size: 14px; }
   .fonts button.font-add { font-size: 15px; color: var(--accent-ink); border-style: dashed; background: none; }
   .fonts button.on { border-color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent); }
   .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
@@ -1438,6 +1440,28 @@ Empty = send everything.</div>
       <input type="file" id="bkFile" accept="application/json,.json" hidden>
       <div class="hint">Export saves all characters, personas, chats, images and settings (API keys included) in one file. Keep it in Files or iCloud Drive. Import restores it after reinstalling or on another phone, and replaces everything currently in the app.</div>
     </div>
+    <div class="card">
+      <label class="f">Automatic backup</label>
+      <div id="abSetup">
+        <button class="btn" type="button" id="abStart" style="width:100%">Set up automatic backup</button>
+        <div class="hint">Choose a folder (iCloud Drive, On My iPhone, …) and Green Room saves a backup there by itself.</div>
+      </div>
+      <div id="abOn" hidden>
+        <div class="line"><span>Folder</span><button class="btn" type="button" id="abChange" style="padding:6px 12px;font-size:14px"><span id="abFolder"></span> · Change</button></div>
+        <label class="f">When</label>
+        <div class="seg" id="abEvery">
+          <button type="button" data-v="open">On open</button>
+          <button type="button" data-v="day">Daily</button>
+          <button type="button" data-v="3days">3 days</button>
+          <button type="button" data-v="week">Weekly</button>
+        </div>
+        <div class="hint">Made when you open the app (or come back to it) and it's due. "On open": every time, at most every 10 minutes.</div>
+        <div class="line"><span>Keep</span><select id="abKeep"><option value="1">the last backup</option><option value="3">the last 3</option><option value="5">the last 5</option><option value="10">the last 10</option><option value="30">the last 30</option></select></div>
+        <div class="hint">Older automatic backups in the folder are removed; nothing else in it is touched.</div>
+        <div class="hint" id="abLast"></div>
+        <div class="actions"><button class="btn" type="button" id="abNow">Back up now</button><button class="btn danger" type="button" id="abOff">Turn off</button></div>
+      </div>
+    </div>
     </details>
 
     <details class="sec" data-sec="debug">
@@ -1709,12 +1733,56 @@ function lsDump() {
   return o;
 }
 
+// Everything in one JSON text (the same for Export and automatic backups)
+async function backupData() {
+  const images = {};
+  for (const k of await idb.keys()) { const v = await idb.get(k); if (v) images[k] = v; }
+  return JSON.stringify({ app: 'greenroom', version: 1, created: new Date().toISOString(), storage: lsDump(), images });
+}
+// Automatic backup into a folder you choose (iPhone app). It runs when the app opens or comes back, if it's due
+const BK = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.BackupFolder;
+const AUTO_EVERY = { open: 0, day: 864e5, '3days': 3 * 864e5, week: 7 * 864e5 };
+const autoBk = () => Object.assign({ on: false, every: 'day', keep: 5, last: 0, folder: '', error: '' }, store.get('autoBk', {}));
+const saveAutoBk = a => { store.set('autoBk', a); syncAutoBk(); };
+function syncAutoBk() {
+  const a = autoBk();
+  $('abSetup').hidden = a.on; $('abOn').hidden = !a.on;
+  $('abFolder').textContent = a.folder || 'unknown';
+  for (const b of $('abEvery').children) b.classList.toggle('on', b.dataset.v === a.every);
+  $('abKeep').value = String(a.keep);
+  $('abLast').textContent = a.error ? 'Last try failed: ' + a.error : a.last ? 'Last backup: ' + new Date(a.last).toLocaleString() : 'No backup made yet.';
+}
+async function runAutoBackup(force = false) {
+  const a = autoBk();
+  if (!BK || !a.on || autoBkBusy) return;
+  if (!force && Date.now() - (a.last || 0) < Math.max(AUTO_EVERY[a.every] ?? 864e5, 10 * 60e3)) return; // at most every 10 minutes
+  autoBkBusy = true;
+  try {
+    const name = `Green-Room-autobackup-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.json`;
+    const r = await BK.write({ name, data: await backupData(), keep: a.keep });
+    saveAutoBk({ ...autoBk(), last: Date.now(), error: '', folder: r?.folder || a.folder });
+    if (force) toast('Backup saved');
+  } catch (e) {
+    saveAutoBk({ ...autoBk(), error: e?.message || String(e) });
+    dbg('error', 'Automatic backup: ' + (e?.message || e));
+    if (force) toast('Backup failed: ' + (e?.message || e));
+  } finally { autoBkBusy = false; }
+}
+let autoBkBusy = false;
+async function setupAutoBackup() {
+  if (!BK) return toast('Only in the iPhone app');
+  try {
+    const r = await BK.pick();
+    if (!r || r.cancelled) return;
+    saveAutoBk({ ...autoBk(), on: true, folder: r.name, error: '' });
+    toast(`Backups go to "${r.name}". Making the first one…`);
+    runAutoBackup(true);
+  } catch (e) { toast('Could not use that folder: ' + (e?.message || e)); }
+}
 async function exportBackup() {
   toast('Preparing backup…');
   try {
-    const images = {};
-    for (const k of await idb.keys()) { const v = await idb.get(k); if (v) images[k] = v; }
-    const data = JSON.stringify({ app: 'greenroom', version: 1, created: new Date().toISOString(), storage: lsDump(), images });
+    const data = await backupData();
     const name = `Green-Room-backup-${new Date().toISOString().slice(0, 10)}.json`;
     const Share = window.Capacitor?.Plugins?.Share;
     if (FS && Share) {
@@ -1741,10 +1809,10 @@ async function importBackup(file) {
   const when = b.created ? new Date(b.created).toLocaleString() : 'unknown date';
   if (!confirm(`Restore the backup from ${when}?\n${count('chars')} characters, ${count('personas')} personas, ${count('chats')} chats.\n\nThis replaces everything currently in the app.`)) return;
   toast('Restoring…');
-  for (const k of Object.keys(lsDump())) localStorage.removeItem(PREFIX + k);
+  for (const k of Object.keys(lsDump())) if (k !== 'autoBk') localStorage.removeItem(PREFIX + k); // the backup folder belongs to this phone
   await idb.clear().catch(() => {});
   for (const [k, v] of Object.entries(b.images || {})) await idb.put(k, v).catch(() => {});
-  for (const [k, v] of Object.entries(b.storage)) if (typeof v === 'string' && !['bk.seeded', 'alive', 'lastStep'].includes(k)) localStorage.setItem(PREFIX + k, v);
+  for (const [k, v] of Object.entries(b.storage)) if (typeof v === 'string' && !['bk.seeded', 'alive', 'lastStep', 'autoBk'].includes(k)) localStorage.setItem(PREFIX + k, v);
   sessionStorage.setItem('restored', 'backup');
   location.reload();
 }
@@ -6122,6 +6190,15 @@ function initFolds() {
 }
 
 $('bkExport').onclick = exportBackup;
+$('abStart').onclick = setupAutoBackup;
+$('abChange').onclick = setupAutoBackup;
+$('abNow').onclick = () => runAutoBackup(true);
+$('abOff').onclick = () => { if (!confirm('Turn off automatic backup? Backups already made stay in the folder.')) return; BK?.forget?.().catch(() => {}); saveAutoBk({ ...autoBk(), on: false }); };
+$('abEvery').onclick = e => { const v = e.target.dataset?.v; if (v) saveAutoBk({ ...autoBk(), every: v }); };
+$('abKeep').onchange = () => saveAutoBk({ ...autoBk(), keep: +$('abKeep').value || 5 });
+syncAutoBk();
+// due? after start (once the chats are loaded) and whenever the app comes back
+document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(() => runAutoBackup(), 4000); });
 $('bkImport').onclick = () => $('bkFile').click();
 $('bkFile').onchange = () => { const f = $('bkFile').files[0]; $('bkFile').value = ''; if (f) importBackup(f); };
 
@@ -7114,7 +7191,7 @@ renderList('persona');
 { let ch3 = false; for (const ch of chats) if ('textOnly' in ch) { if (ch.textOnly) ch.genImages = false; delete ch.textOnly; ch3 = true; } if (ch3) store.set('chats', chats); }
 // a chat renamed to just "as <persona>" (before the name moved after it) gets its plain label back
 for (const ch of chats) if (ch.title != null && /^as\s/i.test(ch.title) && ch.title.trim().toLowerCase() === ('as ' + (personaOf(ch)?.name || ch.personaName || '')).toLowerCase()) delete ch.title;
-loadMsgs().then(() => { deliverReach(); renderChats(); step('started'); });
+loadMsgs().then(() => { deliverReach(); renderChats(); step('started'); setTimeout(() => runAutoBackup(), 6000); });
 if (sessionStorage.getItem('restored')) { sessionStorage.removeItem('restored'); setTimeout(() => toast('Backup restored'), 0); }
 // Clean up the automatic-backup copy an earlier build wrote
 if (FS && store.get('bk.seeded', false)) { FS.rmdir({ path: 'GreenRoom', directory: 'LIBRARY', recursive: true }).catch(() => {}); store.del('bk.seeded'); }
