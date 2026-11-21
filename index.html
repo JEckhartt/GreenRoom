@@ -108,6 +108,8 @@
   body.ai-bubble .msg.ai { background: var(--bubble-me); border: 1px solid var(--line); padding: 10px 14px; border-radius: 18px 18px 18px 4px; }
   .msg.err { align-self: center; color: var(--accent-ink); font-size: 14px; max-width: 92%; white-space: pre-wrap; overflow-wrap: anywhere;
     -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+  .empty .open-start { margin-top: 18px; padding: 12px 34px; border: 0; background: var(--accent); color: var(--on-accent); font-family: var(--me-font); font-size: 16px; font-weight: 600; }
+  .empty .hint { font-family: var(--me-font); margin-top: 10px; }
   .empty { text-align: center; color: var(--ink-soft); font-family: var(--ai-font); font-weight: 300; font-size: 22px; margin-top: 18vh; padding: 0 16px; }
 
   figure.gen { margin: 10px 0 0; position: relative; }
@@ -1303,6 +1305,15 @@ Empty = send everything.</div>
     </div>
     </details>
 
+    <details class="sec" data-sec="chats">
+    <summary class="group-title">New chats</summary>
+    <div class="card">
+      <div class="line"><span>Wait before the AI writes the opening</span><input type="checkbox" class="tgl" id="openWait" data-k="openWait"></div>
+      <div class="hint">For characters whose opening the AI writes. Off: it starts writing as soon as the chat opens. On: the chat opens with a Start button, so you can change Chat settings first.</div>
+      <div class="hint">A new chat starts with the chat settings of the chat you used last (proxy, preset, prompt, style, image settings…), not its memory, author's note or lorebooks.</div>
+    </div>
+    </details>
+
     <details class="sec" data-sec="forbidden">
     <summary class="group-title">Forbidden words</summary>
     <div class="card">
@@ -1581,6 +1592,19 @@ for (const k of ['showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bu
 let chars = store.get('chars', []);
 let personas = store.get('personas', []);
 let chats = store.get('chats', []);  // { id, charId, personaId, personaName, created, updated, preview }
+// The fixed "Default" prompt became a normal prompt (rename, edit, delete like the others)
+if (!cfg.promptsV2) {
+  const lib = cfg.prompts || (cfg.prompts = []);
+  const usesDef = !cfg.promptSel || chats.some(ch => 'prompt' in ch && !ch.promptSel);
+  if ((cfg.systemPrompt || '').trim() || usesDef) {
+    const d = { id: 'p' + Date.now().toString(36), name: 'Default', text: cfg.systemPrompt || '' };
+    lib.unshift(d);
+    if (!cfg.promptSel) cfg.promptSel = d.id;
+    for (const ch of chats) if ('prompt' in ch && !ch.promptSel) ch.promptSel = d.id;
+    store.set('chats', chats);
+  }
+  cfg.promptsV2 = true; store.set('cfg', cfg);
+}
 let cur = null;       // open chat: { chat, c (character), p (persona or null) }
 let history = [];     // its messages
 let busy = false;
@@ -2212,6 +2236,14 @@ function renderLog() {
   }
   if (!history.length) {
     const e = document.createElement('div'); e.className = 'empty'; e.textContent = busy ? '' : `Say hi to ${cur ? cn(cur.c) : ''}.`;
+    if (!busy && cur?.c.aiFirst && cfg.openWait) {
+      // waiting to write the opening: time to change Chat settings first
+      e.textContent = `${cn(cur.c)} writes the opening.`;
+      const go = document.createElement('button'); go.type = 'button'; go.className = 'btn primary open-start'; go.textContent = 'Start';
+      go.onclick = () => writeOpening();
+      const h = document.createElement('div'); h.className = 'hint'; h.textContent = 'Change Chat settings first if you like: tap the name at the top.';
+      e.append(document.createElement('br'), go, h);
+    }
     $('log').appendChild(e);
   }
   for (let i = shownFrom; i < history.length; i++) {
@@ -2625,7 +2657,7 @@ async function describeImage(s, userText, replyText) {
   const { c, p } = s;
   const out = await streamChat([
     { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-    { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p).slice(0, 2000)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText.slice(0, 1500)}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), ${userName(p)}, both of them ("us"), but also a pet, food, a place or anything else; only include a person if the picture is of them, and name them (${cn(c)}, ${userName(p)}). Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
+    { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText.slice(0, 1500)}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), ${userName(p)}, both of them ("us"), but also a pet, food, a place or anything else; only include a person if the picture is of them, and name them (${cn(c)}, ${userName(p)}). Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
   ], () => {}, { free: true });
   return out.replace(TAG, '').trim().slice(0, 1500);
 }
@@ -2981,9 +3013,17 @@ function saveMsgs(chat, hist, quiet = false) {
   chat.preview = lastText(hist); chat.count = hist.length;
   saveChats();
 }
-function newChat(charId, personaId) {
+// A new chat starts with the chat settings of the chat used last (not its memory, author's note or lorebooks)
+const CHAT_SETTINGS = ['look', 'lookGlobal', 'lookStash', 'proxyId', 'presetId', 'contextSize', 'prompt', 'promptSel', 'forbidden', 'fbOwn',
+  'imgProxyId', 'imgPrompt', 'autoPics', 'genImages', 'realTime', 'reachOut', 'reachAfter', 'reachRandom', 'bgDim'];
+async function newChat(charId, personaId) {
   const p = personas.find(x => x.id === personaId);
   const chat = { id: uid(), charId, personaId: p?.id || '', personaName: p?.name || '', created: Date.now(), updated: Date.now(), preview: '' };
+  const last = chats.find(x => x.id === store.get('lastChat', ''));
+  if (last) {
+    for (const k of CHAT_SETTINGS) if (k in last) chat[k] = JSON.parse(JSON.stringify(last[k]));
+    if (last.bg) { const v = await idb.get(last.bg).catch(() => null); if (v) { chat.bg = 'bg_' + uid(); await idb.put(chat.bg, v).catch(() => { delete chat.bg; }); } }
+  }
   chats.push(chat); store.set('chats', chats);
   openChat(chat.id);
 }
@@ -3008,6 +3048,7 @@ function openChat(id) {
   if (chat.pendingReach) cancelReach(chat); // back before the character wrote: cancel it
   if (cur && cur.chat.id !== id) leaveChat();
   cur = { chat, c, p: personaOf(chat) };
+  store.set('lastChat', id);
   $('profile').classList.remove('open'); // the chat view sits below the profile
   history = msgGet(id);
   shownFrom = Math.max(0, history.length - SHOW_MAX);
@@ -3027,7 +3068,7 @@ function leaveChat() {
 }
 function startChat() {
   const { c, p } = cur;
-  if (c.aiFirst) return writeOpening();
+  if (c.aiFirst) return cfg.openWait ? render() : writeOpening();
   const gs = greetingsOf(c);
   if (gs.length) {
     const alts = gs.map(g => ({ content: fill(g.trim(), c, p) }));
@@ -4160,7 +4201,7 @@ Reply with only a JSON object (no markdown fences) with these keys:
     let img = null;
     if ($('genImg').checked && imageProxyOk() && (c.appearance || c.personality)) {
       status.textContent = 'Making the picture…';
-      try { img = await generateImage(String(c.appearance || c.personality).slice(0, 1500) + '\nA character portrait.'); }
+      try { img = await generateImage(String(c.appearance || c.personality) + '\nA character portrait.'); }
       catch (e) { if (isAbort(e)) throw e; toast('Picture failed: ' + e.message); }
     }
     $('gen').classList.remove('open');
@@ -5232,15 +5273,15 @@ function gsum(g) {
   if (g === 'img') return nm(cfg.imgProxies, cfg.imgProxyId);
   if (g === 'gen') return cfg.presets.length ? nm(cfg.presets, cfg.presetId) : 'model defaults';
   if (g === 'ctx') return cfg.contextSize ? Number(cfg.contextSize).toLocaleString() + ' tokens' : 'no limit';
-  if (g === 'prompt') { const t = globalPromptText().trim(), lp = promptLib().find(x => x.id === cfg.promptSel); return `${lp ? lp.name : 'Default'}${t ? ` ("${t.slice(0, 60)}${t.length > 60 ? '…' : ''}")` : ' (empty)'}`; }
+  if (g === 'prompt') { const t = globalPromptText().trim(), lp = promptLib().find(x => x.id === cfg.promptSel); return `${lp ? lp.name : 'None'}${t ? ` ("${t.slice(0, 60)}${t.length > 60 ? '…' : ''}")` : ' (empty)'}`; }
   const n = (cfg.forbidden || '').split(/[\n,]+/).filter(w => w.trim()).length; return n ? `${n} word${n === 1 ? '' : 's'}` : 'none';
 }
 // System prompts: "Default" plus your own saved ones (shared). In a chat, Default is the chat's own copy:
 // changing it there doesn't touch Settings. The selected one (the dot) is what's sent.
 const promptLib = () => cfg.prompts || (cfg.prompts = []);
-const globalPromptText = () => promptLib().find(x => x.id === cfg.promptSel)?.text ?? cfg.systemPrompt ?? '';
+const globalPromptText = () => promptLib().find(x => x.id === cfg.promptSel)?.text ?? '';
 function promptText(chat) {
-  if (chat && 'prompt' in chat) { const lp = chat.promptSel && promptLib().find(x => x.id === chat.promptSel); return lp ? lp.text : cfg.systemPrompt ?? ''; }
+  if (chat && 'prompt' in chat) { const lp = chat.promptSel && promptLib().find(x => x.id === chat.promptSel); return lp ? lp.text : ''; }
   return globalPromptText();
 }
 const openPrompts = new Set();
@@ -5249,7 +5290,7 @@ function renderPromptBox(box, scope) {
   const chat = scope === 'chat' ? cur?.chat : null; if (scope === 'chat' && !chat) return;
   const sel = (chat ? chat.promptSel : cfg.promptSel) || '';
   const persist = () => { saveCfg(); if (chat) store.set('chats', chats); };
-  const items = [{ id: '', name: 'Default', def: true }, ...promptLib()];
+  const items = promptLib();
   box.innerHTML = '';
   for (const it of items) {
     if (it.id && !promptLib().includes(it)) continue;
@@ -5257,25 +5298,24 @@ function renderPromptBox(box, scope) {
     d.addEventListener('toggle', () => { d.open ? openPrompts.add(scope + it.id) : openPrompts.delete(scope + it.id); if (d.open) autosizeAll(d); });
     const sm = document.createElement('summary');
     const dot = document.createElement('button'); dot.type = 'button'; dot.className = 'pdot' + (sel === it.id ? ' on' : ''); dot.setAttribute('aria-label', 'Use this prompt');
-    dot.onclick = e => { e.preventDefault(); e.stopPropagation(); if (chat) chat.promptSel = it.id; else cfg.promptSel = it.id; persist(); renderPromptBox(box, scope); syncGsecs?.(); };
+    dot.onclick = e => { e.preventDefault(); e.stopPropagation(); const v = sel === it.id ? '' : it.id; if (chat) chat.promptSel = v; else cfg.promptSel = v; persist(); renderPromptBox(box, scope); syncGsecs?.(); };
     const nm = document.createElement('span'); nm.className = 'pname'; nm.textContent = it.name + (sel === it.id ? ' · in use' : '');
     sm.append(dot, nm);
     const body = document.createElement('div'); body.className = 'pbody';
-    if (!it.def) {
+    {
       const ni = document.createElement('input'); ni.type = 'text'; ni.value = it.name; ni.placeholder = 'Name';
       ni.oninput = () => { it.name = ni.value; nm.textContent = ni.value + (sel === it.id ? ' · in use' : ''); persist(); };
       body.append(ni);
     }
     const ta = document.createElement('textarea'); ta.className = 'big';
-    ta.value = it.def ? cfg.systemPrompt ?? '' : it.text || '';
-    if (it.def && chat) { ta.readOnly = true; ta.classList.add('locked'); }
+    ta.value = it.text || '';
     ta.placeholder = 'Paste your complete system prompt here.';
-    ta.oninput = () => { if (it.def) { if (chat) return; cfg.systemPrompt = ta.value; } else it.text = ta.value; autosize(ta); persist(); };
+    ta.oninput = () => { it.text = ta.value; autosize(ta); persist(); };
     body.append(ta);
     const h = document.createElement('div'); h.className = 'hint';
-    h.textContent = it.def ? (chat ? 'The default prompt from Settings; it can only be changed there. Add a new prompt to write one for this chat.' : 'Sent with every message, before the character and persona. {{char}} and {{user}} are filled in.') : (chat ? 'Saved prompts are shared with Settings and other chats.' : '{{char}} and {{user}} are filled in.');
+    h.textContent = 'Sent with every message, before the character and persona. {{char}} and {{user}} are filled in.' + (chat ? ' Prompts are shared with Settings and other chats.' : '');
     body.append(h);
-    if (!it.def) {
+    {
       const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete this prompt';
       del.onclick = () => {
         if (!confirm(`Delete "${it.name}"?`)) return;
@@ -5291,7 +5331,8 @@ function renderPromptBox(box, scope) {
   const add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.textContent = '+ New prompt';
   add.onclick = () => { const it = { id: uid(), name: `Prompt ${promptLib().length + 1}`, text: '' }; promptLib().push(it); openPrompts.add(scope + it.id); saveCfg(); renderPromptBox(box, scope); };
   const a = document.createElement('div'); a.className = 'actions'; a.append(add);
-  const hint = document.createElement('div'); hint.className = 'hint'; hint.textContent = 'Tap the dot to choose which prompt is used. Tap a name to open it.';
+  const hint = document.createElement('div'); hint.className = 'hint';
+  hint.textContent = (sel && items.some(x => x.id === sel) ? '' : 'No prompt chosen: none is sent. ') + 'Tap the dot to choose which prompt is used (tap it again for none). Tap a name to open it.';
   box.append(a, hint);
   requestAnimationFrame(() => autosizeAll(box));
 }
@@ -5387,7 +5428,7 @@ function renderPresetBox(box, scope) {
   const pr = list.find(x => x.id === selId);
   if (!pr) { const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '12px'; h.textContent = chat && list.length ? 'Pick a preset for this chat.' : 'No preset yet. Tap + New.'; return box.append(h); }
   // in a chat the values can be seen, not changed (that's done in Settings)
-  const locked = !!chat && pr.id === cfg.presetId;
+  const locked = false; // the default can be changed from a chat too
   const lock = el => { if (locked) { el.disabled = true; el.classList.add('locked'); } return el; };
   // name
   const nm = lock(document.createElement('input')); nm.type = 'text'; nm.value = pr.name || '';
@@ -5406,7 +5447,7 @@ function renderPresetBox(box, scope) {
     i.oninput = () => { const v = i.value.trim(); if (v === '') delete pr[k]; else pr[k] = v; row.setValue(v === '' ? 'default' : v); saveCfg(); };
     box.append(row);
   }
-  { const n = document.createElement('div'); n.className = 'hint'; n.style.marginTop = '10px'; n.textContent = locked ? 'This is the default from Settings and can only be changed there. Long press it to duplicate it.' : (chat ? 'Presets are shared with Settings and other chats. ' : '') + 'Long press a preset to duplicate it.'; box.append(n); }
+  { const n = document.createElement('div'); n.className = 'hint'; n.style.marginTop = '10px'; n.textContent = (chat ? 'Presets are shared with Settings and other chats. ' : '') + 'Long press a preset to duplicate it.'; box.append(n); }
   if (!locked && list.length > 1) {
     const acts = document.createElement('div'); acts.className = 'actions';
     const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete this preset';
@@ -5514,7 +5555,7 @@ function renderProxyBox(box, kind, scope) {
 
   function proxyBody(body, pr) {
   // In a chat the default can be used but not changed (that's done in Settings)
-  const locked = !!chat && pr.id === cfg[k];
+  const locked = false; // the default can be changed from a chat too
   const field = (label, f, type, ph) => {
     const l = document.createElement('label'); l.className = 'f'; l.textContent = label;
     const i = document.createElement('input'); i.type = type; i.value = pr[f] || ''; i.placeholder = ph; i.readOnly = locked; if (locked) i.classList.add('locked');
@@ -6701,7 +6742,7 @@ async function peopleRefs(s, last) {
   const list = [card && { url: card, label: who(cc) }, mine && { url: mine, label: who(u) },
     last && { url: last, label: `the last picture ${cc} sent in this chat: if ${cc} is in the image, keep outfit, hair and setting consistent with it.` }].filter(Boolean);
   const about = [[cc, fill(c.personality || '', c, p)], [u, fill(p?.personality || '', c, p)]]
-    .filter(([, t]) => t.trim()).map(([n, t]) => `About ${n} (looks and details; follow this whenever they appear):\n${t.trim().slice(0, 1500)}`).join('\n\n');
+    .filter(([, t]) => t.trim()).map(([n, t]) => `About ${n} (looks and details; follow this whenever they appear):\n${t.trim()}`).join('\n\n');
   return { list, about };
 }
 let giBusy = false;
@@ -6721,7 +6762,7 @@ $('giGo').onclick = async () => {
       const recent = transcriptOf(history.slice(-6), c, p);
       prompt = (await streamChat([
         { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-        { role: 'user', content: `${userName(p)} is chatting with ${cn(c)}.${p?.personality?.trim() ? `\nAbout ${userName(p)}:\n${fill(p.personality, c, p).slice(0, 1500)}` : ''}\n\nThe chat so far (most recent part):\n${recent.slice(-3000)}\n\n${userName(p)} is about to send this message with a picture:\n"${typed}"${extra ? `\n\nExtra direction for the picture: ${named}` : ''}\n\nDescribe the picture ${userName(p)} sends with that message, so it fits the message and the moment. Only include ${userName(p)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
+        { role: 'user', content: `${userName(p)} is chatting with ${cn(c)}.${p?.personality?.trim() ? `\nAbout ${userName(p)}:\n${fill(p.personality, c, p)}` : ''}\n\nThe chat so far (most recent part):\n${recent.slice(-3000)}\n\n${userName(p)} is about to send this message with a picture:\n"${typed}"${extra ? `\n\nExtra direction for the picture: ${named}` : ''}\n\nDescribe the picture ${userName(p)} sends with that message, so it fits the message and the moment. Only include ${userName(p)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
       ], () => {}, { free: true })).replace(TAG, '').trim().slice(0, 1500);
     }
     $('giState').textContent = 'Making the picture…';
