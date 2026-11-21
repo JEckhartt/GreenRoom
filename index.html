@@ -3067,10 +3067,8 @@ function addAltNav(bubble, m, i) {
 }
 // real time on: the opening is told the current date and time, so it fits the moment (morning, late night, weekend…)
 const openingTime = chat => chat?.realTime ? ` It is now ${clockText()} (the real current date and time): let it shape the opening naturally (time of day, day of the week, season) without announcing it.` : '';
-// Openings are written in third person limited, from the character's point of view
-const OPENING_POV = 'Write it in third person limited, from {{char}}\'s point of view: only what {{char}} sees, hears, thinks and feels; never {{user}}\'s thoughts or feelings.';
-const openingPov = (c, p) => OPENING_POV.replace(/\{\{char\}\}/g, cn(c)).replace(/\{\{user\}\}/g, userName(p));
-const openingAsk = (c, p, chat = cur?.chat) => `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. ${openingPov(c, p)} Reply with the message only.${openingTime(chat)}]`;
+// Openings in a chat follow the selected system prompt (point of view, style); only Generate sets its own rules
+const openingAsk = (c, p, chat = cur?.chat) => `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.${openingTime(chat)}]`;
 // Writes another version of reply i, using only the conversation before it
 async function anotherReply(i, bubble, direction = '') {
   if (busy || !ready()) return;
@@ -3081,7 +3079,7 @@ async function anotherReply(i, bubble, direction = '') {
   try {
     const messages = i === 0
       ? [...await buildMessages(s.c, s.p, [], s.chat.memory), { role: 'user', content: direction
-          ? `[Rewrite ${cn(s.c)}'s opening message to start the roleplay with ${userName(s.p)}. The current version:\n\n${m.content}\n\nWhat to change: ${direction}${openingTime(s.chat)}\n\nStay fully in character. ${openingPov(s.c, s.p)} Reply with the new message only.]`
+          ? `[Rewrite ${cn(s.c)}'s opening message to start the roleplay with ${userName(s.p)}. The current version:\n\n${m.content}\n\nWhat to change: ${direction}${openingTime(s.chat)}\n\nStay fully in character. Reply with the new message only.]`
           : openingAsk(s.c, s.p) }]
       : await buildMessages(s.c, s.p, hist.slice(0, i), s.chat.memory);
     await aiTurn(s, hist, messages, bubble, m);
