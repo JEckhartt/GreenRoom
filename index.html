@@ -4344,10 +4344,14 @@ async function openSharedFile(url) {
   const name = decodeURIComponent(url.split('/').pop() || 'card');
   if (!/\.(png|json)$/i.test(name)) return;
   try {
-    const { data } = await FS.readFile({ path: url });
+    // a copy iOS put in the app's Inbox can be read directly; a file opened in place (from Files) needs access first
+    const inbox = /\/Inbox\//.test(url);
+    let data;
+    try { ({ data } = await FS.readFile({ path: url })); }
+    catch (e) { if (!BK?.readShared) throw e; ({ data } = await BK.readShared({ url })); }
     const bytes = Uint8Array.from(atob(data), ch => ch.charCodeAt(0));
     const file = new File([bytes], name, { type: /\.json$/i.test(name) ? 'application/json' : 'image/png' });
-    FS.deleteFile({ path: url }).catch(() => {});
+    if (inbox) FS.deleteFile({ path: url }).catch(() => {}); // only ever the app's own copy, never your original
     hideSheet(); hideMsgMenu?.();
     for (const v of ['editor', 'settings', 'chatset']) $(v).classList.remove('open');
     openView('chars');

@@ -13,7 +13,8 @@ public class BackupFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDe
         CAPPluginMethod(name: "pick", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "write", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "forget", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "forget", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readShared", returnType: CAPPluginReturnPromise)
     ]
     private let key = "greenroom.backupFolder"
     private let prefix = "Green-Room-autobackup-"
@@ -97,6 +98,18 @@ public class BackupFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDe
 
     @objc func status(_ call: CAPPluginCall) {
         if let url = folder() { call.resolve(["name": url.lastPathComponent]) } else { call.resolve([:]) }
+    }
+
+    // A card opened in place from Files (not copied into the app): read it with the access iOS gave for it
+    @objc func readShared(_ call: CAPPluginCall) {
+        guard let s = call.getString("url"), let url = URL(string: s) else { return call.reject("No file") }
+        let ok = url.startAccessingSecurityScopedResource()
+        defer { if ok { url.stopAccessingSecurityScopedResource() } }
+        var result: Data?
+        var coordError: NSError?
+        NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordError) { u in result = try? Data(contentsOf: u) }
+        guard let data = result else { return call.reject("Could not read the file: \(coordError?.localizedDescription ?? "no access")") }
+        call.resolve(["data": data.base64EncodedString()])
     }
 
     @objc func forget(_ call: CAPPluginCall) {
