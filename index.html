@@ -9,7 +9,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Green Room</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="fonts/fonts.css">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
   /* ---------- Themes ---------- */
@@ -1553,7 +1553,10 @@ const FONTS = {
   'Mono':               { css: "ui-monospace, 'SF Mono', Menlo, monospace" },
 };
 const loadedFonts = new Set();
+// The built-in fonts are in the app (fonts/fonts.css), so nothing is fetched from the internet
+const BUNDLED_FONTS = true;
 function loadFonts(names) {
+  if (BUNDLED_FONTS) return;
   const fams = names.filter(n => FONTS[n]?.g && !loadedFonts.has(n));
   if (!fams.length) return;
   fams.forEach(n => loadedFonts.add(n));
