@@ -727,6 +727,10 @@
   .fonts button { padding: 12px 8px; border-radius: 11px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 17px; line-height: 1.2; text-align: center; }
   #abKeep { font: inherit; font-size: 15px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
   #abEvery button { font-size: 14px; }
+  #sheetOpts .opt.folder-opt .fchev { margin-left: auto; font-size: 20px; color: var(--ink-soft); transition: transform .2s; }
+  #sheetOpts .opt.folder-opt.open .fchev { transform: rotate(90deg); }
+  #sheetOpts .opt.in-folder { margin-left: 22px; width: calc(100% - 22px); }
+  #sheetOpts .opt.in-folder + .pdesc { margin-left: 22px; }
   .fonts button.font-add { font-size: 15px; color: var(--accent-ink); border-style: dashed; background: none; }
   .fonts button.on { border-color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent); }
   .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
@@ -3265,29 +3269,50 @@ function charActions(c) {
 // Tapping a persona unfolds its description with a button to go ahead; No persona goes straight on
 function pickPersona(c, then = null) {
   const go = then || (pid => newChat(c.id, pid));
-  showSheet(`Chat with ${c.name} as…`, [
-    ...personas.map(p => ({ label: p.name, av: p, onClick: () => go(p.id) })),
-    { label: 'No persona', av: null, onClick: () => go('') },
-  ]);
-  const btns = [...$('sheetOpts').querySelectorAll('button.opt')];
-  personas.forEach((p, i) => {
-    const b = btns[i]; if (!b) return;
+  showSheet(`Chat with ${c.name} as…`, []);
+  const box = $('sheetOpts');
+  const fs = folders.filter(f => f.kind === 'persona' && personas.some(p => p.folder === f.id));
+  const closeDescs = () => { box.querySelectorAll('.pdesc').forEach(x => x.remove()); box.querySelectorAll('button.opt.on').forEach(x => x.classList.remove('on')); };
+  // one persona: tap shows its description with a button to go ahead
+  const personaBtn = (p, inFolder) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'opt' + (inFolder ? ' in-folder' : '');
+    const a = document.createElement('span'); a.className = 'av'; setThumb(a, p); b.append(a, p.name);
     b.onclick = () => {
       const open = b.nextElementSibling?.classList.contains('pdesc');
-      $('sheetOpts').querySelectorAll('.pdesc').forEach(x => x.remove());
-      btns.forEach(x => x.classList.remove('on'));
-      if (open) return;
+      closeDescs(); if (open) return;
       b.classList.add('on');
-      const box = document.createElement('div'); box.className = 'pdesc';
+      const d = document.createElement('div'); d.className = 'pdesc';
       const t = document.createElement('div'); t.className = 'pdesc-txt';
       t.textContent = stripMd(fill(p.personality || '', c, p)).trim() || 'No description.';
       const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'btn primary';
       ok.textContent = then ? `Choose ${p.name}` : `Start chat as ${p.name}`;
       ok.onclick = () => { hideSheet(); go(p.id); };
-      box.append(t, ok); b.after(box);
-      box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      d.append(t, ok); b.after(d);
+      d.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     };
-  });
+    return b;
+  };
+  // folders first: tap one to unfold the personas inside
+  for (const f of fs) {
+    const fb = document.createElement('button'); fb.type = 'button'; fb.className = 'opt folder-opt';
+    const ic = document.createElement('span'); ic.className = 'ico'; ic.innerHTML = folderSvg;
+    const chev = document.createElement('span'); chev.className = 'fchev'; chev.textContent = '›';
+    fb.append(ic, f.name, chev);
+    const inside = personas.filter(p => p.folder === f.id);
+    let shown = [];
+    fb.onclick = () => {
+      if (shown.length) { closeDescs(); shown.forEach(x => x.remove()); shown = []; fb.classList.remove('open'); return; }
+      let after = fb;
+      shown = inside.map(p => { const pb = personaBtn(p, true); after.after(pb); after = pb; return pb; });
+      fb.classList.add('open');
+    };
+    box.append(fb);
+  }
+  for (const p of personas) if (!p.folder || !fs.some(f => f.id === p.folder)) box.append(personaBtn(p, false));
+  const none = document.createElement('button'); none.type = 'button'; none.className = 'opt';
+  const na = document.createElement('span'); na.className = 'av'; setThumb(na, { name: '–' }); none.append(na, 'No persona');
+  none.onclick = () => { hideSheet(); go(''); };
+  box.append(none);
 }
 function pickChar(title, then) {
   if (!chars.length) return toast('Make a character first');
