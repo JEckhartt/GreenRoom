@@ -7010,8 +7010,11 @@ async function peopleRefs(s, last) {
   const who = n => `a picture of ${n}: how ${n} looks (face, hair, body). Only include ${n} if the description has them in it ("us", "we" and "both" count). Do not copy its pose, background or framing.`;
   const list = [card && { url: card, label: who(cc) }, mine && { url: mine, label: who(u) },
     last && { url: last, label: `the last picture ${cc} sent in this chat: if ${cc} is in the image, keep outfit, hair and setting consistent with it.` }].filter(Boolean);
-  const about = [[cc, fill(c.personality || '', c, p)], [u, fill(p?.personality || '', c, p)]]
-    .filter(([, t]) => t.trim()).map(([n, t]) => `About ${n} (looks and details; follow this whenever they appear):\n${t.trim()}`).join('\n\n');
+  // with a profile picture, the picture decides how someone looks; the text only adds what it doesn't show
+  const about = [[cc, fill(c.personality || '', c, p), !!card], [u, fill(p?.personality || '', c, p), !!mine]]
+    .filter(([, t]) => t.trim()).map(([n, t, pic]) => (pic
+      ? `About ${n}. The reference picture of ${n} shows how ${n} looks; this text only adds what the picture doesn't show. Where they disagree (face, hair, body, age, skin), follow the picture:`
+      : `About ${n} (looks and details; follow this whenever they appear):`) + `\n${t.trim()}`).join('\n\n');
   return { list, about };
 }
 let giBusy = false;

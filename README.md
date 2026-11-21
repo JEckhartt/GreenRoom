@@ -37,7 +37,7 @@ With **Enable** on (Settings → Image proxy, or per chat):
 
 Long press an image to delete or regenerate it. **+ → Generate image** makes a picture you send (typed, or matching what you wrote).
 
-What the image proxy gets: the character's and your profile pictures (each "only include them if the description has them in it", "don't copy the pose or background"), the character's last picture (for a consistent outfit), your **Image prompt**, the description, and both personality texts.
+What the image proxy gets: the character's and your profile pictures (each "only include them if the description has them in it", "don't copy the pose or background"), the character's last picture (for a consistent outfit), your **Image prompt**, the description, and both personality texts. Where someone has a profile picture, the picture decides how they look and their text only adds what it doesn't show.
 
 With **Enable** off it's a regular chat: no images are made or sent to the AI (earlier ones are mentioned as "an image was attached"), and the image buttons are hidden.
 
