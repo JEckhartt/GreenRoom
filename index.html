@@ -722,6 +722,7 @@
 
   .fonts { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; margin-top: 10px; }
   .fonts button { padding: 12px 8px; border-radius: 11px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 17px; line-height: 1.2; text-align: center; }
+  .fonts button.font-add { font-size: 15px; color: var(--accent-ink); border-style: dashed; background: none; }
   .fonts button.on { border-color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent); }
   .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
   .presets button { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
@@ -1373,6 +1374,7 @@ Empty = send everything.</div>
     <details class="card fold" data-sec="look-fonts">
       <summary class="sub">Font <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></summary>
       <div class="fonts" id="fonts"></div>
+      <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2" hidden>
     </details>
 
     <details class="card fold" data-sec="look-ai-text">
@@ -5946,15 +5948,67 @@ function setStyle(k, v) {
   if (styleTarget === 'both' && STYLE_KEYS.includes(k)) writeLook('u_' + k, v);
   update(sk(k), v);
 }
-function buildSettings() {
-  // font grid
+// Font grid: the built-in fonts and your own; long press a font to delete it (a built-in one is hidden
+// and can be brought back), + Add font adds a font file (.ttf, .otf, .woff, .woff2)
+function renderFontGrid() {
   $('fonts').innerHTML = '';
+  const hidden = cfg.hiddenFonts || [];
   for (const name of Object.keys(FONTS)) {
+    if (hidden.includes(name)) continue;
     const b = document.createElement('button');
     b.type = 'button'; b.dataset.font = name; b.textContent = name; b.style.fontFamily = FONTS[name].css;
-    b.onclick = () => { if (styleTarget === 'both') writeLook('meFont', name); update(fontKey(), name); };
+    pressable(b, () => { if (styleTarget === 'both') writeLook('meFont', name); update(fontKey(), name); }, () => { navigator.vibrate?.(12); fontMenu(name); });
     $('fonts').appendChild(b);
   }
+  const add = document.createElement('button'); add.type = 'button'; add.className = 'font-add'; add.textContent = '+ Add font';
+  add.onclick = () => $('fontFile').click();
+  $('fonts').appendChild(add);
+  if (hidden.length) {
+    const r = document.createElement('button'); r.type = 'button'; r.className = 'font-add'; r.textContent = `Bring back deleted (${hidden.length})`;
+    r.onclick = () => { cfg.hiddenFonts = []; saveCfg(); renderFontGrid(); syncControls(); };
+    $('fonts').appendChild(r);
+  }
+}
+function fontMenu(name) {
+  const custom = customFonts().find(f => f.name === name);
+  showSheet(name, [{ label: 'Delete font', onClick: async () => {
+    if (!confirm(`Delete the font "${name}"?${custom ? '' : ' (A built-in font can be brought back.)'}`)) return;
+    if (custom) {
+      cfg.customFonts = customFonts().filter(f => f !== custom); idb.del(custom.key).catch(() => {}); delete FONTS[name];
+    } else (cfg.hiddenFonts ||= []).push(name);
+    // where it was used, the default font takes over
+    const swap = L => { if (!L) return; if (L.aiFont === name) L.aiFont = 'Fraunces'; if (L.meFont === name) L.meFont = 'Inter'; };
+    swap(cfg); for (const ch of chats) swap(ch.look); for (const st of cfg.savedStyles || []) swap(st.look);
+    saveCfg(); store.set('chats', chats); renderFontGrid(); applyLook(); syncControls();
+    toast('Font deleted');
+  } }]);
+}
+const customFonts = () => cfg.customFonts || (cfg.customFonts = []);
+async function registerFont(f) {
+  try {
+    const src = await idb.get(f.key); if (!src) return false;
+    const face = new FontFace(f.family, `url(${src})`);
+    await face.load(); document.fonts.add(face);
+    FONTS[f.name] = { css: `'${f.family}', system-ui, sans-serif`, custom: true };
+    return true;
+  } catch (e) { dbg('error', `Font "${f.name}" could not be loaded: ${e?.message || e}`); return false; }
+}
+$('fontFile').onchange = async () => {
+  const file = $('fontFile').files[0]; $('fontFile').value = ''; if (!file) return;
+  if (!/\.(ttf|otf|woff2?)$/i.test(file.name)) return toast('That is not a font file (.ttf, .otf, .woff or .woff2).');
+  let name = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim().slice(0, 40) || 'My font';
+  while (FONTS[name]) name += ' 2';
+  const src = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(file); });
+  const id = uid(), f = { id, name, family: 'GRFont-' + id, key: 'font_' + id };
+  await idb.put(f.key, src);
+  if (!(await registerFont(f))) { idb.del(f.key).catch(() => {}); return toast('This font file could not be read.'); }
+  customFonts().push(f); saveCfg(); renderFontGrid(); syncControls();
+  toast(`Added ${name}. Tap it to use it.`);
+};
+// your fonts are loaded at start
+(async () => { let any = false; for (const f of customFonts()) any = (await registerFont(f)) || any; if (any) { renderFontGrid(); applyLook(); syncControls(); } })();
+function buildSettings() {
+  renderFontGrid();
   // gradient presets
   for (const [a, c, ang] of GRADIENTS) {
     const b = document.createElement('button');
