@@ -3290,6 +3290,31 @@ function renderChats() {
   }
   const groups = [...by].map(([id, cs]) => [chars.find(c => c.id === id), cs.sort((a, b) => b.updated - a.updated)])
     .sort((a, b) => b[1][0].updated - a[1][0].updated);
+  // folders first
+  for (const f of folders.filter(f => f.kind === 'chat')) {
+    const inside = chats.filter(ch => ch.folder === f.id && ch.preview && chars.some(c => c.id === ch.charId)).sort((a, b) => b.updated - a.updated);
+    const key = 'f:' + f.id, open = expanded.has(key);
+    const g = document.createElement('div'); g.className = 'group' + (open ? ' open' : '');
+    const head = document.createElement('div'); head.className = 'folder-head';
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'item';
+    const ic = document.createElement('div'); ic.className = 'folder-icon'; ic.innerHTML = folderSvg;
+    const info = document.createElement('div'); info.className = 'info';
+    const h = document.createElement('h3'); h.textContent = f.name;
+    const meta = document.createElement('p'); meta.textContent = `${inside.length} chat${inside.length === 1 ? '' : 's'}`;
+    const chev = document.createElement('span'); chev.className = 'chev';
+    info.append(h, meta); b.append(ic, info, chev);
+    b.onclick = () => { expanded.clear(); if (!open) expanded.add(key); renderChats(); };
+    const more = document.createElement('button'); more.type = 'button'; more.className = 'more'; more.textContent = '⋯';
+    more.setAttribute('aria-label', 'Folder options'); more.onclick = () => chatFolderMenu(f);
+    head.append(b, more); g.append(head);
+    if (open) {
+      const sub = document.createElement('div'); sub.className = 'sublist';
+      for (const ch of inside) sub.append(chatRow(ch, chars.find(c => c.id === ch.charId), true));
+      if (!inside.length) { const e = document.createElement('div'); e.className = 'hint'; e.style.padding = '0 6px 6px'; e.textContent = 'Empty. Long press a chat and choose Move to folder.'; sub.append(e); }
+      g.append(sub);
+    }
+    list.appendChild(g);
+  }
   for (const [c, cs] of groups) {
     const g = document.createElement('div'); g.className = 'group' + (expanded.has(c.id) ? ' open' : '');
     const head = document.createElement('button'); head.type = 'button'; head.className = 'item';
@@ -3310,32 +3335,55 @@ function renderChats() {
       nw.textContent = '+ Start new chat'; nw.onclick = () => pickPersona(c);
       const lr = document.createElement('div'); lr.className = 'linkrow'; lr.append(link, nw);
       sub.append(lr);
-      for (const ch of cs) {
-        const p = personaOf(ch);
-        const row = document.createElement('div'); row.className = 'crow';
-        const go = document.createElement('button'); go.type = 'button'; go.className = 'go';
-        const av = document.createElement('span'); av.className = 'av'; setThumb(av, p || { name: ch.personaName || '–' });
-        const txt = document.createElement('div');
-        const who = document.createElement('div'); who.className = 'who';
-        const label = chatLabel(ch);
-        const nm = document.createElement('span'); nm.textContent = 'as ' + (p?.name || ch.personaName || 'no persona') + (label ? ' · ' + label : '');
-        if (ch.count == null) ch.count = msgGet(ch.id).length;
-        const tm = document.createElement('time'); tm.textContent = `${ch.count} message${ch.count === 1 ? '' : 's'} · ${when(ch.updated)}`;
-        who.append(nm, tm);
-        const snip = document.createElement('div'); snip.className = 'snip'; snip.textContent = stripMd(ch.preview);
-        txt.append(who, snip); go.append(av, txt);
-        pressable(go, () => openChat(ch.id), () => { navigator.vibrate?.(12); chatMenu(ch, c); });
-        const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.innerHTML = trashSvg;
-        del.setAttribute('aria-label', 'Delete chat');
-        del.onclick = () => { if (confirm(`Delete this chat with ${c.name}?`)) deleteChat(ch.id); };
-        row.append(go, del); sub.append(row);
-      }
+      for (const ch of cs) sub.append(chatRow(ch, c));
       g.append(sub);
     }
     list.appendChild(g);
   }
 }
 
+// One chat in the list; in a folder it also shows the character (withChar)
+function chatRow(ch, c, withChar = false) {
+  const p = personaOf(ch);
+  const row = document.createElement('div'); row.className = 'crow';
+  const go = document.createElement('button'); go.type = 'button'; go.className = 'go';
+  const av = document.createElement('span'); av.className = 'av'; setThumb(av, withChar ? c : (p || { name: ch.personaName || '–' }));
+  const txt = document.createElement('div');
+  const who = document.createElement('div'); who.className = 'who';
+  const label = chatLabel(ch);
+  const nm = document.createElement('span'); nm.textContent = (withChar ? cn(c) + ' ' : '') + 'as ' + (p?.name || ch.personaName || 'no persona') + (label ? ' · ' + label : '');
+  if (ch.count == null) ch.count = msgGet(ch.id).length;
+  const tm = document.createElement('time'); tm.textContent = `${ch.count} message${ch.count === 1 ? '' : 's'} · ${when(ch.updated)}`;
+  who.append(nm, tm);
+  const snip = document.createElement('div'); snip.className = 'snip'; snip.textContent = stripMd(ch.preview);
+  txt.append(who, snip); go.append(av, txt);
+  pressable(go, () => openChat(ch.id), () => { navigator.vibrate?.(12); chatMenu(ch, c); });
+  const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.innerHTML = trashSvg;
+  del.setAttribute('aria-label', 'Delete chat');
+  del.onclick = () => { if (confirm(`Delete this chat with ${c.name}?`)) deleteChat(ch.id); };
+  row.append(go, del);
+  return row;
+}
+// Chat folders: at the top of Chats. A chat in a folder also stays under its character
+function chatFolderMenu(f) {
+  showSheet(f.name, [
+    { label: 'Rename folder', onClick: () => { const n = prompt('Folder name', f.name)?.trim(); if (n) { f.name = n; saveFolders(); renderChats(); } } },
+    { label: 'Delete folder', onClick: () => {
+      if (!confirm(`Delete the folder "${f.name}"? The chats in it are kept.`)) return;
+      for (const ch of chats) if (ch.folder === f.id) delete ch.folder;
+      folders = folders.filter(x => x.id !== f.id); saveFolders(); saveChats();
+    } },
+  ]);
+}
+function moveChatToFolder(ch) {
+  const fs = folders.filter(f => f.kind === 'chat');
+  const put = id => { if (id) ch.folder = id; else delete ch.folder; saveChats(); toast(id ? `Moved to ${fs.find(f => f.id === id)?.name || 'the folder'}` : 'Taken out of the folder'); };
+  showSheet('Move to folder', [
+    ...fs.map(f => ({ label: f.name + (ch.folder === f.id ? ' · here now' : ''), icon: folderSvg, onClick: () => put(f.id) })),
+    { label: 'New folder…', onClick: () => { const n = prompt('Folder name')?.trim(); if (!n) return; const f = { id: uid(), kind: 'chat', name: n }; folders.push(f); saveFolders(); put(f.id); } },
+    ...(ch.folder ? [{ label: 'Take out of the folder', onClick: () => put('') }] : []),
+  ]);
+}
 // The chat's own name, shown after "as Persona ·": what you named it, or "branch" for a branch
 const chatLabel = ch => ch.title ?? (ch.branchOf ? 'branch' : '');
 function chatMenu(ch, c) {
@@ -3347,6 +3395,7 @@ function chatMenu(ch, c) {
       ch.title = t.trim().slice(0, 80);
       store.set('chats', chats); renderChats(); if (cur?.chat.id === ch.id) renderChatHead();
     } },
+    { label: 'Move to folder', onClick: () => moveChatToFolder(ch) },
     { label: 'Export', onClick: () => showSheet('Export as', EXPORTS.map(([fmt, name]) => ({ label: name, onClick: () => exportChat(ch, c, fmt) }))) },
     { label: 'Delete chat', onClick: () => { if (confirm(`Delete this chat with ${c.name}?`)) deleteChat(ch.id); } },
   ]);
