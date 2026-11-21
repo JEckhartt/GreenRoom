@@ -231,6 +231,7 @@
   .items.gridview .item h3 { font-size: 15px; margin: 0 0 3px; }
   .items.gridview .item p { font-size: 13px; -webkit-line-clamp: 3; line-clamp: 3; }
   .items.gridview .swipe-acts { display: none; }
+  .items.gridview .grid-chat[hidden] { display: none; }
   .items.gridview .grid-chat { display: block; width: 100%; margin-top: 6px; padding: 9px; border: 0; border-radius: 12px; background: var(--accent); color: var(--on-accent); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
   /* compact list (Chats, Characters): the same pictures and framing, only smaller */
   .items.compact { gap: 6px; }
@@ -3823,14 +3824,14 @@ function row(kind, it) {
   gestures(w, b, () => {
     if (sel.kind) return toggleSel(kind, it.id);
     // grid: the text unfolds the whole description, the picture opens the profile (or the persona)
-    if (grid && b._onText) { gridOpen.has(it.id) ? gridOpen.delete(it.id) : gridOpen.add(it.id); b.classList.toggle('expanded', gridOpen.has(it.id)); return; }
+    if (grid && b._onText) { gridOpen.has(it.id) ? gridOpen.delete(it.id) : gridOpen.add(it.id); b.classList.toggle('expanded', gridOpen.has(it.id)); const gc = w.querySelector('.grid-chat'); if (gc) gc.hidden = !gridOpen.has(it.id); return; }
     if (kind !== 'char') return openEditor('persona', it.id);
     if (grid) return openProfile(it.id);
     openCharRow = openCharRow === it.id ? null : it.id; renderList('char');
   }, () => startSelect(kind, it.id), grid ? 0 : SW);
   if (grid && kind === 'char' && !sel.kind) {
-    // grid: a Chat button under each character
-    const go = document.createElement('button'); go.type = 'button'; go.className = 'grid-chat'; go.textContent = 'Chat';
+    // grid: a Chat button under a character whose description is unfolded
+    const go = document.createElement('button'); go.type = 'button'; go.className = 'grid-chat'; go.textContent = 'Chat'; go.hidden = !gridOpen.has(it.id);
     go.onclick = () => pickPersona(it);
     w.append(go);
   }
