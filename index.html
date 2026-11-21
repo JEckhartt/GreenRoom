@@ -2358,8 +2358,8 @@ async function generateImage(prompt, refs, guide = '', about = '', aspect = '') 
   const list = (refs?.list || []).filter(r => r.url);
   const names = list.length > 1 ? list.map((r, i) => `Reference ${i + 1} is ${r.label}`).join('\n') : list.length ? `The reference image is ${list[0].label}` : '';
   const ask = prompt.trim() && (list.length ? `Image to create: ${prompt.trim()}\nGenerate what the description asks for, not a copy of a reference image.` : prompt.trim());
-  // your Image prompt comes last, marked as the one that wins (style and format)
-  const text = [names, ask, about.trim(), guide.trim() && `Style and instructions for this picture (follow these over anything above):\n${guide.trim()}`].filter(Boolean).join('\n\n');
+  // your Image prompt comes first, marked as the one that wins (style and format)
+  const text = [guide.trim() && `Style and instructions for this picture (follow these over anything below):\n${guide.trim()}`, names, ask, about.trim()].filter(Boolean).join('\n\n');
   return requestImage(list.length ? [...list.map(r => ({ type: 'image_url', image_url: { url: r.url } })), { type: 'text', text }] : text, undefined, aspect);
 }
 var IMAGE_TIMEOUT = 180000;
