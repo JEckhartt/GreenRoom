@@ -6,7 +6,7 @@ import Capacitor
 // bookmark and writes backups there by itself. Only files it made itself (Green-Room-autobackup-…) are ever
 // deleted, to keep the number you chose.
 @objc(BackupFolderPlugin)
-public class BackupFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDelegate {
+public class BackupFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
     public let identifier = "BackupFolderPlugin"
     public let jsName = "BackupFolder"
     public let pluginMethods: [CAPPluginMethod] = [
@@ -23,10 +23,18 @@ public class BackupFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDe
     @objc func pick(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             self.pickCall = call
-            let picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.folder])
+            let picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.folder], asCopy: false)
             picker.delegate = self
             picker.allowsMultipleSelection = false
-            self.bridge?.viewController?.present(picker, animated: true)
+            // a sheet with Cancel and Open in its bar, which can also be swiped down to close
+            picker.modalPresentationStyle = .formSheet
+            picker.isModalInPresentation = false
+            picker.overrideUserInterfaceStyle = .unspecified
+            var top = self.bridge?.viewController
+            while let shown = top?.presentedViewController { top = shown }
+            top?.present(picker, animated: true) {
+                picker.presentationController?.delegate = self
+            }
         }
     }
 
@@ -42,6 +50,11 @@ public class BackupFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDe
         } catch {
             call.reject("Could not use that folder: \(error.localizedDescription)")
         }
+    }
+
+    public func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        pickCall?.resolve(["cancelled": true])
+        pickCall = nil
     }
 
     public func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {

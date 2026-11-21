@@ -47,7 +47,7 @@ With **Enable** off it's a regular chat: no images are made or sent to the AI (e
 - **Import** → *Character card (file)* (PNG/JSON) or *From Chub link* fills everything in; from Safari or Files, **Share → Green Room** does the same. **Generate** writes a whole character, with a picture, from a few words. **+** at the top right: create new or generate.
 - The picture: tap it to choose one from your phone or **From album**.
 - **Frame picture** (opens after you pick a picture, and from the editor any time): drag, pinch or slide to choose what shows, with live previews of the chat header, messages, chats list, characters list and profile. Tap a preview to frame just that spot (its own shape: circle, or tall for the lists); the others follow the main framing. The profile shows the whole picture, in its own shape. Works for characters and personas.
-- Tap a character to unfold its **Profile** and **+ Start new chat**. The button next to + switches Characters between a list, a compact list and a grid, and Personas and Albums between a list and a grid (picture, name, bio); in the grid, tapping a character opens the profile. The profile opens with the description unfolded and the rest folded. Starting a chat: tapping a persona shows its description, with **Start chat as …**. The eye on a picture blurs it everywhere except in a chat and the editor.
+- Tap a character to unfold its **Profile** and **+ Start new chat**. The button next to + switches Characters between a list, a compact list and a grid, and Personas and Albums between a list and a grid (picture, name, bio); in the grid, tapping a character opens the profile and **Chat** under it starts a chat. In the profile, ⋯ at the top has Edit, Export card and Delete. The profile opens with the description unfolded and the rest folded. Starting a chat: tapping a persona shows its description, with **Start chat as …**. The eye on a picture blurs it everywhere except in a chat and the editor.
 - **Personas**: who *you* are: image, name, personality.
 - Swipe a character or persona left for **Move** (to a folder) and **Delete**; long press to select several.
 
@@ -102,7 +102,7 @@ Settings → Customization, and per chat under Chat settings → Style.
 
 - **Saved styles** at the top: **+ Save current style**; tap one to use it (the dot shows which one is in use); ⋯ or long press to update, rename or delete.
 - The mock-up with **AI / You / Both**: which side a change applies to. Under Both, a setting that differs between the sides shows as mixed until you change it.
-- **Theme**: Default / Light / Dark / Green (the start-up screen's colours) and accent colour (always per chat).
+- **Theme**: Default / Light / Dark / Green (the start-up screen's colours) and accent colour. In a chat with **Global** on, the theme comes from Settings too; turn Global off to give the chat its own theme.
 - **Layout**: per side: bubble on/off, bubble shape and full width (with a bubble), names, profile pictures (circle or rounded square; tap one in a chat to float it), timestamps. For all messages: where they sit (left & right, all left, centered, all right), space between them, and how new messages appear:
   - **Appear**: typing dots while the AI writes, then the whole reply at once
   - **Fade in**: it starts showing once the AI is a little ahead, each new bit fading in, while the AI keeps writing ahead

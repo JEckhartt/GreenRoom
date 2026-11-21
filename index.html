@@ -186,7 +186,8 @@
   .view { position: fixed; inset: 0; bottom: var(--kb); z-index: 20; background: var(--bg); display: flex; flex-direction: column;
     transform: translateX(100%); visibility: hidden; transition: transform .3s cubic-bezier(.2,.8,.2,1), visibility 0s .3s; }
   .view.open { transform: none; visibility: visible; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
-  .page-head .act.plus { font-size: 30px; font-weight: 400; line-height: 1; padding: 0 6px; }
+  .page-head .act.more-act { font-size: 26px; font-weight: 700; line-height: 1; padding: 0 8px 6px; }
+  .page-head .act.plus, .page-head .act.vbtn { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; line-height: 0; }
   .page-head .act { justify-self: end; background: none; border: 0; color: var(--accent-ink); font-size: 17px; font-weight: 600; padding: 6px 4px; cursor: pointer; }
 
   /* ---------- Title screen ---------- */
@@ -230,6 +231,7 @@
   .items.gridview .item h3 { font-size: 15px; margin: 0 0 3px; }
   .items.gridview .item p { font-size: 13px; -webkit-line-clamp: 3; line-clamp: 3; }
   .items.gridview .swipe-acts { display: none; }
+  .items.gridview .grid-chat { display: block; width: 100%; margin-top: 6px; padding: 9px; border: 0; border-radius: 12px; background: var(--accent); color: var(--on-accent); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
   /* compact list (Chats, Characters): the same pictures and framing, only smaller */
   .items.compact { gap: 6px; }
   .items.compact .item { padding: 7px 10px; gap: 10px; align-items: center; border-radius: 12px; }
@@ -754,7 +756,7 @@
 </section>
 
 <section id="chars" class="view" aria-label="Characters">
-  <div class="page-head"><button class="back" data-close="chars" type="button">‹ Back</button><h1>Characters</h1><span class="head-acts"><button class="act vbtn" id="charView" type="button" aria-label="Grid or list"></button><button class="act plus" id="charAdd" type="button" aria-label="New character">+</button></span></div>
+  <div class="page-head"><button class="back" data-close="chars" type="button">‹ Back</button><h1>Characters</h1><span class="head-acts"><button class="act vbtn" id="charView" type="button" aria-label="Grid or list"></button><button class="act plus" id="charAdd" type="button" aria-label="New character"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <input type="search" class="search" id="charSearch" placeholder="Search characters" autocomplete="off" style="margin-bottom:12px">
     <div class="items" id="charList"></div>
@@ -763,7 +765,7 @@
 </section>
 
 <section id="personas" class="view" aria-label="Personas">
-  <div class="page-head"><button class="back" data-close="personas" type="button">‹ Back</button><h1>Personas</h1><span class="head-acts"><button class="act vbtn" id="personaView" type="button" aria-label="Grid or list"></button><button class="act plus" id="newPersona" type="button" aria-label="New persona">+</button></span></div>
+  <div class="page-head"><button class="back" data-close="personas" type="button">‹ Back</button><h1>Personas</h1><span class="head-acts"><button class="act vbtn" id="personaView" type="button" aria-label="Grid or list"></button><button class="act plus" id="newPersona" type="button" aria-label="New persona"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="items" id="personaList"></div>
   </div></div>
@@ -797,7 +799,7 @@
 </section>
 
 <section id="albums" class="view" aria-label="Albums">
-  <div class="page-head"><button class="back" data-close="albums" type="button">‹ Back</button><h1>Albums</h1><span class="head-acts"><button class="act vbtn" id="albumView" type="button" aria-label="Grid or list"></button><button class="act plus" id="newAlbum" type="button" aria-label="New album">+</button></span></div>
+  <div class="page-head"><button class="back" data-close="albums" type="button">‹ Back</button><h1>Albums</h1><span class="head-acts"><button class="act vbtn" id="albumView" type="button" aria-label="Grid or list"></button><button class="act plus" id="newAlbum" type="button" aria-label="New album"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="items" id="albumList"></div>
   </div></div>
@@ -815,7 +817,7 @@
 </section>
 
 <section id="chats" class="view" aria-label="Chats">
-  <div class="page-head"><button class="back" data-close="chats" type="button">‹ Back</button><h1>Chats</h1><span class="head-acts"><button class="act vbtn" id="chatView" type="button" aria-label="Compact list"></button><button class="act plus" id="chatAdd" type="button" aria-label="New or imported chat">+</button></span></div>
+  <div class="page-head"><button class="back" data-close="chats" type="button">‹ Back</button><h1>Chats</h1><span class="head-acts"><button class="act vbtn" id="chatView" type="button" aria-label="Compact list"></button><button class="act plus" id="chatAdd" type="button" aria-label="New or imported chat"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <input type="file" id="chatFile" hidden>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <input type="search" class="search" id="chatSearch" placeholder="Search all chats" autocomplete="off" style="margin-bottom:12px">
@@ -969,6 +971,7 @@
   <div class="page-inner cs-pane" data-t="1" hidden>
     <details class="sec" id="themeFold">
     <summary class="group-title">Theme for this chat</summary>
+    <div class="hint" id="themeGlobalNote" hidden style="margin:4px 4px 10px">Global is on (Style below), so this chat uses the theme from Settings. Turn Global off to give it its own theme.</div>
     <div id="chatThemeHost"></div>
     </details>
     <details class="sec" id="bgFold">
@@ -1068,13 +1071,13 @@
 </section>
 
 <section id="profile" class="view" aria-label="Character profile">
-  <div class="page-head"><button class="back" data-close="profile" type="button">‹ Back</button><h1>Character</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="profile" type="button">‹ Back</button><h1>Character</h1><button class="act more-act" id="profMore" type="button" aria-label="Edit, export or delete">⋯</button></div>
   <div class="page-body"><div class="page-inner">
     <div class="hero-wrap"><div class="hero" id="profHero"></div><button type="button" id="profEye" aria-label="Blur picture"></button></div>
     <h2 class="prof-name" id="profName"></h2>
     <div id="profSecs"></div>
     <div class="save-bar"><button class="btn primary" type="button" id="profChat">Chat</button></div>
-    <div class="actions">
+    <div class="actions" hidden>
       <button class="btn" type="button" id="profEdit">Edit</button>
       <button class="btn" type="button" id="profExport">Export card</button>
       <button class="btn danger" type="button" id="profDelete">Delete</button>
@@ -1827,10 +1830,16 @@ const THEME_KEYS = ['theme', 'accent'];
 const styleKeysOf = look => Object.keys(look || {}).filter(k => !THEME_KEYS.includes(k));
 const themeOf = look => Object.fromEntries(Object.entries(look || {}).filter(([k]) => THEME_KEYS.includes(k)));
 const followsGlobal = ch => ch.lookGlobal ?? !styleKeysOf(ch.look).length;
-const chatLook = () => !cur?.chat ? cfg : followsGlobal(cur.chat) ? { ...cfg, ...themeOf(cur.chat.look) } : { ...cfg, ...(cur.chat.look || {}) };
+// Global on: the chat looks exactly like Settings, theme included; off: its own style and theme
+const chatLook = () => !cur?.chat ? cfg : followsGlobal(cur.chat) ? cfg : { ...cfg, ...(cur.chat.look || {}) };
 const lookToChat = () => lookCtx === 'chat' && !!cur && !followsGlobal(cur.chat);
+// In Chat settings the theme controls only show when the chat has its own style (Global off)
+function syncThemeFold() {
+  const g = lookCtx === 'chat' && cur && followsGlobal(cur.chat);
+  $('themeGlobalNote').hidden = !g; $('chatThemeHost').hidden = !!g;
+}
 const activeLook = () => lookCtx === 'global' && $('settings').classList.contains('open') ? cfg : chatLook();
-function isDark() { const t = activeLook().theme; return t === 'dark' || (t === 'original' && darkMQ.matches); }
+function isDark() { const t = activeLook().theme; return t === 'dark' || t === 'green' || (t === 'original' && darkMQ.matches); }
 
 // Markdown elements that can get their own color (chat messages + settings preview only)
 const MD_ELS = [
@@ -3528,6 +3537,14 @@ function openProfile(id) {
   $('profile').querySelector('.page-body').scrollTop = 0;
   openView('profile');
 }
+$('profMore').onclick = () => {
+  const c = chars.find(x => x.id === profileId); if (!c) return;
+  showSheet(c.name, [
+    { label: 'Edit', onClick: () => $('profEdit').click() },
+    { label: 'Export card', onClick: () => $('profExport').click() },
+    { label: 'Delete', onClick: () => $('profDelete').click() },
+  ]);
+};
 function renderProfile() {
   const c = chars.find(x => x.id === profileId); if (!c) return false;
   setThumb($('profHero'), c); syncEye(c);
@@ -3811,6 +3828,12 @@ function row(kind, it) {
     if (grid) return openProfile(it.id);
     openCharRow = openCharRow === it.id ? null : it.id; renderList('char');
   }, () => startSelect(kind, it.id), grid ? 0 : SW);
+  if (grid && kind === 'char' && !sel.kind) {
+    // grid: a Chat button under each character
+    const go = document.createElement('button'); go.type = 'button'; go.className = 'grid-chat'; go.textContent = 'Chat';
+    go.onclick = () => pickPersona(it);
+    w.append(go);
+  }
   if (kind !== 'char' || grid || openCharRow !== it.id || sel.kind) return w;
   // unfolded: one card, the options attached underneath (like a character on the Chats screen)
   const box = document.createElement('div'); box.className = 'group open cgroup'; box.append(w);
@@ -5930,6 +5953,7 @@ function setLookCtx(ctx) {
   lookCtx = ctx;
   $(ctx === 'chat' ? 'chatLookHost' : 'globalLookHost').append($('lookBlock'));
   $(ctx === 'chat' ? 'chatThemeHost' : 'globalThemeHost').append($('themeBlock'));
+  syncThemeFold();
   $('lookThemeFold').hidden = ctx === 'chat'; $('resetRow').hidden = ctx === 'chat';
   applyLook(); syncControls();
 }
@@ -6001,13 +6025,13 @@ function syncControls() {
 
 // Look keys go to the open chat in chat settings, otherwise to the global config
 function writeLook(k, v) {
-  const toChat = lookCtx === 'chat' && cur && (lookToChat() || THEME_KEYS.includes(k));
+  const toChat = lookCtx === 'chat' && cur && lookToChat();
   if (toChat && LOOK_KEYS.includes(k)) (cur.chat.look ||= {})[k] = v;
   else cfg[k] = v;
 }
 function update(k, v) {
   writeLook(k, v);
-  lookCtx === 'chat' && cur && (lookToChat() || THEME_KEYS.includes(k)) && LOOK_KEYS.includes(k) ? store.set('chats', chats) : saveCfg();
+  lookCtx === 'chat' && cur && lookToChat() && LOOK_KEYS.includes(k) ? store.set('chats', chats) : saveCfg();
   applyLook(); syncControls();
 }
 
@@ -6120,12 +6144,11 @@ function buildSettings() {
   $('csGlobalLook').onchange = () => {
     const ch = cur?.chat; if (!ch) return;
     if ($('csGlobalLook').checked) {
-      // the style is put away (the theme stays with the chat)
-      const style = Object.fromEntries(Object.entries(ch.look || {}).filter(([k]) => !THEME_KEYS.includes(k)));
-      if (Object.keys(style).length) ch.lookStash = style;
-      ch.look = themeOf(ch.look); ch.lookGlobal = true;
-    } else { ch.look = { ...(ch.lookStash || {}), ...themeOf(ch.look) }; delete ch.lookStash; ch.lookGlobal = false; } // its own style comes back as it was
-    store.set('chats', chats); applyLook(); syncControls();
+      // its own style and theme are put away; the chat looks like Settings
+      if (Object.keys(ch.look || {}).length) ch.lookStash = { ...ch.look };
+      ch.look = {}; ch.lookGlobal = true;
+    } else { ch.look = { ...(ch.lookStash || {}), ...(ch.look || {}) }; delete ch.lookStash; ch.lookGlobal = false; } // its own style comes back as it was
+    store.set('chats', chats); applyLook(); syncControls(); syncThemeFold();
   };
   $('resetLook').onclick = () => {
     if (lookCtx === 'chat' && cur) { if (confirm('Drop this chat\'s own style and use the global one?')) { delete cur.chat.look; store.set('chats', chats); applyLook(); syncControls(); } return; }
