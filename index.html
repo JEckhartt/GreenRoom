@@ -7009,7 +7009,7 @@ async function peopleRefs(s, last) {
   const mine = p?.img ? await idb.get(p.img).catch(() => null) : null;
   const who = n => `a picture of ${n}: how ${n} looks (face, hair, body). Only include ${n} if the description has them in it ("us", "we" and "both" count). Do not copy its pose, background or framing.`;
   const list = [card && { url: card, label: who(cc) }, mine && { url: mine, label: who(u) },
-    last && { url: last, label: `the last picture ${cc} sent in this chat: if ${cc} is in the image, keep outfit, hair and setting consistent with it.` }].filter(Boolean);
+    last && { url: last, label: `the last picture ${cc} sent in this chat: if ${cc} is in the image, keep outfit and setting consistent with it (not the face or hair; those come from the profile picture).` }].filter(Boolean);
   // with a profile picture, the picture decides how someone looks; the text only adds what it doesn't show
   const about = [[cc, fill(c.personality || '', c, p), !!card], [u, fill(p?.personality || '', c, p), !!mine]]
     .filter(([, t]) => t.trim()).map(([n, t, pic]) => (pic
