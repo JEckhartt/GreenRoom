@@ -191,7 +191,8 @@
   .page-head .act { justify-self: end; background: none; border: 0; color: var(--accent-ink); font-size: 17px; font-weight: 600; padding: 6px 4px; cursor: pointer; }
 
   /* ---------- Title screen ---------- */
-  #home { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
+  #home.booting { opacity: 0; }
+  #home { transition: opacity .25s ease; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
   .logo { display: flex; align-items: center; gap: 14px; font-family: 'Fraunces', Georgia, serif; font-size: 44px; font-weight: 400; letter-spacing: .01em; margin: 0 0 36px; }
   .logo .pulse { width: 16px; height: 16px; }
   .menu { width: 100%; max-width: 320px; display: flex; flex-direction: column; }
@@ -746,7 +747,7 @@
 </style>
 </head>
 <body data-color="theme">
-<section id="home" aria-label="Green Room">
+<section id="home" class="booting" aria-label="Green Room">
   <h1 class="logo"><span class="pulse"></span>Green Room</h1>
   <nav class="menu">
     <button type="button" id="goChats">Chats</button>
@@ -7276,6 +7277,12 @@ renderList('persona');
 { let ch3 = false; for (const ch of chats) if ('textOnly' in ch) { if (ch.textOnly) ch.genImages = false; delete ch.textOnly; ch3 = true; } if (ch3) store.set('chats', chats); }
 // a chat renamed to just "as <persona>" (before the name moved after it) gets its plain label back
 for (const ch of chats) if (ch.title != null && /^as\s/i.test(ch.title) && ch.title.trim().toLowerCase() === ('as ' + (personaOf(ch)?.name || ch.personaName || '')).toLowerCase()) delete ch.title;
+// The title screen shows once its fonts are in (or after at most 1.2 s), so it doesn't jump when they arrive
+(() => {
+  const show = () => $('home').classList.remove('booting');
+  const fonts = document.fonts ? Promise.all(["300 40px 'Fraunces'", "400 17px 'Fraunces'", "400 16px 'Inter'"].map(f => document.fonts.load(f).catch(() => {}))) : Promise.resolve();
+  Promise.race([fonts, new Promise(r => setTimeout(r, 1200))]).then(() => requestAnimationFrame(show));
+})();
 loadMsgs().then(() => { deliverReach(); renderChats(); step('started'); });
 if (sessionStorage.getItem('restored')) { sessionStorage.removeItem('restored'); setTimeout(() => toast('Backup restored'), 0); }
 // Clean up the automatic-backup copy an earlier build wrote
