@@ -33,6 +33,13 @@
     --accent: #3d63f5; --accent-soft: #dfe6ff;
     --bubble-me: #f0f0f4; --line: #e4e4ea; --field: #f7f7fa; --card: #f7f7fa;
   }
+  /* Green: the colours of the start-up screen (deep green, warm golden light) */
+  [data-theme="green"] {
+    color-scheme: dark;
+    --bg: #0b2017; --bg-2: #0e2a1e; --ink: #e8f0e9; --ink-soft: #8fb0a0;
+    --accent: #f0c66a; --accent-soft: #24503d;
+    --bubble-me: #143a2b; --line: #1c4434; --field: #0a1b13; --card: #0f2a1f;
+  }
   [data-theme="dark"] {
     color-scheme: dark;
     --bg: #000000; --bg-2: #000000; --ink: #f2f2f2; --ink-soft: #8a8a90;
@@ -731,7 +738,6 @@
     <button type="button" id="goLore">Lorebooks</button>
     <button type="button" id="goAlbums">Albums</button>
     <button type="button" id="goSettings">Settings</button>
-    <button type="button" id="goJanitor">Connect to JanitorAI</button>
   </nav>
 </section>
 
@@ -756,7 +762,7 @@
   <div class="page-head"><button class="back" data-close="lorebooks" type="button">‹ Back</button><h1>Lorebooks</h1><span></span></div>
   <div class="page-body"><div class="page-inner">
     <div class="create linkrow" style="gap:8px"><button type="button" id="newLore" style="flex:2">+ Create new lorebook</button><button type="button" id="importLore" style="flex:1">Import</button></div>
-    <input type="file" id="loreFile" accept=".json,application/json,image/png,.png" hidden>
+    <input type="file" id="loreFile" accept=".json,application/json" hidden>
     <div class="hint" style="margin:0 4px 12px">World info for your stories: places, people, rules. Each entry has keywords; it is only sent to the AI when a keyword comes up in the recent messages, so it doesn't fill up the context. Link a lorebook to a character (in the character editor), to a chat (Chat settings → Prompt), or use it everywhere.</div>
     <div class="items" id="loreList"></div>
   </div></div>
@@ -1064,63 +1070,6 @@
   </div></div>
 </section>
 
-<section id="janHub" class="view" aria-label="JanitorAI">
-  <div class="page-head"><button class="back" data-close="janHub" type="button">‹ Back</button><h1>JanitorAI</h1><span></span></div>
-  <div class="page-body"><div class="page-inner" style="padding-top:4px">
-    <div class="jan-h">Import chats</div>
-    <div class="card">
-      <div class="hint" style="padding-top:12px;margin-top:0">Downloads your chats from JanitorAI. You review every character, persona and chat before anything is added.</div>
-      <div class="line"><span>Create characters I don't have yet</span><input type="checkbox" class="tgl" id="janOChars"></div>
-      <div class="line"><span>Create personas I don't have yet</span><input type="checkbox" class="tgl" id="janOPers"></div>
-      <div class="line"><span>Skip chats I already imported</span><input type="checkbox" class="tgl" id="janOSkip"></div>
-      <div class="hint">Off: chats you imported before are updated with new messages.</div>
-      <div class="line"><span>Use JanitorAI's descriptions for characters I have</span><input type="checkbox" class="tgl" id="janODesc"></div>
-      <div class="hint">Switches on Replace mine for every matched character; you can still turn it off per character.</div>
-      <button class="btn primary" type="button" id="janStart" style="width:100%;margin-top:14px">Import</button>
-    </div>
-    <div class="jan-h">Missing definitions</div>
-    <div class="card">
-      <div class="hint" style="padding-top:12px;margin-top:0">Characters whose creator hid the definition on JanitorAI, with their page on JannyAI. Only looks at your characters, so it's quick.</div>
-      <div class="line"><span>Only ones I'm missing</span><input type="checkbox" class="tgl" id="janOMiss"></div>
-      <div class="hint">Off: every character with a hidden definition, also ones you already filled in.</div>
-      <button class="btn" type="button" id="janFind" style="width:100%;margin-top:14px">Find on JannyAI</button>
-    </div>
-    <div class="jan-h">Custom prompts</div>
-    <div class="card">
-      <div class="hint" style="padding-top:12px;margin-top:0">JanitorAI opens: go to a chat → Using proxy → edit a proxy → Custom prompt and open the list, then tap Done. You choose which prompts to add to Settings → Prompt.</div>
-      <button class="btn" type="button" id="janPrompts" style="width:100%;margin-top:14px">Import custom prompts</button>
-    </div>
-    <div class="jan-h">Website</div>
-    <div class="card" style="padding-top:14px">
-      <button class="btn" type="button" id="janBrowse" style="width:100%">Open JanitorAI</button>
-      <button class="btn" type="button" id="janLogout" style="width:100%;margin-top:10px">Log out of JanitorAI</button>
-    </div>
-  </div></div>
-</section>
-
-<section id="janImp" class="view" aria-label="Import from JanitorAI">
-  <div class="page-head"><button class="back" data-close="janImp" type="button">‹ Cancel</button><h1>Import from JanitorAI</h1><span></span></div>
-  <div class="page-body"><div class="page-inner" style="padding-top:12px">
-    <div class="hint" id="janSum" style="margin:0 4px 12px"></div>
-    <div class="jan-h">Characters</div>
-    <div class="card jan-list" id="janChars"></div>
-    <div class="jan-h">Personas</div>
-    <div class="card jan-list" id="janPers"></div>
-    <div class="save-bar"><button class="btn primary" type="button" id="janGo">Import</button></div>
-    <div class="hint" id="janStatus" style="text-align:center;margin-top:12px"></div>
-  </div></div>
-</section>
-
-<section id="janItem" class="view" aria-label="Review">
-  <div class="page-head"><button class="back" data-close="janItem" type="button">‹ Back</button><h1 id="janItTitle"></h1><span></span></div>
-  <div class="page-body"><div class="page-inner" id="janItBody" style="padding-top:12px"></div></div>
-</section>
-
-<section id="janChat" class="view" aria-label="Chat preview">
-  <div class="page-head"><button class="back" data-close="janChat" type="button">‹ Back</button><h1 id="janChTitle"></h1><span></span></div>
-  <div class="page-body"><div class="page-inner" id="janChBody" style="padding-top:12px"></div></div>
-</section>
-
 <section id="gen" class="view" aria-label="Generate a character">
   <div class="page-head"><button class="back" data-close="gen" type="button">‹ Back</button><h1>Generate a character</h1><span></span></div>
   <div class="page-body"><div class="page-inner">
@@ -1349,6 +1298,7 @@ Empty = send everything.</div>
         <button type="button" data-v="original">Default</button>
         <button type="button" data-v="light">Light</button>
         <button type="button" data-v="dark">Dark</button>
+        <button type="button" data-v="green">Green</button>
       </div>
       <div class="line"><span>Accent color</span><span style="display:flex;gap:8px;align-items:center">
         <button class="btn" type="button" id="accentReset" style="padding:5px 10px;font-size:13px">Default</button>
@@ -1459,6 +1409,14 @@ Empty = send everything.</div>
     </div></div>
     </details>
 
+    <details class="sec" data-sec="janitor">
+    <summary class="group-title">JanitorAI</summary>
+    <div class="card" style="padding-top:14px">
+      <button class="btn" type="button" id="goJanitor" style="width:100%">Connect to JanitorAI</button>
+      <div class="hint">Import chats, characters and custom prompts, find missing definitions on JannyAI, open the site or log out.</div>
+    </div>
+    </details>
+
     <details class="sec" data-sec="backup">
     <summary class="group-title">Backup</summary>
     <div class="card">
@@ -1485,6 +1443,64 @@ Empty = send everything.</div>
 
   </div></div>
 </section>
+
+<section id="janHub" class="view" aria-label="JanitorAI">
+  <div class="page-head"><button class="back" data-close="janHub" type="button">‹ Back</button><h1>JanitorAI</h1><span></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:4px">
+    <div class="jan-h">Import chats</div>
+    <div class="card">
+      <div class="hint" style="padding-top:12px;margin-top:0">Downloads your chats from JanitorAI. You review every character, persona and chat before anything is added.</div>
+      <div class="line"><span>Create characters I don't have yet</span><input type="checkbox" class="tgl" id="janOChars"></div>
+      <div class="line"><span>Create personas I don't have yet</span><input type="checkbox" class="tgl" id="janOPers"></div>
+      <div class="line"><span>Skip chats I already imported</span><input type="checkbox" class="tgl" id="janOSkip"></div>
+      <div class="hint">Off: chats you imported before are updated with new messages.</div>
+      <div class="line"><span>Use JanitorAI's descriptions for characters I have</span><input type="checkbox" class="tgl" id="janODesc"></div>
+      <div class="hint">Switches on Replace mine for every matched character; you can still turn it off per character.</div>
+      <button class="btn primary" type="button" id="janStart" style="width:100%;margin-top:14px">Import</button>
+    </div>
+    <div class="jan-h">Missing definitions</div>
+    <div class="card">
+      <div class="hint" style="padding-top:12px;margin-top:0">Characters whose creator hid the definition on JanitorAI, with their page on JannyAI. Only looks at your characters, so it's quick.</div>
+      <div class="line"><span>Only ones I'm missing</span><input type="checkbox" class="tgl" id="janOMiss"></div>
+      <div class="hint">Off: every character with a hidden definition, also ones you already filled in.</div>
+      <button class="btn" type="button" id="janFind" style="width:100%;margin-top:14px">Find on JannyAI</button>
+    </div>
+    <div class="jan-h">Custom prompts</div>
+    <div class="card">
+      <div class="hint" style="padding-top:12px;margin-top:0">JanitorAI opens: go to a chat → Using proxy → edit a proxy → Custom prompt and open the list, then tap Done. You choose which prompts to add to Settings → Prompt.</div>
+      <button class="btn" type="button" id="janPrompts" style="width:100%;margin-top:14px">Import custom prompts</button>
+    </div>
+    <div class="jan-h">Website</div>
+    <div class="card" style="padding-top:14px">
+      <button class="btn" type="button" id="janBrowse" style="width:100%">Open JanitorAI</button>
+      <button class="btn" type="button" id="janLogout" style="width:100%;margin-top:10px">Log out of JanitorAI</button>
+    </div>
+  </div></div>
+</section>
+
+<section id="janImp" class="view" aria-label="Import from JanitorAI">
+  <div class="page-head"><button class="back" data-close="janImp" type="button">‹ Cancel</button><h1>Import from JanitorAI</h1><span></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <div class="hint" id="janSum" style="margin:0 4px 12px"></div>
+    <div class="jan-h">Characters</div>
+    <div class="card jan-list" id="janChars"></div>
+    <div class="jan-h">Personas</div>
+    <div class="card jan-list" id="janPers"></div>
+    <div class="save-bar"><button class="btn primary" type="button" id="janGo">Import</button></div>
+    <div class="hint" id="janStatus" style="text-align:center;margin-top:12px"></div>
+  </div></div>
+</section>
+
+<section id="janItem" class="view" aria-label="Review">
+  <div class="page-head"><button class="back" data-close="janItem" type="button">‹ Back</button><h1 id="janItTitle"></h1><span></span></div>
+  <div class="page-body"><div class="page-inner" id="janItBody" style="padding-top:12px"></div></div>
+</section>
+
+<section id="janChat" class="view" aria-label="Chat preview">
+  <div class="page-head"><button class="back" data-close="janChat" type="button">‹ Back</button><h1 id="janChTitle"></h1><span></span></div>
+  <div class="page-body"><div class="page-inner" id="janChBody" style="padding-top:12px"></div></div>
+</section>
+
 
 <script>
 // ---------- Fonts ----------
@@ -1784,7 +1800,7 @@ function applyLook() {
   const L = activeLook();
   const root = document.documentElement, s = root.style;
   root.dataset.theme = L.theme;
-  document.querySelector('meta[name=color-scheme]').content = L.theme === 'original' ? 'light dark' : L.theme;
+  document.querySelector('meta[name=color-scheme]').content = L.theme === 'original' ? 'light dark' : L.theme === 'green' ? 'dark' : L.theme;
   L.accent ? s.setProperty('--accent', L.accent) : s.removeProperty('--accent');
   syncAccentInk();
 
@@ -4664,7 +4680,8 @@ $('janGo').onclick = async () => {
     }
     saveChars(); saveChats(); renderList('char'); renderList('persona');
     toast(!n && nd ? `Updated ${nd} description${nd === 1 ? '' : 's'}` : `Imported ${n} chat${n === 1 ? '' : 's'}${made ? `, ${made} new character${made === 1 ? '' : 's'}` : ''}${nd ? `, ${nd} description${nd === 1 ? '' : 's'} updated` : ''}`);
-    closeView('janImp'); openView('chats');
+    for (const v of ['janImp', 'janHub', 'settings']) $(v).classList.remove('open'); // the Chats list must not sit under them
+    openView('chats');
   } catch (e) { status.textContent = 'Import failed: ' + (e?.message || e); go.disabled = false; }
 };
 $('goAlbums').onclick = () => { renderAlbums(); openView('albums'); };
