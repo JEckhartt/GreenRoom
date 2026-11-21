@@ -2358,7 +2358,8 @@ async function generateImage(prompt, refs, guide = '', about = '', aspect = '') 
   const list = (refs?.list || []).filter(r => r.url);
   const names = list.length > 1 ? list.map((r, i) => `Reference ${i + 1} is ${r.label}`).join('\n') : list.length ? `The reference image is ${list[0].label}` : '';
   const ask = prompt.trim() && (list.length ? `Image to create: ${prompt.trim()}\nGenerate what the description asks for, not a copy of a reference image.` : prompt.trim());
-  const text = [names, guide.trim(), ask, about.trim()].filter(Boolean).join('\n\n');
+  // your Image prompt comes last, marked as the one that wins (style and format)
+  const text = [names, ask, about.trim(), guide.trim() && `Style and instructions for this picture (follow these over anything above):\n${guide.trim()}`].filter(Boolean).join('\n\n');
   return requestImage(list.length ? [...list.map(r => ({ type: 'image_url', image_url: { url: r.url } })), { type: 'text', text }] : text, undefined, aspect);
 }
 var IMAGE_TIMEOUT = 180000;
@@ -2726,13 +2727,13 @@ async function describeImage(s, userText, replyText, scene = false) {
   if (scene) {
     const out = await streamChat([
       { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-      { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p)}\n\n${userText ? `${userName(p)} wrote: "${userText}"\n` : ''}${cn(c)} wrote: "${replyText}"\n\nDescribe an illustration of the moment in ${cn(c)}'s message, as a scene seen from the outside, like an illustration in a book or a still from a film: not a selfie and not a photo someone takes, unless the message itself is about taking one. Show who is in the scene (name them: ${cn(c)}, ${userName(p)}) and only them, what they are doing, their poses, expressions and clothing, the setting, the lighting and a camera angle and framing that fit the moment.` },
+      { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p)}\n\n${userText ? `${userName(p)} wrote: "${userText}"\n` : ''}${cn(c)} wrote: "${replyText}"\n\nDescribe a picture of the moment in ${cn(c)}'s message, as a scene seen from the outside (an onlooker's view): not a selfie and not a photo someone takes, unless the message itself is about taking one. Show who is in the scene (name them: ${cn(c)}, ${userName(p)}) and only them, what they are doing, their poses, expressions and clothing, the setting, the lighting and a viewpoint and framing that fit the moment. Do not name an art style, medium or kind of image (no "illustration", "photo", "film still", "painting", "anime"…): the style is set separately.` },
     ], () => {}, { free: true });
     return out.replace(TAG, '').trim();
   }
   const out = await streamChat([
     { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-    { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), ${userName(p)}, both of them ("us"), but also a pet, food, a place or anything else; only include a person if the picture is of them, and name them (${cn(c)}, ${userName(p)}). Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
+    { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), ${userName(p)}, both of them ("us"), but also a pet, food, a place or anything else; only include a person if the picture is of them, and name them (${cn(c)}, ${userName(p)}). Cover subject, appearance, pose, expression, clothing, setting, lighting and framing. Do not name an art style or medium: the style is set separately.` },
   ], () => {}, { free: true });
   return out.replace(TAG, '').trim();
 }
@@ -7043,7 +7044,7 @@ $('giGo').onclick = async () => {
       const recent = transcriptOf(history.slice(-6), c, p);
       prompt = (await streamChat([
         { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-        { role: 'user', content: `${userName(p)} is chatting with ${cn(c)}.${p?.personality?.trim() ? `\nAbout ${userName(p)}:\n${fill(p.personality, c, p)}` : ''}\n\nThe chat so far (most recent part):\n${recent.slice(-3000)}\n\n${userName(p)} is about to send this message with a picture:\n"${typed}"${extra ? `\n\nExtra direction for the picture: ${named}` : ''}\n\nDescribe the picture ${userName(p)} sends with that message, so it fits the message and the moment. Only include ${userName(p)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
+        { role: 'user', content: `${userName(p)} is chatting with ${cn(c)}.${p?.personality?.trim() ? `\nAbout ${userName(p)}:\n${fill(p.personality, c, p)}` : ''}\n\nThe chat so far (most recent part):\n${recent.slice(-3000)}\n\n${userName(p)} is about to send this message with a picture:\n"${typed}"${extra ? `\n\nExtra direction for the picture: ${named}` : ''}\n\nDescribe the picture ${userName(p)} sends with that message, so it fits the message and the moment. Only include ${userName(p)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing. Do not name an art style or medium: the style is set separately.` },
       ], () => {}, { free: true })).replace(TAG, '').trim();
     }
     $('giState').textContent = 'Making the picture…';
