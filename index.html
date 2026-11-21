@@ -2720,8 +2720,16 @@ async function aiTurn(s, hist, messages, bubble, into) {
   if (imgPrompt) await attachImage(s, hist, msg, into, bubble, imgPrompt);
 }
 // Asks the chat model for an image-generator prompt for a reply
-async function describeImage(s, userText, replyText) {
+// scene = true (Create image on a message): an illustration of that moment, seen from outside, not a photo sent
+async function describeImage(s, userText, replyText, scene = false) {
   const { c, p } = s;
+  if (scene) {
+    const out = await streamChat([
+      { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
+      { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p)}\n\n${userText ? `${userName(p)} wrote: "${userText}"\n` : ''}${cn(c)} wrote: "${replyText}"\n\nDescribe an illustration of the moment in ${cn(c)}'s message, as a scene seen from the outside, like an illustration in a book or a still from a film: not a selfie and not a photo someone takes, unless the message itself is about taking one. Show who is in the scene (name them: ${cn(c)}, ${userName(p)}) and only them, what they are doing, their poses, expressions and clothing, the setting, the lighting and a camera angle and framing that fit the moment.` },
+    ], () => {}, { free: true });
+    return out.replace(TAG, '').trim();
+  }
   const out = await streamChat([
     { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
     { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), ${userName(p)}, both of them ("us"), but also a pet, food, a place or anything else; only include a person if the picture is of them, and name them (${cn(c)}, ${userName(p)}). Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
@@ -2786,14 +2794,15 @@ async function continueReply(i) {
   finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
 }
 // Long press → Create image on a reply
-async function imageForReply(i, again = false) {
+async function imageForReply(i, again = false, scene = true) {
   if (busy || !ready()) return;
   if (!imageEnabled()) return toast('No image proxy is active (Settings → Image proxy)');
   const s = cur, hist = history, m = hist[i]; if (!m) return;
   const bubble = [...$('log').querySelectorAll('.msg.ai')].find(b => +b.dataset.i === i); if (!bubble) return;
   setBusy(true);
   try {
-    const prompt = (again && m.imgPrompt) || m.pendingImg || await describeImage(s, hist[i - 1]?.role === 'user' ? hist[i - 1].content : '', m.content);
+    // a picture the character announced (pendingImg) stays as it is; otherwise Create image illustrates the moment
+    const prompt = (again && m.imgPrompt) || m.pendingImg || await describeImage(s, hist[i - 1]?.role === 'user' ? hist[i - 1].content : '', m.content, scene);
     delete m.pendingImg;
     let target = m;
     if (m.alts) target = m.alts[m.sel || 0];
@@ -3035,7 +3044,7 @@ function addAltNav(bubble, m, i) {
     const cam = document.createElement('button'); cam.type = 'button'; cam.className = 'cam'; cam.disabled = busy;
     cam.setAttribute('aria-label', 'Make this picture');
     cam.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>';
-    cam.onclick = () => imageForReply(i);
+    cam.onclick = () => imageForReply(i, false, false); // a picture the character sends
     nav.append(cam);
   }
   addStamp(nav, m);

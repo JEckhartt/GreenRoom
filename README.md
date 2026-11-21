@@ -35,7 +35,7 @@ With **Enable** on (Settings → Image proxy, or per chat):
 2. The character replies and describes the picture; if it doesn't, the chat proxy writes the description.
 3. The image proxy makes it. **Make images automatically** off: a camera button appears under the reply instead, and the image is made when you tap it.
 
-Long press an image to delete or regenerate it. **+ → Generate image** makes a picture you send (typed, or matching what you wrote).
+Long press an image to delete or regenerate it. **Create image** (long press a reply) illustrates that moment as a scene seen from outside, not as a photo the character sends. **+ → Generate image** makes a picture you send (typed, or matching what you wrote).
 
 What the image proxy gets: the character's and your profile pictures (each "only include them if the description has them in it", "don't copy the pose or background"), the character's last picture (for a consistent outfit and setting), your **Image prompt**, the description, and both personality texts. Where someone has a profile picture, the picture decides how they look and their text only adds what it doesn't show.
 
