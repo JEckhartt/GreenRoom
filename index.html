@@ -1749,6 +1749,7 @@ async function backupData() {
 }
 // Automatic backup into a folder you choose (iPhone app). It runs when the app opens or comes back, if it's due
 const BK = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.BackupFolder;
+BK?.addListener?.('bklog', ev => dbg('info', ev.msg));
 const AUTO_EVERY = { open: 0, day: 864e5, '3days': 3 * 864e5, week: 7 * 864e5 };
 const autoBk = () => Object.assign({ on: false, every: 'day', keep: 5, last: 0, folder: '', error: '' }, store.get('autoBk', {}));
 const saveAutoBk = a => { store.set('autoBk', a); syncAutoBk(); };

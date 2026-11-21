@@ -18,6 +18,10 @@ public class BackupFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDe
     private let key = "greenroom.backupFolder"
     private let prefix = "Green-Room-autobackup-"
     private var pickCall: CAPPluginCall?
+    private var picker: UIDocumentPickerViewController?
+
+    // Every step is written to Settings → Debug, to see where choosing a folder stops
+    private func trace(_ text: String) { notifyListeners("bklog", data: ["msg": text]) }
 
     // Opens Files straight away to choose the folder
     @objc func pick(_ call: CAPPluginCall) {
@@ -26,38 +30,57 @@ public class BackupFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDe
             let picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.folder], asCopy: false)
             picker.delegate = self
             picker.allowsMultipleSelection = false
-            // a sheet with Cancel and Open in its bar, which can also be swiped down to close
-            picker.modalPresentationStyle = .formSheet
-            picker.isModalInPresentation = false
-            picker.overrideUserInterfaceStyle = .unspecified
+            picker.shouldShowFileExtensions = true
+            self.picker = picker // held on to until it's closed
             var top = self.bridge?.viewController
             while let shown = top?.presentedViewController { top = shown }
-            top?.present(picker, animated: true) {
+            guard let host = top else { self.trace("Backup folder: no screen to show the picker on"); return call.reject("Could not open Files") }
+            self.trace("Backup folder: picker opened from \(type(of: host))")
+            host.present(picker, animated: true) {
                 picker.presentationController?.delegate = self
+                self.trace("Backup folder: picker shown")
             }
         }
     }
 
     public func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-        guard let call = pickCall, let url = urls.first else { return }
+        trace("Backup folder: Open tapped, \(urls.count) folder(s): \(urls.map { $0.lastPathComponent })")
+        picked(controller, urls.first)
+    }
+    // older iOS name of the same message
+    public func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentAt url: URL) {
+        trace("Backup folder: Open tapped (single): \(url.lastPathComponent)")
+        picked(controller, url)
+    }
+    private func picked(_ controller: UIDocumentPickerViewController, _ url: URL?) {
+        picker = nil
+        if controller.presentingViewController != nil { controller.dismiss(animated: true) }
+        guard let call = pickCall, let url = url else { return trace("Backup folder: nothing waiting for the folder") }
         pickCall = nil
         let ok = url.startAccessingSecurityScopedResource()
+        trace("Backup folder: access \(ok ? "granted" : "not granted") for \(url.path)")
         defer { if ok { url.stopAccessingSecurityScopedResource() } }
         do {
             let data = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
             UserDefaults.standard.set(data, forKey: key)
+            trace("Backup folder: remembered \(url.lastPathComponent)")
             call.resolve(["name": url.lastPathComponent])
         } catch {
+            trace("Backup folder: could not remember it: \(error)")
             call.reject("Could not use that folder: \(error.localizedDescription)")
         }
     }
 
     public func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        trace("Backup folder: picker swiped away")
+        picker = nil
         pickCall?.resolve(["cancelled": true])
         pickCall = nil
     }
 
     public func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        trace("Backup folder: picker cancelled")
+        picker = nil
         pickCall?.resolve(["cancelled": true])
         pickCall = nil
     }
