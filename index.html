@@ -1741,11 +1741,20 @@ function lsDump() {
   return o;
 }
 
-// Everything in one JSON text (the same for Export and automatic backups)
-async function backupData() {
-  const images = {};
-  for (const k of await idb.keys()) { const v = await idb.get(k); if (v) images[k] = v; }
-  return JSON.stringify({ app: 'greenroom', version: 1, created: new Date().toISOString(), storage: lsDump(), images });
+// The backup file, written piece by piece: put(text) gets ~2 MB at a time. (Building the whole backup as one
+// text needs several times its size in memory, enough for iOS to close the app.) Same format as before.
+async function writeBackup(put) {
+  const parts = []; let size = 0;
+  const flush = async () => { if (parts.length) { const t = parts.join(''); parts.length = 0; size = 0; await put(t); } };
+  const add = async t => { parts.push(t); size += t.length; if (size > 2e6) await flush(); };
+  await add(`{"app":"greenroom","version":1,"created":${JSON.stringify(new Date().toISOString())},"storage":${JSON.stringify(lsDump())},"images":{`);
+  let first = true;
+  for (const k of await idb.keys()) {
+    if (String(k).startsWith('th_')) continue; // small copies of album pictures are made again when needed
+    const v = await idb.get(k).catch(() => null); if (!v) continue;
+    await add((first ? '' : ',') + JSON.stringify(String(k)) + ':' + JSON.stringify(v)); first = false;
+  }
+  await add('}}'); await flush();
 }
 // Automatic backup into a folder you choose (iPhone app). It runs when the app opens or comes back, if it's due
 const BK = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.BackupFolder;
@@ -1768,7 +1777,10 @@ async function runAutoBackup(force = false) {
   autoBkBusy = true;
   try {
     const name = `Green-Room-autobackup-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.json`;
-    const r = await BK.write({ name, data: await backupData(), keep: a.keep });
+    step('automatic backup');
+    await BK.begin();
+    await writeBackup(t => BK.append({ data: t }));
+    const r = await BK.finish({ name, keep: a.keep });
     saveAutoBk({ ...autoBk(), last: Date.now(), error: '', folder: r?.folder || a.folder });
     if (force) toast('Backup saved');
   } catch (e) {
@@ -1791,16 +1803,21 @@ async function setupAutoBackup() {
 async function exportBackup() {
   toast('Preparing backup…');
   try {
-    const data = await backupData();
+    step('export backup');
     const name = `Green-Room-backup-${new Date().toISOString().slice(0, 10)}.json`;
     const Share = window.Capacitor?.Plugins?.Share;
     if (FS && Share) {
-      await FS.writeFile({ path: name, data, directory: 'CACHE', encoding: 'utf8' });
+      let started = false;
+      await writeBackup(async t => {
+        if (!started) { await FS.writeFile({ path: name, data: t, directory: 'CACHE', encoding: 'utf8' }); started = true; }
+        else await FS.appendFile({ path: name, data: t, directory: 'CACHE', encoding: 'utf8' });
+      });
       const { uri } = await FS.getUri({ path: name, directory: 'CACHE' });
       await Share.share({ title: 'Green Room backup', files: [uri] });
       return;
     }
-    const file = new File([data], name, { type: 'application/json' });
+    const chunks = []; await writeBackup(t => { chunks.push(t); });
+    const file = new File(chunks, name, { type: 'application/json' });
     if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; }
     const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
@@ -3228,7 +3245,7 @@ function deleteChat(id) {
 }
 
 // ---------- Views ----------
-function openView(id) { $(id).classList.add('open'); requestAnimationFrame(() => autosizeAll($(id))); }
+function openView(id) { step('open ' + id); $(id).classList.add('open'); requestAnimationFrame(() => autosizeAll($(id))); }
 function closeView(id) {
   document.activeElement?.blur(); $(id).classList.remove('open');
   if (id === 'chats') { $('chatSearch').value = ''; expanded.clear(); renderChats(); } // leaving: everything folds again
@@ -3639,6 +3656,28 @@ async function loadAvatar(key) {
 // just fits the shorter side). Small pictures get a cropped copy, made once and kept in memory
 const framedCache = new Map();
 const loadImg = src => new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = src; });
+// A small copy of a picture (longest side max), made once and kept: lists and grids that decode every
+// full-size picture are what make iOS close the app for using too much memory
+const shrinkCache = new Map();
+function shrinkSrc(key, src, max = 480) {
+  const ck = key + '|' + max;
+  if (!shrinkCache.has(ck)) shrinkCache.set(ck, loadImg(src).then(img => {
+    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    if (k >= 1) return src;
+    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    const out = c.toDataURL('image/jpeg', .88); c.width = c.height = 0; return out;
+  }));
+  return shrinkCache.get(ck);
+}
+// Album grid pictures: a small copy, kept in the database so it's made only once
+async function albThumb(id) {
+  const t = await idb.get('th_' + id).catch(() => null); if (t) return t;
+  const src = await idb.get('alb_' + id).catch(() => null); if (!src) return null;
+  const small = await shrinkSrc('alb_' + id, src, 360).catch(() => null); shrinkCache.delete('alb_' + id + '|360');
+  if (small) idb.put('th_' + id, small).catch(() => {});
+  return small || src;
+}
 function framedSrc(key, src, f, aspect = 1) {
   const ck = `${key}|${f.x}|${f.y}|${f.z}|${aspect}`;
   if (!framedCache.has(ck)) framedCache.set(ck, loadImg(src).then(img => cropFrame(img, f, aspect, 320)));
@@ -3754,7 +3793,9 @@ async function setThumb(el, it) {
   if (el.id === 'profHero') loadImg(src).then(i => { if (it.img === key) el.parentElement.style.setProperty('--r', (i.naturalWidth / i.naturalHeight).toFixed(4)); }).catch(() => {});
   // framed (Frame picture): the chosen part fills small pictures; otherwise scaled to fit, never cropped
   const framed = it.frame && !el.matches('#profHero, #edThumb');
-  const url = framed ? await framedSrc(key, src, frameFor(it.frame, spotOf(el)), el.classList.contains('thumb') ? 3 / 4 : 1).catch(() => src) : src;
+  // lists and small pictures get a small copy; only the profile and the editor show the picture itself
+  const url = framed ? await framedSrc(key, src, frameFor(it.frame, spotOf(el)), el.classList.contains('thumb') ? 3 / 4 : 1).catch(() => src)
+    : el.matches('#profHero, #edThumb') ? src : await shrinkSrc(key, src, 480).catch(() => src);
   if (it.img !== key) return;
   el.style.background = `var(--accent-soft) url("${url}") center / ${framed ? 'cover' : 'contain'} no-repeat`; el.textContent = ''; el.classList.add('pic'); el.classList.toggle('blurred', !!it.blur);
 }
@@ -5262,7 +5303,7 @@ function renderAlbums() {
     acts.append(rm);
     const b = document.createElement('button'); b.type = 'button'; b.className = 'item';
     const th = document.createElement('div'); th.className = 'thumb sm'; th.textContent = (a.name || '?').charAt(0).toUpperCase();
-    if (a.images.length) idb.get('alb_' + a.images.at(-1)).then(src => { if (src) { th.style.backgroundImage = `url("${src}")`; th.textContent = ''; } }).catch(() => {});
+    if (a.images.length) albThumb(a.images.at(-1)).then(src => { if (src) { th.style.backgroundImage = `url("${src}")`; th.textContent = ''; } }).catch(() => {});
     const info = document.createElement('div'); info.className = 'info';
     const h = document.createElement('h3'); h.textContent = a.name;
     const p = document.createElement('p'); p.textContent = `${a.images.length} image${a.images.length === 1 ? '' : 's'}`;
@@ -5277,7 +5318,7 @@ function renderAlbums() {
 }
 // Image data is only removed once no album uses it any more
 function dropImages(ids) {
-  for (const id of ids) if (!albums.some(a => a.images.includes(id))) idb.del('alb_' + id).catch(() => {});
+  for (const id of ids) if (!albums.some(a => a.images.includes(id))) { idb.del('alb_' + id).catch(() => {}); idb.del('th_' + id).catch(() => {}); }
 }
 function deleteAlbum(a) {
   if (!confirm(`Delete the album "${a.name}" and its ${a.images.length} image${a.images.length === 1 ? '' : 's'}? Characters that link to them will show "[missing image]".`)) return false;
@@ -5299,7 +5340,7 @@ function renderAlbum() {
   order.forEach((id, i) => {
     const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Image ' + (i + 1)); b.dataset.id = id;
     if (albSrc.has(id)) b.style.backgroundImage = `url("${albSrc.get(id)}")`;
-    else idb.get('alb_' + id).then(src => { if (src) { albSrc.set(id, src); b.style.backgroundImage = `url("${src}")`; } }).catch(() => {});
+    else albThumb(id).then(src => { if (src) { albSrc.set(id, src); b.style.backgroundImage = `url("${src}")`; } }).catch(() => {});
     pressable(b, () => {
       if (albumSel) { albumSel.has(id) ? albumSel.delete(id) : albumSel.add(id); if (!albumSel.size) albumSel = null; return syncAlbumSel(); }
       openGallery(order, i);

@@ -14,7 +14,10 @@ public class BackupFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDe
         CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "write", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "forget", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "readShared", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "readShared", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "begin", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "append", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "finish", returnType: CAPPluginReturnPromise)
     ]
     private let key = "greenroom.backupFolder"
     private let prefix = "Green-Room-autobackup-"
@@ -115,6 +118,61 @@ public class BackupFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDe
     @objc func forget(_ call: CAPPluginCall) {
         UserDefaults.standard.removeObject(forKey: key)
         call.resolve()
+    }
+
+    // A backup is written in pieces (begin, append…, finish) into a temporary file, so the whole backup never
+    // has to be in memory at once; finish copies it into the folder and removes the oldest ones beyond `keep`
+    private var tempFile: URL?
+    private var tempHandle: FileHandle?
+    private let io = DispatchQueue(label: "greenroom.backup")
+
+    @objc func begin(_ call: CAPPluginCall) {
+        io.async {
+            try? self.tempHandle?.close()
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("greenroom-backup-\(UUID().uuidString).json")
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+            guard let h = try? FileHandle(forWritingTo: url) else { return call.reject("Could not start the backup") }
+            self.tempFile = url; self.tempHandle = h
+            call.resolve()
+        }
+    }
+
+    @objc func append(_ call: CAPPluginCall) {
+        guard let text = call.getString("data") else { return call.reject("Nothing to write") }
+        io.async {
+            guard let h = self.tempHandle, let d = text.data(using: .utf8) else { return call.reject("The backup was not started") }
+            do { try h.write(contentsOf: d); call.resolve() } catch { call.reject("Writing failed: \(error.localizedDescription)") }
+        }
+    }
+
+    @objc func finish(_ call: CAPPluginCall) {
+        guard let name = call.getString("name") else { return call.reject("No name") }
+        let keep = max(1, call.getInt("keep") ?? 5)
+        io.async {
+            try? self.tempHandle?.close(); self.tempHandle = nil
+            guard let src = self.tempFile else { return call.reject("The backup was not started") }
+            self.tempFile = nil
+            defer { try? FileManager.default.removeItem(at: src) }
+            guard let dir = self.folder() else { return call.reject("No backup folder chosen") }
+            let ok = dir.startAccessingSecurityScopedResource()
+            defer { if ok { dir.stopAccessingSecurityScopedResource() } }
+            var failure: Error?
+            var coordError: NSError?
+            NSFileCoordinator().coordinate(writingItemAt: dir.appendingPathComponent(name), options: .forReplacing, error: &coordError) { target in
+                do {
+                    if FileManager.default.fileExists(atPath: target.path) { try FileManager.default.removeItem(at: target) }
+                    try FileManager.default.copyItem(at: src, to: target)
+                } catch { failure = error }
+            }
+            if let e = failure ?? coordError { return call.reject("The backup could not be saved: \(e.localizedDescription)") }
+            let fm = FileManager.default
+            if let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
+                let mine = files.filter { $0.lastPathComponent.hasPrefix(self.prefix) && $0.pathExtension == "json" }
+                    .sorted { $0.lastPathComponent > $1.lastPathComponent }
+                for old in mine.dropFirst(keep) { try? fm.removeItem(at: old) }
+            }
+            call.resolve(["folder": dir.lastPathComponent])
+        }
     }
 
     // Writes one backup file into the folder, then removes its own oldest backups beyond `keep`
