@@ -1097,6 +1097,12 @@
       <div class="line"><span>Also make a picture</span><input type="checkbox" class="tgl" id="genImg" checked></div>
       <div class="hint" id="genHint">Uses your global proxy for the text and your global image proxy for the picture. Everything lands in the character editor, so you can change it before saving.</div>
     </div>
+    <details class="card fold" id="genTplFold" style="margin-top:10px">
+      <summary class="sub">Template</summary>
+      <div class="hint" style="margin-top:0">How the character is written. Keep the field headings (Public description, **Personality field:**, **Scenario field:**, **First message field:**, **Example dialogue field:**); everything in [brackets] is an instruction for the AI.</div>
+      <textarea id="genTpl" class="big" style="margin-top:8px"></textarea>
+      <div class="actions"><button class="btn" type="button" id="genTplReset">Reset to default</button></div>
+    </details>
     <div class="save-bar"><button class="btn primary" type="button" id="genGo">Generate</button></div>
     <div class="hint" id="genStatus" style="text-align:center;margin-top:12px"></div>
   </div></div>
@@ -4343,6 +4349,12 @@ $('charAdd').onclick = () => showSheet('New character', [
   { label: 'Create new character', onClick: () => openEditor('char') },
   { label: 'Generate', onClick: openGenerator },
 ]);
+// The character template: field headings plus [instructions]; the generator fills it in
+const GEN_TEMPLATE = "Public description:\n\n[3-4 paragraph hook covering: core premise, physical presence, backstory catalyst, current state]\n\n**Personality field:**\n\n>Basic Information\n\nFirst name: \n\nLast name: \n\nAliases: \n\nSpecies: \n\nSex/Gender: \n\nSexuality: \n\nAge: \n\nNationality: \n\nEthnicity: \n\nOccupation: \n\nWealth: \n\n>Physical Description\n\nAppearance: \n\nHair: \n\nEyes: \n\nFacial Features: \n\n[Hands: - only if relevant, delete if not]\n\n[Feet: - only if relevant , delete if not]\n\n[Chest: - only if relevant , delete if not]\n\n[Penis Descriptors: - only if relevant]\n\n[Testicle Descriptors: - only if relevant]\n\n[Anus Descriptors: - only if relevant]\n\n>Speech Patterns\n\nVoice: \n\nAccent: \n\n- [bullet point speech pattern 1]\n- [bullet point speech pattern 2]\n- [etc]\n\n>Outfits\n\n[Category 1]: \n\n[Category 2]: \n\n>Background & Reputation\n\n- [bullet point backstory element 1]\n- [bullet point backstory element 2]\n- [etc - focus on how past shapes current behavior]\n\n>Personality & Behavior\n\n- [bullet point personality trait 1 with behavioral examples]\n- [bullet point personality trait 2 with behavioral examples]\n- [etc - concrete actions, not abstract descriptions]\n\n>Interests\n\n- [bullet point interest 1 - why they do it, what it means]\n- [bullet point interest 2]\n- [etc]\n\n>Kinks\n\n[If applicable - delete entirely if not relevant]\n\n>Sexual Behavior\n\n- [bullet point sexual behavior 1]\n- [bullet point sexual behavior 2]\n- [etc - psychological approach to intimacy, what it means to them]\n\n>NPCs (if relevant, delete section if not)\n\n[NPC Name]:\n- Role: \n- Key traits: \n- Relationship to {{char}}: \n\n[NPC Name]:\n- Role: \n- Key traits: \n- Relationship to {{char}}: \n\n**Scenario field:**\n\n[setting, location details, current situation setup]\n\n**First message field:**\n\n[Opening scene - start mid-action or mid-tension, establish atmosphere through concrete details, end with hook that demands response]\n\n**Example dialogue field:**\n\n{{user}}: \"[question/statement]\"\n\n{{char}}: \"[response that demonstrates speech pattern and personality]\"\n\n{{user}}: \"[question/statement]\"\n\n{{char}}: \"[response]\"\n\n[etc - 10-20 exchanges demonstrating voice, humor, deflection patterns, core beliefs]";
+const genTemplate = () => (cfg.genTemplate ?? GEN_TEMPLATE).trim() || GEN_TEMPLATE;
+$('genTpl').value = genTemplate();
+$('genTpl').oninput = () => { cfg.genTemplate = $('genTpl').value; saveCfg(); };
+$('genTplReset').onclick = () => { if (!confirm('Put the default template back?')) return; delete cfg.genTemplate; saveCfg(); $('genTpl').value = GEN_TEMPLATE; autosizeAll($('gen')); };
 function openGenerator() {
   $('genStatus').textContent = '';
   $('genImg').checked = imageProxyOk(); $('genImg').disabled = !imageProxyOk();
@@ -4358,14 +4370,21 @@ $('genGo').onclick = async () => {
   try {
     status.textContent = 'Writing the character…';
     const ask = `Create a character for a roleplay chat from this idea: "${idea}".
-Reply with only a JSON object (no markdown fences) with these keys:
+
+Write it by filling in this template. Follow its structure exactly: keep its headings, labels and bullet-point layout, replace every [bracketed instruction] with the real content it asks for, and leave out sections or lines the template says to delete when they don't apply. Use {{char}} for the character and {{user}} for the user where natural.
+
+TEMPLATE
+${genTemplate()}
+END OF TEMPLATE
+
+Reply with only a JSON object (no markdown fences) with these keys, each holding the filled-in text of that part of the template (without the field heading itself), with line breaks as \\n:
 "name": the full name,
 "chatName": a short name used in the chat (first name or nickname),
-"description": 2-4 sentences introducing the character, shown on the character list,
-"personality": a detailed character definition for the AI that plays them: physical appearance, personality traits, background, way of speaking, likes and dislikes. Use {{char}} for the character and {{user}} for the user where natural,
-"scenario": the situation in which the roleplay starts, involving {{user}},
-"firstMessages": an array of 2 different opening messages written in character, roleplay style with *actions* and "dialogue",
-"examples": a short example dialogue as lines starting with {{user}}: and {{char}}:,
+"description": the public description part,
+"personality": the personality field part,
+"scenario": the scenario field part,
+"firstMessages": an array with the first message field part (add a second, different opening only if the template asks for more than one),
+"examples": the example dialogue field part,
 "appearance": one paragraph in English describing only how the character looks and the art style, for an image generator.`;
     const out = await streamChat([
       { role: 'system', content: 'You design characters for a roleplay chat app. You always answer with a single valid JSON object and nothing else.' },
