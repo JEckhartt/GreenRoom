@@ -3,8 +3,15 @@
 <head>
 <meta charset="utf-8">
 <script>
+  // Which account: the real one or the dummy (Settings → Privacy). Each keeps its own storage.
+  // A switch (long press the title) lasts until the app is closed; a fresh start follows "Launch into dummy account".
+  var GR_ACC = (function () { try {
+    if (localStorage.getItem('gr.dummyOn') !== '1') return 'real';
+    return sessionStorage.getItem('gr.account') || (localStorage.getItem('gr.dummyLaunch') === '1' ? 'dummy' : 'real');
+  } catch (e) { return 'real'; } })();
+  var GR_PREFIX = GR_ACC === 'dummy' ? 'grdummy.' : 'greenroom.';
   // Theme first, before anything is drawn, so the app never flashes the light colors on start
-  try { var c = JSON.parse(localStorage.getItem('greenroom.cfg') || '{}'); if (c.theme) document.documentElement.dataset.theme = c.theme; if (c.accent) document.documentElement.style.setProperty('--accent', c.accent); } catch (e) {}
+  try { var c = JSON.parse(localStorage.getItem(GR_PREFIX + 'cfg') || '{}'); if (c.theme) document.documentElement.dataset.theme = c.theme; if (c.accent) document.documentElement.style.setProperty('--accent', c.accent); } catch (e) {}
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
@@ -1450,6 +1457,17 @@ Empty = send everything.</div>
     </div>
     </details>
 
+    <details class="sec" data-sec="privacy" id="privacySec">
+    <summary class="group-title">Privacy</summary>
+    <div class="card">
+      <div class="line"><span>Activate dummy account</span><input type="checkbox" class="tgl" id="dummyOn"></div>
+      <div class="hint">A second account with its own characters, personas and chats; your settings (proxies, prompts, styles, lorebooks) are copied into it once. Long press the title on the title screen to switch; in the dummy account it says Switch back.</div>
+      <div class="line"><span>Launch app into dummy account</span><input type="checkbox" class="tgl" id="dummyLaunch"></div>
+      <div class="hint">When the app starts, it opens in the dummy account. Switching back lasts until the app is closed.</div>
+      <div class="actions"><button class="btn" type="button" id="dummyReset">Reset dummy account</button></div>
+    </div>
+    </details>
+
     <details class="sec" data-sec="backup">
     <summary class="group-title">Backup</summary>
     <div class="card">
@@ -1582,11 +1600,11 @@ const GRADIENTS = [
 // ---------- State ----------
 const $ = id => document.getElementById(id);
 // ---------- Debug log: errors, warnings and the last step before a crash (Settings → Debug) ----------
-let dbgLog = (() => { try { return JSON.parse(localStorage.getItem('greenroom.debug') || '[]'); } catch { return []; } })();
+let dbgLog = (() => { try { return JSON.parse(localStorage.getItem(GR_PREFIX + 'debug') || '[]'); } catch { return []; } })();
 function dbg(type, msg) {
   dbgLog.push({ t: new Date().toISOString(), type, msg: String(msg).slice(0, 700) });
   if (dbgLog.length > 300) dbgLog = dbgLog.slice(-300);
-  try { localStorage.setItem('greenroom.debug', JSON.stringify(dbgLog)); } catch {}
+  try { localStorage.setItem(GR_PREFIX + 'debug', JSON.stringify(dbgLog)); } catch {}
 }
 const step = s => { try { localStorage.setItem('greenroom.lastStep', new Date().toISOString().slice(11, 19) + ' UTC · ' + s); } catch {} };
 window.addEventListener('error', e => dbg('error', `${e.message} @ ${(e.filename || '').split('/').pop()}:${e.lineno}:${e.colno}`));
@@ -1602,12 +1620,12 @@ document.addEventListener('visibilitychange', () => { try { localStorage.setItem
 window.addEventListener('pagehide', () => { try { localStorage.setItem('greenroom.alive', '0'); } catch {} });
 let storeWarned = false;
 const store = {
-  get(k, d) { try { const v = localStorage.getItem('greenroom.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  get(k, d) { try { const v = localStorage.getItem(GR_PREFIX + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) {
-    try { localStorage.setItem('greenroom.' + k, JSON.stringify(v)); }
+    try { localStorage.setItem(GR_PREFIX + k, JSON.stringify(v)); }
     catch (e) { dbg('error', `Saving "${k}" failed: ${e.message}`); if (!storeWarned) { storeWarned = true; setTimeout(() => toast('Storage is full: some changes could not be saved. See Settings → Debug.'), 0); } }
   },
-  del(k) { try { localStorage.removeItem('greenroom.' + k); } catch {} }
+  del(k) { try { localStorage.removeItem(GR_PREFIX + k); } catch {} }
 };
 const LOOK_DEFAULTS = {
   theme: 'original', accent: '', aiBubble: false,
@@ -1706,7 +1724,7 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const idb = (() => {
   let dbp;
   const open = () => dbp ??= new Promise((res, rej) => {
-    const r = indexedDB.open('greenroom', 1);
+    const r = indexedDB.open(GR_ACC === 'dummy' ? 'greenroom-dummy' : 'greenroom', 1);
     r.onupgradeneeded = () => r.result.createObjectStore('images');
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
@@ -1726,7 +1744,7 @@ const idb = (() => {
 // ---------- Backup: Export / Import ----------
 // One JSON file with all storage and images, kept wherever the user saves it.
 var FS = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins?.Filesystem : null;
-var PREFIX = 'greenroom.';
+var PREFIX = GR_PREFIX;
 
 function lsDump() {
   const o = {};
@@ -3228,7 +3246,7 @@ for (const b of document.querySelectorAll('[data-close]')) b.onclick = () => clo
 
 // ---------- Bottom sheet ----------
 function showSheet(title, opts) {
-  $('sheetTitle').textContent = title;
+  $('sheetTitle').textContent = title; $('sheetTitle').hidden = !title;
   $('sheetOpts').replaceChildren(...opts.map(o => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'opt';
     if (o.av !== undefined) { const a = document.createElement('span'); a.className = 'av'; setThumb(a, o.av || { name: '–' }); b.append(a); }
@@ -7285,6 +7303,56 @@ renderList('persona');
 { let ch3 = false; for (const ch of chats) if ('textOnly' in ch) { if (ch.textOnly) ch.genImages = false; delete ch.textOnly; ch3 = true; } if (ch3) store.set('chats', chats); }
 // a chat renamed to just "as <persona>" (before the name moved after it) gets its plain label back
 for (const ch of chats) if (ch.title != null && /^as\s/i.test(ch.title) && ch.title.trim().toLowerCase() === ('as ' + (personaOf(ch)?.name || ch.personaName || '')).toLowerCase()) delete ch.title;
+// ---------- Dummy account ----------
+const IS_DUMMY = GR_ACC === 'dummy';
+function loadDummyContent() {
+  return window.GR_DUMMY ? Promise.resolve(window.GR_DUMMY) : new Promise((res, rej) => {
+    const sc = document.createElement('script'); sc.src = 'lib/dummy.js';
+    sc.onload = () => res(window.GR_DUMMY); sc.onerror = () => rej(new Error('Could not load the dummy content.'));
+    document.head.append(sc);
+  });
+}
+// Makes the dummy account: your settings (not albums, characters, personas, chats or folders), plus its own characters and personas
+async function createDummy() {
+  const d = await loadDummyContent();
+  const real = k => localStorage.getItem('greenroom.' + k);
+  const put = (k, v) => localStorage.setItem('grdummy.' + k, typeof v === 'string' ? v : JSON.stringify(v));
+  for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k?.startsWith('grdummy.')) localStorage.removeItem(k); }
+  for (const k of ['cfg', 'lorebooks', 'view', 'janOpts']) if (real(k) !== null) put(k, real(k));
+  const now = Date.now(), id = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  put('chars', d.chars.map((c, i) => ({ id: id(), created: now - (i + 1) * 86400000 * 3, name: c.name, chatName: c.chatName || '', description: c.description, personality: c.personality,
+    scenario: c.scenario || '', firstMessages: c.firstMessages || [], examples: c.examples || '', aiFirst: false, lorebooks: [] })));
+  put('personas', d.personas.map((p, i) => ({ id: id(), created: now - (i + 1) * 86400000 * 5, name: p.name, personality: p.personality })));
+  put('chats', []); put('albums', []); put('folders', []);
+  await new Promise(res => { const r = indexedDB.deleteDatabase('greenroom-dummy'); r.onsuccess = r.onerror = r.onblocked = () => res(); });
+  localStorage.setItem('gr.dummyMade', '1');
+}
+function switchAccount() {
+  try { sessionStorage.setItem('gr.account', IS_DUMMY ? 'real' : 'dummy'); } catch {}
+  location.reload();
+}
+// Long press the title: switch (only when the dummy account is on)
+pressable(document.querySelector('#home .logo'), () => {}, () => {
+  if (localStorage.getItem('gr.dummyOn') !== '1') return;
+  navigator.vibrate?.(12);
+  showSheet('', [{ label: IS_DUMMY ? 'Switch back' : 'Switch', onClick: switchAccount }]);
+});
+// Settings → Privacy: only in the real account
+$('privacySec').hidden = IS_DUMMY;
+$('dummyOn').checked = localStorage.getItem('gr.dummyOn') === '1';
+$('dummyLaunch').checked = localStorage.getItem('gr.dummyLaunch') === '1';
+$('dummyOn').onchange = async () => {
+  if ($('dummyOn').checked) {
+    try { if (localStorage.getItem('gr.dummyMade') !== '1') { toast('Making the dummy account…'); await createDummy(); } }
+    catch (e) { $('dummyOn').checked = false; return toast(e.message); }
+    localStorage.setItem('gr.dummyOn', '1'); toast('Dummy account on. Long press the title to switch.');
+  } else { localStorage.setItem('gr.dummyOn', '0'); }
+};
+$('dummyLaunch').onchange = () => localStorage.setItem('gr.dummyLaunch', $('dummyLaunch').checked ? '1' : '0');
+$('dummyReset').onclick = async () => {
+  if (!confirm('Reset the dummy account? Everything in it is replaced by a fresh copy of your settings and its standard characters and personas.')) return;
+  try { await createDummy(); toast('Dummy account reset'); } catch (e) { toast(e.message); }
+};
 // The title screen shows once its fonts are in (or after at most 1.2 s), so it doesn't jump when they arrive
 (() => {
   const t0 = performance.now();

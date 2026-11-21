@@ -82,6 +82,7 @@ Nothing you browse is recorded (except, while importing custom prompts, what the
 - **JanitorAI**: Connect to JanitorAI (see above).
 - **Customization**: see Style below.
 - **Debug**: a log of errors and crashes (with the screen that was open), and **Download debug report** (device, storage, chat sizes and the log; no messages, prompts or API keys).
+- **Privacy** (real account only): **Activate dummy account** makes a second account with its own storage: 15 characters (comedy to extreme horror) and 7 personas, plus a one-time copy of your settings (proxies, prompts, presets, styles, lorebooks; no albums, characters, personas or chats). Long press the title on the title screen to switch (**Switch** / **Switch back**). **Launch app into dummy account** opens it on every fresh start; a switch back lasts until the app is closed. **Reset dummy account** makes it fresh again.
 - **Backup**: export / import everything as one file.
 
 No workarounds: a proxy either works or it doesn't. If a model can't see images or the image proxy fails, the error shows in the chat.
