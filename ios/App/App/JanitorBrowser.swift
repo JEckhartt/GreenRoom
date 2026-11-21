@@ -4,7 +4,8 @@ import Capacitor
 
 // "Connect to JanitorAI": opens JanitorAI in a browser window inside the app. You log in as usual (the
 // login is remembered). Mode "import" downloads your characters and chats, "chars" only your characters,
-// and passes them to Green Room for review; "browse" just shows the site.
+// and passes them to Green Room for review; "prompts" passes on what the site loads while you open your
+// custom prompts (until Done); "browse" just shows the site.
 @objc(JanitorBrowserPlugin)
 public class JanitorBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "JanitorBrowserPlugin"
@@ -55,6 +56,7 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
     private let mode: String
     private var importing = false
     private var finished = false
+    private var seen = 0
     private let importButton = UIButton(type: .system)
     private var webView: WKWebView!
     private let countLabel = UILabel()
@@ -76,6 +78,9 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
         let content = WKUserContentController()
         content.add(WeakMessageHandler(self), name: "grImport")
         content.addUserScript(WKUserScript(source: JanitorBrowserController.loginHeaders, injectionTime: .atDocumentStart, forMainFrameOnly: false))
+        if mode == "prompts" {
+            content.addUserScript(WKUserScript(source: JanitorBrowserController.promptWatch, injectionTime: .atDocumentStart, forMainFrameOnly: false))
+        }
         config.userContentController = content
 
         webView = WKWebView(frame: .zero, configuration: config)
@@ -89,14 +94,14 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
         close.titleLabel?.font = .systemFont(ofSize: 17)
         close.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
 
-        importButton.setTitle("Continue", for: .normal)
-        importButton.isHidden = true
+        importButton.setTitle(mode == "prompts" ? "Done" : "Continue", for: .normal)
+        importButton.isHidden = mode != "prompts"
         importButton.titleLabel?.font = .boldSystemFont(ofSize: 16)
         importButton.addTarget(self, action: #selector(importTapped), for: .touchUpInside)
 
         countLabel.font = .systemFont(ofSize: 12)
         countLabel.textColor = .secondaryLabel
-        countLabel.text = mode == "browse" ? "" : "Opening JanitorAI…"
+        countLabel.text = mode == "browse" ? "" : mode == "prompts" ? "Open your custom prompts" : "Opening JanitorAI…"
         countLabel.adjustsFontSizeToFitWidth = true
         countLabel.minimumScaleFactor = 0.7
 
@@ -132,10 +137,14 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
 
     // Starts by itself once the page has loaded; after logging in, again (or with Continue)
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if mode != "browse" && !importing && !finished && webView.url?.host?.contains("janitorai.com") == true { importTapped() }
+        if mode != "browse" && mode != "prompts" && !importing && !finished && webView.url?.host?.contains("janitorai.com") == true { importTapped() }
     }
 
     @objc private func importTapped() {
+        if mode == "prompts" {
+            plugin?.send(["type": "done", "mode": mode])
+            return dismiss(animated: true)
+        }
         if importing || finished || mode == "browse" { return }
         importing = true
         importButton.isHidden = true
@@ -152,6 +161,10 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
         switch kind {
         case "progress":
             countLabel.text = m["label"] as? String ?? ""
+        case "resp":
+            plugin?.send(["type": "resp", "url": m["url"] as? String ?? "", "json": m["json"] as? String ?? ""])
+            seen += 1
+            countLabel.text = "Open your custom prompts · \(seen) loaded"
         case "char", "chat":
             plugin?.send(["type": kind, "json": m["json"] as? String ?? ""])
         case "login":
@@ -245,6 +258,36 @@ class JanitorBrowserController: UIViewController, WKScriptMessageHandler, WKNavi
       }
     })();
     0;
+    """#
+
+    // Import custom prompts: passes on the data (JSON) the JanitorAI site loads from its own server while
+    // this window is open, so Green Room can pick out the prompts. Request headers are never passed on
+    static let promptWatch = #"""
+    (function () {
+      if (window.__grPromptWatch) return; window.__grPromptWatch = true;
+      var post = function (u, t) {
+        try {
+          if (!t || t.length > 2000000 || !/^\s*[\[{]/.test(t)) return;
+          var x = new URL(u, location.href);
+          if (!/(^|\.)janitorai\.com$/.test(x.hostname) || /dustpan|track|notifications|locales|emoji/.test(x.pathname)) return;
+          window.webkit.messageHandlers.grImport.postMessage({ kind: 'resp', url: x.origin + x.pathname, json: t });
+        } catch (e) {}
+      };
+      var f = window.fetch;
+      window.fetch = function (input) {
+        var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+        var p = f.apply(this, arguments);
+        p.then(function (r) { if (/json/i.test(r.headers.get('content-type') || '')) r.clone().text().then(function (t) { post(url, t); }).catch(function () {}); }).catch(function () {});
+        return p;
+      };
+      var open = XMLHttpRequest.prototype.open, send = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.open = function (m, u) { this.__grPUrl = String(u); return open.apply(this, arguments); };
+      XMLHttpRequest.prototype.send = function () {
+        var xhr = this;
+        xhr.addEventListener('load', function () { try { if (/json/i.test(xhr.getResponseHeader('content-type') || '')) post(xhr.__grPUrl, xhr.responseText); } catch (e) {} });
+        return send.apply(this, arguments);
+      };
+    })();
     """#
 
     // Runs in every page before the site's own code. Nothing is recorded: it only notes the login headers

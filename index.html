@@ -1083,6 +1083,11 @@
       <div class="hint">Off: every character with a hidden definition, also ones you already filled in.</div>
       <button class="btn" type="button" id="janFind" style="width:100%;margin-top:14px">Find on JannyAI</button>
     </div>
+    <div class="jan-h">Custom prompts</div>
+    <div class="card">
+      <div class="hint" style="padding-top:12px;margin-top:0">JanitorAI opens: go to a chat → Using proxy → edit a proxy → Custom prompt and open the list, then tap Done. You choose which prompts to add to Settings → Prompt.</div>
+      <button class="btn" type="button" id="janPrompts" style="width:100%;margin-top:14px">Import custom prompts</button>
+    </div>
     <div class="jan-h">Website</div>
     <div class="card" style="padding-top:14px">
       <button class="btn" type="button" id="janBrowse" style="width:100%">Open JanitorAI</button>
@@ -4195,6 +4200,7 @@ function janOpen(mode) {
 $('janStart').onclick = () => janOpen('import');
 $('janFind').onclick = () => janOpen('chars');
 $('janBrowse').onclick = () => janOpen('browse');
+$('janPrompts').onclick = () => { JAN.resps = []; janOpen('prompts'); };
 $('janLogout').onclick = async () => {
   const jb = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.JanitorBrowser;
   if (!jb) return toast('Only in the iPhone app');
@@ -4215,7 +4221,8 @@ function janListen() {
     if (ev.type === 'start') { JAN.chars.clear(); JAN.chats = []; }
     else if (ev.type === 'char') { try { const c = JSON.parse(ev.json); if (c?.id) JAN.chars.set(c.id, c); } catch {} }
     else if (ev.type === 'chat') { try { const c = JSON.parse(ev.json); if (c?.chat) JAN.chats.push(c); } catch {} }
-    else if (ev.type === 'done') ev.mode === 'chars' ? janMissingPage() : janReview();
+    else if (ev.type === 'resp') { (JAN.resps ||= []).push({ url: ev.url, json: ev.json }); }
+    else if (ev.type === 'done') ev.mode === 'chars' ? janMissingPage() : ev.mode === 'prompts' ? janPromptsPage() : janReview();
     else if (ev.type === 'error' && ev.message !== 'cancelled') dbg('error', 'JanitorAI import: ' + ev.message);
   });
 }
@@ -4430,6 +4437,81 @@ function janMissingPage() {
     t.append(b, st, sm); a.append(av, t); card.append(a);
   }
   body.replaceChildren(h, copy, card); body.parentElement.scrollTop = 0; openView('janItem');
+}
+// Custom prompts: picked out of what the JanitorAI site loaded (objects with a name and a long prompt text;
+// chat messages and characters are left out). Ones you already have are switched off
+function janFindPrompts(resps) {
+  const found = new Map();
+  const walk = (o, depth) => {
+    if (!o || typeof o !== 'object' || depth > 8) return;
+    if (Array.isArray(o)) return o.forEach(x => walk(x, depth + 1));
+    const keys = Object.keys(o);
+    const skip = keys.some(k => /^(chat_id|is_bot|first_message|personality|chatMessages)$/i.test(k));
+    if (!skip) {
+      const tk = keys.find(k => /prompt|content|text|jailbreak|instruction/i.test(k) && typeof o[k] === 'string' && o[k].trim().length >= 40);
+      if (tk) {
+        const nk = keys.find(k => /^(name|title|label|prompt_?name)$/i.test(k) && typeof o[k] === 'string' && o[k].trim());
+        const text = o[tk].trim();
+        if (!found.has(text)) found.set(text, { name: (nk ? o[nk] : '').trim(), text });
+      }
+    }
+    for (const k of keys) walk(o[k], depth + 1);
+  };
+  for (const r of resps || []) { try { walk(JSON.parse(r.json), 0); } catch {} }
+  return [...found.values()].map((p, i) => ({ ...p, name: p.name || `JanitorAI prompt ${i + 1}`, have: promptLib().some(x => (x.text || '').trim() === p.text) }))
+    .map(p => ({ ...p, on: !p.have }));
+}
+function janPromptsPage() {
+  const list = janFindPrompts(JAN.resps), body = $('janItBody');
+  $('janItTitle').textContent = 'Custom prompts';
+  const h = document.createElement('div'); h.className = 'hint'; h.style.margin = '0 4px 12px';
+  const parts = [h];
+  if (!list.length) {
+    h.textContent = `No prompts found in what JanitorAI loaded (${(JAN.resps || []).length} response${(JAN.resps || []).length === 1 ? '' : 's'}). Make sure the custom prompt list was open before tapping Done. If it still finds nothing, save an inspection file and send it to Claude.`;
+    const sv = document.createElement('button'); sv.type = 'button'; sv.className = 'btn'; sv.style.width = '100%'; sv.textContent = 'Save inspection file';
+    sv.onclick = janSaveInspection; sv.disabled = !(JAN.resps || []).length;
+    parts.push(sv);
+  } else {
+    h.textContent = `${list.length} prompt${list.length === 1 ? '' : 's'} found. Switch off what you don't want; ones you already have are off. Tap a prompt to read it.`;
+    const card = document.createElement('div'); card.className = 'card jan-list';
+    const go = document.createElement('button'); go.type = 'button'; go.className = 'btn primary';
+    const count = () => { const n = list.filter(p => p.on).length; go.textContent = `Add ${n} prompt${n === 1 ? '' : 's'}`; go.disabled = !n; };
+    for (const p of list) {
+      const row = document.createElement('div'); row.className = 'jchat' + (p.on ? '' : ' off');
+      const t = document.createElement('div'); t.className = 'jtxt';
+      const b = document.createElement('b'); b.textContent = p.name;
+      const sm = document.createElement('small'); sm.textContent = `${p.text.length.toLocaleString()} characters${p.have ? ' · already in Green Room' : ''}`;
+      const pv = document.createElement('p'); pv.textContent = p.text;
+      t.append(b, sm, pv);
+      t.onclick = () => { const open = pv.style.webkitLineClamp === 'unset'; pv.style.webkitLineClamp = open ? '' : 'unset'; pv.style.whiteSpace = open ? '' : 'pre-wrap'; };
+      const tg = document.createElement('input'); tg.type = 'checkbox'; tg.className = 'tgl'; tg.checked = p.on; tg.setAttribute('aria-label', 'Add this prompt');
+      tg.onchange = () => { p.on = tg.checked; row.classList.toggle('off', !p.on); count(); };
+      row.append(t, tg); card.append(row);
+    }
+    go.onclick = () => {
+      const add = list.filter(p => p.on);
+      for (const p of add) promptLib().push({ id: uid(), name: p.name, text: p.text });
+      saveCfg(); renderPromptBox($('gPromptBox'), 'global');
+      toast(`Added ${add.length} prompt${add.length === 1 ? '' : 's'} to Settings → Prompt`);
+      closeView('janItem');
+    };
+    count();
+    const bar = document.createElement('div'); bar.className = 'save-bar'; bar.append(go);
+    parts.push(card, bar);
+  }
+  body.replaceChildren(...parts); body.parentElement.scrollTop = 0; openView('janItem');
+}
+// What the site loaded while the window was open, for Claude to look at (tokens and e-mail addresses removed)
+async function janSaveInspection() {
+  const red = t => t.replace(/eyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{4,}/g, '[removed]')
+    .replace(/("(?:[a-z_]*token|authorization|cookie|password|secret|api_?key|apiKey|session[a-z_]*|refresh[a-z_]*)"\s*:\s*")[^"]*"/gi, '$1[removed]"')
+    .replace(/[\w.%+-]+@[\w.-]+\.[a-z]{2,}/gi, '[email removed]');
+  const text = red(JSON.stringify({ app: 'Green Room', kind: 'janitorai-prompts-inspection', created: new Date().toISOString(), responses: JAN.resps || [] }, null, 1));
+  const file = new File([text], `janitorai-prompts-${new Date().toISOString().slice(0, 10)}.json`, { type: 'application/json' });
+  try {
+    if (navigator.canShare?.({ files: [file] })) return await navigator.share({ files: [file] });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+  } catch (e) { if (e?.name !== 'AbortError') toast('Could not save: ' + (e?.message || e)); }
 }
 // Read a chat exactly as it will be imported
 function janOpenChat(jr, jc) {

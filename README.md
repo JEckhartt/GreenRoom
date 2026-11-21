@@ -63,9 +63,10 @@ iPhone app only. **Connect to JanitorAI** on the title screen opens a page with:
   - Tap a character to review it: where it goes, everything JanitorAI has for it (characters whose creator hid the definition are marked "definition hidden"; their personality, scenario and example dialogue can't be imported), and its chats, each with a switch; tap a chat to read it exactly as it will be imported. For a character you already have, JanitorAI's description shows with yours below it, and **Replace mine** swaps yours for JanitorAI's (nothing else changes); when they're already the same it says *Same as yours* and is left alone. Tap a persona to see its picture and personality.
   - **Import**: replies you swiped through become versions (‹ ›); a chat's JanitorAI memory goes to its Memory; chats imported before are updated, not doubled.
 - **Missing definitions → Find on JannyAI**: looks only at your characters (quick) and lists those whose definition is hidden on JanitorAI, with *Only ones I'm missing* (no personality in Green Room yet) on or off. Each has its picture and its JannyAI link (the JanitorAI link with janitorai.com changed to jannyai.com); tap to open it, or **Copy list**.
+- **Custom prompts → Import custom prompts**: JanitorAI opens; go to a chat → Using proxy → edit a proxy → Custom prompt and open the list, then tap **Done**. The prompts the page loaded are listed with a switch each (ones you already have are off; tap one to read it), and **Add** puts them in Settings → Prompt. If none are found, **Save inspection file** saves what the page loaded (tokens and e-mail addresses removed) to send for a fix.
 - **Open JanitorAI** (just the site) and **Log out of JanitorAI** (removes its saved login from the app).
 
-Nothing you browse is recorded; the window only notes the site's login headers in memory, so the import is logged in the same way.
+Nothing you browse is recorded (except, while importing custom prompts, what the site loads, kept in memory until you tap Done); the window only notes the site's login headers in memory, so the import is logged in the same way.
 
 ## Settings
 
