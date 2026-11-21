@@ -4450,15 +4450,18 @@ function janFindPrompts(resps) {
     if (!skip) {
       const tk = keys.find(k => /prompt|content|text|jailbreak|instruction/i.test(k) && typeof o[k] === 'string' && o[k].trim().length >= 40);
       if (tk) {
-        const nk = keys.find(k => /^(name|title|label|prompt_?name)$/i.test(k) && typeof o[k] === 'string' && o[k].trim());
-        const text = o[tk].trim();
-        if (!found.has(text)) found.set(text, { name: (nk ? o[nk] : '').trim(), text });
+        const nk = keys.find(k => /^(name|title|label|prompt_?name|prompt_?title|display_?name)$/i.test(k) && typeof o[k] === 'string' && o[k].trim() && o[k].length < 120);
+        const text = o[tk].trim(), name = (nk ? o[nk] : '').trim();
+        // a proxy setting carries a copy of its prompt under the proxy's name: the prompt list's own name wins
+        const proxy = keys.some(k => /^(apiurl|api_url|apikey|api_key|model)$/i.test(k)) || /jailbreak/i.test(tk);
+        const rank = !name ? 0 : proxy ? 1 : 2, had = found.get(text);
+        if (!had || rank > had.rank) found.set(text, { name, text, rank });
       }
     }
     for (const k of keys) walk(o[k], depth + 1);
   };
   for (const r of resps || []) { try { walk(JSON.parse(r.json), 0); } catch {} }
-  return [...found.values()].map((p, i) => ({ ...p, name: p.name || `JanitorAI prompt ${i + 1}`, have: promptLib().some(x => (x.text || '').trim() === p.text) }))
+  return [...found.values()].map(({ rank, ...p }, i) => ({ ...p, name: p.name || `JanitorAI prompt ${i + 1}`, have: promptLib().some(x => (x.text || '').trim() === p.text) }))
     .map(p => ({ ...p, on: !p.have }));
 }
 function janPromptsPage() {
@@ -4497,7 +4500,9 @@ function janPromptsPage() {
     };
     count();
     const bar = document.createElement('div'); bar.className = 'save-bar'; bar.append(go);
-    parts.push(card, bar);
+    const sv = document.createElement('button'); sv.type = 'button'; sv.className = 'btn'; sv.style.cssText = 'width:100%;margin-top:10px';
+    sv.textContent = 'Names or prompts wrong? Save inspection file'; sv.onclick = janSaveInspection;
+    parts.push(card, bar, sv);
   }
   body.replaceChildren(...parts); body.parentElement.scrollTop = 0; openView('janItem');
 }
