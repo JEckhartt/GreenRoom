@@ -3481,6 +3481,12 @@ function chatMenu(ch, c) {
       store.set('chats', chats); renderChats(); if (cur?.chat.id === ch.id) renderChatHead();
     } },
     { label: 'Move to folder', onClick: () => moveChatToFolder(ch) },
+    { label: 'Change persona', onClick: () => pickPersona(c, pid => {
+      const np = personas.find(x => x.id === pid);
+      ch.personaId = np?.id || ''; ch.personaName = np?.name || '';
+      saveChats(); if (cur?.chat.id === ch.id) { cur.p = personaOf(ch); renderChatHead(); render(); }
+      toast(`This chat is now as ${np?.name || 'no persona'}`);
+    }) },
     { label: 'Export', onClick: () => showSheet('Export as', EXPORTS.map(([fmt, name]) => ({ label: name, onClick: () => exportChat(ch, c, fmt) }))) },
     { label: 'Delete chat', onClick: () => { if (confirm(`Delete this chat with ${c.name}?`)) deleteChat(ch.id); } },
   ]);
