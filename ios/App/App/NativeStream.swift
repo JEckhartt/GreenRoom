@@ -6,7 +6,6 @@ class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(NativeStreamPlugin())
         bridge?.registerPluginInstance(JanitorBrowserPlugin())
-        bridge?.registerPluginInstance(BackupFolderPlugin())
     }
 }
 

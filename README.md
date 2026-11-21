@@ -80,7 +80,7 @@ Nothing you browse is recorded (except, while importing custom prompts, what the
 - **JanitorAI**: Connect to JanitorAI (see above).
 - **Customization**: see Style below.
 - **Debug**: a log of errors and crashes (with the screen that was open), and **Download debug report** (device, storage, chat sizes and the log; no messages, prompts or API keys).
-- **Backup**: export / import everything as one file; **automatic backup** (iPhone app): pick a folder (Files opens straight away), then choose when (on open, daily, every 3 days, weekly) and how many to keep; it runs when you open or return to the app and it's due. Only its own older backups are removed.
+- **Backup**: export / import everything as one file.
 
 No workarounds: a proxy either works or it doesn't. If a model can't see images or the image proxy fails, the error shows in the chat.
 
