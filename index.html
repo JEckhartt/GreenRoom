@@ -3481,6 +3481,13 @@ function chatMenu(ch, c) {
       store.set('chats', chats); renderChats(); if (cur?.chat.id === ch.id) renderChatHead();
     } },
     { label: 'Move to folder', onClick: () => moveChatToFolder(ch) },
+    { label: 'Move to another character', onClick: () => pickChar('Move this chat to…', nc => {
+      if (nc.id === ch.charId) return;
+      ch.charId = nc.id; delete ch.janChar; // a later JanitorAI import follows this choice through the chat itself
+      expanded.clear(); expanded.add(nc.id); saveChats();
+      if (cur?.chat.id === ch.id) { cur.c = nc; renderChatHead(); render(); }
+      toast(`Moved to ${nc.name}`);
+    }) },
     { label: 'Change persona', onClick: () => pickPersona(c, pid => {
       const np = personas.find(x => x.id === pid);
       ch.personaId = np?.id || ''; ch.personaName = np?.name || '';
