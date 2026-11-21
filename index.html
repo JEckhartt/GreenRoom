@@ -2722,9 +2722,9 @@ async function describeImage(s, userText, replyText) {
   const { c, p } = s;
   const out = await streamChat([
     { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-    { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText.slice(0, 1500)}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), ${userName(p)}, both of them ("us"), but also a pet, food, a place or anything else; only include a person if the picture is of them, and name them (${cn(c)}, ${userName(p)}). Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
+    { role: 'user', content: `Character: ${cn(c)}\nAbout them:\n${fill(c.personality, c, p)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), ${userName(p)}, both of them ("us"), but also a pet, food, a place or anything else; only include a person if the picture is of them, and name them (${cn(c)}, ${userName(p)}). Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
   ], () => {}, { free: true });
-  return out.replace(TAG, '').trim().slice(0, 1500);
+  return out.replace(TAG, '').trim();
 }
 // Generates an image for a reply and stores it on that reply (or the selected alternative)
 async function attachImage(s, hist, msg, into, bubble, imgPrompt) {
@@ -4242,20 +4242,21 @@ $('edGenImg').onclick = async () => {
   if (!pers && !desc) return toast('Fill in the personality first');
   if (!imageProxyOk()) return toast('No image proxy is set up (Settings → Image proxy)');
   if (busy || !ready()) return;
+  const style = askImageStyle(); if (style === null) return;
   const btn = $('edGenImg'); btn.disabled = true; btn.textContent = 'Making image…'; setBusy(true);
   try {
     const name = $('edName').value.trim() || (edit.kind === 'char' ? 'the character' : 'the person');
     const prompt = (await streamChat([
       { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-      { role: 'user', content: `Write a portrait prompt for ${name}. Describe only what can be seen: face, hair, eyes, body, clothing, expression, pose, setting, lighting and an art style that fits.
+      { role: 'user', content: `Write a portrait prompt for ${name}. Describe only what can be seen: face, hair, eyes, body, clothing, expression, pose, setting, lighting and ${style ? `this style: ${style}` : 'an art style that fits'}.
 
 Personality:
 ${pers || '(none)'}${desc ? `
 
 Description:
 ${desc}` : ''}` },
-    ], () => {}, { free: true })).trim().slice(0, 1500);
-    const src = await generateImage(prompt);
+    ], () => {}, { free: true })).trim();
+    const src = await generateImage(prompt + (style ? `\nStyle: ${style}.` : ''));
     edit.img = src;
     const th = $('edThumb'); th.style.backgroundImage = `url("${src}")`; th.textContent = ''; $('edNoImg').hidden = $('edFrame').hidden = false; edit.frame = null;
     toast('Image ready. Save to keep it.');
@@ -4361,10 +4362,19 @@ function openGenerator() {
   openView('gen'); setTimeout(() => $('genIdea').focus(), 350);
 }
 // Character generator: the AI writes a whole card (and optionally a picture) from a few words
+// Before a profile picture is made: which style? (remembered; empty = no style given; Cancel = no picture)
+function askImageStyle() {
+  const v = prompt('What style should the picture be? (e.g. realistic photo, anime, oil painting; empty for no style)', cfg.lastImgStyle || '');
+  if (v === null) return null;
+  cfg.lastImgStyle = v.trim(); saveCfg();
+  return v.trim();
+}
 $('genGo').onclick = async () => {
   const idea = $('genIdea').value.trim();
   if (!idea) return toast('Describe the character first');
   if (busy || !ready()) return;
+  let style = '';
+  if ($('genImg').checked && imageProxyOk()) { style = askImageStyle(); if (style === null) return; }
   const status = $('genStatus'), go = $('genGo');
   go.disabled = true; setBusy(true);
   try {
@@ -4396,7 +4406,7 @@ Reply with only a JSON object (no markdown fences) with these keys, each holding
     let img = null;
     if ($('genImg').checked && imageProxyOk() && (c.appearance || c.personality)) {
       status.textContent = 'Making the picture…';
-      try { img = await generateImage(String(c.appearance || c.personality) + '\nA character portrait.'); }
+      try { img = await generateImage(String(c.appearance || c.personality) + '\nA character portrait.' + (style ? `\nStyle: ${style}.` : '')); }
       catch (e) { if (isAbort(e)) throw e; toast('Picture failed: ' + e.message); }
     }
     $('gen').classList.remove('open');
@@ -7011,7 +7021,7 @@ $('giGo').onclick = async () => {
       prompt = (await streamChat([
         { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
         { role: 'user', content: `${userName(p)} is chatting with ${cn(c)}.${p?.personality?.trim() ? `\nAbout ${userName(p)}:\n${fill(p.personality, c, p)}` : ''}\n\nThe chat so far (most recent part):\n${recent.slice(-3000)}\n\n${userName(p)} is about to send this message with a picture:\n"${typed}"${extra ? `\n\nExtra direction for the picture: ${named}` : ''}\n\nDescribe the picture ${userName(p)} sends with that message, so it fits the message and the moment. Only include ${userName(p)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing.` },
-      ], () => {}, { free: true })).replace(TAG, '').trim().slice(0, 1500);
+      ], () => {}, { free: true })).replace(TAG, '').trim();
     }
     $('giState').textContent = 'Making the picture…';
     const src = await userPicture(s, prompt);
