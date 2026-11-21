@@ -230,6 +230,15 @@
   .items.gridview .item h3 { font-size: 15px; margin: 0 0 3px; }
   .items.gridview .item p { font-size: 13px; -webkit-line-clamp: 3; line-clamp: 3; }
   .items.gridview .swipe-acts { display: none; }
+  /* compact list (Chats, Characters): the same pictures and framing, only smaller */
+  .items.compact { gap: 6px; }
+  .items.compact .item { padding: 7px 10px; gap: 10px; align-items: center; border-radius: 12px; }
+  .items.compact .item .thumb { width: 40px; font-size: 17px; border-radius: 8px; }
+  .items.compact .item h3 { font-size: 15px; margin: 0; }
+  .items.compact .item p { font-size: 12.5px; margin: 1px 0 0; -webkit-line-clamp: 1; line-clamp: 1; }
+  .items.compact .folder-icon { width: 40px; height: 40px; }
+  .items.compact .crow .go { padding-top: 6px; padding-bottom: 6px; }
+  .items.compact .crow .snip { -webkit-line-clamp: 1; line-clamp: 1; }
   #albumList .item { position: relative; padding-right: 48px; }
   .alb-more { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; display: grid; place-items: center; color: var(--ink-soft); font-size: 22px; line-height: 1; cursor: pointer; }
   #albumList.gridview .item { padding-right: 8px; }
@@ -803,7 +812,7 @@
 </section>
 
 <section id="chats" class="view" aria-label="Chats">
-  <div class="page-head"><button class="back" data-close="chats" type="button">‹ Back</button><h1>Chats</h1><button class="act plus" id="chatAdd" type="button" aria-label="New or imported chat">+</button></div>
+  <div class="page-head"><button class="back" data-close="chats" type="button">‹ Back</button><h1>Chats</h1><span class="head-acts"><button class="act vbtn" id="chatView" type="button" aria-label="Compact list"></button><button class="act plus" id="chatAdd" type="button" aria-label="New or imported chat">+</button></span></div>
   <input type="file" id="chatFile" hidden>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <input type="search" class="search" id="chatSearch" placeholder="Search all chats" autocomplete="off" style="margin-bottom:12px">
@@ -3276,7 +3285,7 @@ const when = t => {
 const trashSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>';
 
 function renderChats() {
-  const list = $('chatList'); list.innerHTML = '';
+  const list = $('chatList'); list.innerHTML = ''; list.classList.toggle('compact', isCompact('chat'));
   const by = new Map();
   for (const ch of chats) {
     if (!ch.preview || !chars.some(c => c.id === ch.charId)) continue;
@@ -3647,10 +3656,17 @@ const charQuery = () => ($('charSearch')?.value || '').trim().toLowerCase();
 // List or grid, remembered per screen
 const GRID_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>';
 const LIST_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>';
-const isGrid = k => store.get('view', {})[k] === 'grid';
-function syncViewBtn(k) { const b = $({ char: 'charView', persona: 'personaView', album: 'albumView' }[k]); b.innerHTML = isGrid(k) ? LIST_SVG : GRID_SVG; b.setAttribute('aria-label', isGrid(k) ? 'Show as list' : 'Show as grid'); }
-for (const [k, id] of [['char', 'charView'], ['persona', 'personaView'], ['album', 'albumView']]) {
-  $(id).onclick = () => { const v = store.get('view', {}); v[k] = isGrid(k) ? 'list' : 'grid'; store.set('view', v); syncViewBtn(k); k === 'album' ? renderAlbums() : renderList(k); };
+const COMPACT_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3.5" width="4" height="4" rx="1"/><rect x="3" y="10" width="4" height="4" rx="1"/><rect x="3" y="16.5" width="4" height="4" rx="1"/><path d="M10.5 5.5h10M10.5 12h10M10.5 18.5h10"/></svg>';
+const viewOf = k => store.get('view', {})[k] || 'list';
+const isGrid = k => viewOf(k) === 'grid';
+const isCompact = k => viewOf(k) === 'compact';
+// Characters cycle list → compact → grid; Chats list ↔ compact; Personas and Albums list ↔ grid
+const VIEW_CYCLE = { char: ['list', 'compact', 'grid'], chat: ['list', 'compact'], persona: ['list', 'grid'], album: ['list', 'grid'] };
+const VIEW_ICON = { list: LIST_SVG, compact: COMPACT_SVG, grid: GRID_SVG }, VIEW_NAME = { list: 'list', compact: 'compact list', grid: 'grid' };
+const nextView = k => { const c = VIEW_CYCLE[k]; return c[(c.indexOf(viewOf(k)) + 1) % c.length] || c[0]; };
+function syncViewBtn(k) { const b = $({ char: 'charView', persona: 'personaView', album: 'albumView', chat: 'chatView' }[k]), n = nextView(k); b.innerHTML = VIEW_ICON[n]; b.setAttribute('aria-label', 'Show as ' + VIEW_NAME[n]); }
+for (const [k, id] of [['char', 'charView'], ['persona', 'personaView'], ['album', 'albumView'], ['chat', 'chatView']]) {
+  $(id).onclick = () => { const v = store.get('view', {}); v[k] = nextView(k); store.set('view', v); syncViewBtn(k); k === 'album' ? renderAlbums() : k === 'chat' ? renderChats() : renderList(k); };
   syncViewBtn(k);
 }
 function renderList(kind) {
@@ -3658,7 +3674,7 @@ function renderList(kind) {
   const items = q ? itemsOf(kind).filter(it => [it.name, it.chatName, it.description, it.personality, it.scenario].some(v => (v || '').toLowerCase().includes(q))) : itemsOf(kind);
   const fs = q ? [] : folders.filter(f => f.kind === kind);
   const list = $(kind === 'char' ? 'charList' : 'personaList');
-  list.innerHTML = ''; list.classList.toggle('gridview', isGrid(kind));
+  list.innerHTML = ''; list.classList.toggle('gridview', isGrid(kind)); list.classList.toggle('compact', isCompact(kind));
   openSwipe = null;
   if (!items.length && !fs.length) {
     const e = document.createElement('div'); e.className = 'list-empty';
