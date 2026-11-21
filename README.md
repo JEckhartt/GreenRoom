@@ -43,6 +43,18 @@ What the image proxy gets: the character's and your profile pictures (each "only
 
 With **Enable** off it's a regular chat: no images are made or sent to the AI (earlier ones are mentioned as "an image was attached"), and the image buttons are hidden.
 
+## Stories
+
+**Stories** on the title screen turns a chat into a novel. **New story**:
+- **Chat** (pick the character, then the chat) and the **proxy** that writes it.
+- **Divide into chapters** (on): for longer chats, one chapter per ~14,000 characters of chat, cut at natural breaks (a long pause between messages). Shorter chats become one story.
+- **Point of view**: first person or third person limited, through the character's or the persona's eyes, or omniscient.
+- **Title** (empty: the AI picks one), **Generate a cover** (style only; the rest comes from the story, with the profile pictures as reference; 2:3), **Publish as** Text, PDF and/or EPUB when it's done.
+
+The chat is written part by part; each part gets both people's texts, the point of view and a running summary of the story so far. It's saved after every part: a story that stopped (Stop, an error, closing the app) can be continued. Stories show as covers in a grid; long press one to publish/export, rename, make a new cover or delete it.
+
+The reader: pages (tap the left or right edge or swipe; tap the middle to hide the bars) or scrolling, **Contents**, and **Aa** for size, font, page colour (paper, sepia, night, or the app's theme) and spacing. It remembers where you were. PDF (A5 pages, made by iOS) works in the iPhone app; EPUB opens in Apple Books.
+
 ## Characters and personas
 
 - **Characters**: image, name, optional chat name (used in chats and for `{{char}}`), description (shown in the list, never sent to the AI; written in a formatting editor: paragraph / headings / quote, bold, italic, underline, strikethrough, highlight and text colour, alignment, list, divider, pictures from your albums, links (a link to a picture shows the picture), and </> to see or edit the HTML; imported HTML bios keep their formatting), personality, scenario, first messages (several options to flip through until you reply, or let the AI write the opening, which follows your selected system prompt; **Generate** writes its openings in third person limited, from the character's point of view) and example dialogue. The editor shows characters and tokens of what is sent.

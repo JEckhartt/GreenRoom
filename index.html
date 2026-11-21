@@ -231,6 +231,57 @@
   .rte blockquote, .prof-body blockquote { margin: 6px 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--ink-soft); }
   .rte p, .prof-body.html p { margin: 0 0 8px; }
   #edDesc.src { font-family: ui-monospace, Menlo, monospace; font-size: 13px; min-height: 160px; }
+  /* ---------- Stories ---------- */
+  .st-new { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; width: 100%; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; text-align: left; cursor: pointer; margin-bottom: 16px; }
+  .st-new b { font-size: 17px; font-weight: 600; }
+  .st-new small { grid-column: 1; color: var(--ink-soft); font-size: 13px; }
+  .st-new .chev { grid-row: 1 / span 2; grid-column: 2; }
+  .st-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .st-card { display: flex; flex-direction: column; gap: 6px; background: none; border: 0; padding: 0; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .st-cover { position: relative; aspect-ratio: 2 / 3; border-radius: 10px; overflow: hidden; background: linear-gradient(160deg, var(--accent-soft), var(--bg-2)); background-size: cover; background-position: center; box-shadow: 0 6px 18px rgba(0,0,0,.25); display: flex; align-items: flex-end; }
+  .st-cover .st-ttl { width: 100%; padding: 26px 10px 10px; background: linear-gradient(transparent, rgba(0,0,0,.72)); color: #fff; font-family: 'Fraunces', Georgia, serif; font-size: 16px; line-height: 1.2; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+  .st-cover.plain .st-ttl { background: none; color: var(--ink); text-shadow: none; padding: 14px 12px; align-self: center; text-align: center; font-size: 18px; }
+  .st-card small { color: var(--ink-soft); font-size: 12px; }
+  .st-card .st-state { color: var(--accent-ink); font-size: 12px; font-weight: 600; }
+  .st-empty { grid-column: 1 / -1; text-align: center; color: var(--ink-soft); padding: 30px 10px; }
+  .ss-select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; }
+  #ssFormats button { font-size: 15px; }
+  /* reader */
+  #reader { --rd-bg: #fbf8f2; --rd-ink: #2b2620; --rd-soft: #8a8072; background: var(--rd-bg); color: var(--rd-ink); }
+  #reader[data-rt="sepia"] { --rd-bg: #f1e4c8; --rd-ink: #4a3b28; --rd-soft: #8f7a5c; }
+  #reader[data-rt="night"] { --rd-bg: #141414; --rd-ink: #d8d2c8; --rd-soft: #7d776e; }
+  #reader[data-rt="app"] { --rd-bg: var(--bg); --rd-ink: var(--ink); --rd-soft: var(--ink-soft); }
+  .rd-top { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: max(10px, env(safe-area-inset-top)) 14px 8px; transition: opacity .25s; }
+  .rd-top .back { color: var(--rd-soft); }
+  .rd-top b { font-weight: 600; font-size: 15px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rd-acts { display: flex; gap: 14px; }
+  .rd-acts button, .rd-top .back { background: none; border: 0; font: inherit; font-size: 15px; color: var(--rd-soft); cursor: pointer; padding: 4px; }
+  .rd-stage { flex: 1; min-height: 0; position: relative; overflow: hidden; touch-action: pan-y; }
+  .rd-flow { height: 100%; font-family: var(--rd-font, 'Lora'), Georgia, serif; font-size: var(--rd-size, 19px); line-height: var(--rd-lh, 1.6); -webkit-hyphens: auto; hyphens: auto; text-align: justify; transition: transform .3s ease; will-change: transform; }
+  .rd-flow p { margin: 0 0 .9em; text-indent: 0; }
+  .rd-flow p + p { text-indent: 1.4em; margin-top: -.5em; }
+  .rd-flow h2 { break-before: column; -webkit-column-break-before: always; font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 1.5em; line-height: 1.25; text-align: center; margin: 1.6em 0 1.2em; }
+  .rd-flow h2:first-child { margin-top: .6em; }
+  .rd-flow .rd-num { display: block; font-size: .55em; letter-spacing: .18em; text-transform: uppercase; color: var(--rd-soft); margin-bottom: .5em; }
+  .rd-flow .rd-cover { break-after: column; -webkit-column-break-after: always; height: 100%; display: flex; align-items: center; justify-content: center; }
+  .rd-flow .rd-cover img { max-width: 100%; max-height: 100%; border-radius: 6px; box-shadow: 0 8px 26px rgba(0,0,0,.3); }
+  .rd-flow .rd-tp { break-after: column; -webkit-column-break-after: always; text-align: center; padding-top: 30%; }
+  .rd-flow .rd-tp h1 { font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 1.9em; line-height: 1.2; margin: 0 0 .6em; }
+  .rd-flow .rd-tp div { color: var(--rd-soft); font-size: .8em; }
+  #reader.scroll .rd-stage { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #reader.scroll .rd-flow { height: auto; columns: auto !important; padding: 10px 22px 60px !important; transform: none !important; }
+  #reader.scroll .rd-flow h2 { margin-top: 2.4em; }
+  #reader.scroll .rd-flow .rd-cover { height: 70vh; }
+  .rd-bottom { display: flex; flex-direction: column; gap: 6px; padding: 6px 18px max(10px, env(safe-area-inset-bottom)); font-size: 12px; color: var(--rd-soft); transition: opacity .25s; text-align: center; }
+  .rd-bar { height: 2px; background: color-mix(in srgb, var(--rd-soft) 30%, transparent); border-radius: 2px; overflow: hidden; }
+  .rd-bar i { display: block; height: 100%; width: 0; background: var(--rd-soft); }
+  #reader.chromeless .rd-top, #reader.chromeless .rd-bottom { opacity: 0; pointer-events: none; }
+  .rd-panel { position: absolute; left: 12px; right: 12px; top: calc(max(10px, env(safe-area-inset-top)) + 44px); z-index: 3; padding: 8px 14px; border-radius: 16px; background: color-mix(in srgb, var(--rd-bg) 92%, var(--rd-ink) 8%); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  .rd-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-top: 1px solid color-mix(in srgb, var(--rd-soft) 25%, transparent); font-size: 14px; }
+  .rd-row:first-child { border-top: 0; }
+  .rd-row button { background: none; border: 1px solid color-mix(in srgb, var(--rd-soft) 45%, transparent); color: var(--rd-ink); border-radius: 999px; padding: 5px 11px; margin-left: 6px; font: inherit; font-size: 13px; cursor: pointer; }
+  .rd-row button.on { border-color: var(--rd-ink); font-weight: 600; }
+  .rd-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 0; }
   /* grid view (Characters, Personas, Albums): picture on top, then the name and the bio */
   .head-acts { justify-self: end; display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
   .act.vbtn { display: grid; place-items: center; color: var(--accent-ink); }
@@ -765,6 +816,7 @@
   <h1 class="logo"><span class="pulse"></span>Green Room</h1>
   <nav class="menu">
     <button type="button" id="goChats">Chats</button>
+    <button type="button" id="goStories">Stories</button>
     <button type="button" id="goChars">Characters</button>
     <button type="button" id="goPersonas">Personas</button>
     <button type="button" id="goLore">Lorebooks</button>
@@ -1550,6 +1602,71 @@ Empty = send everything.</div>
 <section id="janChat" class="view" aria-label="Chat preview">
   <div class="page-head"><button class="back" data-close="janChat" type="button">‹ Back</button><h1 id="janChTitle"></h1><span></span></div>
   <div class="page-body"><div class="page-inner" id="janChBody" style="padding-top:12px"></div></div>
+</section>
+
+<section id="stories" class="view" aria-label="Stories">
+  <div class="page-head"><button class="back" data-close="stories" type="button">‹ Back</button><h1>Stories</h1><span></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <button type="button" class="st-new" id="stNew"><b>New story</b><small>Turn a chat into a novel: point of view, chapters, a cover, and Text, PDF or EPUB.</small><span class="chev"></span></button>
+    <div class="st-grid" id="stGrid"></div>
+  </div></div>
+</section>
+
+<section id="storySetup" class="view" aria-label="New story">
+  <div class="page-head"><button class="back" data-close="storySetup" type="button">‹ Back</button><h1>New story</h1><span></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:4px">
+    <div class="jan-h">Chat</div>
+    <div class="card" style="padding-top:12px">
+      <button type="button" class="btn" id="ssChat" style="width:100%">Choose a chat</button>
+      <div class="hint" id="ssChatInfo"></div>
+    </div>
+    <div class="jan-h">Writing</div>
+    <div class="card">
+      <label class="f" for="ssProxy">Proxy</label>
+      <select id="ssProxy" class="ss-select"></select>
+      <div class="line"><span>Divide into chapters</span><input type="checkbox" class="tgl" id="ssChapters" checked></div>
+      <div class="hint">For longer chats: about one chapter per 14,000 characters of chat, cut at natural breaks.</div>
+      <label class="f">Point of view</label>
+      <div class="seg" id="ssPov">
+        <button type="button" data-v="first">First person</button>
+        <button type="button" data-v="third">Third person limited</button>
+        <button type="button" data-v="omni">Omniscient</button>
+      </div>
+      <div id="ssWhoRow">
+        <label class="f">Through the eyes of</label>
+        <div class="seg" id="ssWho"><button type="button" data-v="char" id="ssWhoChar">Character</button><button type="button" data-v="user" id="ssWhoUser">Persona</button></div>
+      </div>
+      <label class="f" for="ssTitle">Title</label>
+      <input type="text" id="ssTitle" placeholder="Leave empty and the AI picks one">
+    </div>
+    <div class="jan-h">Cover</div>
+    <div class="card">
+      <div class="line"><span>Generate a cover</span><input type="checkbox" class="tgl" id="ssCover" checked></div>
+      <label class="f" for="ssStyle">Style</label>
+      <textarea id="ssStyle" placeholder="e.g. painted fantasy book cover, moody lighting"></textarea>
+      <div class="hint">Only the style: the rest of the cover is worked out from the story, with the profile pictures as reference. Uses your image proxy.</div>
+    </div>
+    <div class="jan-h">Publish as</div>
+    <div class="card" style="padding-top:12px">
+      <div class="chips" id="ssFormats"><button type="button" data-v="txt">Text</button><button type="button" data-v="pdf">PDF</button><button type="button" data-v="epub" class="on">EPUB</button></div>
+      <div class="hint">Saved when the story is finished (you can always export again from the story).</div>
+    </div>
+    <div class="save-bar"><button class="btn primary" type="button" id="ssGo">Write the story</button></div>
+    <div class="hint" id="ssCost" style="text-align:center;margin-top:10px"></div>
+  </div></div>
+</section>
+
+<section id="reader" class="view" aria-label="Reader">
+  <div class="rd-top" id="rdTop"><button class="back" type="button" id="rdBack">‹ Stories</button><b id="rdTitle"></b><span class="rd-acts"><button type="button" id="rdToc">Contents</button><button type="button" id="rdAa">Aa</button></span></div>
+  <div class="rd-stage" id="rdStage"><div class="rd-flow" id="rdFlow"></div></div>
+  <div class="rd-bottom" id="rdBottom"><span id="rdWhere"></span><div class="rd-bar"><i id="rdFill"></i></div></div>
+  <div class="rd-panel" id="rdPanel" hidden>
+    <div class="rd-row"><span>Size</span><span><button type="button" data-rd="size-">A−</button><button type="button" data-rd="size+">A+</button></span></div>
+    <div class="rd-row"><span>Font</span><span class="rd-chips" id="rdFonts"></span></div>
+    <div class="rd-row"><span>Page</span><span class="rd-chips" id="rdThemes"></span></div>
+    <div class="rd-row"><span>Spacing</span><span><button type="button" data-rd="lh-">Tighter</button><button type="button" data-rd="lh+">Looser</button></span></div>
+    <div class="rd-row"><span>Reading</span><span class="rd-chips" id="rdModes"></span></div>
+  </div>
 </section>
 
 
@@ -2588,7 +2705,7 @@ async function streamChat(messages, onText, opts = {}) {
   if (g.repPenalty !== undefined) body.repetition_penalty = g.repPenalty;
   if (g.freqPenalty !== undefined) body.frequency_penalty = g.freqPenalty;
   if (g.presPenalty !== undefined) body.presence_penalty = g.presPenalty;
-  const send = () => pfetch(a, endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), signal: opts.chat ? undefined : abortCtl?.signal, body: JSON.stringify(body) });
+  const send = () => pfetch(a, endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), signal: opts.signal ?? (opts.chat ? undefined : abortCtl?.signal), body: JSON.stringify(body) });
   let res = await send();
   // Some models (OpenAI's newer ones) want max_completion_tokens instead of max_tokens
   if (!res.ok && body.max_tokens && res.status === 400) {
@@ -7303,6 +7420,408 @@ renderList('persona');
 { let ch3 = false; for (const ch of chats) if ('textOnly' in ch) { if (ch.textOnly) ch.genImages = false; delete ch.textOnly; ch3 = true; } if (ch3) store.set('chats', chats); }
 // a chat renamed to just "as <persona>" (before the name moved after it) gets its plain label back
 for (const ch of chats) if (ch.title != null && /^as\s/i.test(ch.title) && ch.title.trim().toLowerCase() === ('as ' + (personaOf(ch)?.name || ch.personaName || '')).toLowerCase()) delete ch.title;
+// ---------- Stories: a chat rewritten as a novel ----------
+// Meta in storage ('stories'), the text in the database (story_<id>: { chapters: [{ title, text }], summary }),
+// the cover as cover_<id>. A long chat is written part by part (about 14,000 characters of chat each), every
+// part with the characters, the point of view and a running summary, so a stopped story can be continued.
+let stories = store.get('stories', []);
+const saveStories = () => store.set('stories', stories);
+const STORY_PART = 14000, STORY_SHORT = 20000;
+let storyJob = null; // { id, stop }
+const setup = { chatId: '', pov: 'third', who: 'char', formats: ['epub'] };
+
+$('goStories').onclick = () => { renderStories(); openView('stories'); };
+$('stNew').onclick = openStorySetup;
+
+function openStorySetup() {
+  const sel = $('ssProxy'); sel.innerHTML = '';
+  for (const pr of cfg.proxies) { const o = document.createElement('option'); o.value = pr.id; o.textContent = pr.name || 'Unnamed'; sel.append(o); }
+  sel.value = cfg.proxyId || cfg.proxies[0]?.id || '';
+  $('ssStyle').value = cfg.storyStyle || '';
+  $('ssCover').checked = imageProxyOk();
+  syncStorySetup(); openView('storySetup');
+}
+function storyChat() { const ch = chats.find(x => x.id === setup.chatId); return ch && { ch, c: chars.find(x => x.id === ch.charId), p: personaOf(ch) }; }
+function syncStorySetup() {
+  const s = storyChat();
+  $('ssChat').textContent = s?.c ? `${s.c.name} · as ${s.p?.name || s.ch.personaName || 'no persona'}` : 'Choose a chat';
+  const n = s ? storyMessages(s).length : 0, size = s ? storyMessages(s).reduce((a, m) => a + m.text.length, 0) : 0;
+  const parts = s ? storyParts(storyMessages(s), $('ssChapters').checked).length : 0;
+  $('ssChatInfo').textContent = s ? `${n} messages, ${Math.round(size / 1000)}k characters → ${parts} part${parts === 1 ? '' : 's'}, ${parts} request${parts === 1 ? '' : 's'} to the proxy${parts > 1 && $('ssChapters').checked ? ', one chapter each' : ''}.` : 'The chat that becomes the story.';
+  for (const b of $('ssPov').children) b.classList.toggle('on', b.dataset.v === setup.pov);
+  $('ssWhoRow').hidden = setup.pov === 'omni';
+  $('ssWhoChar').textContent = s?.c ? cn(s.c) : 'Character'; $('ssWhoUser').textContent = s ? userName(s.p) : 'Persona';
+  for (const b of $('ssWho').children) b.classList.toggle('on', b.dataset.v === setup.who);
+  for (const b of $('ssFormats').children) b.classList.toggle('on', setup.formats.includes(b.dataset.v));
+  $('ssGo').disabled = !s || !!storyJob;
+  $('ssCost').textContent = storyJob ? 'A story is being written; wait until it is done.' : '';
+}
+$('ssChapters').onchange = syncStorySetup;
+$('ssPov').onclick = e => { const v = e.target.dataset?.v; if (v) { setup.pov = v; syncStorySetup(); } };
+$('ssWho').onclick = e => { const v = e.target.dataset?.v; if (v) { setup.who = v; syncStorySetup(); } };
+$('ssFormats').onclick = e => { const v = e.target.dataset?.v; if (!v) return; setup.formats = setup.formats.includes(v) ? setup.formats.filter(x => x !== v) : [...setup.formats, v]; syncStorySetup(); };
+$('ssChat').onclick = () => pickChar('Story from a chat with…', c => {
+  const cs = chats.filter(ch => ch.charId === c.id && ch.preview).sort((a, b) => b.updated - a.updated);
+  if (!cs.length) return toast(`No chats with ${c.name} yet`);
+  showSheet(`Which chat with ${c.name}?`, cs.map(ch => ({ label: `as ${personaOf(ch)?.name || ch.personaName || 'no persona'}${chatLabel(ch) ? ' · ' + chatLabel(ch) : ''} · ${ch.count ?? msgGet(ch.id).length} messages · ${when(ch.updated)}`, onClick: () => { setup.chatId = ch.id; syncStorySetup(); } })));
+});
+
+// The chat as plain messages (the versions that show, no picture tags)
+function storyMessages(s) {
+  return msgGet(s.ch.id).map(m => ({ who: m.role === 'user' ? userName(s.p) : cn(s.c), text: String(m.content || '').replace(TAG, '').trim(), t: m.t || 0 })).filter(m => m.text);
+}
+// Parts of about STORY_PART characters, cut where there's a long pause between messages if one is near
+function storyParts(msgs, chapters) {
+  const total = msgs.reduce((a, m) => a + m.text.length, 0);
+  if (total <= (chapters ? STORY_SHORT : STORY_PART * 1.4)) return msgs.length ? [[0, msgs.length]] : [];
+  const out = []; let start = 0, size = 0;
+  for (let i = 0; i < msgs.length; i++) {
+    size += msgs[i].text.length;
+    if (size < STORY_PART || i === msgs.length - 1) continue;
+    let best = i, bestGap = -1, acc = size;
+    for (let j = i; j < msgs.length - 1 && acc < STORY_PART * 1.35; j++) {
+      if (j > i) acc += msgs[j].text.length;
+      const gap = msgs[j + 1].t && msgs[j].t ? msgs[j + 1].t - msgs[j].t : 0;
+      if (gap > bestGap) { bestGap = gap; best = j; }
+    }
+    if (bestGap < 2 * 3600e3) best = i;
+    out.push([start, best + 1]); start = best + 1; i = best; size = 0;
+  }
+  if (start < msgs.length) {
+    const rest = msgs.slice(start).reduce((a, m) => a + m.text.length, 0);
+    if (out.length && rest < STORY_PART * 0.3) out[out.length - 1][1] = msgs.length; else out.push([start, msgs.length]);
+  }
+  return out;
+}
+function povText(meta, cc, uu) {
+  const who = meta.who === 'user' ? uu : cc;
+  if (meta.pov === 'omni') return 'Third person omniscient: the narrator knows everything and can show the thoughts and feelings of every character.';
+  if (meta.pov === 'first') return `First person, as ${who}: "I" is ${who}. Only what ${who} sees, hears, thinks and feels; everyone else only as ${who} perceives them.`;
+  return `Third person limited, following ${who}: only ${who}'s thoughts and feelings; everyone else only as ${who} perceives them.`;
+}
+
+$('ssGo').onclick = () => {
+  const s = storyChat(); if (!s?.c || storyJob) return;
+  const pr = cfg.proxies.find(x => x.id === $('ssProxy').value);
+  if (!pr?.url || !pr?.model) return toast('Choose a proxy with a URL and model');
+  const msgs = storyMessages(s); if (!msgs.length) return toast('That chat has no messages');
+  cfg.storyStyle = $('ssStyle').value.trim(); saveCfg();
+  const meta = { id: uid(), created: Date.now(), chatId: s.ch.id, charId: s.c.id, personaId: s.p?.id || '', charName: s.c.name,
+    title: $('ssTitle').value.trim(), userTitle: !!$('ssTitle').value.trim(), proxyId: pr.id, chapters: $('ssChapters').checked,
+    pov: setup.pov, who: setup.who, cover: $('ssCover').checked && imageProxyOk(), style: cfg.storyStyle, formats: [...setup.formats],
+    parts: storyParts(msgs, $('ssChapters').checked), done: 0, status: 'writing', words: 0 };
+  stories.unshift(meta); saveStories();
+  $('ssTitle').value = ''; closeView('storySetup'); renderStories();
+  writeStory(meta.id);
+};
+
+// Writes the parts that aren't done yet; saves after every part
+async function writeStory(id) {
+  const meta = stories.find(x => x.id === id); if (!meta || storyJob) return;
+  const c = chars.find(x => x.id === meta.charId), ch = chats.find(x => x.id === meta.chatId);
+  if (!c || !ch) { meta.status = 'error'; meta.error = 'The chat or character is gone.'; saveStories(); return renderStories(); }
+  const p = personas.find(x => x.id === meta.personaId) || personaOf(ch), s = { ch, c, p }, cc = cn(c), uu = userName(p);
+  const msgs = storyMessages(s);
+  const body = (await idb.get('story_' + id).catch(() => null)) || { chapters: [], summary: '' };
+  const job = storyJob = { id, stop: false, ctl: new AbortController() };
+  meta.status = 'writing'; delete meta.error; saveStories(); renderStories();
+  const opts = { chat: { proxyId: meta.proxyId }, free: true, signal: job.ctl.signal };
+  try {
+    const people = [`${cc}:\n${fill(c.personality || '', c, p).trim() || '(nothing written)'}`, `${uu}:\n${fill(p?.personality || '', c, p).trim() || '(nothing written)'}`].join('\n\n');
+    for (let i = meta.done; i < meta.parts.length; i++) {
+      if (job.stop) throw new DOMException('Stopped', 'AbortError');
+      const [a, b] = meta.parts[i], many = meta.parts.length > 1, chap = meta.chapters && many;
+      const transcript = msgs.slice(a, b).map(m => `${m.who}: ${m.text}`).join('\n\n');
+      const ask = `You turn a roleplay chat between ${cc} and ${uu} into a novel, part by part. This is part ${i + 1} of ${meta.parts.length}.
+
+The characters:
+${people}
+${c.scenario?.trim() ? `\nThe setting:\n${fill(c.scenario, c, p).trim()}\n` : ''}
+Point of view: ${povText(meta, cc, uu)}
+
+${body.summary ? `The story so far (for continuity; do not retell it):\n${body.summary}` : 'This is the beginning of the story.'}
+
+The chat for this part:
+${transcript}
+
+Write this part of the chat as ${chap ? 'one chapter' : many ? 'the next part' : 'the whole story'} of the novel. Keep every event and the meaning of what is said; turn the chat into real prose with natural dialogue, description, action and thoughts (within the point of view), in the past tense. Leave out anything out of character (OOC remarks, instructions to the AI). Do not mention a chat, a roleplay or an AI. Do not add events that are not in the chat and do not go beyond this part.${many && i < meta.parts.length - 1 ? ' End where this part ends; the story continues afterwards.' : ''}
+
+Answer in exactly this form:
+${chap ? 'TITLE: a short chapter title\n\n' : ''}the text${chap ? ' of the chapter' : ''}
+
+SUMMARY: three to six sentences about everything that has happened in the story so far, including this part.`;
+      const out = await streamChat([
+        { role: 'system', content: 'You are a skilled novelist. You turn roleplay chats into polished, immersive fiction, faithful to what happened.' },
+        { role: 'user', content: ask },
+      ], () => {}, opts);
+      let text = out.trim(), title = '';
+      const sm = text.match(/\n\s*\**SUMMARY\**\s*:\s*([\s\S]*)$/i);
+      if (sm) { body.summary = sm[1].trim(); text = text.slice(0, sm.index).trim(); }
+      const tm = text.match(/^\s*\**TITLE\**\s*:\s*(.+)\n/i);
+      if (tm) { title = tm[1].replace(/\*+/g, '').trim(); text = text.slice(tm[0].length).trim(); }
+      if (!text) throw new Error(`Part ${i + 1} came back empty.`);
+      if (chap) body.chapters.push({ title: title || `Chapter ${i + 1}`, text });
+      else if (body.chapters.length) body.chapters[0].text += '\n\n' + text;
+      else body.chapters.push({ title: '', text });
+      meta.done = i + 1; meta.words = body.chapters.reduce((n, x) => n + x.text.split(/\s+/).length, 0);
+      await idb.put('story_' + id, body); saveStories(); renderStories();
+    }
+    if (!meta.title) {
+      meta.status = 'naming'; renderStories();
+      const t = await streamChat([{ role: 'user', content: `Give this novel a title. The story:\n${body.summary}\n\nThe main characters are ${cc} and ${uu}. Reply with the title only, no quotes.` }], () => {}, opts);
+      meta.title = t.replace(/["“”*#]/g, '').split('\n')[0].trim().slice(0, 90) || `${cc}`;
+    }
+    if (meta.cover && !(await idb.get('cover_' + id).catch(() => null))) {
+      meta.status = 'cover'; saveStories(); renderStories();
+      try { await makeStoryCover(meta, s, body); } catch (e) { if (isAbort(e)) throw e; meta.coverError = e.message; toast('The cover failed: ' + e.message); }
+    }
+    meta.status = 'done'; saveStories(); renderStories();
+    toast(`"${meta.title}" is ready`);
+    if (meta.formats.length) setTimeout(() => publishStory(meta, meta.formats), 300);
+  } catch (e) {
+    meta.status = isAbort(e) ? 'stopped' : 'error'; if (!isAbort(e)) meta.error = e.message;
+    saveStories(); renderStories();
+    if (!isAbort(e)) toast('The story stopped: ' + e.message);
+  } finally { storyJob = null; renderStories(); }
+}
+async function makeStoryCover(meta, s, body) {
+  const r = await peopleRefs(s);
+  const prompt = `A book cover illustration for the novel "${meta.title}". Story: ${body.summary || 'see the characters'}\nShow a striking scene or the main character${s.p ? 's' : ''} in a way that captures the mood of the story, composed as a book cover with space near the top for a title. Do not write any text, letters or title on the image.`;
+  const src = await generateImage(prompt + '\nFormat: a portrait-orientation book cover with a 2:3 aspect ratio.', { list: r.list }, meta.style ? `Style: ${meta.style}` : '', r.about, '2:3');
+  await idb.put('cover_' + meta.id, src);
+}
+
+// ---------- The Stories page: covers in a grid ----------
+const coverCache = new Map();
+function renderStories() {
+  const g = $('stGrid'); if (!g) return; g.innerHTML = '';
+  if (!stories.length) { const e = document.createElement('div'); e.className = 'st-empty'; e.textContent = 'No stories yet. Tap New story to turn a chat into one.'; g.append(e); return; }
+  for (const st of stories) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'st-card';
+    const cv = document.createElement('div'); cv.className = 'st-cover plain';
+    const t = document.createElement('div'); t.className = 'st-ttl'; t.textContent = st.title || 'Untitled'; cv.append(t);
+    const show = src => { if (!src) return; cv.style.backgroundImage = `url("${src}")`; cv.classList.remove('plain'); };
+    if (coverCache.has(st.id)) show(coverCache.get(st.id));
+    else idb.get('cover_' + st.id).then(src => src && shrinkSrc('cover_' + st.id, src, 520).then(sm => { coverCache.set(st.id, sm); show(sm); })).catch(() => {});
+    const sm = document.createElement('small'); sm.textContent = `${st.charName} · ${st.words ? `${st.words.toLocaleString()} words` : 'not started'}`;
+    b.append(cv, sm);
+    const state = { writing: `Writing ${st.done}/${st.parts.length}…`, naming: 'Choosing a title…', cover: 'Making the cover…', stopped: `Paused at ${st.done}/${st.parts.length}: tap to continue`, error: `Stopped at ${st.done}/${st.parts.length}: tap to retry` }[st.status];
+    if (state) { const s2 = document.createElement('span'); s2.className = 'st-state'; s2.textContent = state; b.append(s2); }
+    pressable(b, () => {
+      if (st.status === 'done') return openReader(st.id);
+      if (storyJob?.id === st.id) return showSheet(st.title || 'Story', [{ label: 'Stop writing', onClick: () => { storyJob.stop = true; storyJob.ctl.abort(); } }]);
+      if (st.status === 'stopped' || st.status === 'error') return showSheet(st.title || 'Story', [
+        ...(st.error ? [{ label: st.error.slice(0, 120), onClick: () => {} }] : []),
+        { label: 'Continue writing', onClick: () => writeStory(st.id) },
+        ...(st.done ? [{ label: 'Read what is written', onClick: () => openReader(st.id) }] : []),
+      ]);
+    }, () => { navigator.vibrate?.(12); storyMenu(st); });
+    g.append(b);
+  }
+}
+function storyMenu(st) {
+  showSheet(st.title || 'Story', [
+    ...(st.done ? [{ label: 'Publish / export', onClick: () => showSheet('Publish as', [['txt', 'Text (.txt)'], ['pdf', 'PDF (.pdf)'], ['epub', 'EPUB (.epub)']].map(([f, l]) => ({ label: l, onClick: () => publishStory(st, [f]) }))) }] : []),
+    { label: 'Rename', onClick: () => { const t = prompt('Title', st.title || ''); if (t?.trim()) { st.title = t.trim(); saveStories(); renderStories(); } } },
+    ...(imageProxyOk() && st.status === 'done' ? [{ label: 'New cover', onClick: async () => {
+      const style = prompt('Cover style', st.style || cfg.storyStyle || ''); if (style === null) return;
+      const c = chars.find(x => x.id === st.charId), ch = chats.find(x => x.id === st.chatId); if (!c || !ch) return toast('The chat or character is gone');
+      st.style = style.trim(); toast('Making a new cover…');
+      try { const body = await idb.get('story_' + st.id); await makeStoryCover(st, { ch, c, p: personas.find(x => x.id === st.personaId) || personaOf(ch) }, body); coverCache.delete(st.id); shrinkCache.delete('cover_' + st.id + '|520'); saveStories(); renderStories(); toast('New cover ready'); }
+      catch (e) { toast('The cover failed: ' + e.message); }
+    } }] : []),
+    { label: 'Delete story', onClick: () => {
+      if (!confirm(`Delete "${st.title || 'this story'}"? The chat stays.`)) return;
+      if (storyJob?.id === st.id) { storyJob.stop = true; storyJob.ctl.abort(); }
+      stories = stories.filter(x => x !== st); saveStories(); idb.del('story_' + st.id).catch(() => {}); idb.del('cover_' + st.id).catch(() => {}); renderStories();
+    } },
+  ]);
+}
+
+// ---------- Publishing: Text, PDF, EPUB ----------
+const storyFile = st => (st.title || 'Story').replace(/[^\p{L}\p{N} ._-]/gu, '').trim() || 'Story';
+const paras = t => String(t || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+const inlineMd = t => escHtml(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>').replace(/\n/g, '<br/>');
+async function publishStory(st, formats) {
+  const body = await idb.get('story_' + st.id).catch(() => null); if (!body) return toast('The story text is missing');
+  const cover = await idb.get('cover_' + st.id).catch(() => null);
+  for (const f of formats) {
+    try {
+      if (f === 'txt') await shareFile(storyFile(st) + '.txt', new Blob([storyText(st, body)], { type: 'text/plain' }));
+      if (f === 'epub') await shareFile(storyFile(st) + '.epub', await storyEpub(st, body, cover));
+      if (f === 'pdf') {
+        const P = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.StoryPdf;
+        if (!P) { toast('PDF is made in the iPhone app'); continue; }
+        toast('Making the PDF…');
+        const { b64 } = await P.make({ html: storyHtml(st, body, cover), title: st.title || 'Story' });
+        const bytes = Uint8Array.from(atob(b64), x => x.charCodeAt(0));
+        await shareFile(storyFile(st) + '.pdf', new Blob([bytes], { type: 'application/pdf' }));
+      }
+    } catch (e) { if (!(e?.name === 'AbortError' || /cancel/i.test(e?.message || ''))) toast(`Could not make the ${f.toUpperCase()}: ${e.message || e}`); }
+  }
+}
+function storyText(st, body) {
+  const out = [st.title || 'Story', '', `A story with ${st.charName}`, '', ''];
+  body.chapters.forEach((c, i) => { if (c.title) out.push(c.title.toUpperCase(), ''); out.push(paras(c.text).map(p => p.replace(/\*+/g, '')).join('\n\n'), '', ''); });
+  return out.join('\n');
+}
+function storyHtml(st, body, cover) {
+  const chaps = body.chapters.map((c, i) => `<section class="ch">${c.title ? `<h2><small>Chapter ${i + 1}</small>${escHtml(c.title)}</h2>` : ''}${paras(c.text).map(p => `<p>${inlineMd(p)}</p>`).join('')}</section>`).join('');
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    body { font-family: Georgia, 'Times New Roman', serif; font-size: 11.5pt; line-height: 1.5; color: #1d1a16; }
+    .cover { page-break-after: always; text-align: center; } .cover img { max-width: 100%; max-height: 520pt; }
+    .tp { page-break-after: always; text-align: center; padding-top: 160pt; } .tp h1 { font-size: 26pt; font-weight: normal; margin: 0 0 12pt; } .tp div { color: #777; }
+    .ch { page-break-before: always; } h2 { font-weight: normal; font-size: 18pt; text-align: center; margin: 40pt 0 24pt; } h2 small { display: block; font-size: 9pt; letter-spacing: 2pt; text-transform: uppercase; color: #888; margin-bottom: 6pt; }
+    p { margin: 0; text-align: justify; } p + p { text-indent: 1.4em; }
+  </style></head><body>${cover ? `<div class="cover"><img src="${cover}"></div>` : ''}<div class="tp"><h1>${escHtml(st.title || 'Story')}</h1><div>A story with ${escHtml(st.charName)}</div></div>${chaps}</body></html>`;
+}
+// EPUB: a zip (stored, not compressed) with the chapters as XHTML
+function zipStore(files) {
+  const enc = new TextEncoder(), parts = [], central = []; let offset = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(8, 0, true); h.setUint32(14, crc, true);
+    h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(h.buffer), name, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint32(16, crc, true);
+    c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, offset, true);
+    central.push(new Uint8Array(c.buffer), name);
+    offset += 30 + name.length + data.length;
+  }
+  const size = central.reduce((n, x) => n + x.length, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, size, true); e.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type: 'application/epub+zip' });
+}
+async function storyEpub(st, body, cover) {
+  const x = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const id = 'urn:uuid:' + (crypto.randomUUID?.() || st.id), title = st.title || 'Story';
+  const doc = (t, inner) => `<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en"><head><meta charset="utf-8"/><title>${x(t)}</title><link rel="stylesheet" href="style.css"/></head><body>${inner}</body></html>`;
+  const files = [{ name: 'mimetype', data: 'application/epub+zip' },
+    { name: 'META-INF/container.xml', data: '<?xml version="1.0"?>\n<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>' },
+    { name: 'OEBPS/style.css', data: 'body{font-family:serif;line-height:1.5;margin:0 4%}h1,h2{font-weight:normal;text-align:center}h2{margin:2em 0 1.2em}h2 small{display:block;font-size:.55em;letter-spacing:.15em;text-transform:uppercase;color:#888}p{margin:0;text-align:justify}p+p{text-indent:1.4em}.tp{text-align:center;margin-top:30%}.cv{text-align:center}.cv img{max-width:100%;max-height:100%}' }];
+  const man = [], spine = [], nav = [];
+  if (cover) {
+    const m = /^data:(image\/[a-z+]+);base64,(.*)$/.exec(cover);
+    if (m) {
+      const ext = m[1].includes('png') ? 'png' : 'jpg', bytes = Uint8Array.from(atob(m[2]), c => c.charCodeAt(0));
+      files.push({ name: `OEBPS/cover.${ext}`, data: bytes }, { name: 'OEBPS/cover.xhtml', data: doc(title, `<div class="cv"><img src="cover.${ext}" alt="${x(title)}"/></div>`) });
+      man.push(`<item id="cover-image" href="cover.${ext}" media-type="${m[1]}" properties="cover-image"/>`, '<item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>');
+      spine.push('<itemref idref="cover"/>');
+    }
+  }
+  files.push({ name: 'OEBPS/title.xhtml', data: doc(title, `<div class="tp"><h1>${x(title)}</h1><p>A story with ${x(st.charName)}</p></div>`) });
+  man.push('<item id="title" href="title.xhtml" media-type="application/xhtml+xml"/>'); spine.push('<itemref idref="title"/>');
+  body.chapters.forEach((c, i) => {
+    const f = `c${String(i + 1).padStart(3, '0')}.xhtml`, head = c.title ? `<h2><small>Chapter ${i + 1}</small>${x(c.title)}</h2>` : '';
+    const ps = paras(c.text).map(p => `<p>${x(p).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>').replace(/\n/g, '<br/>')}</p>`).join('');
+    files.push({ name: 'OEBPS/' + f, data: doc(c.title || title, head + ps) });
+    man.push(`<item id="c${i + 1}" href="${f}" media-type="application/xhtml+xml"/>`); spine.push(`<itemref idref="c${i + 1}"/>`);
+    nav.push(`<li><a href="${f}">${x(c.title || (body.chapters.length > 1 ? `Part ${i + 1}` : title))}</a></li>`);
+  });
+  files.push({ name: 'OEBPS/nav.xhtml', data: doc('Contents', `<nav epub:type="toc" id="toc"><h1>Contents</h1><ol>${nav.join('')}</ol></nav>`) });
+  man.push('<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>', '<item id="css" href="style.css" media-type="text/css"/>');
+  files.splice(2, 0, { name: 'OEBPS/content.opf', data: `<?xml version="1.0" encoding="utf-8"?>\n<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">${x(id)}</dc:identifier><dc:title>${x(title)}</dc:title><dc:creator>Green Room</dc:creator><dc:language>en</dc:language><meta property="dcterms:modified">${new Date().toISOString().slice(0, 19)}Z</meta>${cover ? '<meta name="cover" content="cover-image"/>' : ''}</metadata><manifest>${man.join('')}</manifest><spine>${spine.join('')}</spine></package>` });
+  return zipStore(files);
+}
+
+// ---------- Reader ----------
+const RD_FONTS = [['Lora', 'Lora'], ['Merriweather', 'Merriweather'], ['Libre Baskerville', 'Baskerville'], ['Inter', 'Sans']];
+const RD_THEMES = [['paper', 'Paper'], ['sepia', 'Sepia'], ['night', 'Night'], ['app', 'Theme']];
+const rdPrefs = Object.assign({ size: 19, font: 'Lora', theme: 'paper', lh: 1.6, mode: 'pages' }, store.get('readerPrefs', {}));
+const rd = { id: null, page: 0, pages: 1, W: 0, chapters: [] };
+async function openReader(id) {
+  const st = stories.find(x => x.id === id); if (!st) return;
+  const body = await idb.get('story_' + id).catch(() => null); if (!body?.chapters?.length) return toast('Nothing written yet');
+  const cover = await idb.get('cover_' + id).catch(() => null);
+  rd.id = id; $('rdTitle').textContent = st.title || 'Story';
+  const flow = $('rdFlow'); flow.innerHTML = '';
+  if (cover) { const d = document.createElement('div'); d.className = 'rd-cover'; const im = document.createElement('img'); im.src = cover; im.alt = ''; d.append(im); flow.append(d); }
+  const tp = document.createElement('div'); tp.className = 'rd-tp'; tp.innerHTML = `<h1>${escHtml(st.title || 'Story')}</h1><div>A story with ${escHtml(st.charName)}</div>`; flow.append(tp);
+  rd.chapters = [];
+  body.chapters.forEach((c, i) => {
+    const h = document.createElement('h2');
+    if (c.title) h.innerHTML = `<span class="rd-num">Chapter ${i + 1}</span>${escHtml(c.title)}`; else h.innerHTML = '&#8203;';
+    flow.append(h); rd.chapters.push({ el: h, title: c.title || (body.chapters.length > 1 ? `Part ${i + 1}` : st.title) });
+    for (const p of paras(c.text)) { const e = document.createElement('p'); e.innerHTML = inlineMd(p); flow.append(e); }
+  });
+  $('reader').classList.remove('chromeless'); $('rdPanel').hidden = true;
+  openView('reader'); applyReader(store.get('storyPos', {})[id] || 0);
+}
+function applyReader(at = null) {
+  const R = $('reader'), flow = $('rdFlow'), stage = $('rdStage');
+  const frac = at ?? rdFrac();
+  R.dataset.rt = rdPrefs.theme; R.classList.toggle('scroll', rdPrefs.mode === 'scroll');
+  flow.style.setProperty('--rd-size', rdPrefs.size + 'px'); flow.style.setProperty('--rd-lh', rdPrefs.lh);
+  flow.style.setProperty('--rd-font', `'${rdPrefs.font}'`);
+  if (rdPrefs.mode === 'pages') {
+    const W = stage.clientWidth, M = 24; rd.W = W;
+    flow.style.padding = `14px ${M}px`; flow.style.columnWidth = `${W - 2 * M}px`; flow.style.columnGap = `${2 * M}px`; flow.style.columnFill = 'auto';
+    flow.style.transition = 'none';
+    requestAnimationFrame(() => {
+      rd.pages = Math.max(1, Math.round(flow.scrollWidth / W));
+      rd.page = Math.min(rd.pages - 1, Math.round(frac * (rd.pages - 1)));
+      rdGo(rd.page, false);
+      requestAnimationFrame(() => { flow.style.transition = ''; });
+    });
+  } else {
+    flow.style.columnWidth = flow.style.columnGap = ''; flow.style.transform = '';
+    requestAnimationFrame(() => { stage.scrollTop = frac * (stage.scrollHeight - stage.clientHeight); rdWhere(); });
+  }
+  for (const [box, list, key] of [[$('rdFonts'), RD_FONTS, 'font'], [$('rdThemes'), RD_THEMES, 'theme'], [$('rdModes'), [['pages', 'Pages'], ['scroll', 'Scroll']], 'mode']]) {
+    box.replaceChildren(...list.map(([v, l]) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = l; b.classList.toggle('on', rdPrefs[key] === v); if (key === 'font') b.style.fontFamily = `'${v}'`; b.onclick = () => { rdPrefs[key] = v; store.set('readerPrefs', rdPrefs); applyReader(); }; return b; }));
+  }
+}
+const rdFrac = () => rdPrefs.mode === 'pages' ? (rd.pages > 1 ? rd.page / (rd.pages - 1) : 0) : (() => { const s = $('rdStage'); return s.scrollHeight > s.clientHeight ? s.scrollTop / (s.scrollHeight - s.clientHeight) : 0; })();
+function rdGo(n, anim = true) {
+  rd.page = Math.max(0, Math.min(rd.pages - 1, n));
+  const flow = $('rdFlow'); if (!anim) flow.style.transition = 'none';
+  flow.style.transform = `translateX(${-rd.page * rd.W}px)`;
+  if (!anim) requestAnimationFrame(() => { flow.style.transition = ''; });
+  rdWhere();
+}
+function rdWhere() {
+  const frac = rdFrac(); $('rdFill').style.width = (frac * 100).toFixed(1) + '%';
+  let ch = null; // before the first chapter: the cover and title page
+  if (rdPrefs.mode === 'pages') { for (const c of rd.chapters) if (Math.floor(c.el.offsetLeft / rd.W + .01) <= rd.page) ch = c; }
+  else { const top = $('rdStage').scrollTop + 40; for (const c of rd.chapters) if (c.el.offsetTop <= top) ch = c; }
+  $('rdWhere').textContent = ((ch?.title || $('rdTitle').textContent) + ' · ') + (rdPrefs.mode === 'pages' ? `${rd.page + 1} / ${rd.pages}` : `${Math.round(frac * 100)}%`);
+  const pos = store.get('storyPos', {}); pos[rd.id] = frac; store.set('storyPos', pos);
+}
+// pages: tap the left or right edge, or swipe; tap the middle to hide or show the bars
+(() => {
+  const stage = $('rdStage'); let x0 = 0, y0 = 0, t0 = 0;
+  stage.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; t0 = Date.now(); });
+  stage.addEventListener('pointerup', e => {
+    if (!$('rdPanel').hidden) { $('rdPanel').hidden = true; return; }
+    const dx = e.clientX - x0, dy = e.clientY - y0;
+    if (rdPrefs.mode === 'pages' && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) return rdGo(rd.page + (dx < 0 ? 1 : -1));
+    if (Math.hypot(dx, dy) > 10 || Date.now() - t0 > 500) return;
+    const w = stage.clientWidth, x = e.clientX - stage.getBoundingClientRect().left;
+    if (rdPrefs.mode === 'pages' && x < w * .28) return rdGo(rd.page - 1);
+    if (rdPrefs.mode === 'pages' && x > w * .72) return rdGo(rd.page + 1);
+    $('reader').classList.toggle('chromeless');
+  });
+  stage.addEventListener('scroll', () => { if (rdPrefs.mode === 'scroll') rdWhere(); }, { passive: true });
+  addEventListener('resize', () => { if ($('reader').classList.contains('open')) applyReader(); });
+})();
+$('rdBack').onclick = () => { closeView('reader'); renderStories(); };
+$('rdAa').onclick = () => { $('rdPanel').hidden = !$('rdPanel').hidden; };
+$('rdPanel').onclick = e => {
+  const a = e.target.dataset?.rd; if (!a) return;
+  if (a === 'size-') rdPrefs.size = Math.max(14, rdPrefs.size - 1); if (a === 'size+') rdPrefs.size = Math.min(30, rdPrefs.size + 1);
+  if (a === 'lh-') rdPrefs.lh = Math.max(1.3, +(rdPrefs.lh - .1).toFixed(1)); if (a === 'lh+') rdPrefs.lh = Math.min(2.1, +(rdPrefs.lh + .1).toFixed(1));
+  store.set('readerPrefs', rdPrefs); applyReader();
+};
+$('rdToc').onclick = () => showSheet('Contents', rd.chapters.map(c => ({ label: c.title, onClick: () => {
+  if (rdPrefs.mode === 'pages') rdGo(Math.floor(c.el.offsetLeft / rd.W + .01), false);
+  else { $('rdStage').scrollTop = c.el.offsetTop - 10; rdWhere(); }
+} })));
+// a story that was being written when the app closed can be continued
+for (const st of stories) if (['writing', 'naming', 'cover'].includes(st.status)) st.status = 'stopped';
+saveStories();
+
 // ---------- Dummy account ----------
 const IS_DUMMY = GR_ACC === 'dummy';
 function loadDummyContent() {
