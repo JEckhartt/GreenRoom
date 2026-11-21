@@ -10,7 +10,6 @@
 <meta name="color-scheme" content="light dark">
 <title>Green Room</title>
 <link rel="stylesheet" href="fonts/fonts.css">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
   /* ---------- Themes ---------- */
   :root { --on-accent: #fff; --accent-ink: var(--accent); }
@@ -4035,7 +4034,7 @@ let tokLib = null, tokTimer = null;
 function loadTokenizer() {
   return tokLib ??= new Promise((res, rej) => {
     const sc = document.createElement('script');
-    sc.src = 'https://cdn.jsdelivr.net/npm/gpt-tokenizer@2.9.0/dist/o200k_base.js';
+    sc.src = 'lib/o200k_base.js'; // in the app (gpt-tokenizer 2.9.0, MIT)
     sc.onload = () => res(window.GPTTokenizer_o200k_base);
     sc.onerror = () => { tokLib = null; rej(new Error('offline')); };
     document.head.append(sc);
@@ -7085,9 +7084,9 @@ function loadPdfLib() {
   if (pdfLib) return pdfLib;
   return pdfLib = new Promise((res, rej) => {
     const sc = document.createElement('script');
-    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(window.pdfjsLib); };
-    sc.onerror = () => { pdfLib = null; rej(new Error('Could not load the PDF reader. Check your internet connection.')); };
+    sc.src = 'lib/pdf.min.js'; // in the app (pdf.js 3.11.174, Apache-2.0)
+    sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js'; res(window.pdfjsLib); };
+    sc.onerror = () => { pdfLib = null; rej(new Error('Could not load the PDF reader.')); };
     document.head.append(sc);
   });
 }

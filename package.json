@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "node -e \"const fs=require('fs');fs.mkdirSync('www',{recursive:true});fs.copyFileSync('index.html','www/index.html');fs.cpSync('fonts','www/fonts',{recursive:true})\"",
+    "build": "node -e \"const fs=require('fs');fs.mkdirSync('www',{recursive:true});fs.copyFileSync('index.html','www/index.html');fs.cpSync('fonts','www/fonts',{recursive:true});fs.cpSync('lib','www/lib',{recursive:true})\"",
     "ios": "npm run build && npx cap sync ios && npx cap open ios"
   },
   "devDependencies": {
