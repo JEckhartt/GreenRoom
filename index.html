@@ -3041,7 +3041,10 @@ function addAltNav(bubble, m, i) {
 }
 // real time on: the opening is told the current date and time, so it fits the moment (morning, late night, weekend…)
 const openingTime = chat => chat?.realTime ? ` It is now ${clockText()} (the real current date and time): let it shape the opening naturally (time of day, day of the week, season) without announcing it.` : '';
-const openingAsk = (c, p, chat = cur?.chat) => `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.${openingTime(chat)}]`;
+// Openings are written in third person limited, from the character's point of view
+const OPENING_POV = 'Write it in third person limited, from {{char}}\'s point of view: only what {{char}} sees, hears, thinks and feels; never {{user}}\'s thoughts or feelings.';
+const openingPov = (c, p) => OPENING_POV.replace(/\{\{char\}\}/g, cn(c)).replace(/\{\{user\}\}/g, userName(p));
+const openingAsk = (c, p, chat = cur?.chat) => `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. ${openingPov(c, p)} Reply with the message only.${openingTime(chat)}]`;
 // Writes another version of reply i, using only the conversation before it
 async function anotherReply(i, bubble, direction = '') {
   if (busy || !ready()) return;
@@ -3052,7 +3055,7 @@ async function anotherReply(i, bubble, direction = '') {
   try {
     const messages = i === 0
       ? [...await buildMessages(s.c, s.p, [], s.chat.memory), { role: 'user', content: direction
-          ? `[Rewrite ${cn(s.c)}'s opening message to start the roleplay with ${userName(s.p)}. The current version:\n\n${m.content}\n\nWhat to change: ${direction}${openingTime(s.chat)}\n\nStay fully in character. Reply with the new message only.]`
+          ? `[Rewrite ${cn(s.c)}'s opening message to start the roleplay with ${userName(s.p)}. The current version:\n\n${m.content}\n\nWhat to change: ${direction}${openingTime(s.chat)}\n\nStay fully in character. ${openingPov(s.c, s.p)} Reply with the new message only.]`
           : openingAsk(s.c, s.p) }]
       : await buildMessages(s.c, s.p, hist.slice(0, i), s.chat.memory);
     await aiTurn(s, hist, messages, bubble, m);
@@ -4256,7 +4259,7 @@ ${pers || '(none)'}${desc ? `
 Description:
 ${desc}` : ''}` },
     ], () => {}, { free: true })).trim();
-    const src = await generateImage(prompt + (style ? `\nStyle: ${style}.` : ''));
+    const src = await generateImage(prompt + (style ? `\nStyle: ${style}.` : '') + '\n' + PROFILE_SHAPE);
     edit.img = src;
     const th = $('edThumb'); th.style.backgroundImage = `url("${src}")`; th.textContent = ''; $('edNoImg').hidden = $('edFrame').hidden = false; edit.frame = null;
     toast('Image ready. Save to keep it.');
@@ -4362,6 +4365,8 @@ function openGenerator() {
   openView('gen'); setTimeout(() => $('genIdea').focus(), 350);
 }
 // Character generator: the AI writes a whole card (and optionally a picture) from a few words
+// Profile pictures: the shape they're shown in (tall 3:4 in the lists, the profile shows the whole picture)
+const PROFILE_SHAPE = 'Format: a portrait-orientation profile picture with a 3:4 aspect ratio (for example 768x1024). The character is the clear subject, framed from the head to about the waist, with the whole head and some space above it inside the picture, centred, nothing important cut off at the edges.';
 // Before a profile picture is made: which style? (remembered; empty = no style given; Cancel = no picture)
 function askImageStyle() {
   const v = prompt('What style should the picture be? (e.g. realistic photo, anime, oil painting; empty for no style)', cfg.lastImgStyle || '');
@@ -4387,6 +4392,9 @@ TEMPLATE
 ${genTemplate()}
 END OF TEMPLATE
 
+Length: the personality, scenario and example dialogue together must stay between about 1,000 and 2,000 tokens (roughly 750 to 1,500 words). Keep the example dialogue short if that's needed to stay in range; the personality comes first.
+Opening messages: write every first message in third person limited, from {{char}}'s point of view: only what {{char}} sees, hears, thinks and feels; never {{user}}'s thoughts, feelings or actions.
+
 Reply with only a JSON object (no markdown fences) with these keys, each holding the filled-in text of that part of the template (without the field heading itself), with line breaks as \\n:
 "name": the full name,
 "chatName": a short name used in the chat (first name or nickname),
@@ -4406,7 +4414,7 @@ Reply with only a JSON object (no markdown fences) with these keys, each holding
     let img = null;
     if ($('genImg').checked && imageProxyOk() && (c.appearance || c.personality)) {
       status.textContent = 'Making the picture…';
-      try { img = await generateImage(String(c.appearance || c.personality) + '\nA character portrait.' + (style ? `\nStyle: ${style}.` : '')); }
+      try { img = await generateImage(String(c.appearance || c.personality) + '\nA character portrait.' + (style ? `\nStyle: ${style}.` : '') + '\n' + PROFILE_SHAPE); }
       catch (e) { if (isAbort(e)) throw e; toast('Picture failed: ' + e.message); }
     }
     $('gen').classList.remove('open');
