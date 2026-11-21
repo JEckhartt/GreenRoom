@@ -2,6 +2,8 @@
 
 A character chat app: create characters and personas and chat with them. Built on the Nearly codebase. Everything is stored on the device (`localStorage` for text, IndexedDB for messages and images).
 
+On start, iOS shows a plain launch screen (black with the logo in dark mode, cream in light mode), then the app shows the logo in your theme's colours and fades into the title screen. Fonts, the token counter and the PDF reader are inside the app; the internet is only used for your proxies, image proxies, Chub and JanitorAI.
+
 The title screen has **Chats**, **Characters**, **Personas**, **Lorebooks**, **Albums** and **Settings**. Swipe from the left edge to go back.
 
 ## Chats
