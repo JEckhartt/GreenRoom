@@ -2385,7 +2385,12 @@ let following = false, holdFollow = false; // holdFollow: you scrolled away duri
 const startFollow = () => { if (holdFollow) return; following = true; scrollDown(); }; // a new reply always starts at the end
 // You take over as soon as you touch the chat: checked at touchstart, because during a fade-in the text under
 // your finger is rebuilt and later touchmove events then come from a removed element (outside #scroller)
-for (const ev of ['touchstart', 'touchmove', 'wheel']) document.addEventListener(ev, e => { if (e.target.closest?.('#scroller')) following = false; }, { passive: true });
+let touching = false;
+for (const ev of ['touchstart', 'touchmove', 'wheel']) document.addEventListener(ev, e => { if (e.target.closest?.('#scroller')) { following = false; if (ev !== 'wheel') touching = true; } }, { passive: true });
+// Back at the bottom while a reply is still being written: it follows again (like a chat app)
+const refollow = () => { if (busy && !following && nearBottom()) { following = true; holdFollow = false; } };
+for (const ev of ['touchend', 'touchcancel']) document.addEventListener(ev, () => { if (!touching) return; touching = false; refollow(); }, { passive: true });
+$('scroller').addEventListener('scroll', () => { if (!touching) refollow(); }, { passive: true });
 const follow = () => { if (following) scrollDown(); };
 // Error notes go away once you try again or pick another proxy
 const clearErrs = () => { for (const n of $('log').querySelectorAll('.msg.err')) n.remove(); };
@@ -7565,7 +7570,7 @@ const syncToBottom = () => { $('toBottom').hidden = nearBottom(); };
 $('scroller').addEventListener('scroll', syncToBottom, { passive: true });
 new ResizeObserver(syncToBottom).observe($('log'));
 new ResizeObserver(syncToBottom).observe($('scroller'));
-$('toBottom').onclick = () => { const sc = $('scroller'); sc.scrollTo({ top: sc.scrollHeight, behavior: 'smooth' }); };
+$('toBottom').onclick = () => { const sc = $('scroller'); if (busy) { following = true; holdFollow = false; } sc.scrollTo({ top: sc.scrollHeight, behavior: 'smooth' }); };
 
 // Tap the top of the screen: scroll the open screen back to the top
 function scrollTopOfView() {
