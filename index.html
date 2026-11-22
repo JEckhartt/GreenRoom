@@ -650,10 +650,15 @@
   details.edf > summary { padding: 14px 0 0; font-size: 13px; color: var(--ink-soft); font-weight: 500; }
   details.edf[open] > summary { padding-bottom: 8px; }
   details.edf:not([open]) { padding-bottom: 4px; }
-  #msgMenu { position: fixed; z-index: 32; display: flex; flex-wrap: wrap; max-width: calc(100vw - 24px); gap: 2px; padding: 4px; border-radius: 14px; background: rgba(30,30,30,.92);
-    box-shadow: 0 8px 24px -8px rgba(0,0,0,.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-  #msgMenu button { border: 0; background: none; color: #fff; font-size: 15px; padding: 9px 14px; border-radius: 10px; cursor: pointer; }
-  #msgMenu button:active { background: rgba(255,255,255,.15); }
+  /* long press on a message: an iPhone-style menu, one action per row, in groups */
+  #msgMenu { position: fixed; z-index: 32; display: flex; flex-direction: column; width: 240px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow-y: auto;
+    border-radius: 14px; background: rgba(30,30,30,.94); box-shadow: 0 10px 30px -8px rgba(0,0,0,.5); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  #msgMenu button { border: 0; background: none; color: #fff; font: inherit; font-size: 16px; text-align: left; padding: 11px 16px; cursor: pointer; }
+  #msgMenu button + button { border-top: .5px solid rgba(255,255,255,.12); }
+  #msgMenu button:active { background: rgba(255,255,255,.12); }
+  #msgMenu button:disabled { opacity: .4; }
+  #msgMenu button.danger { color: #ff6b5e; }
+  #msgMenu .sep { height: 7px; flex: none; background: rgba(0,0,0,.35); }
   .msg.me.editing { width: 85%; padding: 8px; }
   .msg.me.editing textarea { display: block; width: 100%; min-height: 60px; resize: none; overflow: hidden; border: 0; outline: none; background: none; color: var(--ink);
     font-family: var(--me-font); font-size: 16px; line-height: var(--u-lh); padding: 4px 6px; -webkit-user-select: text; user-select: text; }
@@ -3219,15 +3224,21 @@ function showMsgMenu(el, anchor = el, onImage = false) {
   hideMsgMenu();
   const pin = ['pin', m.pinned ? 'Unpin' : 'Pin'], branch = ['branch', 'Branch from here'];
   const regen = imagesOn() && (m.role === 'assistant' || m.imgPrompt);
-  const acts = onImage ? [...(regen ? [['imgregen', 'Regenerate image']] : []), ['imgdel', 'Delete image']]
-    : m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], pin, branch, ['delete', 'Delete']]
-    : [['aedit', 'Edit'], ...(i === 0 ? [['direct', 'Rewrite with a prompt']] : []), ['other', 'Version with…'], ['sent', 'What was sent'], ...(imagesOn() ? [['image', 'Create image']] : []), ['copy', 'Copy'], pin, branch, ['delete', 'Delete']];
+  // '|' starts a new group
+  const acts = onImage ? [...(regen ? [['imgregen', 'Regenerate image']] : []), '|', ['imgdel', 'Delete image']]
+    : m.role === 'user' ? [['copy', 'Copy'], ['edit', 'Edit'], ['resend', 'Resend'], '|', pin, branch, '|', ['delete', 'Delete']]
+    : [['copy', 'Copy'], ['aedit', 'Edit'], '|', ['other', 'Version with…'], ...(i === 0 ? [['direct', 'Rewrite with a prompt']] : []), ...(imagesOn() ? [['image', 'Create image']] : []), '|',
+       pin, branch, ['sent', 'What was sent'], '|', ['delete', 'Delete']];
   const box = $('msgMenu'); box.innerHTML = '';
-  for (const [a, label] of acts) {
+  for (const it of acts) {
+    if (it === '|') { if (box.lastChild && !box.lastChild.classList.contains('sep')) { const d = document.createElement('div'); d.className = 'sep'; box.append(d); } continue; }
+    const [a, label] = it;
     const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.textContent = label;
+    if (a === 'delete' || a === 'imgdel') b.className = 'danger';
     if (busy && a !== 'copy') b.disabled = true;
     box.append(b);
   }
+  if (box.firstChild?.classList.contains('sep')) box.firstChild.remove();
   menuFor = el; el.classList.add('held'); navigator.vibrate?.(12);
   box.hidden = false;
   const r = anchor.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
