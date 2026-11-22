@@ -1306,7 +1306,7 @@
         <div class="hint" id="edFirstHint">Use {{char}} and {{user}} as placeholders.</div>
       </details>
 
-      <details class="edf" data-for="char" data-f="lore" open>
+      <details class="edf" data-for="char persona" data-f="lore" open>
         <summary>Lorebooks <span style="font-weight:400">(optional)</span></summary>
         <div class="chips" id="edLore" style="margin-top:4px"></div>
         <div class="hint" id="edLoreHint">Linked lorebooks are used in every chat with this character.</div>
@@ -2162,9 +2162,9 @@ const fill = (t, c, p) => (t || '').replace(/\{\{char\}\}/gi, cn(c)).replace(/\{
 // First message options (older characters have a single firstMessage)
 const greetingsOf = c => (c?.firstMessages?.length ? c.firstMessages : [c?.firstMessage]).filter(x => x?.trim());
 
-// Lorebooks in use: global ones + the character's + this chat's
+// Lorebooks in use: global ones + the character's + the persona's + this chat's
 function activeBooks(c, chat) {
-  const ids = new Set([...(c?.lorebooks || []), ...(chat?.lorebooks || [])]);
+  const ids = new Set([...(c?.lorebooks || []), ...((chat && personaOf(chat)?.lorebooks) || []), ...(chat?.lorebooks || [])]);
   return lorebooks.filter(b => b.global || ids.has(b.id));
 }
 const LORE_BUDGET = 3000; // ~tokens of world info per request
@@ -4365,7 +4365,7 @@ function openEditor(kind, id) {
   edit = { kind, id: it?.id || null, img: undefined, frame: undefined, lore: new Set(it?.lorebooks || []), pendingLore: null };
   const noun = kind === 'char' ? 'character' : 'persona';
   $('edTitle').textContent = (it ? 'Edit ' : 'New ') + noun;
-  for (const el of document.querySelectorAll('#editor [data-for]')) el.hidden = el.dataset.for !== kind;
+  for (const el of document.querySelectorAll('#editor [data-for]')) el.hidden = !el.dataset.for.split(' ').includes(kind);
   $('edName').value = it?.name || '';
   $('edName').placeholder = kind === 'char' ? 'Character name' : 'Your name';
   $('edPers').placeholder = kind === 'char' ? 'Who is this character? Looks, traits, how they talk.' : 'Who are you in the story? The character will know this.';
@@ -4383,6 +4383,7 @@ function openEditor(kind, id) {
   $('edNoImg').hidden = $('edFrame').hidden = !it?.img;
   $('edDelete').hidden = !it || kind === 'char'; // characters are deleted from their profile
   $('edImport').hidden = kind !== 'char';
+  $('edLoreHint').textContent = kind === 'persona' ? 'Linked lorebooks are used in every chat where you play this persona.' : 'Linked lorebooks are used in every chat with this character.';
   renderEdLore(); renderCounts();
   $('editor').querySelector('.page-body').scrollTop = 0;
   openView('editor');
@@ -4519,8 +4520,8 @@ async function saveEditor() {
     it.firstMessages = edit.greets.map(g => g.trim()).filter(Boolean);
     delete it.firstMessage;
     if (edit.pendingLore) { lorebooks.unshift(edit.pendingLore); saveLore(); edit.lore.add(edit.pendingLore.id); edit.pendingLore = null; }
-    it.lorebooks = [...edit.lore].filter(id => lorebooks.some(b => b.id === id));
   }
+  it.lorebooks = [...edit.lore].filter(id => lorebooks.some(b => b.id === id));
   if (edit.frame !== undefined) { if (edit.frame) it.frame = edit.frame; else delete it.frame; }
   else if (edit.img !== undefined) delete it.frame; // a new picture starts unframed
   if (edit.img !== undefined) {
@@ -5278,7 +5279,7 @@ $('goLore').onclick = () => { renderLoreList(); openView('lorebooks'); };
 let loreId = null;
 const newEntry = () => ({ id: uid(), title: '', keys: '', content: '', always: false, on: true });
 function loreUsers(b) {
-  const cs = chars.filter(c => c.lorebooks?.includes(b.id)).map(c => c.name);
+  const cs = [...chars, ...personas].filter(c => c.lorebooks?.includes(b.id)).map(c => c.name);
   const n = chats.filter(ch => ch.lorebooks?.includes(b.id)).length;
   return b.global ? 'Used in every chat' : [cs.length ? 'Linked to ' + cs.join(', ') : '', n ? `${n} chat${n === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || 'Not linked yet';
 }
@@ -5305,6 +5306,7 @@ function deleteLore(b) {
   if (!confirm(`Delete the lorebook "${b.name}"? Characters and chats that use it lose it.`)) return false;
   lorebooks = lorebooks.filter(x => x.id !== b.id); saveLore();
   for (const c of chars) if (c.lorebooks?.includes(b.id)) c.lorebooks = c.lorebooks.filter(x => x !== b.id);
+  for (const pe of personas) if (pe.lorebooks?.includes(b.id)) { pe.lorebooks = pe.lorebooks.filter(x => x !== b.id); savePersonas(); }
   for (const ch of chats) if (ch.lorebooks?.includes(b.id)) ch.lorebooks = ch.lorebooks.filter(x => x !== b.id);
   saveChars(); store.set('chats', chats); renderLoreList(); return true;
 }
@@ -6356,7 +6358,9 @@ function renderCsLore() {
     store.set('chats', chats); renderCsLore();
   });
   const fromChar = lorebooks.filter(b => cur.c.lorebooks?.includes(b.id) && !b.global).map(b => b.name);
-  $('csLoreHint').textContent = (fromChar.length ? `Also used here through ${cn(cur.c)}: ${fromChar.join(', ')}. ` : '') + 'Tap to use a lorebook in this chat only.';
+  const fromPersona = cur.p ? lorebooks.filter(b => cur.p.lorebooks?.includes(b.id) && !b.global).map(b => b.name) : [];
+  $('csLoreHint').textContent = (fromChar.length ? `Also used here through ${cn(cur.c)}: ${fromChar.join(', ')}. ` : '')
+    + (fromPersona.length ? `Through your persona ${cur.p.name}: ${fromPersona.join(', ')}. ` : '') + 'Tap to use a lorebook in this chat only.';
 }
 
 // Tabs: tap or swipe sideways
