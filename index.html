@@ -3385,7 +3385,9 @@ function ensureAlts(m) { if (!m.alts) { m.alts = [{ content: m.content, img: m.i
 function selectAlt(m, k) {
   m.sel = k; const a = m.alts[k];
   m.content = a.content;
-  for (const f of ['img', 'imgPrompt', 'thinking', 'thinkSecs', 'via']) { if (a[f]) m[f] = a[f]; else delete m[f]; }
+  for (const f of ['thinking', 'thinkSecs', 'via']) { if (a[f]) m[f] = a[f]; else delete m[f]; }
+  // a picture belongs to the message: it stays whichever version you look at (a version that came with its own shows that one)
+  for (const f of ['img', 'imgPrompt']) if (a[f]) m[f] = a[f];
 }
 const imagesOf = m => [m.img, ...(m.alts || []).map(a => a.img)].filter((x, i, arr) => x && arr.indexOf(x) === i);
 function addAltNav(bubble, m, i) {
