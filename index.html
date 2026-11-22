@@ -2408,7 +2408,7 @@ function decorate(el, role, c, p = cur?.p) {
   c = c || cur?.c;
   const nm = document.createElement('div'); nm.className = 'mname';
   nm.textContent = role === 'ai' ? (c ? cn(c) : 'Character') : userName(p) === 'User' && !p ? 'You' : userName(p);
-  const av = document.createElement('span'); av.className = 'mav'; av.dataset.who = role;
+  const av = document.createElement('span'); av.className = 'mav'; av.dataset.who = role; if (role === 'ai' && c?.id) av.dataset.char = c.id;
   setThumb(av, (role === 'ai' ? c : p) || { name: nm.textContent });
   el.prepend(av, nm);
 }
@@ -7516,7 +7516,7 @@ $('composer').onsubmit = e => {
 // Floating profile picture: tap a picture next to a message; pinch to resize, drag anywhere, ✕ closes
 $('log').addEventListener('click', async e => {
   const av = e.target.closest('.mav'); if (!av || !cur) return;
-  const it = av.dataset.who === 'ai' ? cur.c : cur.p;
+  const it = av.dataset.who === 'ai' ? (chars.find(x => x.id === av.dataset.char) || cur.c) : cur.p; // in a group: whoever wrote that message
   const src = it?.img && await idb.get(it.img).catch(() => null);
   if (!src) return toast('No picture yet');
   openFloatPic(src);
