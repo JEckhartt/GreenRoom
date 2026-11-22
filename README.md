@@ -107,7 +107,7 @@ Tabs (tap or swipe): **Memory**, **Style**, **Proxy**, **Image proxy**, **Prompt
 - **Style**: this chat's theme and background, and its style with a **Global** switch (on: the style from Settings, controls hidden; off: the same controls, for this chat only).
 - **Proxy**: proxy, generation preset and context size, each with a **Global** switch.
 - **Image proxy**: **Enable** (follows Settings until you change it), the image proxy (with **Global**), this chat's **Image prompt** (empty: the one from Settings) and **Make images automatically**.
-- **Prompt**: system prompt and forbidden words (each with **Global**), real time (sends the date and time, and marks when messages were sent and whether time passed; an opening the AI writes, also with › under the first message, fits the time of day), lorebooks, and **Character messages you first** (a notification after 30 minutes to 3 days).
+- **Prompt**: system prompt and forbidden words (each with **Global**), **Repeat the character card near the latest message** (every reply already ends with a short reminder at your newest message to stay true to the character card; this sends the whole personality there too, for a character that drifts), real time (sends the date and time, and marks when messages were sent and whether time passed; an opening the AI writes, also with › under the first message, fits the time of day), lorebooks, and **Character messages you first** (a notification after 30 minutes to 3 days).
 
 A **Global** switch that's off gives the chat its own value, starting from the one in Settings and kept when you switch back and forth. Proxies, presets and prompts can be edited and deleted from a chat too (they're shared with Settings).
 

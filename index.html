@@ -1113,6 +1113,8 @@
   <div class="page-inner cs-pane" data-t="4" hidden>
     <details class="sec" data-f="realtime"><summary class="group-title"><span class="gt">Real time</span></summary>
       <div class="card">
+        <div class="line"><span>Repeat the character card near the latest message</span><input type="checkbox" class="tgl" id="csCardRepeat"></div>
+        <div class="hint">Every reply already ends with a short reminder to stay true to the character card. This also sends the whole personality again right at your latest message, for a character that drifts in a long chat. Stronger, but it costs the card's tokens with every message.</div>
         <div class="line"><span>Send the real date and time</span><input type="checkbox" class="tgl" id="csRealTime"></div>
         <div class="hint">With every message the AI gets your current date, day and time, and how long it has been since the previous message. The character can then say good morning at the right time, notice it's the weekend, or that you've been gone for hours.</div>
       </div>
@@ -2204,7 +2206,11 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
   // Nudge on the newest user message when it asks for a picture, and the max length
   const lastUser = hist.at(-1)?.role === 'user' ? msgs.at(-1) : null;
   const maxT = gen(chat).maxTokens;
-  const note0 = (lastUser && wantsImage(hist.at(-1)) ? (imageEnabled(chat) ? IMG_NOTE : '') : '')
+  // Close to the newest message (where models look most): stay true to the character card, or the whole card again
+  const cardNote = lastUser ? (chat?.cardRepeat && fill(c.personality || '', c, p).trim()
+    ? `\n\n[Character card reminder: stay true to ${cn(c)} as described here: personality, way of speaking, habits and reactions.\n${fill(c.personality, c, p).trim()}]`
+    : `\n\n[Stay true to ${cn(c)} as described in the character card: personality, way of speaking, habits and reactions. Don't drift into a generic voice.]`) : '';
+  const note0 = cardNote + (lastUser && wantsImage(hist.at(-1)) ? (imageEnabled(chat) ? IMG_NOTE : '') : '')
     + (lastUser && maxT ? `\n\n[Length: keep your reply under ${Math.max(15, Math.round(maxT * 0.6))} words.]` : '');
   if (note0) {
     if (Array.isArray(lastUser.content)) lastUser.content = lastUser.content.map(x => x.type === 'text' ? { ...x, text: x.text + note0 } : x);
@@ -3256,7 +3262,7 @@ function saveMsgs(chat, hist, quiet = false) {
 }
 // A new chat starts with the chat settings of the chat used last (not its memory, author's note or lorebooks)
 const CHAT_SETTINGS = ['look', 'lookGlobal', 'lookStash', 'proxyId', 'presetId', 'contextSize', 'prompt', 'promptSel', 'forbidden', 'fbOwn',
-  'imgProxyId', 'imgPrompt', 'autoPics', 'genImages', 'realTime', 'reachOut', 'reachAfter', 'reachRandom', 'bgDim'];
+  'imgProxyId', 'imgPrompt', 'autoPics', 'genImages', 'realTime', 'cardRepeat', 'reachOut', 'reachAfter', 'reachRandom', 'bgDim'];
 async function newChat(charId, personaId) {
   const p = personas.find(x => x.id === personaId);
   const chat = { id: uid(), charId, personaId: p?.id || '', personaName: p?.name || '', created: Date.now(), updated: Date.now(), preview: '' };
@@ -5650,6 +5656,7 @@ function openChatSettings() {
   $('csAutoPics').checked = cur.chat.autoPics !== false;
   syncGenImg();
   $('csRealTime').checked = !!cur.chat.realTime;
+  $('csCardRepeat').checked = !!cur.chat.cardRepeat;
   $('csReach').checked = !!cur.chat.reachOut; $('csReachAfter').value = String(cur.chat.reachAfter || 180); syncReachRows();
   syncBgControls();
   renderCsLore();
@@ -6082,6 +6089,7 @@ $('csAutoPics').onchange = () => {
   store.set('chats', chats); render();
 };
 $('csCtx').oninput = () => { if (!cur) return; cur.chat.contextSize = $('csCtx').value.trim(); store.set('chats', chats); };
+$('csCardRepeat').onchange = () => { if (!cur) return; if ($('csCardRepeat').checked) cur.chat.cardRepeat = true; else delete cur.chat.cardRepeat; store.set('chats', chats); };
 $('csRealTime').onchange = () => { if (!cur) return; if ($('csRealTime').checked) cur.chat.realTime = true; else delete cur.chat.realTime; store.set('chats', chats); };
 $('csForbidden').addEventListener('input', () => { if (!cur) return; cur.chat.forbidden = $('csForbidden').value; store.set('chats', chats); });
 
