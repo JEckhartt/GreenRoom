@@ -118,7 +118,7 @@ Settings → Customization, and per chat under Chat settings → Style.
 - **Saved styles** at the top: **+ Save current style**; tap one to use it (the dot shows which one is in use); ⋯ or long press to update, rename or delete.
 - The mock-up with **AI / You / Both**: which side a change applies to. Under Both, a setting that differs between the sides shows as mixed until you change it.
 - **Theme**: Default / Light / Dark / Green (the start-up screen's colours) and accent colour. In a chat with **Global** on, the theme comes from Settings too; turn Global off to give the chat its own theme.
-- **Layout**: per side: bubble on/off, bubble shape and full width (with a bubble), names, profile pictures (circle or rounded square; tap one in a chat to float it), timestamps. **Chat header** on or off (off: the chat fills the screen; tap the top edge to show the bar for a few seconds). For all messages: where they sit (left & right, all left, centered, all right), space between them, and how new messages appear:
+- **Layout**: per side: bubble on/off, bubble shape and full width (with a bubble), names, profile pictures (circle or rounded square; tap one in a chat to float it), timestamps. **Picture in the chat header** on or off. For all messages: where they sit (left & right, all left, centered, all right), space between them, and how new messages appear:
   - **Appear**: typing dots while the AI writes, then the whole reply at once
   - **Fade in**: it starts showing once the AI is a little ahead, each new bit fading in, while the AI keeps writing ahead
   - **Slide up**: you watch it being written

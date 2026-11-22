@@ -198,10 +198,7 @@
 
   /* ---------- Title screen ---------- */
   #home.booting { opacity: 0; }
-  #chat.nohead:not(.peek) > .page-head { display: none; }
-  #chat.nohead:not(.peek) #scroller { padding-top: env(safe-area-inset-top); }
-  #chat #headPeek { display: none; }
-  #chat.nohead:not(.peek) #headPeek { display: block; position: absolute; top: 0; left: 0; right: 0; height: calc(env(safe-area-inset-top) + 16px); z-index: 5; }
+  #chat.nohead #chatAv { display: none; }
   #boot { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: radial-gradient(120% 80% at 50% 0%, var(--bg-2), var(--bg)); background-color: var(--bg); transition: opacity .4s ease; }
   #boot.gone { opacity: 0; pointer-events: none; }
   #boot .boot-logo { position: relative; width: 92px; height: 92px; border-radius: 30px 30px 30px 8px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 80%, #fff 20%), var(--accent-soft)); box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: bootIn .5s ease both; }
@@ -913,7 +910,6 @@
     <button class="chat-who" id="chatWho" type="button" aria-label="Chat settings"><span class="av" id="chatAv"></span><span class="who-txt"><span id="chatName"></span><small id="chatAs"></small></span></button>
     <button class="act" id="chatProfile" type="button">Profile</button>
   </div>
-  <div id="headPeek" aria-hidden="true"></div>
   <main id="scroller"><div id="log"></div></main>
   <div class="tb-wrap"><button type="button" id="toBottom" aria-label="Scroll to the newest message" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button></div>
   <div id="helpBar" hidden><span id="helpState"></span><button type="button" id="helpRetry">Retry</button><button type="button" id="helpUndo">Delete</button></div>
@@ -1431,8 +1427,7 @@ Empty = send everything.</div>
         </div>
         <div class="hint">In a chat, tap a picture to float it: pinch to resize, drag it anywhere, ✕ to close.</div>
       </div>
-      <div class="line"><span>Chat header</span><input type="checkbox" class="tgl" data-k="chatHead"></div>
-      <div class="hint">Off: the bar with Back, the character and Profile is hidden, so the chat fills the screen. Tap the top edge to show it for a few seconds; swiping from the left edge still goes back.</div>
+      <div class="line"><span>Picture in the chat header</span><input type="checkbox" class="tgl" data-k="chatHead"></div>
       <div class="line"><span>Message bubble <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="aiBubble"></div>
       <div id="bubbleOpts">
       <label class="f">Bubble shape <span class="tgt" style="font-weight:400;color:var(--ink-soft)"></span></label>
@@ -2010,7 +2005,7 @@ function syncAccentInk() {
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => syncAccentInk());
 function applyLook() {
   const L = activeLook();
-  // chat header on or off (off: a tap on the top edge shows it for a few seconds)
+  // the character's picture in the chat header, on or off
   $('chat').classList.toggle('nohead', L.chatHead === false);
   const root = document.documentElement, s = root.style;
   root.dataset.theme = L.theme;
@@ -7964,7 +7959,6 @@ $('dummyReset').onclick = async () => {
   if (!confirm('Reset the dummy account? Everything in it is replaced by a fresh copy of your settings and its standard characters and personas.')) return;
   try { await createDummy(); toast('Dummy account reset'); } catch (e) { toast(e.message); }
 };
-$('headPeek').onclick = () => { const c = $('chat'); c.classList.add('peek'); clearTimeout(c._peek); c._peek = setTimeout(() => c.classList.remove('peek'), 4000); };
 // The title screen shows once its fonts are in (or after at most 1.2 s), so it doesn't jump when they arrive
 (() => {
   const t0 = performance.now();
