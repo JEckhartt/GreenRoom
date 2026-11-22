@@ -35,7 +35,7 @@ Chats → + → New group chat: pick two or more characters (the order you tap i
 
 - **Member faces** next to + and Author's note (‹ hides them, › brings them back): tap a character to make them reply now (even when muted); long press to mute or unmute. **Auto** keeps them talking to each other, 5 seconds apart, until you type.
 - **Chat settings → Group**: name, members (add, remove, reorder, mute), reply order, self responses, auto-mode, Swap or Join character cards, group scenario, and each member's own scenario with a switch to include it.
-- **Reply order**: Natural (everyone mentioned by name replies, in that order; otherwise one by talkativeness, or someone at random), List (everyone in order), Pooled (someone who hasn't spoken since your message), Manual (only who you tap).
+- **Reply order**: Natural (everyone you mention by name in your message replies, in that order — names in the characters' replies don't count; otherwise one by talkativeness, or someone at random), List (everyone in order), Pooled (someone who hasn't spoken since your message), Manual (only who you tap).
 - **Talkativeness** is set per character in Chat settings → Group (with Natural order), for that group only.
 - Regenerate and Continue use the character who wrote that message. Write for me, Enhance and pictures go with whoever spoke last. Deleting a character removes them from their groups.
 

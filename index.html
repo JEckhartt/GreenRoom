@@ -3769,7 +3769,7 @@ function chatRow(ch, c, withChar = false) {
   pressable(go, () => openChat(ch.id), () => { navigator.vibrate?.(12); chatMenu(ch, c); });
   const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.innerHTML = trashSvg;
   del.setAttribute('aria-label', 'Delete chat');
-  del.onclick = () => { if (confirm(`Delete this chat with ${c.name}?`)) deleteChat(ch.id); };
+  del.onclick = () => { if (confirm(ch.group ? `Delete the group chat "${ch.group.name || 'Group chat'}"?` : `Delete this chat with ${c.name}?`)) deleteChat(ch.id); };
   row.append(go, del);
   return row;
 }
@@ -3819,16 +3819,17 @@ function chatMenu(ch, c) {
       toast(`This chat is now as ${np?.name || 'no persona'}`);
     }) },
     { label: 'Export', onClick: () => showSheet('Export as', EXPORTS.map(([fmt, name]) => ({ label: name, onClick: () => exportChat(ch, c, fmt) }))) },
-    { label: 'Delete chat', onClick: () => { if (confirm(`Delete this chat with ${c.name}?`)) deleteChat(ch.id); } },
+    { label: 'Delete chat', onClick: () => { if (confirm(ch.group ? `Delete the group chat "${ch.group.name || 'Group chat'}"?` : `Delete this chat with ${c.name}?`)) deleteChat(ch.id); } },
   ]);
 }
 const EXPORTS = [['txt', 'Text (.txt)'], ['md', 'Markdown (.md)'], ['html', 'Web page (.html)'], ['rtf', 'Rich text (.rtf)'], ['json', 'JSON (.json)'], ['jsonl', 'JSON Lines (.jsonl)'], ['csv', 'Spreadsheet (.csv)']];
 const escHtml = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 async function exportChat(ch, c, fmt) {
-  const msgs = msgGet(ch.id), pn = personaOf(ch)?.name || ch.personaName || 'User', who = cn(c);
+  const msgs = msgGet(ch.id), pn = personaOf(ch)?.name || ch.personaName || 'User', who = ch.group ? (ch.group.name || 'Group chat') : cn(c);
+  const label = chatLabel(ch) && chatLabel(ch) !== who ? chatLabel(ch) : '';
   const stamp = new Date(ch.updated || Date.now()).toISOString().slice(0, 10);
-  const base = `${who} - ${pn}${chatLabel(ch) ? ' - ' + chatLabel(ch) : ''} - ${stamp}`.replace(/[^\p{L}\p{N} ._-]/gu, '').trim();
-  const head = `Chat with ${who} as ${pn}`, title = chatLabel(ch) ? `${head} · ${chatLabel(ch)}` : head;
+  const base = `${who} - ${pn}${label ? ' - ' + label : ''} - ${stamp}`.replace(/[^\p{L}\p{N} ._-]/gu, '').trim();
+  const head = ch.group ? `${who} as ${pn}` : `Chat with ${who} as ${pn}`, title = label ? `${head} · ${label}` : head;
   const nameOf = m => m.role === 'user' ? pn : cn(speakerChar(m, c)), timeOf = m => m.t ? new Date(m.t).toLocaleString() : '';
   let blob;
   if (fmt === 'txt') {
@@ -8115,7 +8116,7 @@ function pickSpeakers(chat, hist) {
     return [rnd(pool.length ? pool : live)];
   }
   // natural: mentions (whole words of the name), then talkativeness, then one at random from those
-  const text = String(last?.content || '');
+  const text = last?.role === 'user' ? String(last.content || '') : ''; // only your own message: names in the characters' narration don't count
   const words = c => [...new Set([...(c.name || '').split(/\s+/), ...(c.chatName || '').split(/\s+/)].map(w => w.replace(/[^\p{L}\p{N}'-]/gu, '')).filter(w => w.length > 1))];
   const mentioned = [];
   for (const id of live) {
@@ -8293,7 +8294,7 @@ function renderGroupSettings() {
   // reply order
   const c2 = card();
   c2.append(lab('Reply order'), seg([['natural', 'Natural'], ['list', 'List'], ['pooled', 'Pooled'], ['manual', 'Manual']], g.order, v => { g.order = v; }),
-    hint({ natural: 'Everyone mentioned by name in the last message replies, in that order. Nobody mentioned: one character, picked by their talkativeness below (otherwise someone at random).', list: 'Everyone replies, in the order of the list.', pooled: 'Someone who hasn\'t spoken since your last message replies; when everyone has, someone at random.', manual: 'Nobody replies on their own: tap a character above the text box.' }[g.order]),
+    hint({ natural: 'Everyone you mention by name in your message replies, in that order. Otherwise (and in Auto-mode): one character, picked by their talkativeness below, or someone at random. Names in the characters\' own replies don\'t count.', list: 'Everyone replies, in the order of the list.', pooled: 'Someone who hasn\'t spoken since your last message replies; when everyone has, someone at random.', manual: 'Nobody replies on their own: tap a character above the text box.' }[g.order]),
     ...(g.order === 'natural' ? [lab('Talkativeness in this group'), ...g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(c => {
       const r = document.createElement('div'); r.className = 'gm-row gt-row';
       const a = document.createElement('span'); a.className = 'av'; setThumb(a, c);
@@ -8304,7 +8305,7 @@ function renderGroupSettings() {
       sl.oninput = () => { g.talk = { ...(g.talk || {}), [c.id]: +sl.value / 100 }; show(); store.set('chats', chats); };
       show(); n.append(v, sl); r.append(a, n); return r;
     }), hint('Only for this group chat.')] : []),
-    tgl('Allow self responses', g.self, v => { g.self = v; }), hint('With Natural order: the character who just spoke may reply again when their own name is mentioned.'),
+    tgl('Allow self responses', g.self, v => { g.self = v; }), hint('With Natural order: the character who just spoke may be picked again right away.'),
     tgl('Auto-mode', g.auto, v => { g.auto = v; if (v) groupAuto(cur); }), hint('Characters keep replying to each other, 5 seconds apart, until you start typing.'));
   // what the AI gets
   const c3 = card();
