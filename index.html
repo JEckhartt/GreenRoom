@@ -270,6 +270,14 @@
   .gm-row button.gm-b { background: none; border: 1px solid var(--line); border-radius: 8px; width: 30px; height: 30px; color: var(--ink); cursor: pointer; font: inherit; }
   .grp-face { position: relative; }
   .gm-open { cursor: pointer; }
+  .msg > .via { font: 11px/1.3 'Inter', system-ui, sans-serif; color: var(--ink-soft); opacity: .8; margin: 2px 0 0 8px; }
+  .sent-info { font-size: 14px; line-height: 1.5; }
+  .sent-info b { font-weight: 600; }
+  .sent-msg { margin-top: 10px; }
+  .sent-msg summary { display: flex; justify-content: space-between; gap: 10px; cursor: pointer; padding: 12px 0; font-weight: 600; list-style: none; }
+  .sent-msg summary::-webkit-details-marker { display: none; }
+  .sent-msg summary small { font-weight: 400; color: var(--ink-soft); white-space: nowrap; }
+  .sent-msg pre { white-space: pre-wrap; word-break: break-word; font: 13px/1.5 ui-monospace, Menlo, monospace; margin: 0 0 12px; color: var(--ink); }
   .gs-row { align-items: flex-start; }
   .gt-row input[type=range] { width: 100%; margin: 4px 0 0; }
   .gs-text { display: -webkit-box !important; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
@@ -1712,6 +1720,11 @@ Empty = send everything.</div>
   </div></div>
 </section>
 
+<section id="sentView" class="view" aria-label="What was sent">
+  <div class="page-head"><button class="back" data-close="sentView" type="button">‹ Back</button><h1>What was sent</h1><button class="act" id="sentCopy" type="button">Copy</button></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px"><div id="sentBox"></div></div></div>
+</section>
+
 <section id="storyEdit" class="view" aria-label="Edit story">
   <div class="page-head"><button class="back" data-close="storyEdit" type="button">‹ Cancel</button><h1>Edit story</h1><button class="act" id="seSave" type="button">Save</button></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
@@ -2369,7 +2382,7 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat, opts = {}) {
     }
   }
   // Vector storage: moments from long ago that fit the newest messages (only ones the AI no longer sees)
-  if (chat && vecOnFor(chat) && hist.length > 4) {
+  if (chat && vecOnFor(chat) && hist.length > 4 && opts.vec !== false) {
     try {
       const cutoff = limit ? hist.length - msgs.length : hist.length - 60;
       const recalled = await vecRecall(chat, c, p, hist, cutoff);
@@ -2791,8 +2804,11 @@ async function requestImageOnce(prompt, modalities, a = imgApi(), aspect = '') {
 // Saved proxies; the open chat may pick its own, otherwise the globally active one is used
 const proxyList = kind => kind === 'img' ? cfg.imgProxies : cfg.proxies;
 const proxyKey = kind => kind === 'img' ? 'imgProxyId' : 'proxyId';
+// While one version is written with another proxy or prompt ("Version with…"); only for that chat
+let turnOverride = null; // { chat, proxyId, promptSel }
 function proxyFor(kind, chat = cur?.chat) {
   const list = proxyList(kind), k = proxyKey(kind);
+  if (kind === 'chat' && turnOverride?.proxyId && chat === turnOverride.chat) { const o = list.find(x => x.id === turnOverride.proxyId); if (o) return o; }
   return list.find(x => x.id === chat?.[k]) || list.find(x => x.id === cfg[k]) || {};
 }
 const clean = pr => ({ url: (pr.url || '').trim(), key: (pr.key || '').trim(), model: (pr.model || '').trim() });
@@ -3004,8 +3020,13 @@ function makeFader(bubble, onShow, from = '') { // from: text already on screen 
     flush,
   };
 }
+const sentLog = new Map(); // reply (or version) → { messages, proxy, model, prompt, at }; the last 40
+function logSent(target, info) { sentLog.set(target, info); while (sentLog.size > 40) sentLog.delete(sentLog.keys().next().value); }
 async function aiTurn(s, hist, messages, bubble, into) {
   const here = () => cur?.chat.id === s.chat.id;
+  const pr = proxyFor('chat', s.chat);
+  const sent = { messages, proxy: pr.name || 'Proxy', model: api(s.chat).model, prompt: promptNameFor(s.chat), at: Date.now() };
+  const via = turnOverride ? `${pr.name || 'Proxy'} · ${promptNameFor(s.chat)}` : '';
   clearErrs(); startFollow();
   // How new messages appear: Slide up = you watch it being written; Appear / Fade in = written out of sight
   // (typing dots), then shown all at once or faded in when it's finished
@@ -3029,10 +3050,12 @@ async function aiTurn(s, hist, messages, bubble, into) {
   let imgPrompt = tagPrompt(reply);
   let msg = { role: 'assistant', content: visible(reply, true), t: Date.now() };
   if (s.chat.group) { msg.char = s.c.id; msg.content = stripName(msg.content, s.c); }
+  if (via) msg.via = via;
   if (lastThink.text) { msg.thinking = lastThink.text; msg.thinkSecs = lastThink.secs; }
   setText(bubble, msg.content);
-  if (into) { ensureAlts(into); into.alts.push({ content: msg.content, thinking: msg.thinking, thinkSecs: msg.thinkSecs }); selectAlt(into, into.alts.length - 1); msg = into.alts[into.sel]; }
+  if (into) { ensureAlts(into); into.alts.push({ content: msg.content, thinking: msg.thinking, thinkSecs: msg.thinkSecs, ...(via ? { via } : {}) }); selectAlt(into, into.alts.length - 1); msg = into.alts[into.sel]; }
   else hist.push(msg);
+  logSent(msg, sent);
   saveMsgs(s.chat, hist);
   const idx = hist.indexOf(into || msg);
   bubble.dataset.i = idx;
@@ -3105,7 +3128,7 @@ async function continueReply(i) {
     return before + sep + t;
   };
   setBusy(true);
-  bubble.querySelector('.alts')?.remove();
+  bubble.querySelector('.alts')?.remove(); bubble.querySelector(':scope > .via')?.remove();
   try {
     const ask = '[Continue your last message exactly where it stopped. Do not repeat anything you already wrote and do not start over; write only what comes next.]';
     const messages = [...await buildMessages(s.c, s.p, hist.slice(0, i + 1), s.chat.memory, s.chat, { nudge: false }), { role: 'user', content: ask }];
@@ -3198,7 +3221,7 @@ function showMsgMenu(el, anchor = el, onImage = false) {
   const regen = imagesOn() && (m.role === 'assistant' || m.imgPrompt);
   const acts = onImage ? [...(regen ? [['imgregen', 'Regenerate image']] : []), ['imgdel', 'Delete image']]
     : m.role === 'user' ? [['edit', 'Edit'], ['resend', 'Resend'], ['copy', 'Copy'], pin, branch, ['delete', 'Delete']]
-    : [['aedit', 'Edit'], ...(i === 0 ? [['direct', 'Rewrite with a prompt']] : []), ...(imagesOn() ? [['image', 'Create image']] : []), ['copy', 'Copy'], pin, branch, ['delete', 'Delete']];
+    : [['aedit', 'Edit'], ...(i === 0 ? [['direct', 'Rewrite with a prompt']] : []), ['other', 'Version with…'], ['sent', 'What was sent'], ...(imagesOn() ? [['image', 'Create image']] : []), ['copy', 'Copy'], pin, branch, ['delete', 'Delete']];
   const box = $('msgMenu'); box.innerHTML = '';
   for (const [a, label] of acts) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.textContent = label;
@@ -3251,6 +3274,8 @@ $('msgMenu').onclick = e => {
   if (act === 'rewrite') rewriteOpening();
   if (act === 'direct') directOpening(el);
   if (act === 'aedit') editReply(el, i);
+  if (act === 'sent') openSent(i);
+  if (act === 'other') versionWith(i, el);
   if (act === 'imgdel') deleteImage(i);
   if (act === 'imgregen') m.role === 'user' ? regenUserImage(i) : imageForReply(i, true);
 };
@@ -3356,11 +3381,11 @@ async function resendFrom(i, text) {
 }
 
 // ---------- Alternative replies: ‹ › under every reply of the character ----------
-function ensureAlts(m) { if (!m.alts) { m.alts = [{ content: m.content, img: m.img, imgPrompt: m.imgPrompt, thinking: m.thinking, thinkSecs: m.thinkSecs }]; m.sel = 0; } }
+function ensureAlts(m) { if (!m.alts) { m.alts = [{ content: m.content, img: m.img, imgPrompt: m.imgPrompt, thinking: m.thinking, thinkSecs: m.thinkSecs, ...(m.via ? { via: m.via } : {}) }]; m.sel = 0; if (sentLog.has(m)) logSent(m.alts[0], sentLog.get(m)); } }
 function selectAlt(m, k) {
   m.sel = k; const a = m.alts[k];
   m.content = a.content;
-  for (const f of ['img', 'imgPrompt', 'thinking', 'thinkSecs']) { if (a[f]) m[f] = a[f]; else delete m[f]; }
+  for (const f of ['img', 'imgPrompt', 'thinking', 'thinkSecs', 'via']) { if (a[f]) m[f] = a[f]; else delete m[f]; }
 }
 const imagesOf = m => [m.img, ...(m.alts || []).map(a => a.img)].filter((x, i, arr) => x && arr.indexOf(x) === i);
 function addAltNav(bubble, m, i) {
@@ -3390,18 +3415,21 @@ function addAltNav(bubble, m, i) {
   }
   addStamp(nav, m);
   bubble.append(nav);
+  // a version written with another proxy / prompt (Version with…) says which, under the buttons
+  const via = (m.alts?.[k] || m).via; if (via) { const v = document.createElement('div'); v.className = 'via'; v.textContent = 'Written with ' + via; nav.after(v); }
 }
 // real time on: the opening is told the current date and time, so it fits the moment (morning, late night, weekend…)
 const openingTime = chat => chat?.realTime ? ` It is now ${clockText()} (the real current date and time): let it shape the opening naturally (time of day, day of the week, season) without announcing it.` : '';
 // Openings in a chat follow the selected system prompt (point of view, style); only Generate sets its own rules
 const openingAsk = (c, p, chat = cur?.chat) => `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.${openingTime(chat)}]`;
 // Writes another version of reply i, using only the conversation before it
-async function anotherReply(i, bubble, direction = '') {
+async function anotherReply(i, bubble, direction = '', override = null) {
   if (busy || !ready()) return;
   const s = cur, hist = history, m = hist[i]; if (!m) return;
   if (s.chat.group) s.c = speakerChar(m, s.c);
+  turnOverride = override ? { chat: s.chat, ...override } : null;
   setBusy(true);
-  bubble.querySelector('.alts')?.remove(); bubble.querySelector('figure')?.remove();
+  bubble.querySelector('.alts')?.remove(); bubble.querySelector(':scope > .via')?.remove(); bubble.querySelector('figure')?.remove();
   setText(bubble, '');
   try {
     const messages = i === 0 && s.chat.group && !direction ? await buildMessages(s.c, s.p, [], s.chat.memory)
@@ -3412,7 +3440,7 @@ async function anotherReply(i, bubble, direction = '') {
       : await buildMessages(s.c, s.p, hist.slice(0, i), s.chat.memory);
     await aiTurn(s, hist, messages, bubble, m);
   } catch (e) { if (!isAbort(e) && cur?.chat.id === s.chat.id) toast('Could not write another reply: ' + e.message); }
-  finally { setBusy(false); groupSync(s); if (cur?.chat.id === s.chat.id) render(); }
+  finally { turnOverride = null; setBusy(false); groupSync(s); if (cur?.chat.id === s.chat.id) render(); }
 }
 
 async function writeOpening() {
@@ -5908,7 +5936,13 @@ function gsum(g) {
 // changing it there doesn't touch Settings. The selected one (the dot) is what's sent.
 const promptLib = () => cfg.prompts || (cfg.prompts = []);
 const globalPromptText = () => promptLib().find(x => x.id === cfg.promptSel)?.text ?? '';
+// the name of the system prompt a chat uses (or the one used for this one version)
+function promptNameFor(chat) {
+  const id = turnOverride && 'promptSel' in turnOverride && chat === turnOverride.chat ? turnOverride.promptSel : chat && 'prompt' in chat ? chat.promptSel : cfg.promptSel;
+  return promptLib().find(x => x.id === id)?.name || 'no system prompt';
+}
 function promptText(chat) {
+  if (turnOverride && 'promptSel' in turnOverride && chat === turnOverride.chat) return promptLib().find(x => x.id === turnOverride.promptSel)?.text ?? '';
   if (chat && 'prompt' in chat) { const lp = chat.promptSel && promptLib().find(x => x.id === chat.promptSel); return lp ? lp.text : ''; }
   return globalPromptText();
 }
@@ -7947,6 +7981,57 @@ function storyMenu(st) {
       stories = stories.filter(x => x !== st); saveStories(); idb.del('story_' + st.id).catch(() => {}); idb.del('cover_' + st.id).catch(() => {}); renderStories();
     } },
   ]);
+}
+
+// ---------- What was sent: the exact request behind a reply ----------
+// Replies written since the app was opened are kept exactly (the last 40); older ones are rebuilt from the
+// chat as it is now (current settings, no vector recall), which is said at the top
+let sentText = '';
+async function openSent(i) {
+  const m = history[i]; if (!m || !cur) return;
+  const target = m.alts ? m.alts[m.sel || 0] : m;
+  let info = sentLog.get(target), rebuilt = false;
+  if (!info) {
+    const c = speakerChar(m, cur.c);
+    try { info = { messages: await buildMessages(c, cur.p, history.slice(0, i), cur.chat.memory, cur.chat, { vec: false }), proxy: proxyFor('chat', cur.chat).name || 'Proxy', model: api(cur.chat).model, prompt: promptNameFor(cur.chat) }; rebuilt = true; }
+    catch (e) { return toast('Could not rebuild it: ' + e.message); }
+  }
+  const box = $('sentBox'); box.innerHTML = '';
+  const textOf = x => Array.isArray(x.content) ? x.content.map(y => y.type === 'text' ? y.text : '[picture]').join('\n') : String(x.content ?? '');
+  const who = (x, k) => x.role === 'system' ? 'System' : x.role === 'user' ? (k === info.messages.length - 1 ? 'Last message (yours, with notes)' : userName(cur.p)) : cur.chat.group ? 'Character' : cn(cur.c);
+  const all = info.messages.map(textOf).join(''), lib = await loadTokenizer().catch(() => null);
+  const tok = t => lib ? lib.encode(t).length : Math.round(t.length / 4);
+  const info1 = document.createElement('div'); info1.className = 'card sent-info'; info1.style.padding = '12px 16px';
+  info1.innerHTML = `<div><b>${escHtml(info.proxy)}</b> · ${escHtml(info.model || 'model not set')}</div><div>Prompt: ${escHtml(info.prompt)}</div>`
+    + `<div>${info.messages.length} messages · ${all.length.toLocaleString()} characters · ${lib ? '' : '~'}${tok(all).toLocaleString()} tokens</div>`
+    + `<div class="hint" style="margin-top:6px">${rebuilt ? 'Rebuilt from the chat as it is now: this reply was written before the app was last opened, so the exact request is gone. Settings changed since then show here as they are now; vector storage recalls are left out.' : `Exactly as sent at ${new Date(info.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}</div>`;
+  box.append(info1);
+  info.messages.forEach((x, k) => {
+    const t = textOf(x), d = document.createElement('details'); d.className = 'card sent-msg'; d.style.padding = '0 16px';
+    d.open = x.role === 'system' || k === info.messages.length - 1;
+    const sm = document.createElement('summary'); sm.innerHTML = `<span>${escHtml(who(x, k))}</span><small>${t.length.toLocaleString()} chars · ${tok(t).toLocaleString()} tok</small>`;
+    const pre = document.createElement('pre'); pre.textContent = t;
+    d.append(sm, pre); box.append(d);
+  });
+  sentText = info.messages.map((x, k) => `### ${who(x, k).toUpperCase()}\n${textOf(x)}`).join('\n\n');
+  $('sentView').querySelector('.page-body').scrollTop = 0;
+  openView('sentView');
+}
+$('sentCopy').onclick = () => navigator.clipboard?.writeText(sentText).then(() => toast('Copied'), () => toast('Could not copy'));
+
+// ---------- Version with…: another version of a reply with another proxy and/or prompt ----------
+// The chat's own settings stay; the version shows which proxy · prompt made it next to ‹ 2/3 ›
+function versionWith(i, bubble) {
+  if (!cur) return;
+  const curProxy = proxyFor('chat', cur.chat).id, list = proxyList('chat');
+  const pickPrompt = proxyId => {
+    const curPrompt = cur.chat && 'prompt' in cur.chat ? cur.chat.promptSel : cfg.promptSel;
+    showSheet('…and the prompt', [
+      { label: `Same prompt (${promptNameFor(cur.chat)})`, onClick: () => anotherReply(i, bubble, '', { proxyId }) },
+      ...promptLib().filter(x => x.id !== curPrompt).map(x => ({ label: x.name || 'Unnamed prompt', onClick: () => anotherReply(i, bubble, '', { proxyId, promptSel: x.id }) })),
+    ]);
+  };
+  showSheet('Another version with…', list.map(x => ({ label: (x.name || 'Unnamed') + (x.model ? ` · ${x.model}` : '') + (x.id === curProxy ? ' (this chat)' : ''), onClick: () => setTimeout(() => pickPrompt(x.id), 250) })));
 }
 
 // ---------- Edit a story: title, names, cover style and the text of every chapter ----------

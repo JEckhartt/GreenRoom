@@ -39,6 +39,12 @@ Chats → + → New group chat: pick two or more characters (the order you tap i
 - **Talkativeness** is set per character in Chat settings → Group (with Natural order), for that group only.
 - Regenerate and Continue use the character who wrote that message. Write for me, Enhance and pictures go with whoever spoke last. Deleting a character removes them from their groups.
 
+### Trying prompts and models
+
+Long press a character's reply:
+- **What was sent**: the exact request behind it: proxy, model, prompt name, size in characters and tokens, and every part (system prompt with card, lorebook entries and memories; the messages; your last message with the notes added to it). **Copy** copies it all. Replies written since the app was opened are shown exactly; older ones are rebuilt from the chat as it is now.
+- **Version with…**: another version of that reply with another proxy and/or prompt, without changing the chat's settings. It's added as a version (‹ ›), with "Written with *proxy · prompt*" under it, so you can compare.
+
 ### Images
 
 With **Enable** on (Settings → Image proxy, or per chat):
