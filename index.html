@@ -256,6 +256,9 @@
   .gm-row .gm-name small { display: block; color: var(--ink-soft); font-size: 12px; }
   .gm-row button.gm-b { background: none; border: 1px solid var(--line); border-radius: 8px; width: 30px; height: 30px; color: var(--ink); cursor: pointer; font: inherit; }
   .grp-face { position: relative; }
+  .gs-row { align-items: flex-start; }
+  .gs-text { display: -webkit-box !important; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+  .gs-text.open { -webkit-line-clamp: unset; }
   .vec-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
   .vec-row .btn { flex: none; padding: 7px 12px; font-size: 14px; }
   .st-new { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; width: 100%; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; text-align: left; cursor: pointer; margin-bottom: 16px; }
@@ -2209,8 +2212,11 @@ function systemFor(c, p, memory, lore, chat = cur?.chat, hist = null) {
   const g = chat?.group;
   let ch = `--- Character: ${cn(c)} ---\nYou are ${cn(c)}. Stay in character.`;
   if (f(c.personality)) ch += `\n\nPersonality:\n${f(c.personality)}`;
-  const scen = g?.scenario?.trim() ? g.scenario : c.scenario;
-  if (f(scen)) ch += `\n\nScenario:\n${f(scen)}`;
+  if (g) {
+    const sc = [f(g.scenario), ...g.members.filter(id => g.scenIncl?.includes(id)).map(id => chars.find(x => x.id === id)).filter(Boolean)
+      .map(o => { const t = fill((o.scenario || '').trim(), o, p); return t && `${cn(o)}'s scenario:\n${t}`; })].filter(Boolean);
+    if (sc.length) ch += `\n\nScenario:\n${sc.join('\n\n')}`;
+  } else if (f(c.scenario)) ch += `\n\nScenario:\n${f(c.scenario)}`;
   parts.push(ch);
   if (g) parts.push(groupSection(c, p, chat));
   if (p) parts.push(`--- User: ${p.name} ---\nYou are talking with ${p.name}.${f(p.personality) ? `\n\n${f(p.personality)}` : ''}`);
@@ -2327,7 +2333,7 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
     const nudge = `[Write the next reply only as ${cn(c)}. Do not write for ${userName(p)} or the other characters, and do not start with a name.]`;
     const last = msgs.at(-1);
     if (last?.role === 'user') { if (Array.isArray(last.content)) last.content.push({ type: 'text', text: '\n\n' + nudge }); else last.content += '\n\n' + nudge; }
-    else msgs.push({ role: 'user', content: nudge });
+    else msgs.push({ role: 'user', content: !hist.length && chat.group.opening !== false ? groupOpeningAsk(c, p, chat) : nudge });
   }
   // Vector storage: moments from long ago that fit the newest messages (only ones the AI no longer sees)
   if (chat && vecOnFor(chat) && hist.length > 4) {
@@ -2572,7 +2578,12 @@ function renderLog() {
   }
   if (!history.length) {
     const e = document.createElement('div'); e.className = 'empty'; e.textContent = busy ? '' : `Say hi to ${cur ? cn(cur.c) : ''}.`;
-    if (!busy && cur?.c.aiFirst && cfg.openWait) {
+    const g = cur?.chat.group;
+    if (g && !busy) {
+      e.textContent = g.opening !== false ? 'Tap a character above the text box to have them write the opening.' : 'Write the first message to set the scene.';
+      const h = document.createElement('div'); h.className = 'hint'; h.textContent = 'Group settings: tap the name at the top.'; e.append(h);
+    }
+    if (!busy && !g && cur?.c.aiFirst && cfg.openWait) {
       // waiting to write the opening: time to change Chat settings first
       e.textContent = `${cn(cur.c)} writes the opening.`;
       const go = document.createElement('button'); go.type = 'button'; go.className = 'btn primary open-start'; go.textContent = 'Start';
@@ -3426,10 +3437,11 @@ function leaveChat() {
   const s = cur; cur = null;
   if (s) setTimeout(() => queueReachOut(s.chat), 0);
   applyLook();
-  if (s && !busy && !history.length) deleteChat(s.chat.id); // only chats with nothing in them go
+  if (s && !busy && !history.length && !s.chat.group) deleteChat(s.chat.id); // only chats with nothing in them go (a set-up group stays)
 }
 function startChat() {
   const { c, p } = cur;
+  if (cur.chat.group) return render(); // a group starts empty: tap a character for the opening
   if (c.aiFirst) return cfg.openWait ? render() : writeOpening();
   const gs = greetingsOf(c);
   if (gs.length) {
@@ -3648,7 +3660,7 @@ const trashSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" st
 function renderChats() {
   const list = $('chatList'); list.innerHTML = ''; list.classList.toggle('compact', isCompact('chat'));
   const by = new Map();
-  const groupChats = chats.filter(ch => ch.group && ch.preview && ch.group.members.some(m => chars.some(c => c.id === m))).sort((a, b) => b.updated - a.updated);
+  const groupChats = chats.filter(ch => ch.group && ch.group.members.some(m => chars.some(c => c.id === m))).sort((a, b) => b.updated - a.updated);
   for (const ch of chats) {
     if (ch.group || !ch.preview || !chars.some(c => c.id === ch.charId)) continue;
     if (!by.has(ch.charId)) by.set(ch.charId, []);
@@ -8060,7 +8072,7 @@ setTimeout(resumeStories, 3000);
 // chat.group = { name, members: [charId], muted: [charId], order: natural|list|pooled|manual, mode: swap|join,
 // joinMuted: include|exclude, self: allow self responses, auto: auto-mode, scenario: replaces the members' scenarios }.
 // One character writes per reply (m.char), with its own card; the shared chat goes along with names.
-const GROUP_DEFAULTS = { name: '', members: [], muted: [], order: 'natural', mode: 'swap', joinMuted: 'include', self: false, auto: false, scenario: '' };
+const GROUP_DEFAULTS = { name: '', members: [], muted: [], order: 'natural', mode: 'swap', joinMuted: 'include', self: false, auto: false, scenario: '', scenIncl: [], opening: true };
 const isMuted = (g, id) => g.muted?.includes(id);
 const stripName = (t, c) => { for (const n of [cn(c), c.name]) { const re = new RegExp('^\\s*\\**' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\**\\s*:\\s*', 'i'); if (re.test(t)) return t.replace(re, ''); } return t; };
 // In a group: who else is there; with Join character cards, everyone's card
@@ -8071,7 +8083,7 @@ function groupSection(c, p, chat) {
   if (g.mode === 'join') for (const o of others) {
     if (g.joinMuted === 'exclude' && isMuted(g, o.id)) continue;
     const ff = t => fill((t || '').trim(), o, p);
-    out += `\n\n--- ${cn(o)} (another character in this chat) ---${ff(o.personality) ? `\n${ff(o.personality)}` : ''}${!g.scenario?.trim() && ff(o.scenario) ? `\n\nScenario:\n${ff(o.scenario)}` : ''}${ff(o.examples) ? `\n\nExample dialogue:\n${ff(o.examples)}` : ''}`;
+    out += `\n\n--- ${cn(o)} (another character in this chat) ---${ff(o.personality) ? `\n${ff(o.personality)}` : ''}${ff(o.examples) ? `\n\nExample dialogue:\n${ff(o.examples)}` : ''}`;
   }
   return out;
 }
@@ -8102,6 +8114,10 @@ function pickSpeakers(chat, hist) {
   const others = live.filter(id => id !== lastSpeaker);
   return [rnd(others.length ? others : live)];
 }
+const groupOpeningAsk = (c, p, chat) => {
+  const others = chat.group.members.filter(id => id !== c.id).map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn);
+  return `[Write the opening message of this group roleplay as ${cn(c)}, with ${[...others, userName(p)].join(', ')} present. Set the scene from the scenario. You may describe the place and what the others are doing, but don't write their dialogue or ${userName(p)}'s. Stay fully in character. Reply with the message only.${openingTime(chat)}]`;
+};
 // Writes replies one after another (each with its own card); stops on Stop or an error
 async function groupRun(s, hist, ids) {
   for (const id of ids) {
@@ -8112,7 +8128,8 @@ async function groupRun(s, hist, ids) {
     for (const b of $('log').querySelectorAll('.alts .cont')) b.remove(); // Continue only under the newest reply
     const bubble = addBubble('ai', '', c);
     try {
-      await aiTurn(s, hist, await buildMessages(c, s.p, hist, s.chat.memory, s.chat), bubble);
+      const msgs = await buildMessages(c, s.p, hist, s.chat.memory, s.chat);
+      await aiTurn(s, hist, msgs, bubble);
       const i = +bubble.dataset.i; if (bubble.isConnected && !bubble.querySelector('.alts')) addAltNav(bubble, hist[i], i);
     } catch (e) {
       if (!bubble.textContent.trim()) bubble.remove();
@@ -8144,7 +8161,7 @@ $('input').addEventListener('input', () => {
 async function forceTalk(id) {
   if (busy || !cur?.chat.group || !ready()) return;
   const s = cur; setBusy(true); clearTimeout(groupAutoTimer);
-  try { await groupRun(s, history, [id]); } finally { setBusy(false); }
+  try { await groupRun(s, history, [id]); } finally { setBusy(false); if (cur?.chat.id === s.chat.id && !history.length) render(); }
   groupAuto(s);
 }
 function renderGroupBar(talking = null) {
@@ -8177,7 +8194,7 @@ function groupChatRow(ch) {
   if (ch.count == null) ch.count = msgGet(ch.id).length;
   const tm = document.createElement('time'); tm.textContent = `${ch.count} message${ch.count === 1 ? '' : 's'} · ${when(ch.updated)}`;
   who.append(nm, tm);
-  const snip = document.createElement('div'); snip.className = 'snip'; snip.textContent = stripMd(ch.preview);
+  const snip = document.createElement('div'); snip.className = 'snip'; snip.textContent = ch.preview ? stripMd(ch.preview) : g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn).join(', ');
   txt.append(who, snip); go.append(av, txt);
   pressable(go, () => openChat(ch.id), () => { navigator.vibrate?.(12); chatMenu(ch, first); });
   const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.innerHTML = trashSvg; del.setAttribute('aria-label', 'Delete chat');
@@ -8214,17 +8231,10 @@ async function newGroupChat(name, members, personaId) {
     group: { ...GROUP_DEFAULTS, name, members, muted: [] } };
   const last = chats.find(x => x.id === store.get('lastChat', ''));
   if (last) for (const k of CHAT_SETTINGS) if (k in last) chat[k] = JSON.parse(JSON.stringify(last[k]));
-  // each member's first message, as in SillyTavern (characters whose opening the AI writes are left out)
-  const hist = [];
-  for (const id of members) {
-    const c = chars.find(x => x.id === id); if (!c || c.aiFirst) continue;
-    const gs = greetingsOf(c); if (!gs.length) continue;
-    const alts = gs.map(g => ({ content: fill(g.trim(), c, p) }));
-    hist.push({ role: 'assistant', content: alts[0].content, ...(alts.length > 1 ? { alts, sel: 0 } : {}), char: id, t: Date.now() });
-  }
-  chats.push(chat);
-  if (hist.length) saveMsgs(chat, hist); else store.set('chats', chats);
+  chats.push(chat); store.set('chats', chats);
   openChat(chat.id);
+  // set the group up first; back in the chat, tap a character to write the opening
+  openChatSettings(); setCsTab(5);
 }
 // Chat settings → Group
 function renderGroupSettings() {
@@ -8267,9 +8277,27 @@ function renderGroupSettings() {
   c3.append(lab('Character cards'), seg([['swap', 'Swap'], ['join', 'Join']], g.mode, v => { g.mode = v; }),
     hint(g.mode === 'swap' ? 'Only the card of whoever replies goes along (the chat is shared).' : 'Everyone\'s card goes along with every reply. They know each other better, but characters can get confused about who is who, and it costs more tokens.'));
   if (g.mode === 'join') c3.append(seg([['include', 'Include muted'], ['exclude', 'Exclude muted']], g.joinMuted, v => { g.joinMuted = v; }));
-  const sc = document.createElement('textarea'); sc.value = g.scenario || ''; sc.placeholder = 'Empty: each character uses their own scenario'; sc.oninput = () => { g.scenario = sc.value; store.set('chats', chats); autosize(sc); };
-  c3.append(lab('Group scenario'), sc, hint('Replaces the scenario of every member in this chat.'));
-  pane.replaceChildren(c1, c2, c3);
+  // scenarios: the group's, plus the members' own ones you include
+  const c4 = card();
+  const sc = document.createElement('textarea'); sc.value = g.scenario || ''; sc.placeholder = 'Where are they, and what is going on?'; sc.oninput = () => { g.scenario = sc.value; store.set('chats', chats); autosize(sc); };
+  c4.append(lab('Group scenario'), sc, hint('For everyone in this chat. The characters\' own scenarios are left out, unless you include them below.'), lab('Their own scenarios'));
+  for (const id of g.members) {
+    const c = chars.find(x => x.id === id); if (!c) continue;
+    const t = (c.scenario || '').trim();
+    const r = document.createElement('div'); r.className = 'gm-row gs-row';
+    const a = document.createElement('span'); a.className = 'av'; setThumb(a, c);
+    const n = document.createElement('div'); n.className = 'gm-name'; n.textContent = c.name;
+    const sm = document.createElement('small'); sm.className = 'gs-text'; sm.textContent = t ? fill(t, c, cur.p) : 'No scenario';
+    if (t) sm.onclick = () => sm.classList.toggle('open');
+    n.append(sm);
+    const i = document.createElement('input'); i.type = 'checkbox'; i.className = 'tgl'; i.disabled = !t; i.checked = !!t && g.scenIncl?.includes(id); i.setAttribute('aria-label', `Include ${c.name}'s scenario`);
+    i.onchange = () => { g.scenIncl = i.checked ? [...(g.scenIncl || []), id] : (g.scenIncl || []).filter(x => x !== id); store.set('chats', chats); };
+    r.append(a, n, i); c4.append(r);
+  }
+  c4.append(hint('Tap a scenario to read all of it.'),
+    tgl('AI writes the opening', g.opening !== false, v => { g.opening = v; if (!history.length) render(); }),
+    hint('In the empty chat, tap a character above the text box: they open the scene from the scenarios above. Off: you write the first message.'));
+  pane.replaceChildren(c1, c2, c3, c4);
   requestAnimationFrame(() => autosizeAll(pane));
 }
 
