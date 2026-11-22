@@ -3797,8 +3797,13 @@ function moveChatToFolder(ch) {
 const chatLabel = ch => ch.title ?? (ch.branchOf ? 'branch' : '');
 function chatMenu(ch, c) {
   const pn = personaOf(ch)?.name || ch.personaName || 'User';
-  showSheet((ch.group ? `${ch.group.name || 'Group chat'} as ${pn}` : `Chat with ${cn(c)} as ${pn}`) + (chatLabel(ch) ? ` · ${chatLabel(ch)}` : ''), [
+  showSheet((ch.group ? `${ch.group.name || 'Group chat'} as ${pn}` : `Chat with ${cn(c)} as ${pn}` + (chatLabel(ch) ? ` · ${chatLabel(ch)}` : '')), [
     { label: 'Rename chat', onClick: () => {
+      if (ch.group) { // a group's name is its title
+        const t = prompt('Group name', ch.group.name || ''); if (t === null || !t.trim()) return;
+        ch.group.name = t.trim().slice(0, 80); delete ch.title;
+        store.set('chats', chats); renderChats(); if (cur?.chat.id === ch.id) renderChatHead(); return;
+      }
       const t = prompt(`Shown after "as ${pn} ·" (empty: nothing)`, chatLabel(ch));
       if (t === null) return;
       ch.title = t.trim().slice(0, 80);
@@ -8210,6 +8215,7 @@ function renderGroupBar(talking = null) {
   })());
 }
 function groupChatRow(ch) {
+  if (ch.title) { ch.group.name = ch.title; delete ch.title; store.set('chats', chats); } // renamed before: that becomes the group's name
   const g = ch.group, first = chars.find(x => x.id === g.members[0]);
   const row = document.createElement('div'); row.className = 'crow';
   const go = document.createElement('button'); go.type = 'button'; go.className = 'go';
