@@ -2093,6 +2093,9 @@ const clockText = (at = Date.now()) => {
   return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ', ' +
     d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + (tz ? ` (${tz})` : '');
 };
+// The previous message's day and time, and calendar days (midnight to midnight, local time)
+const shortClock = t => { const d = new Date(t); return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) + ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); };
+const dayNo = t => { const d = new Date(t); return Math.round(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 864e5); };
 const gapText = ms => { const m = Math.round(ms / 60000); return m < 60 ? `${m} minute${m === 1 ? '' : 's'}` : m < 2880 ? `${Math.round(m / 60)} hour${Math.round(m / 60) === 1 ? '' : 's'}` : `${Math.round(m / 1440)} days`; };
 function timeFor() {
   return `--- Real time ---\nIt is now ${clockText()}. This is the real current date and time; use it naturally when it matters (time of day, day of the week, season, how late it is), without announcing it.\nEach message from the user carries a [Time: …] note saying how much real time passed since the message before it. Little time passed: the moment simply continues, nobody left. Hours or days passed: the user was away, so react to that naturally (it is later now, things happened in between, you may have missed them).`;
@@ -2103,10 +2106,13 @@ function timeNote(hist, i) {
   if (!m?.t) return '';
   let gap = '';
   if (prev) {
-    const ms = m.t - prev.t;
+    const ms = m.t - prev.t, days = dayNo(m.t) - dayNo(prev.t), was = ` (${shortClock(prev.t)})`;
     gap = ms < 2 * 60000 ? ' Right after the previous message: no time has passed.'
-      : ms < 30 * 60000 ? ` ${gapText(ms)} after the previous message: the moment continues.`
-      : ` ${gapText(ms)} after the previous message: time has passed.`;
+      : ms < 30 * 60000 ? ` ${gapText(ms)} after the previous message${was}: the moment continues.`
+      : ` ${gapText(ms)} after the previous message${was}: time has passed${days === 0 ? ', later the same day' : ''}.`;
+    // the calendar, not only the hours: a new day is said outright
+    if (days === 1) gap += ` It is now the next day${ms < 3 * 3600e3 ? ' (just past midnight)' : ''}.`;
+    else if (days > 1) gap += ` It is now ${days} days later.`;
   }
   return `[Time: ${clockText(m.t)}.${gap}]`;
 }
