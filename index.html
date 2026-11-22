@@ -198,7 +198,15 @@
 
   /* ---------- Title screen ---------- */
   #home.booting { opacity: 0; }
-  #chat.nohead #chatAv { display: none; }
+  #chat.nohead #chatAv, #chat.nohead #chatAvs { display: none; }
+  /* a group's faces: in a circle (lists) or slightly overlapping (chat header) */
+  .av.gring { background: var(--accent-soft); overflow: visible; width: 46px; height: 46px; }
+  .av.gring > .av { position: absolute; width: var(--s); height: var(--s); font-size: 9px; box-shadow: 0 0 0 1.5px var(--bg); transform: translate(-50%, -50%); }
+  .gstack { display: inline-flex; flex: none; align-items: center; }
+  .gstack .av { width: 28px; height: 28px; font-size: 12px; box-shadow: 0 0 0 2px var(--bg); }
+  .gstack .av + .av { margin-left: -10px; }
+  .gstack.many .av + .av { margin-left: -15px; }
+  #chat.grp .chat-who { max-width: 72vw; gap: 8px; }
   #boot { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: radial-gradient(120% 80% at 50% 0%, var(--bg-2), var(--bg)); background-color: var(--bg); transition: opacity .4s ease; }
   #boot.gone { opacity: 0; pointer-events: none; }
   #boot .boot-logo { position: relative; width: 92px; height: 92px; border-radius: 30px 30px 30px 8px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 80%, #fff 20%), var(--accent-soft)); box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: bootIn .5s ease both; }
@@ -941,7 +949,7 @@
 <section id="chat" class="view" aria-label="Chat">
   <div class="page-head">
     <button class="back" data-close="chat" type="button">‹ Back</button>
-    <button class="chat-who" id="chatWho" type="button" aria-label="Chat settings"><span class="av" id="chatAv"></span><span class="who-txt"><span id="chatName"></span><small id="chatAs"></small></span></button>
+    <button class="chat-who" id="chatWho" type="button" aria-label="Chat settings"><span class="av" id="chatAv"></span><span class="gstack" id="chatAvs" hidden></span><span class="who-txt"><span id="chatName"></span><small id="chatAs"></small></span></button>
     <button class="act" id="chatProfile" type="button">Profile</button>
   </div>
   <main id="scroller"><div id="log"></div></main>
@@ -3461,7 +3469,10 @@ function renderChatHead() {
   const pn = p?.name || chat.personaName, g = chat.group;
   $('chatName').textContent = g ? (g.name || 'Group chat') : cn(c);
   $('chatAs').textContent = g ? `${g.members.length} characters${pn ? ' · as ' + pn : ''}` : pn ? 'as ' + pn : '';
-  setThumb($('chatAv'), g ? { name: g.name || 'Group' } : c);
+  $('chatAv').hidden = !!g; $('chatAvs').hidden = !g;
+  $('chatAvs').classList.toggle('many', !!g && g.members.length > 3);
+  if (g) $('chatAvs').replaceChildren(...groupMembers(g).slice(0, 6).map(m => { const a = document.createElement('span'); a.className = 'av'; setThumb(a, m); return a; }));
+  else setThumb($('chatAv'), c);
   $('chatProfile').hidden = !!g;
   renderGroupBar();
 }
@@ -8220,11 +8231,25 @@ function renderGroupBar(talking = null) {
     return a;
   })());
 }
+const groupMembers = g => g.members.map(id => chars.find(x => x.id === id)).filter(Boolean);
+// tiny pictures of everyone, arranged in a circle inside one round picture
+function groupRing(el, g) {
+  const cs = groupMembers(g).slice(0, 8), n = cs.length;
+  el.style.background = ''; el.classList.remove('pic', 'blurred'); el.classList.add('gring'); el.textContent = '';
+  const size = n <= 2 ? 0.58 : n <= 4 ? 0.5 : n <= 6 ? 0.42 : 0.36, r = n <= 1 ? 0 : (0.5 - size / 2) * (n === 2 ? 0.9 : 1);
+  el.style.setProperty('--s', (size * 100) + '%');
+  cs.forEach((c, k) => {
+    const a = document.createElement('span'); a.className = 'av'; setThumb(a, c);
+    const ang = (n === 2 ? -3 * Math.PI / 4 : -Math.PI / 2) + k * 2 * Math.PI / n;
+    a.style.left = (50 + r * 100 * Math.cos(ang)) + '%'; a.style.top = (50 + r * 100 * Math.sin(ang)) + '%';
+    el.append(a);
+  });
+}
 function groupChatRow(ch) {
   const g = ch.group, first = chars.find(x => x.id === g.members[0]);
   const row = document.createElement('div'); row.className = 'crow';
   const go = document.createElement('button'); go.type = 'button'; go.className = 'go';
-  const av = document.createElement('span'); av.className = 'av'; setThumb(av, first || { name: g.name || 'G' });
+  const av = document.createElement('span'); av.className = 'av'; groupRing(av, g);
   const txt = document.createElement('div'), who = document.createElement('div'); who.className = 'who';
   const nm = document.createElement('span'); nm.textContent = g.name || 'Group chat';
   if (ch.count == null) ch.count = msgGet(ch.id).length;
