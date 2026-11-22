@@ -33,7 +33,7 @@ The title screen has **Chats**, **Characters**, **Personas**, **Lorebooks**, **A
 
 Chats → + → New group chat: pick two or more characters (the order you tap is the list order), a name and a persona. Chat settings → Group opens first to set it up. The chat starts empty: with **AI writes the opening** on, tap a character above the text box and they open the scene; off, you write first. Each reply is written by one character with their own card; the whole chat goes along with names.
 
-- **Member bar** above the text box: tap a character to make them reply now (even when muted); long press to mute or unmute. **Auto** keeps them talking to each other, 5 seconds apart, until you type.
+- **Member faces** next to + and Author's note (‹ hides them, › brings them back): tap a character to make them reply now (even when muted); long press to mute or unmute. **Auto** keeps them talking to each other, 5 seconds apart, until you type.
 - **Chat settings → Group**: name, members (add, remove, reorder, mute), reply order, self responses, auto-mode, Swap or Join character cards, group scenario, and each member's own scenario with a switch to include it.
 - **Reply order**: Natural (mentioned by name, plus each character's talkativeness; one replies), List (everyone in order), Pooled (someone who hasn't spoken since your message), Manual (only who you tap).
 - **Talkativeness** is set per character in the editor.
