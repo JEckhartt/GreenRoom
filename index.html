@@ -1122,7 +1122,7 @@
       <div class="gbody"><div class="card" id="cPromptBox"></div></div><div class="hint gnote"></div>
       <div class="card" style="margin-top:10px">
         <div class="line"><span>Repeat the character card near the latest message</span><input type="checkbox" class="tgl" id="csCardRepeat"></div>
-        <div class="hint">Every reply already ends with a short reminder to stay true to the character card. This also sends the whole personality again right at your latest message, for a character that drifts in a long chat. Stronger, but it costs the card's tokens with every message.</div>
+        <div class="hint">Every reply already ends with a short reminder to stay true to the character card. This also sends the whole personality again right at your latest message, for a character that drifts in a long chat. Stronger, but it costs the card's tokens with every message. Follows Settings → Prompt until you change it here.</div>
       </div>
     </details>
     <details class="sec" data-f="reach"><summary class="group-title"><span class="gt">Notifications from the character</span></summary>
@@ -1355,6 +1355,10 @@ Empty = send everything.</div>
     <div class="card">
       <label class="f">System prompts</label>
       <div id="gPromptBox"></div>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <div class="line"><span>Repeat the character card near the latest message</span><input type="checkbox" class="tgl" data-k="cardRepeat"></div>
+      <div class="hint">Every reply already ends with a short reminder to stay true to the character card. This also sends the whole personality again right at your latest message, for characters that drift in long chats. Stronger, but it costs the card's tokens with every message. A chat can have its own setting (Chat settings → Prompt).</div>
     </div>
     </details>
 
@@ -2213,7 +2217,7 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
   const lastUser = hist.at(-1)?.role === 'user' ? msgs.at(-1) : null;
   const maxT = gen(chat).maxTokens;
   // Close to the newest message (where models look most): stay true to the character card, or the whole card again
-  const cardNote = lastUser ? (chat?.cardRepeat && fill(c.personality || '', c, p).trim()
+  const cardNote = lastUser ? ((chat?.cardRepeat ?? cfg.cardRepeat) && fill(c.personality || '', c, p).trim()
     ? `\n\n[Character card reminder: stay true to ${cn(c)} as described here: personality, way of speaking, habits and reactions.\n${fill(c.personality, c, p).trim()}]`
     : `\n\n[Stay true to ${cn(c)} as described in the character card: personality, way of speaking, habits and reactions. Don't drift into a generic voice.]`) : '';
   const note0 = cardNote + (lastUser && wantsImage(hist.at(-1)) ? (imageEnabled(chat) ? IMG_NOTE : '') : '')
@@ -5662,7 +5666,7 @@ function openChatSettings() {
   $('csAutoPics').checked = cur.chat.autoPics !== false;
   syncGenImg();
   $('csRealTime').checked = !!cur.chat.realTime;
-  $('csCardRepeat').checked = !!cur.chat.cardRepeat;
+  $('csCardRepeat').checked = !!(cur.chat.cardRepeat ?? cfg.cardRepeat);
   $('csReach').checked = !!cur.chat.reachOut; $('csReachAfter').value = String(cur.chat.reachAfter || 180); syncReachRows();
   syncBgControls();
   renderCsLore();
@@ -6095,7 +6099,7 @@ $('csAutoPics').onchange = () => {
   store.set('chats', chats); render();
 };
 $('csCtx').oninput = () => { if (!cur) return; cur.chat.contextSize = $('csCtx').value.trim(); store.set('chats', chats); };
-$('csCardRepeat').onchange = () => { if (!cur) return; if ($('csCardRepeat').checked) cur.chat.cardRepeat = true; else delete cur.chat.cardRepeat; store.set('chats', chats); };
+$('csCardRepeat').onchange = () => { if (!cur) return; cur.chat.cardRepeat = $('csCardRepeat').checked; store.set('chats', chats); };
 $('csRealTime').onchange = () => { if (!cur) return; if ($('csRealTime').checked) cur.chat.realTime = true; else delete cur.chat.realTime; store.set('chats', chats); };
 $('csForbidden').addEventListener('input', () => { if (!cur) return; cur.chat.forbidden = $('csForbidden').value; store.set('chats', chats); });
 
