@@ -1032,6 +1032,8 @@
       <div class="tokbar" id="tokBar"></div>
       <textarea id="memory" placeholder="A summary of what happened so far, or things the character should always remember."></textarea>
       <div class="hint">Sent with every message in this chat only. Summarize writes here; you can edit it freely.</div>
+      <div class="line"><span>Vector storage</span><input type="checkbox" class="tgl" id="csVec"></div>
+      <div class="hint" id="csVecHint">Recalls moments from long ago in this chat that fit what you write now. Follows Settings → Extras until you change it here.</div>
       <div class="actions" id="sumActs" hidden><button class="btn primary" type="button" id="sumBtn" style="padding:10px 18px">Summarize</button></div>
       <details class="edf" id="sumFold">
         <summary>Summary prompt</summary>
@@ -1517,6 +1519,26 @@ Empty = send everything.</div>
     </details>
     <div class="actions" id="resetRow"><button class="btn" type="button" id="resetLook">Reset style</button></div>
     </div></div>
+    </details>
+
+    <details class="sec" data-sec="extras">
+    <summary class="group-title">Extras</summary>
+    <div class="card">
+      <label class="f" style="margin-top:12px">Vector storage</label>
+      <div class="hint" style="margin-top:0">A long-term memory that searches by meaning: with every message, the moments from long ago in the same chat that fit what you write now are given to the AI again. Works with any chat model; the searching is done by an embedding model through OpenRouter.</div>
+      <div class="line"><span>On for all chats</span><input type="checkbox" class="tgl" data-k="vecOn"></div>
+      <div class="hint">A chat can be switched on or off by itself in Chat settings → Memory.</div>
+      <label class="f" for="vecProxy">Proxy for the search</label>
+      <select id="vecProxy" class="ss-select"></select>
+      <div class="hint">Your OpenRouter proxy (its key is used). Proxies that only pass on chat, like LoreBary, can't do this.</div>
+      <label class="f" for="vecModel">Embedding model</label>
+      <input type="text" id="vecModel" data-k="vecModel" placeholder="openai/text-embedding-3-small" autocapitalize="off" autocorrect="off">
+      <label class="f" for="vecCount">Moments recalled per message</label>
+      <input type="number" id="vecCount" data-k="vecCount" min="1" max="12" inputmode="numeric" placeholder="4">
+      <div class="hint">Only moments that are no longer in what the AI sees are recalled: older than your context size, or older than the last 60 messages without one. The first time in a long chat, its messages are indexed once (a few cents for a very long chat).</div>
+      <div class="actions"><button class="btn" type="button" id="vecTest">Test</button></div>
+      <div class="hint" id="vecState"></div>
+    </div>
     </details>
 
     <details class="sec" data-sec="janitor">
@@ -2244,6 +2266,14 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
     const cost = m => Array.isArray(m.content) ? m.content.reduce((n, x) => n + (x.text ? x.text.length / 4 : 800), 4) : (m.content || '').length / 4 + 4;
     let total = cost(system) + msgs.reduce((n, m) => n + cost(m), 0);
     while (msgs.length > 1 && total > limit) total -= cost(msgs.shift());
+  }
+  // Vector storage: moments from long ago that fit the newest messages (only ones the AI no longer sees)
+  if (chat && vecOnFor(chat) && hist.length > 4) {
+    try {
+      const cutoff = limit ? hist.length - msgs.length : hist.length - 60;
+      const recalled = await vecRecall(chat, c, p, hist, cutoff);
+      if (recalled) system.content += `\n\n--- Earlier moments from this chat (from long ago; recalled because they relate to what is happening now) ---\n${recalled}`;
+    } catch (e) { if (!isAbort(e)) { dbg('error', 'Vector storage: ' + e.message); toast('Vector storage failed: ' + e.message); } }
   }
   return [system, ...msgs];
 }
@@ -3272,7 +3302,7 @@ function saveMsgs(chat, hist, quiet = false) {
 }
 // A new chat starts with the chat settings of the chat used last (not its memory, author's note or lorebooks)
 const CHAT_SETTINGS = ['look', 'lookGlobal', 'lookStash', 'proxyId', 'presetId', 'contextSize', 'prompt', 'promptSel', 'forbidden', 'fbOwn',
-  'imgProxyId', 'imgPrompt', 'autoPics', 'genImages', 'realTime', 'cardRepeat', 'reachOut', 'reachAfter', 'reachRandom', 'bgDim'];
+  'imgProxyId', 'imgPrompt', 'autoPics', 'genImages', 'realTime', 'cardRepeat', 'vec', 'reachOut', 'reachAfter', 'reachRandom', 'bgDim'];
 async function newChat(charId, personaId) {
   const p = personas.find(x => x.id === personaId);
   const chat = { id: uid(), charId, personaId: p?.id || '', personaName: p?.name || '', created: Date.now(), updated: Date.now(), preview: '' };
@@ -3370,7 +3400,7 @@ function deleteChat(id) {
   const gone = chats.find(x => x.id === id); if (gone?.bg) idb.del(gone.bg).catch(() => {});
   if (cur?.chat.id === id) { cur = null; history = []; $('chat').classList.remove('open'); }
   for (const m of msgGet(id)) for (const k of imagesOf(m)) idb.del(k).catch(() => {});
-  msgDel(id);
+  msgDel(id); idb.del('vec_' + id).catch(() => {});
   chats = chats.filter(x => x.id !== id); saveChats();
 }
 
@@ -5666,6 +5696,7 @@ function openChatSettings() {
   $('csAutoPics').checked = cur.chat.autoPics !== false;
   syncGenImg();
   $('csRealTime').checked = !!cur.chat.realTime;
+  $('csVec').checked = vecOnFor(cur.chat);
   $('csCardRepeat').checked = !!(cur.chat.cardRepeat ?? cfg.cardRepeat);
   $('csReach').checked = !!cur.chat.reachOut; $('csReachAfter').value = String(cur.chat.reachAfter || 180); syncReachRows();
   syncBgControls();
@@ -6099,6 +6130,7 @@ $('csAutoPics').onchange = () => {
   store.set('chats', chats); render();
 };
 $('csCtx').oninput = () => { if (!cur) return; cur.chat.contextSize = $('csCtx').value.trim(); store.set('chats', chats); };
+$('csVec').onchange = () => { if (!cur) return; cur.chat.vec = $('csVec').checked; store.set('chats', chats); };
 $('csCardRepeat').onchange = () => { if (!cur) return; cur.chat.cardRepeat = $('csCardRepeat').checked; store.set('chats', chats); };
 $('csRealTime').onchange = () => { if (!cur) return; if ($('csRealTime').checked) cur.chat.realTime = true; else delete cur.chat.realTime; store.set('chats', chats); };
 $('csForbidden').addEventListener('input', () => { if (!cur) return; cur.chat.forbidden = $('csForbidden').value; store.set('chats', chats); });
@@ -6494,6 +6526,7 @@ async function debugReport() {
   return L.join('\n');
 }
 function openSettings() {
+  syncVecSettings();
   syncDebug(); renderStyles(); renderPromptBox($('gPromptBox'), 'global');
   loadFonts(Object.keys(FONTS));
   renderProxyBoxes(); syncGenSummaries();
@@ -7914,6 +7947,76 @@ $('rdToc').onclick = () => showSheet('Contents', rd.chapters.map(c => ({ label: 
 for (const st of stories) if (['writing', 'naming', 'cover'].includes(st.status)) { st.status = 'stopped'; st.autoResume = true; }
 saveStories();
 setTimeout(resumeStories, 3000);
+
+// ---------- Vector storage ----------
+// Each exchange (your message + the reply) gets an embedding (a "meaning fingerprint") through OpenRouter, kept per
+// chat as vec_<chatId>. With every message, the newest exchange is compared with the old ones; the closest ones
+// that the AI no longer sees are added to the instructions.
+const vecOnFor = chat => !!(chat?.vec ?? cfg.vecOn);
+const vecProxy = () => cfg.proxies.find(x => x.id === cfg.vecProxyId) || cfg.proxies.find(x => /openrouter\.ai/i.test(x.url || '')) || null;
+const vecModelName = () => (cfg.vecModel || '').trim() || 'openai/text-embedding-3-small';
+function vecHash(t) { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+// exchanges: [from, to] message indexes and their text
+function vecUnits(hist, c, p) {
+  const out = [];
+  for (let i = 0; i < hist.length; i++) {
+    const m = hist[i]; if (m.role !== 'assistant') continue;
+    const u = hist[i - 1]?.role === 'user' ? hist[i - 1] : null;
+    const text = [u && `${userName(p)}: ${String(u.content || '').replace(TAG, '').slice(0, 1500)}`, `${cn(c)}: ${String(m.content || '').replace(TAG, '').slice(0, 2000)}`].filter(Boolean).join('\n');
+    if (text.trim()) out.push({ from: u ? i - 1 : i, to: i, t: u?.t || m.t || 0, text, key: i + '|' + vecHash(text) });
+  }
+  return out;
+}
+async function vecEmbed(texts) {
+  const pr = vecProxy(); if (!pr?.url) throw new Error('No proxy for vector storage (Settings → Extras).');
+  const model = vecModelName(), base = pr.url.trim().replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
+  const body = { model, input: texts }; if (/text-embedding-3/.test(model)) body.dimensions = 512;
+  const res = await pfetch(pr, base + '/embeddings', { method: 'POST', headers: authHeaders((pr.key || '').trim()), body: JSON.stringify(body) });
+  if (!res.ok) throw await httpError(res);
+  const j = await res.json();
+  if (!Array.isArray(j.data) || j.data.length !== texts.length) throw new Error('The proxy answered without embeddings. Does it support /embeddings?');
+  return j.data.sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).map(d => {
+    const v = Float32Array.from(d.embedding); let n = 0; for (const x of v) n += x * x; n = Math.sqrt(n) || 1;
+    for (let i = 0; i < v.length; i++) v[i] /= n; return v;
+  });
+}
+const vecPack = v => btoa(latin1(new Uint8Array(v.buffer)));
+const vecUnpack = b => new Float32Array(Uint8Array.from(atob(b), x => x.charCodeAt(0)).buffer);
+// Indexes the exchanges that aren't yet (in batches), then returns the recalled moments as text
+async function vecRecall(chat, c, p, hist, cutoff) {
+  const units = vecUnits(hist, c, p), model = vecModelName();
+  let idx = await idb.get('vec_' + chat.id).catch(() => null);
+  if (!idx || idx.model !== model) idx = { model, v: {} };
+  const keep = new Set(units.map(u => u.key));
+  for (const k of Object.keys(idx.v)) if (!keep.has(k)) delete idx.v[k];
+  const missing = units.filter(u => !idx.v[u.key]);
+  if (missing.length > 30) toast(`Indexing this chat for vector storage (${missing.length} exchanges)…`);
+  for (let i = 0; i < missing.length; i += 64) {
+    const part = missing.slice(i, i + 64), vs = await vecEmbed(part.map(u => u.text));
+    part.forEach((u, k) => { idx.v[u.key] = vecPack(vs[k]); });
+    await idb.put('vec_' + chat.id, idx);
+  }
+  if (missing.length) await idb.put('vec_' + chat.id, idx);
+  const old = units.filter(u => u.to < cutoff); if (!old.length) return '';
+  // what is happening now: the newest exchange (your message and the reply before it)
+  const recent = hist.slice(-2).map(m => `${m.role === 'user' ? userName(p) : cn(c)}: ${String(m.content || '').replace(TAG, '').slice(0, 1500)}`).join('\n');
+  const [q] = await vecEmbed([recent]);
+  const scored = old.map(u => { const v = vecUnpack(idx.v[u.key]); let d = 0; for (let i = 0; i < v.length && i < q.length; i++) d += v[i] * q[i]; return { u, d }; })
+    .filter(x => x.d > 0.2).sort((a, b) => b.d - a.d).slice(0, Math.max(1, Math.min(12, +cfg.vecCount || 4)));
+  return scored.map(x => x.u).sort((a, b) => a.from - b.from)
+    .map(u => (u.t ? `[${shortClock(u.t)}]\n` : '') + u.text).join('\n\n');
+}
+function syncVecSettings() {
+  const sel = $('vecProxy'); sel.innerHTML = '';
+  for (const pr of cfg.proxies) { const o = document.createElement('option'); o.value = pr.id; o.textContent = pr.name || 'Unnamed'; sel.append(o); }
+  sel.value = vecProxy()?.id || '';
+}
+$('vecProxy').onchange = () => { cfg.vecProxyId = $('vecProxy').value; saveCfg(); };
+$('vecTest').onclick = async () => {
+  $('vecState').textContent = 'Testing…';
+  try { const [v] = await vecEmbed(['A quiet evening on the porch, talking about old times.']); $('vecState').textContent = `It works: ${vecModelName()} through ${vecProxy()?.name || 'the proxy'} (${v.length} numbers per fingerprint).`; }
+  catch (e) { $('vecState').textContent = 'It does not work: ' + e.message; }
+};
 
 // ---------- Dummy account ----------
 const IS_DUMMY = GR_ACC === 'dummy';
