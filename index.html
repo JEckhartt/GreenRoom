@@ -1712,6 +1712,25 @@ Empty = send everything.</div>
   </div></div>
 </section>
 
+<section id="storyEdit" class="view" aria-label="Edit story">
+  <div class="page-head"><button class="back" data-close="storyEdit" type="button">‹ Cancel</button><h1>Edit story</h1><button class="act" id="seSave" type="button">Save</button></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <div class="card">
+      <label class="f" for="seTitle" style="margin-top:12px">Title</label>
+      <input type="text" id="seTitle">
+      <label class="f" for="seNames">Characters</label>
+      <input type="text" id="seNames" placeholder="e.g. Cormac Ashwood &amp; Joey">
+      <div class="hint">Shown under the cover, on the title page ("A story with …") and in the exports.</div>
+      <label class="f" for="seStyle">Cover style</label>
+      <input type="text" id="seStyle" placeholder="e.g. realistic 4k photo">
+      <div class="hint">Used by New cover (long press the story).</div>
+    </div>
+    <div class="jan-h" style="margin-top:16px">Text</div>
+    <div id="seChapters"></div>
+    <div class="save-bar"><button class="btn primary" type="button" id="seSave2">Save</button></div>
+  </div></div>
+</section>
+
 <section id="storySetup" class="view" aria-label="New story">
   <div class="page-head"><button class="back" data-close="storySetup" type="button">‹ Back</button><h1>New story</h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:4px">
@@ -7913,6 +7932,7 @@ function resumeStories() {
 function storyMenu(st) {
   showSheet(st.title || 'Story', [
     ...(st.done ? [{ label: 'Publish / export', onClick: () => showSheet('Publish as', [['txt', 'Text (.txt)'], ['pdf', 'PDF (.pdf)'], ['epub', 'EPUB (.epub)']].map(([f, l]) => ({ label: l, onClick: () => publishStory(st, [f]) }))) }] : []),
+    ...(st.status !== 'writing' ? [{ label: 'Edit', onClick: () => openStoryEdit(st) }] : []),
     { label: 'Rename', onClick: () => { const t = prompt('Title', st.title || ''); if (t?.trim()) { st.title = t.trim(); saveStories(); renderStories(); } } },
     ...(imageProxyOk() && st.status === 'done' ? [{ label: 'New cover', onClick: async () => {
       const style = prompt('Cover style', st.style || cfg.storyStyle || ''); if (style === null) return;
@@ -7928,6 +7948,39 @@ function storyMenu(st) {
     } },
   ]);
 }
+
+// ---------- Edit a story: title, names, cover style and the text of every chapter ----------
+let seStory = null, seBody = null;
+async function openStoryEdit(st) {
+  const body = await idb.get('story_' + st.id).catch(() => null);
+  seStory = st; seBody = body;
+  $('seTitle').value = st.title || ''; $('seNames').value = st.charName || ''; $('seStyle').value = st.style || '';
+  const box = $('seChapters'); box.innerHTML = '';
+  if (!body?.chapters?.length) { const e = document.createElement('div'); e.className = 'hint'; e.textContent = 'Nothing written yet.'; box.append(e); }
+  else body.chapters.forEach((c, i) => {
+    const card = document.createElement('div'); card.className = 'card'; card.style.marginTop = i ? '10px' : '0';
+    const l1 = document.createElement('label'); l1.className = 'f'; l1.style.marginTop = '12px';
+    l1.textContent = body.chapters.length > 1 ? `${st.chapters ? 'Chapter' : 'Part'} ${i + 1}` : 'Story';
+    const t = document.createElement('input'); t.type = 'text'; t.value = c.title || ''; t.placeholder = 'Chapter title (optional)'; t.dataset.k = 'title'; t.dataset.i = i;
+    const ta = document.createElement('textarea'); ta.value = c.text || ''; ta.dataset.k = 'text'; ta.dataset.i = i; ta.style.marginTop = '8px'; ta.style.minHeight = '220px';
+    ta.oninput = () => autosize(ta);
+    card.append(l1, ...(st.chapters || c.title ? [t] : []), ta); box.append(card);
+  });
+  openView('storyEdit');
+  requestAnimationFrame(() => autosizeAll(box));
+}
+async function saveStoryEdit() {
+  const st = seStory; if (!st) return;
+  if (storyJob?.id === st.id) return toast('The story is being written; edit it when it is done');
+  st.title = $('seTitle').value.trim() || st.title; st.charName = $('seNames').value.trim() || st.charName; st.style = $('seStyle').value.trim();
+  if (seBody?.chapters?.length) {
+    for (const el of $('seChapters').querySelectorAll('[data-k]')) { const c = seBody.chapters[+el.dataset.i]; if (c) c[el.dataset.k] = el.dataset.k === 'text' ? el.value.trim() : el.value.trim(); }
+    st.words = seBody.chapters.reduce((n, x) => n + (x.text.trim() ? x.text.trim().split(/\s+/).length : 0), 0);
+    try { await idb.put('story_' + st.id, seBody); } catch (e) { return toast('Could not save the text: ' + e.message); }
+  }
+  saveStories(); renderStories(); closeView('storyEdit'); toast('Saved');
+}
+$('seSave').onclick = saveStoryEdit; $('seSave2').onclick = saveStoryEdit;
 
 // ---------- Publishing: Text, PDF, EPUB ----------
 const storyFile = st => (st.title || 'Story').replace(/[^\p{L}\p{N} ._-]/gu, '').trim() || 'Story';
