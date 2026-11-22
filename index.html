@@ -233,6 +233,8 @@
   .rte p, .prof-body.html p { margin: 0 0 8px; }
   #edDesc.src { font-family: ui-monospace, Menlo, monospace; font-size: 13px; min-height: 160px; }
   /* ---------- Stories ---------- */
+  .vec-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+  .vec-row .btn { flex: none; padding: 7px 12px; font-size: 14px; }
   .st-new { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; width: 100%; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; text-align: left; cursor: pointer; margin-bottom: 16px; }
   .st-new b { font-size: 17px; font-weight: 600; }
   .st-new small { grid-column: 1; color: var(--ink-soft); font-size: 13px; }
@@ -1034,6 +1036,7 @@
       <div class="hint">Sent with every message in this chat only. Summarize writes here; you can edit it freely.</div>
       <div class="line"><span>Vector storage</span><input type="checkbox" class="tgl" id="csVec"></div>
       <div class="hint" id="csVecHint">Recalls moments from long ago in this chat that fit what you write now. Follows Settings → Extras until you change it here.</div>
+      <div class="vec-row"><span class="hint" id="csVecState" style="margin:0"></span><button class="btn" type="button" id="csVecNow">Index now</button></div>
       <div class="actions" id="sumActs" hidden><button class="btn primary" type="button" id="sumBtn" style="padding:10px 18px">Summarize</button></div>
       <details class="edf" id="sumFold">
         <summary>Summary prompt</summary>
@@ -5696,7 +5699,7 @@ function openChatSettings() {
   $('csAutoPics').checked = cur.chat.autoPics !== false;
   syncGenImg();
   $('csRealTime').checked = !!cur.chat.realTime;
-  $('csVec').checked = vecOnFor(cur.chat);
+  $('csVec').checked = vecOnFor(cur.chat); syncVecState();
   $('csCardRepeat').checked = !!(cur.chat.cardRepeat ?? cfg.cardRepeat);
   $('csReach').checked = !!cur.chat.reachOut; $('csReachAfter').value = String(cur.chat.reachAfter || 180); syncReachRows();
   syncBgControls();
@@ -6130,7 +6133,7 @@ $('csAutoPics').onchange = () => {
   store.set('chats', chats); render();
 };
 $('csCtx').oninput = () => { if (!cur) return; cur.chat.contextSize = $('csCtx').value.trim(); store.set('chats', chats); };
-$('csVec').onchange = () => { if (!cur) return; cur.chat.vec = $('csVec').checked; store.set('chats', chats); };
+$('csVec').onchange = () => { if (!cur) return; cur.chat.vec = $('csVec').checked; store.set('chats', chats); syncVecState(); };
 $('csCardRepeat').onchange = () => { if (!cur) return; cur.chat.cardRepeat = $('csCardRepeat').checked; store.set('chats', chats); };
 $('csRealTime').onchange = () => { if (!cur) return; if ($('csRealTime').checked) cur.chat.realTime = true; else delete cur.chat.realTime; store.set('chats', chats); };
 $('csForbidden').addEventListener('input', () => { if (!cur) return; cur.chat.forbidden = $('csForbidden').value; store.set('chats', chats); });
@@ -7983,20 +7986,50 @@ async function vecEmbed(texts) {
 const vecPack = v => btoa(latin1(new Uint8Array(v.buffer)));
 const vecUnpack = b => new Float32Array(Uint8Array.from(atob(b), x => x.charCodeAt(0)).buffer);
 // Indexes the exchanges that aren't yet (in batches), then returns the recalled moments as text
-async function vecRecall(chat, c, p, hist, cutoff) {
+// Brings a chat's index up to date (only what's new or changed); onProgress(done, total)
+async function vecIndex(chat, c, p, hist, onProgress) {
   const units = vecUnits(hist, c, p), model = vecModelName();
   let idx = await idb.get('vec_' + chat.id).catch(() => null);
   if (!idx || idx.model !== model) idx = { model, v: {} };
   const keep = new Set(units.map(u => u.key));
   for (const k of Object.keys(idx.v)) if (!keep.has(k)) delete idx.v[k];
   const missing = units.filter(u => !idx.v[u.key]);
-  if (missing.length > 30) toast(`Indexing this chat for vector storage (${missing.length} exchanges)…`);
+  if (missing.length > 30 && !onProgress) toast(`Indexing this chat for vector storage (${missing.length} exchanges)…`);
   for (let i = 0; i < missing.length; i += 64) {
     const part = missing.slice(i, i + 64), vs = await vecEmbed(part.map(u => u.text));
     part.forEach((u, k) => { idx.v[u.key] = vecPack(vs[k]); });
     await idb.put('vec_' + chat.id, idx);
+    onProgress?.(units.length - missing.length + Math.min(missing.length, i + 64), units.length);
   }
   if (missing.length) await idb.put('vec_' + chat.id, idx);
+  return { units, idx };
+}
+// How far a chat's index is: indexed / total exchanges (for the current embedding model)
+async function vecStatus(chat, c, p, hist) {
+  const units = vecUnits(hist, c, p), idx = await idb.get('vec_' + chat.id).catch(() => null);
+  const ok = idx && idx.model === vecModelName() ? units.filter(u => idx.v[u.key]).length : 0;
+  return { done: ok, total: units.length };
+}
+async function syncVecState() {
+  if (!cur) return;
+  const on = vecOnFor(cur.chat), el = $('csVecState'), btn = $('csVecNow');
+  btn.hidden = !on;
+  if (!on) { el.textContent = 'Off for this chat.'; return; }
+  const { done, total } = await vecStatus(cur.chat, cur.c, cur.p, history);
+  el.textContent = !total ? 'Nothing to index yet.' : done >= total ? `Indexed: ${total} of ${total} exchanges · up to date`
+    : `Indexed: ${done} of ${total} exchanges · the rest is done with your next message, or tap Index now`;
+  btn.disabled = done >= total;
+}
+$('csVecNow').onclick = async () => {
+  if (!cur) return;
+  const s = cur, btn = $('csVecNow'), el = $('csVecState'); btn.disabled = true;
+  try {
+    await vecIndex(s.chat, s.c, s.p, history, (d, t) => { if (cur === s) el.textContent = `Indexing… ${d} of ${t} exchanges`; });
+    if (cur === s) syncVecState();
+  } catch (e) { el.textContent = 'Indexing failed: ' + e.message; btn.disabled = false; }
+};
+async function vecRecall(chat, c, p, hist, cutoff) {
+  const { units, idx } = await vecIndex(chat, c, p, hist);
   const old = units.filter(u => u.to < cutoff); if (!old.length) return '';
   // what is happening now: the newest exchange (your message and the reply before it)
   const recent = hist.slice(-2).map(m => `${m.role === 'user' ? userName(p) : cn(c)}: ${String(m.content || '').replace(TAG, '').slice(0, 1500)}`).join('\n');
