@@ -2381,9 +2381,11 @@ let rendering = false, toBottom = false, stickUntil = 0;
 const stickNow = () => Date.now() < stickUntil;
 for (const ev of ['touchstart', 'wheel', 'mousedown']) document.addEventListener(ev, e => { if (e.target.closest?.('#scroller')) stickUntil = 0; }, { passive: true });
 // While a reply is written the screen follows it, until you scroll yourself; then it stays where you put it
-let following = false;
-const startFollow = () => { following = true; scrollDown(); }; // a new reply always starts at the end
-for (const ev of ['touchmove', 'wheel']) document.addEventListener(ev, e => { if (e.target.closest?.('#scroller')) following = false; }, { passive: true });
+let following = false, holdFollow = false; // holdFollow: you scrolled away during a group's replies; the next ones don't pull you back
+const startFollow = () => { if (holdFollow) return; following = true; scrollDown(); }; // a new reply always starts at the end
+// You take over as soon as you touch the chat: checked at touchstart, because during a fade-in the text under
+// your finger is rebuilt and later touchmove events then come from a removed element (outside #scroller)
+for (const ev of ['touchstart', 'touchmove', 'wheel']) document.addEventListener(ev, e => { if (e.target.closest?.('#scroller')) following = false; }, { passive: true });
 const follow = () => { if (following) scrollDown(); };
 // Error notes go away once you try again or pick another proxy
 const clearErrs = () => { for (const n of $('log').querySelectorAll('.msg.err')) n.remove(); };
@@ -2401,7 +2403,7 @@ function addBubble(role, text, who) {
   }
   if (!rendering && role !== 'err') el.classList.add('new');
   $('log').appendChild(el);
-  if (!rendering) scrollDown();
+  if (!rendering && !holdFollow) scrollDown();
   return el;
 }
 // Name above the message and the small profile picture next to it (shown when switched on in Layout)
@@ -8164,6 +8166,7 @@ async function groupRun(s, hist, ids) {
     const c = chars.find(x => x.id === id); if (!c) continue;
     if (abortCtl?.signal.aborted) break;
     s.c = c;
+    if (id !== ids[0] && !following) holdFollow = true;
     renderGroupBar(id);
     for (const b of $('log').querySelectorAll('.alts .cont')) b.remove(); // Continue only under the newest reply
     const bubble = addBubble('ai', '', c);
@@ -8177,6 +8180,7 @@ async function groupRun(s, hist, ids) {
       break;
     }
   }
+  holdFollow = false;
   groupSync(s);
   renderGroupBar();
   // the reply buttons were made while busy: build them again, enabled
