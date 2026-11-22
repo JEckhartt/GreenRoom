@@ -2879,7 +2879,7 @@ async function streamChat(messages, onText, opts = {}) {
     const m = reply.match(/^[\s\S]*[.!?…*"”)](?=\s|$)/);
     if (m && m[0].length > reply.length * 0.5) { reply = m[0]; onText(reply); }
   }
-  if (!reply) throw new Error(lastThink.text ? 'The model only returned its thinking, no reply. Try again or raise the max reply length.' : 'Received an empty response.');
+  if (!reply) throw new Error(lastThink.text ? (cap ? 'The model only returned its thinking, no reply: the thinking used up the max reply length. Try again or raise the max reply length.' : 'The model only returned its thinking, no reply (no max reply length is set, so the model or proxy stopped by itself). Try again.') : 'Received an empty response.');
   return reply;
   function finishThink() {
     const t = thinking();
