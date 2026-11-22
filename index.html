@@ -243,6 +243,14 @@
   .st-cover.plain .st-ttl { background: none; color: var(--ink); text-shadow: none; padding: 14px 12px; align-self: center; text-align: center; font-size: 18px; }
   .st-card small { color: var(--ink-soft); font-size: 12px; }
   .st-card .st-state { color: var(--accent-ink); font-size: 12px; font-weight: 600; }
+  .st-card.open .st-cover { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .st-panel { grid-column: 1 / -1; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); }
+  .st-pt { font-weight: 600; font-size: 15px; }
+  .st-pbar { height: 6px; border-radius: 3px; background: var(--bg-2); overflow: hidden; margin: 10px 0 8px; }
+  .st-pbar i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--accent); transition: width .6s ease; }
+  .st-pinfo { font-size: 13px; color: var(--ink-soft); }
+  .st-panel .actions { margin-top: 10px; }
+  .st-panel .btn.primary { background: var(--accent); color: var(--on-accent); border: 0; font-weight: 600; }
   .st-empty { grid-column: 1 / -1; text-align: center; color: var(--ink-soft); padding: 30px 10px; }
   .ss-select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; }
   #ssFormats button { font-size: 15px; }
@@ -7434,6 +7442,10 @@ let stories = store.get('stories', []);
 const saveStories = () => store.set('stories', stories);
 const STORY_PART = 14000, STORY_SHORT = 20000;
 let storyJob = null; // { id, stop }
+// What the writer is doing right now (for the panel under a story): step, part, characters written so far, timings
+const storyLive = { id: null, step: '', part: 0, parts: 0, chars: 0, partStart: 0, times: [] };
+let stOpen = null; // the story whose panel is unfolded
+const keepAwake = on => { try { window.Capacitor?.Plugins?.StoryPdf?.awake?.({ on }); } catch {} };
 const setup = { chatId: '', pov: 'third', who: 'char', formats: ['epub'] };
 
 $('goStories').onclick = () => { renderStories(); openView('stories'); };
@@ -7530,12 +7542,15 @@ async function writeStory(id) {
   const msgs = storyMessages(s);
   const body = (await idb.get('story_' + id).catch(() => null)) || { chapters: [], summary: '' };
   const job = storyJob = { id, stop: false, ctl: new AbortController() };
-  meta.status = 'writing'; delete meta.error; saveStories(); renderStories();
+  meta.status = 'writing'; delete meta.error; delete meta.autoResume; saveStories(); renderStories();
+  Object.assign(storyLive, { id, step: 'write', part: meta.done, parts: meta.parts.length, chars: 0, partStart: Date.now(), times: storyLive.id === id ? storyLive.times : [] });
+  keepAwake(true); // the screen stays on while writing (iOS pauses the app when it locks)
   const opts = { chat: { proxyId: meta.proxyId }, free: true, signal: job.ctl.signal };
   try {
     const people = [`${cc}:\n${fill(c.personality || '', c, p).trim() || '(nothing written)'}`, `${uu}:\n${fill(p?.personality || '', c, p).trim() || '(nothing written)'}`].join('\n\n');
     for (let i = meta.done; i < meta.parts.length; i++) {
       if (job.stop) throw new DOMException('Stopped', 'AbortError');
+      Object.assign(storyLive, { step: 'write', part: i, chars: 0, partStart: Date.now() }); liveUpdate();
       const [a, b] = meta.parts[i], many = meta.parts.length > 1, chap = meta.chapters && many;
       const transcript = msgs.slice(a, b).map(m => `${m.who}: ${m.text}`).join('\n\n');
       // the last paragraphs written so far, so the next part picks up seamlessly
@@ -7564,7 +7579,8 @@ SUMMARY: ten to fifteen sentences about everything that has happened in the stor
       const out = await streamChat([
         { role: 'system', content: 'You are a skilled novelist. You turn roleplay chats into polished, immersive fiction, faithful to what happened.' },
         { role: 'user', content: ask },
-      ], () => {}, opts);
+      ], r => { storyLive.chars = r.length; liveUpdate(); }, opts);
+      storyLive.times.push(Date.now() - storyLive.partStart);
       let text = out.trim(), title = '';
       const sm = text.match(/\n\s*\**SUMMARY\**\s*:\s*([\s\S]*)$/i);
       if (sm) { body.summary = sm[1].trim(); text = text.slice(0, sm.index).trim(); }
@@ -7578,12 +7594,12 @@ SUMMARY: ten to fifteen sentences about everything that has happened in the stor
       await idb.put('story_' + id, body); saveStories(); renderStories();
     }
     if (!meta.title) {
-      meta.status = 'naming'; renderStories();
+      meta.status = 'naming'; storyLive.step = 'naming'; renderStories();
       const t = await streamChat([{ role: 'user', content: `Give this novel a title. The story:\n${body.summary}\n\nThe main characters are ${cc} and ${uu}. Reply with the title only, no quotes.` }], () => {}, opts);
       meta.title = t.replace(/["“”*#]/g, '').split('\n')[0].trim().slice(0, 90) || `${cc}`;
     }
     if (meta.cover && !(await idb.get('cover_' + id).catch(() => null))) {
-      meta.status = 'cover'; saveStories(); renderStories();
+      meta.status = 'cover'; storyLive.step = 'cover'; saveStories(); renderStories();
       try { await makeStoryCover(meta, s, body); } catch (e) { if (isAbort(e)) throw e; meta.coverError = e.message; toast('The cover failed: ' + e.message); }
     }
     meta.status = 'done'; saveStories(); renderStories();
@@ -7591,9 +7607,11 @@ SUMMARY: ten to fifteen sentences about everything that has happened in the stor
     if (meta.formats.length) setTimeout(() => publishStory(meta, meta.formats), 300);
   } catch (e) {
     meta.status = isAbort(e) ? 'stopped' : 'error'; if (!isAbort(e)) meta.error = e.message;
+    // cut off because the app went to the background: it continues by itself when you come back
+    if (!job.stop && (document.hidden || lastHidden >= storyLive.partStart)) { meta.autoResume = true; meta.status = 'stopped'; delete meta.error; }
     saveStories(); renderStories();
-    if (!isAbort(e)) toast('The story stopped: ' + e.message);
-  } finally { storyJob = null; renderStories(); }
+    if (!isAbort(e) && !meta.autoResume) toast('The story stopped: ' + e.message);
+  } finally { storyJob = null; keepAwake(false); renderStories(); }
 }
 async function makeStoryCover(meta, s, body) {
   const r = await peopleRefs(s);
@@ -7616,19 +7634,64 @@ function renderStories() {
     else idb.get('cover_' + st.id).then(src => src && shrinkSrc('cover_' + st.id, src, 520).then(sm => { coverCache.set(st.id, sm); show(sm); })).catch(() => {});
     const sm = document.createElement('small'); sm.textContent = `${st.charName} · ${st.words ? `${st.words.toLocaleString()} words` : 'not started'}`;
     b.append(cv, sm);
-    const state = { writing: `Writing ${st.done}/${st.parts.length}…`, naming: 'Choosing a title…', cover: 'Making the cover…', stopped: `Paused at ${st.done}/${st.parts.length}: tap to continue`, error: `Stopped at ${st.done}/${st.parts.length}: tap to retry` }[st.status];
+    const state = { writing: `Writing ${Math.min(st.done + 1, st.parts.length)}/${st.parts.length}…`, naming: 'Choosing a title…', cover: 'Making the cover…', stopped: `Paused at ${st.done}/${st.parts.length}`, error: `Stopped at ${st.done}/${st.parts.length}` }[st.status];
     if (state) { const s2 = document.createElement('span'); s2.className = 'st-state'; s2.textContent = state; b.append(s2); }
     pressable(b, () => {
       if (st.status === 'done') return openReader(st.id);
-      if (storyJob?.id === st.id) return showSheet(st.title || 'Story', [{ label: 'Stop writing', onClick: () => { storyJob.stop = true; storyJob.ctl.abort(); } }]);
-      if (st.status === 'stopped' || st.status === 'error') return showSheet(st.title || 'Story', [
-        ...(st.error ? [{ label: st.error.slice(0, 120), onClick: () => {} }] : []),
-        { label: 'Continue writing', onClick: () => writeStory(st.id) },
-        ...(st.done ? [{ label: 'Read what is written', onClick: () => openReader(st.id) }] : []),
-      ]);
+      stOpen = stOpen === st.id ? null : st.id; renderStories();
     }, () => { navigator.vibrate?.(12); storyMenu(st); });
+    b.classList.toggle('open', stOpen === st.id);
     g.append(b);
+    if (stOpen === st.id && st.status !== 'done') g.append(storyPanel(st));
   }
+}
+// The panel under a story that's being written or has paused: what it's doing, a progress bar, the buttons
+function storyPanel(st) {
+  const box = document.createElement('div'); box.className = 'st-panel'; box.id = 'stPanel';
+  const live = storyJob?.id === st.id;
+  box.innerHTML = '<div class="st-pt"></div><div class="st-pbar"><i></i></div><div class="st-pinfo"></div><div class="actions"></div>';
+  const acts = box.querySelector('.actions'), btn = (label, fn, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + cls; b.textContent = label; b.onclick = fn; acts.append(b); };
+  if (live) btn('Stop', () => { storyJob.stop = true; storyJob.ctl.abort(); });
+  else {
+    btn(st.done ? 'Continue writing' : 'Start writing', () => writeStory(st.id), 'primary');
+    if (st.done) btn('Read what is written', () => openReader(st.id));
+  }
+  requestAnimationFrame(() => liveUpdate(box, st));
+  return box;
+}
+function liveUpdate(box = $('stPanel'), st = stories.find(x => x.id === stOpen)) {
+  if (!box || !st) return;
+  const live = storyJob?.id === st.id, n = st.parts.length;
+  const doneParts = live && storyLive.step === 'write' ? storyLive.part + Math.min(.95, storyLive.chars / Math.max(1, (st.parts[storyLive.part]?.[1] - st.parts[storyLive.part]?.[0]) * 260)) : st.done;
+  const steps = n + 1 + (st.cover ? 1 : 0); // the parts, the title, the cover
+  const at = st.done < n ? doneParts : n + (storyLive.step === 'cover' || st.status === 'cover' ? 1 : st.title && st.status !== 'naming' ? 1 : 0);
+  box.querySelector('.st-pbar i').style.width = Math.min(100, at / steps * 100).toFixed(1) + '%';
+  const what = st.chapters && n > 1 ? 'chapter' : 'part';
+  let head, info = '';
+  if (live) {
+    head = storyLive.step === 'naming' ? 'Choosing a title…' : storyLive.step === 'cover' ? 'Making the cover…'
+      : `Writing ${what} ${storyLive.part + 1} of ${n}…`;
+    if (storyLive.step === 'write') info = storyLive.chars ? `${storyLive.chars.toLocaleString()} characters of this ${what} so far` : 'Waiting for the first words…';
+    const t = storyLive.times, avg = t.length ? t.reduce((a, x) => a + x, 0) / t.length : 0, left = n - storyLive.part - (storyLive.step === 'write' ? 0 : 1);
+    if (avg && storyLive.step === 'write' && left > 0) { const m = Math.max(1, Math.round((avg * left - (Date.now() - storyLive.partStart)) / 60000)); info += ` · about ${m} minute${m === 1 ? '' : 's'} left`; }
+    info += ' · the screen stays on';
+  } else {
+    head = st.status === 'error' ? `Stopped at ${st.done} of ${n} ${what}s` : st.done ? `Paused at ${st.done} of ${n} ${what}s` : 'Not started';
+    info = st.error ? st.error : st.autoResume ? 'It continues by itself when the app is open.' : 'Everything written so far is kept.';
+  }
+  box.querySelector('.st-pt').textContent = head; box.querySelector('.st-pinfo').textContent = info;
+}
+setInterval(() => { if (storyJob && stOpen === storyJob.id) liveUpdate(); }, 5000); // the time left counts down
+// Coming back to the app: a story cut off by going to the background continues by itself
+let lastHidden = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { lastHidden = Date.now(); return; }
+  setTimeout(resumeStories, 1500);
+});
+function resumeStories() {
+  if (storyJob || document.hidden) return;
+  const st = stories.find(x => x.autoResume && x.status === 'stopped');
+  if (st) { toast(`Continuing "${st.title || 'your story'}"…`); writeStory(st.id); }
 }
 function storyMenu(st) {
   showSheet(st.title || 'Story', [
@@ -7830,8 +7893,9 @@ $('rdToc').onclick = () => showSheet('Contents', rd.chapters.map(c => ({ label: 
   else { $('rdStage').scrollTop = c.el.offsetTop - 10; rdWhere(); }
 } })));
 // a story that was being written when the app closed can be continued
-for (const st of stories) if (['writing', 'naming', 'cover'].includes(st.status)) st.status = 'stopped';
+for (const st of stories) if (['writing', 'naming', 'cover'].includes(st.status)) { st.status = 'stopped'; st.autoResume = true; }
 saveStories();
+setTimeout(resumeStories, 3000);
 
 // ---------- Dummy account ----------
 const IS_DUMMY = GR_ACC === 'dummy';

@@ -7,8 +7,18 @@ public class StoryPdfPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "StoryPdfPlugin"
     public let jsName = "StoryPdf"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "make", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "make", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "awake", returnType: CAPPluginReturnPromise)
     ]
+
+    // While a story is being written the screen doesn't lock (iOS pauses the app when it does)
+    @objc func awake(_ call: CAPPluginCall) {
+        let on = call.getBool("on") ?? false
+        DispatchQueue.main.async {
+            UIApplication.shared.isIdleTimerDisabled = on
+            call.resolve()
+        }
+    }
 
     @objc func make(_ call: CAPPluginCall) {
         guard let html = call.getString("html") else { return call.reject("No story to print") }
