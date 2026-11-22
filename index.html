@@ -7258,7 +7258,7 @@ async function runHelper(mode, original) {
     const withPics = pics.length ? [{ type: 'text', text: `${ask}\n\n(Attached: the last ${pics.length === 1 ? 'picture' : pics.length + ' pictures'} ${cn(c)} sent in this chat${pics.length > 1 ? ', oldest first' : ''}.)` },
       ...pics.map(url => ({ type: 'image_url', image_url: { url } }))] : ask;
     // in a group every message starts with its name; the AI copies that, so "Wyatt:" is taken off
-    const un = userName(p).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), noName = t => t.replace(new RegExp('^\\s*\\**\\s*' + un + '\\s*(?::\\s*\\**|\\**\\s*:)\\s*', 'i'), '');
+    const noName = t => dropName(t, userName(p)) ?? t;
     const show = r => { input.value = noName(visible(r)); input.dispatchEvent(new Event('input')); };
     const text = await streamChat([...base, { role: 'user', content: withPics }], show), note = '';
     input.value = noName(visible(text, true).replace(/^\s*\[[^\]]*\]\s*/, '')); input.dispatchEvent(new Event('input'));
@@ -8099,7 +8099,8 @@ function groupSync(s) {
   s.c = (last && chars.find(x => x.id === last.char)) || chars.find(x => x.id === s.chat.group.members[0]) || s.c;
   s.chat.charId = s.c.id; store.set('chats', chats);
 }
-const stripName = (t, c) => { for (const n of [cn(c), c.name]) { const re = new RegExp('^\\s*\\**\\s*' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(?::\\s*\\**|\\**\\s*:)\\s*', 'i'); if (re.test(t)) return t.replace(re, ''); } return t; };
+const dropName = (t, n) => { const e = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), re = new RegExp(`^\\s*(?:\\*\\*\\s*${e}\\s*(?::\\s*\\*\\*|\\*\\*\\s*:)|${e}\\s*:)\\s*`, 'i'); return re.test(t) ? t.replace(re, '') : null; };
+const stripName = (t, c) => { for (const n of [cn(c), c.name]) { const r = dropName(t, n); if (r !== null) return r; } return t; };
 // In a group: who else is there; with Join character cards, everyone's card
 function groupSection(c, p, chat) {
   const g = chat.group, f = t => fill((t || '').trim(), c, p);
