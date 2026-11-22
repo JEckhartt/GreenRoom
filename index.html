@@ -3219,7 +3219,7 @@ async function send(text, img, forceImage, doc, imgPrompt) {
 // first message and "Regenerate" on the last reply.
 let menuFor = null;
 function hideMsgMenu() { $('msgMenu').hidden = true; menuFor?.classList.remove('held'); menuFor = null; }
-function showMsgMenu(el, anchor = el, onImage = false) {
+function showMsgMenu(el, anchor = el, onImage = false, at = null) {
   const i = +el.dataset.i, m = history[i]; if (!m) return;
   hideMsgMenu();
   const pin = ['pin', m.pinned ? 'Unpin' : 'Pin'], branch = ['branch', 'Branch from here'];
@@ -3242,7 +3242,11 @@ function showMsgMenu(el, anchor = el, onImage = false) {
   menuFor = el; el.classList.add('held'); navigator.vibrate?.(12);
   box.hidden = false;
   const r = anchor.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
-  box.style.top = (r.top - h - 8 > 60 ? r.top - h - 8 : Math.min(r.bottom + 8, innerHeight - h - 12)) + 'px';
+  // next to where you pressed: just below your finger, or above it when there's no room below
+  const y = at ? at.y : null;
+  const top = y !== null ? (y + 16 + h < innerHeight - 12 ? y + 16 : y - h - 16)
+    : (r.top - h - 8 > 60 ? r.top - h - 8 : r.bottom + 8);
+  box.style.top = Math.max(60, Math.min(innerHeight - h - 12, top)) + 'px';
   const x = m.role === 'user' ? r.right - w : r.left;
   box.style.left = Math.max(12, Math.min(innerWidth - w - 12, x)) + 'px';
 }
@@ -3255,13 +3259,13 @@ function showMsgMenu(el, anchor = el, onImage = false) {
     if (pic) {
       const el = pic.closest('.msg'); if (!el || el.dataset.i === undefined) return;
       x0 = e.clientX; y0 = e.clientY;
-      timer = setTimeout(() => { pic.dataset.long = '1'; showMsgMenu(el, pic, true); }, 480);
+      timer = setTimeout(() => { pic.dataset.long = '1'; showMsgMenu(el, pic, true, { x: x0, y: y0 }); }, 480);
       return;
     }
     if (e.target.closest('button, a, img, .alts, .mav')) return;
     const el = e.target.closest('.msg.me, .msg.ai'); if (!el || el.dataset.i === undefined || el.classList.contains('editing')) return;
     x0 = e.clientX; y0 = e.clientY;
-    timer = setTimeout(() => showMsgMenu(el), 480);
+    timer = setTimeout(() => showMsgMenu(el, el, false, { x: x0, y: y0 }), 480);
   });
   log.addEventListener('pointermove', e => { if (timer && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) { clearTimeout(timer); timer = null; } });
   for (const ev of ['pointerup', 'pointercancel']) log.addEventListener(ev, () => { clearTimeout(timer); timer = null; });
