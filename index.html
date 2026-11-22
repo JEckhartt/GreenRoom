@@ -269,6 +269,7 @@
   .gm-row .gm-name small { display: block; color: var(--ink-soft); font-size: 12px; }
   .gm-row button.gm-b { background: none; border: 1px solid var(--line); border-radius: 8px; width: 30px; height: 30px; color: var(--ink); cursor: pointer; font: inherit; }
   .grp-face { position: relative; }
+  .gm-open { cursor: pointer; }
   .gs-row { align-items: flex-start; }
   .gt-row input[type=range] { width: 100%; margin: 4px 0 0; }
   .gs-text { display: -webkit-box !important; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
@@ -8316,6 +8317,8 @@ function renderGroupSettings() {
     const r = document.createElement('div'); r.className = 'gm-row';
     const a = document.createElement('span'); a.className = 'av'; setThumb(a, c);
     const n = document.createElement('div'); n.className = 'gm-name'; n.textContent = c.name;
+    // picture and name open the character's profile
+    for (const el of [a, n]) { el.classList.add('gm-open'); el.setAttribute('role', 'button'); el.onclick = () => openProfile(id); }
     if (isMuted(g, id)) { const sm = document.createElement('small'); sm.textContent = 'Muted'; n.append(sm); }
     const b = (t, fn, aria) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'gm-b'; x.textContent = t; x.setAttribute('aria-label', aria); x.onclick = () => { fn(); save(); renderGroupSettings(); }; return x; };
     const mute = document.createElement('input'); mute.type = 'checkbox'; mute.className = 'tgl'; mute.checked = !isMuted(g, id); mute.setAttribute('aria-label', 'Talks on their own');
