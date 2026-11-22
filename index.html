@@ -233,6 +233,29 @@
   .rte p, .prof-body.html p { margin: 0 0 8px; }
   #edDesc.src { font-family: ui-monospace, Menlo, monospace; font-size: 13px; min-height: 160px; }
   /* ---------- Stories ---------- */
+  #grpBar { display: flex; gap: 8px; overflow-x: auto; padding: 8px 16px 0; max-width: 760px; width: 100%; margin: 0 auto; scrollbar-width: none; }
+  #grpBar::-webkit-scrollbar { display: none; }
+  #grpBar button { flex: none; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: 0; padding: 2px; color: var(--ink-soft); font: inherit; font-size: 11px; cursor: pointer; max-width: 64px; }
+  #grpBar .av { width: 38px; height: 38px; box-shadow: 0 0 0 2px var(--bg); }
+  #grpBar button span:last-child { max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #grpBar button.muted { opacity: .4; }
+  #grpBar button.muted .av { filter: grayscale(1); }
+  #grpBar button.talking .av { box-shadow: 0 0 0 2px var(--accent); }
+  #grpBar .auto { justify-content: center; font-size: 12px; color: var(--accent-ink); border: 1px solid var(--line); border-radius: 999px; padding: 0 12px; height: 38px; align-self: flex-start; }
+  #grpBar .auto.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .gn-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
+  .gn-item { display: flex; align-items: center; gap: 10px; padding: 6px 4px; background: none; border: 0; border-radius: 10px; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .gn-item .av { width: 36px; height: 36px; }
+  .gn-item span:nth-child(2) { flex: 1; }
+  .gn-item .gn-n { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 12px; color: var(--on-accent); }
+  .gn-item.on .gn-n { background: var(--accent); border-color: var(--accent); }
+  .gm-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .gm-row:first-child { border-top: 0; }
+  .gm-row .av { width: 34px; height: 34px; }
+  .gm-row .gm-name { flex: 1; min-width: 0; }
+  .gm-row .gm-name small { display: block; color: var(--ink-soft); font-size: 12px; }
+  .gm-row button.gm-b { background: none; border: 1px solid var(--line); border-radius: 8px; width: 30px; height: 30px; color: var(--ink); cursor: pointer; font: inherit; }
+  .grp-face { position: relative; }
   .vec-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
   .vec-row .btn { flex: none; padding: 7px 12px; font-size: 14px; }
   .st-new { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; width: 100%; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; text-align: left; cursor: pointer; margin-bottom: 16px; }
@@ -356,7 +379,7 @@
   .mname { display: none; font: 600 13px/1.3 'Inter', system-ui, sans-serif; letter-spacing: .01em; margin-bottom: 4px; white-space: normal; background: none; text-shadow: none; }
   .msg.ai > .mname { color: var(--name-ai, var(--accent)); -webkit-text-fill-color: var(--name-ai, var(--accent)); }
   .msg.me > .mname { color: var(--name-me, var(--accent)); -webkit-text-fill-color: var(--name-me, var(--accent)); }
-  body.names-ai .msg.ai > .mname, body.names-me .msg.me > .mname { display: block; }
+  body.names-ai .msg.ai > .mname, body.names-me .msg.me > .mname, #chat.grp .msg.ai > .mname { display: block; }
   .mav { display: none; place-items: center; position: absolute; top: 0; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; cursor: pointer;
     background: var(--accent-soft) center / cover no-repeat; color: var(--accent-ink); font: 15px 'Fraunces', Georgia, serif; -webkit-text-fill-color: var(--accent-ink); text-shadow: none; }
   :is(#log, #preview) .msg { position: relative; }
@@ -950,6 +973,7 @@
       <div class="anrow" style="margin-top:8px"><span id="giState"></span><button type="button" id="giGo">Generate</button></div>
     </div>
   </div>
+  <div id="grpBar" hidden></div>
   <div id="toolsRow">
     <button id="plusBtn" type="button" aria-label="Add">+</button>
     <div id="chipsRow">
@@ -1026,8 +1050,9 @@
     <button type="button" data-t="2">Proxy</button>
     <button type="button" data-t="3">Image proxy</button>
     <button type="button" data-t="4">Prompt</button>
+    <button type="button" data-t="5" id="csGroupTab" hidden>Group</button>
   </div>
-  <div class="page-body" id="csBody"><div class="page-inner cs-pane" data-t="0">
+  <div class="page-body" id="csBody"><div class="page-inner cs-pane" data-t="5" hidden id="grpPane"></div><div class="page-inner cs-pane" data-t="0">
     <details class="sec" id="memFold" open>
     <summary class="group-title">Memory</summary>
     <div class="card">
@@ -1273,6 +1298,9 @@
         <summary>Example dialogue <span style="font-weight:400">(optional)</span></summary>
         <textarea id="edEx" placeholder="{{user}}: Hi.&#10;{{char}}: …"></textarea>
         <div class="hint">Shows the AI how the character talks. Not part of the conversation.</div>
+        <label class="f" for="edTalk">Talkativeness in group chats <span id="edTalkV" style="font-weight:400;color:var(--ink-soft)"></span></label>
+        <input type="range" id="edTalk" min="0" max="100" step="5" value="50">
+        <div class="hint">0% shy: speaks only when mentioned. 100% chatty: always replies. With Natural order in a group chat.</div>
       </details>
     </div>
     <div class="card" id="edCounts" style="margin-top:12px;font-size:14px"></div>
@@ -1645,6 +1673,20 @@ Empty = send everything.</div>
 <section id="janChat" class="view" aria-label="Chat preview">
   <div class="page-head"><button class="back" data-close="janChat" type="button">‹ Back</button><h1 id="janChTitle"></h1><span></span></div>
   <div class="page-body"><div class="page-inner" id="janChBody" style="padding-top:12px"></div></div>
+</section>
+
+<section id="groupNew" class="view" aria-label="New group chat">
+  <div class="page-head"><button class="back" data-close="groupNew" type="button">‹ Back</button><h1>New group chat</h1><span></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <div class="card">
+      <label class="f" for="gnName" style="margin-top:12px">Name</label>
+      <input type="text" id="gnName" placeholder="e.g. The flat">
+      <label class="f">Characters <span id="gnCount" style="font-weight:400;color:var(--ink-soft)"></span></label>
+      <div id="gnList" class="gn-list"></div>
+      <div class="hint">Pick two or more. The order is the reply order for List order; you can change it later in Chat settings → Group.</div>
+    </div>
+    <div class="save-bar"><button class="btn primary" type="button" id="gnGo">Choose persona and start</button></div>
+  </div></div>
 </section>
 
 <section id="stories" class="view" aria-label="Stories">
@@ -2164,10 +2206,13 @@ function timeNote(hist, i) {
 function systemFor(c, p, memory, lore, chat = cur?.chat, hist = null) {
   const f = t => fill((t || '').trim(), c, p);
   const parts = [f(promptText(chat))];
+  const g = chat?.group;
   let ch = `--- Character: ${cn(c)} ---\nYou are ${cn(c)}. Stay in character.`;
   if (f(c.personality)) ch += `\n\nPersonality:\n${f(c.personality)}`;
-  if (f(c.scenario)) ch += `\n\nScenario:\n${f(c.scenario)}`;
+  const scen = g?.scenario?.trim() ? g.scenario : c.scenario;
+  if (f(scen)) ch += `\n\nScenario:\n${f(scen)}`;
   parts.push(ch);
+  if (g) parts.push(groupSection(c, p, chat));
   if (p) parts.push(`--- User: ${p.name} ---\nYou are talking with ${p.name}.${f(p.personality) ? `\n\n${f(p.personality)}` : ''}`);
   if (lore) parts.push(`--- World info (facts about this story; use when relevant) ---\n${lore}`);
   if (f(memory)) parts.push(`--- Memory (things to remember in this chat) ---\n${f(memory)}`);
@@ -2270,6 +2315,20 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
     let total = cost(system) + msgs.reduce((n, m) => n + cost(m), 0);
     while (msgs.length > 1 && total > limit) total -= cost(msgs.shift());
   }
+  // Group chat: every message carries its speaker's name, and the last instruction says who writes now
+  if (chat?.group) {
+    const off = hist.length - msgs.length;
+    msgs.forEach((x, k) => {
+      const m = hist[off + k]; if (!m) return;
+      const name = m.role === 'user' ? userName(p) : cn(speakerChar(m, c)), pre = `${name}: `;
+      if (Array.isArray(x.content)) x.content = x.content.map(y => y.type === 'text' ? { ...y, text: pre + y.text } : y);
+      else x.content = pre + (x.content || '');
+    });
+    const nudge = `[Write the next reply only as ${cn(c)}. Do not write for ${userName(p)} or the other characters, and do not start with a name.]`;
+    const last = msgs.at(-1);
+    if (last?.role === 'user') { if (Array.isArray(last.content)) last.content.push({ type: 'text', text: '\n\n' + nudge }); else last.content += '\n\n' + nudge; }
+    else msgs.push({ role: 'user', content: nudge });
+  }
   // Vector storage: moments from long ago that fit the newest messages (only ones the AI no longer sees)
   if (chat && vecOnFor(chat) && hist.length > 4) {
     try {
@@ -2309,13 +2368,15 @@ const follow = () => { if (following) scrollDown(); };
 // Error notes go away once you try again or pick another proxy
 const clearErrs = () => { for (const n of $('log').querySelectorAll('.msg.err')) n.remove(); };
 
-function addBubble(role, text) {
+// In a group chat each reply belongs to the character who wrote it (m.char)
+const speakerChar = (m, c = cur?.c) => (m?.char && chars.find(x => x.id === m.char)) || c;
+function addBubble(role, text, who) {
   $('log').querySelector('.empty')?.remove();
   const el = document.createElement('div');
   el.className = 'msg ' + role;
   if (role === 'err') { el.textContent = text; el.dataset.chat = cur?.chat.id || ''; console.warn(text); }
   else {
-    decorate(el, role);
+    decorate(el, role, who);
     const t = document.createElement('span'); t.className = 'txt'; rich(t, text); el.appendChild(t);
   }
   if (!rendering && role !== 'err') el.classList.add('new');
@@ -2324,7 +2385,8 @@ function addBubble(role, text) {
   return el;
 }
 // Name above the message and the small profile picture next to it (shown when switched on in Layout)
-function decorate(el, role, c = cur?.c, p = cur?.p) {
+function decorate(el, role, c, p = cur?.p) {
+  c = c || cur?.c;
   const nm = document.createElement('div'); nm.className = 'mname';
   nm.textContent = role === 'ai' ? (c ? cn(c) : 'Character') : userName(p) === 'User' && !p ? 'You' : userName(p);
   const av = document.createElement('span'); av.className = 'mav'; av.dataset.who = role;
@@ -2522,7 +2584,7 @@ function renderLog() {
   }
   for (let i = shownFrom; i < history.length; i++) {
     const m = history[i];
-    const b = addBubble(m.role === 'user' ? 'me' : 'ai', m.content);
+    const b = addBubble(m.role === 'user' ? 'me' : 'ai', m.content, m.role === 'assistant' ? speakerChar(m) : undefined);
     b.dataset.i = i;
     if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => { if (!src) return f.remove(); showImage(f, src); addFold(f, m); }).catch(() => f.remove()); }
     if (m.file) addFileChip(b, m.file);
@@ -2907,6 +2969,7 @@ async function aiTurn(s, hist, messages, bubble, into) {
   }
   let imgPrompt = tagPrompt(reply);
   let msg = { role: 'assistant', content: visible(reply, true), t: Date.now() };
+  if (s.chat.group) { msg.char = s.c.id; msg.content = stripName(msg.content, s.c); }
   if (lastThink.text) { msg.thinking = lastThink.text; msg.thinkSecs = lastThink.secs; }
   setText(bubble, msg.content);
   if (into) { ensureAlts(into); into.alts.push({ content: msg.content, thinking: msg.thinking, thinkSecs: msg.thinkSecs }); selectAlt(into, into.alts.length - 1); msg = into.alts[into.sel]; }
@@ -2974,6 +3037,7 @@ async function continueReply(i) {
   if (busy || !ready()) return;
   const s = cur, hist = history, m = hist[i];
   if (!m || m.role !== 'assistant') return;
+  if (s.chat.group) s.c = speakerChar(m, s.c);
   const bubble = [...$('log').querySelectorAll('.msg.ai')].find(b => +b.dataset.i === i); if (!bubble) return;
   const before = m.content || '';
   const join = r => {
@@ -3043,6 +3107,10 @@ async function send(text, img, forceImage, doc, imgPrompt) {
   if (msg.img) showImage(addFigure(mine), img);
   if (msg.file) addFileChip(mine, msg.file);
   addStamp(mine, msg);
+  if (s.chat.group) {
+    try { await groupRun(s, hist, pickSpeakers(s.chat, hist)); } finally { setBusy(false); if (usedOnce) { s.chat.authorOff = true; store.set('chats', chats); syncTools(); } }
+    return groupAuto(s);
+  }
   const bubble = addBubble('ai', '');
   const sendMsgs = await buildMessages(s.c, s.p, hist, s.chat.memory);
   if (usedOnce) { s.chat.authorOff = true; store.set('chats', chats); syncTools(); }
@@ -3221,6 +3289,7 @@ async function resendFrom(i, text) {
   hist[i].content = text;
   saveMsgs(s.chat, hist); render(); scrollDown();
   setBusy(true);
+  if (s.chat.group) { try { await groupRun(s, hist, pickSpeakers(s.chat, hist)); } finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); } return; }
   const bubble = addBubble('ai', '');
   try { await aiTurn(s, hist, await buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
   catch (e) { bubble.remove(); if (!isAbort(e) && cur?.chat.id === s.chat.id) addBubble('err', 'Something went wrong: ' + e.message); }
@@ -3271,6 +3340,7 @@ const openingAsk = (c, p, chat = cur?.chat) => `[Write ${cn(c)}'s opening messag
 async function anotherReply(i, bubble, direction = '') {
   if (busy || !ready()) return;
   const s = cur, hist = history, m = hist[i]; if (!m) return;
+  if (s.chat.group) s.c = speakerChar(m, s.c);
   setBusy(true);
   bubble.querySelector('.alts')?.remove(); bubble.querySelector('figure')?.remove();
   setText(bubble, '');
@@ -3332,7 +3402,9 @@ function settleScroll(id) {
   requestAnimationFrame(step);
 }
 function openChat(id) {
-  const chat = chats.find(x => x.id === id), c = chat && chars.find(x => x.id === chat.charId);
+  const chat = chats.find(x => x.id === id);
+  if (chat?.group) { chat.group.members = chat.group.members.filter(m => chars.some(c => c.id === m)); if (chat.group.members.length) chat.charId = chat.group.members[0]; }
+  const c = chat && chars.find(x => x.id === chat.charId);
   if (!c) return;
   deliverReach();
   if (chat.pendingReach) cancelReach(chat); // back before the character wrote: cancel it
@@ -3367,10 +3439,12 @@ function startChat() {
 }
 function renderChatHead() {
   const { chat, c, p } = cur;
-  $('chatName').textContent = cn(c);
-  const pn = p?.name || chat.personaName;
-  $('chatAs').textContent = pn ? 'as ' + pn : '';
-  setThumb($('chatAv'), c);
+  const pn = p?.name || chat.personaName, g = chat.group;
+  $('chatName').textContent = g ? (g.name || 'Group chat') : cn(c);
+  $('chatAs').textContent = g ? `${g.members.length} characters${pn ? ' · as ' + pn : ''}` : pn ? 'as ' + pn : '';
+  setThumb($('chatAv'), g ? (chars.find(x => x.id === g.members[0]) || c) : c);
+  $('chatProfile').hidden = !!g;
+  renderGroupBar();
 }
 async function applyChatBg() {
   const el = $('chat'), ch = cur?.chat;
@@ -3503,6 +3577,7 @@ function pickChar(title, then) {
 let importTo = null;
 $('chatAdd').onclick = () => showSheet('Chats', [
   { label: 'Start new chat', onClick: () => pickChar('Chat with…', c => pickPersona(c)) },
+  { label: 'New group chat', onClick: openGroupNew },
   { label: 'Import chat', onClick: () => pickChar('Import a chat with…', c => pickPersona(c, pid => { importTo = { c, pid }; $('chatFile').click(); })) },
 ]);
 $('chatFile').onchange = async () => {
@@ -3573,15 +3648,36 @@ const trashSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" st
 function renderChats() {
   const list = $('chatList'); list.innerHTML = ''; list.classList.toggle('compact', isCompact('chat'));
   const by = new Map();
+  const groupChats = chats.filter(ch => ch.group && ch.preview && ch.group.members.some(m => chars.some(c => c.id === m))).sort((a, b) => b.updated - a.updated);
   for (const ch of chats) {
-    if (!ch.preview || !chars.some(c => c.id === ch.charId)) continue;
+    if (ch.group || !ch.preview || !chars.some(c => c.id === ch.charId)) continue;
     if (!by.has(ch.charId)) by.set(ch.charId, []);
     by.get(ch.charId).push(ch);
   }
-  if (!by.size) {
+  if (!by.size && !groupChats.length) {
     const e = document.createElement('div'); e.className = 'list-empty';
     e.textContent = 'No chats yet. Start one from Characters.';
     return list.appendChild(e);
+  }
+  if (groupChats.length) {
+    const key = 'groups', open = expanded.has(key);
+    const g = document.createElement('div'); g.className = 'group' + (open ? ' open' : '');
+    const head = document.createElement('div'); head.className = 'folder-head';
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'item';
+    const ic = document.createElement('div'); ic.className = 'folder-icon'; ic.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9.5" r="2.6"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5M14.8 14.6c2.6-.4 4.9 1 5.7 4.4"/></svg>';
+    const info = document.createElement('div'); info.className = 'info';
+    const h = document.createElement('h3'); h.textContent = 'Group chats';
+    const meta = document.createElement('p'); meta.textContent = `${groupChats.length} chat${groupChats.length === 1 ? '' : 's'}`;
+    const chev = document.createElement('span'); chev.className = 'chev';
+    info.append(h, meta); b.append(ic, info, chev);
+    b.onclick = () => { expanded.clear(); if (!open) expanded.add(key); renderChats(); };
+    head.append(b); g.append(head);
+    if (open) {
+      const sub = document.createElement('div'); sub.className = 'sublist';
+      for (const ch of groupChats) sub.append(groupChatRow(ch));
+      g.append(sub);
+    }
+    list.appendChild(g);
   }
   const groups = [...by].map(([id, cs]) => [chars.find(c => c.id === id), cs.sort((a, b) => b.updated - a.updated)])
     .sort((a, b) => b[1][0].updated - a[1][0].updated);
@@ -3683,7 +3779,7 @@ function moveChatToFolder(ch) {
 const chatLabel = ch => ch.title ?? (ch.branchOf ? 'branch' : '');
 function chatMenu(ch, c) {
   const pn = personaOf(ch)?.name || ch.personaName || 'User';
-  showSheet(`Chat with ${cn(c)} as ${pn}` + (chatLabel(ch) ? ` · ${chatLabel(ch)}` : ''), [
+  showSheet((ch.group ? `${ch.group.name || 'Group chat'} as ${pn}` : `Chat with ${cn(c)} as ${pn}`) + (chatLabel(ch) ? ` · ${chatLabel(ch)}` : ''), [
     { label: 'Rename chat', onClick: () => {
       const t = prompt(`Shown after "as ${pn} ·" (empty: nothing)`, chatLabel(ch));
       if (t === null) return;
@@ -3691,13 +3787,13 @@ function chatMenu(ch, c) {
       store.set('chats', chats); renderChats(); if (cur?.chat.id === ch.id) renderChatHead();
     } },
     { label: 'Move to folder', onClick: () => moveChatToFolder(ch) },
-    { label: 'Move to another character', onClick: () => pickChar('Move this chat to…', nc => {
+    ...(ch.group ? [] : [{ label: 'Move to another character', onClick: () => pickChar('Move this chat to…', nc => {
       if (nc.id === ch.charId) return;
       ch.charId = nc.id; delete ch.janChar; // a later JanitorAI import follows this choice through the chat itself
       expanded.clear(); expanded.add(nc.id); saveChats();
       if (cur?.chat.id === ch.id) { cur.c = nc; renderChatHead(); render(); }
       toast(`Moved to ${nc.name}`);
-    }) },
+    }) }]),
     { label: 'Change persona', onClick: () => pickPersona(c, pid => {
       const np = personas.find(x => x.id === pid);
       ch.personaId = np?.id || ''; ch.personaName = np?.name || '';
@@ -3715,7 +3811,7 @@ async function exportChat(ch, c, fmt) {
   const stamp = new Date(ch.updated || Date.now()).toISOString().slice(0, 10);
   const base = `${who} - ${pn}${chatLabel(ch) ? ' - ' + chatLabel(ch) : ''} - ${stamp}`.replace(/[^\p{L}\p{N} ._-]/gu, '').trim();
   const head = `Chat with ${who} as ${pn}`, title = chatLabel(ch) ? `${head} · ${chatLabel(ch)}` : head;
-  const nameOf = m => m.role === 'user' ? pn : who, timeOf = m => m.t ? new Date(m.t).toLocaleString() : '';
+  const nameOf = m => m.role === 'user' ? pn : cn(speakerChar(m, c)), timeOf = m => m.t ? new Date(m.t).toLocaleString() : '';
   let blob;
   if (fmt === 'txt') {
     const lines = [title, `Exported ${new Date().toLocaleString()}`, ''];
@@ -4192,7 +4288,13 @@ function deleteItems(kind, ids) {
   const note = kind === 'char' ? ` All chats with ${list.length === 1 ? 'them' : 'these characters'} are deleted too.` : ' Chats with them are kept.';
   if (!confirm(`Delete ${what}?${note}`)) return false;
   for (const it of list) {
-    if (kind === 'char') for (const ch of chats.filter(x => x.charId === it.id)) deleteChat(ch.id);
+    if (kind === 'char') {
+      for (const ch of chats.filter(x => x.group?.members.includes(it.id))) {
+        ch.group.members = ch.group.members.filter(m => m !== it.id);
+        if (!ch.group.members.length) deleteChat(ch.id); else ch.charId = ch.group.members[0];
+      }
+      for (const ch of chats.filter(x => !x.group && x.charId === it.id)) deleteChat(ch.id);
+    }
     items.splice(items.indexOf(it), 1);
     if (it.img) { idb.del(it.img).catch(() => {}); avatarCache.delete(it.img); }
   }
@@ -4223,6 +4325,7 @@ function openEditor(kind, id) {
   $('edFirst').value = edit.greets[0]; renderTabs();
   $('edAiFirst').checked = !!it?.aiFirst;
   $('edEx').value = it?.examples || '';
+  $('edTalk').value = Math.round((it?.talk ?? 0.5) * 100); $('edTalkV').textContent = $('edTalk').value + '%';
   syncFirst();
   autosizeAll($('editor'));
   setThumb($('edThumb'), it || { name: '+' }); if (!it) $('edThumb').textContent = '+';
@@ -4360,7 +4463,7 @@ async function saveEditor() {
   it.personality = $('edPers').value.trim();
   if (edit.kind === 'char') {
     Object.assign(it, { description: isHtml($('edDesc').value) ? sanitizeHtml($('edDesc').value) : $('edDesc').value.trim(), scenario: $('edScen').value.trim(),
-      chatName: $('edChatName').value.trim(), aiFirst: $('edAiFirst').checked, examples: $('edEx').value.trim() });
+      chatName: $('edChatName').value.trim(), aiFirst: $('edAiFirst').checked, examples: $('edEx').value.trim(), talk: +$('edTalk').value / 100 });
     edit.greets[edit.gi] = $('edFirst').value;
     it.firstMessages = edit.greets.map(g => g.trim()).filter(Boolean);
     delete it.firstMessage;
@@ -5699,6 +5802,7 @@ function openChatSettings() {
   $('csAutoPics').checked = cur.chat.autoPics !== false;
   syncGenImg();
   $('csRealTime').checked = !!cur.chat.realTime;
+  $('csGroupTab').hidden = !cur.chat.group; if (cur.chat.group) renderGroupSettings();
   $('csVec').checked = vecOnFor(cur.chat); syncVecState();
   $('csCardRepeat').checked = !!(cur.chat.cardRepeat ?? cfg.cardRepeat);
   $('csReach').checked = !!cur.chat.reachOut; $('csReachAfter').value = String(cur.chat.reachAfter || 180); syncReachRows();
@@ -6133,6 +6237,7 @@ $('csAutoPics').onchange = () => {
   store.set('chats', chats); render();
 };
 $('csCtx').oninput = () => { if (!cur) return; cur.chat.contextSize = $('csCtx').value.trim(); store.set('chats', chats); };
+$('edTalk').oninput = () => { $('edTalkV').textContent = $('edTalk').value + '%'; };
 $('csVec').onchange = () => { if (!cur) return; cur.chat.vec = $('csVec').checked; store.set('chats', chats); syncVecState(); };
 $('csCardRepeat').onchange = () => { if (!cur) return; cur.chat.cardRepeat = $('csCardRepeat').checked; store.set('chats', chats); };
 $('csRealTime').onchange = () => { if (!cur) return; if ($('csRealTime').checked) cur.chat.realTime = true; else delete cur.chat.realTime; store.set('chats', chats); };
@@ -6140,7 +6245,7 @@ $('csForbidden').addEventListener('input', () => { if (!cur) return; cur.chat.fo
 
 // ---------- Summaries ----------
 const estTokens = t => Math.ceil((t || '').length / 4);
-const transcriptOf = (hist, c, p) => hist.map(m => `${m.role === 'user' ? userName(p) : cn(c)}: ${m.content || ''}${m.img ? ' [image]' : ''}`).join('\n\n');
+const transcriptOf = (hist, c, p) => hist.map(m => `${m.role === 'user' ? userName(p) : cn(speakerChar(m, c))}: ${m.content || ''}${m.img ? ' [image]' : ''}`).join('\n\n');
 function unsummarized() {
   if (!cur) return [];
   const from = Math.min(cur.chat.summarizedUpTo || 0, history.length);
@@ -6207,7 +6312,7 @@ function renderCsLore() {
 // Tabs: tap or swipe sideways
 let csTab = 0;
 function setCsTab(t) {
-  csTab = Math.max(0, Math.min(4, t));
+  csTab = Math.max(0, Math.min(cur?.chat.group ? 5 : 4, t));
   for (const b of $('csTabs').children) b.classList.toggle('on', +b.dataset.t === csTab);
   for (const pane of document.querySelectorAll('#csBody .cs-pane')) pane.hidden = +pane.dataset.t !== csTab;
   $('csBody').scrollTop = 0;
@@ -6694,7 +6799,7 @@ function msgRow(m, i, q, extra, onTap) {
   b.append(who, snip); b.onclick = onTap;
   return b;
 }
-const speaker = (m, c, p, ch) => m.role === 'user' ? (p?.name || ch?.personaName || 'You') : cn(c);
+const speaker = (m, c, p, ch) => m.role === 'user' ? (p?.name || ch?.personaName || 'You') : cn(speakerChar(m, c));
 
 // ---------- Swipe right-to-left in a chat: card, search, pins, images ----------
 function openChatImages() {
@@ -7540,7 +7645,7 @@ $('ssChat').onclick = () => pickChar('Story from a chat with…', c => {
 
 // The chat as plain messages (the versions that show, no picture tags)
 function storyMessages(s) {
-  return msgGet(s.ch.id).map(m => ({ who: m.role === 'user' ? userName(s.p) : cn(s.c), text: String(m.content || '').replace(TAG, '').trim(), t: m.t || 0 })).filter(m => m.text);
+  return msgGet(s.ch.id).map(m => ({ who: m.role === 'user' ? userName(s.p) : cn(speakerChar(m, s.c)), text: String(m.content || '').replace(TAG, '').trim(), t: m.t || 0 })).filter(m => m.text);
 }
 // Parts of about STORY_PART characters, cut where there's a long pause between messages if one is near
 function storyParts(msgs, chapters) {
@@ -7951,6 +8056,223 @@ for (const st of stories) if (['writing', 'naming', 'cover'].includes(st.status)
 saveStories();
 setTimeout(resumeStories, 3000);
 
+// ---------- Group chats (like SillyTavern) ----------
+// chat.group = { name, members: [charId], muted: [charId], order: natural|list|pooled|manual, mode: swap|join,
+// joinMuted: include|exclude, self: allow self responses, auto: auto-mode, scenario: replaces the members' scenarios }.
+// One character writes per reply (m.char), with its own card; the shared chat goes along with names.
+const GROUP_DEFAULTS = { name: '', members: [], muted: [], order: 'natural', mode: 'swap', joinMuted: 'include', self: false, auto: false, scenario: '' };
+const isMuted = (g, id) => g.muted?.includes(id);
+const stripName = (t, c) => { for (const n of [cn(c), c.name]) { const re = new RegExp('^\\s*\\**' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\**\\s*:\\s*', 'i'); if (re.test(t)) return t.replace(re, ''); } return t; };
+// In a group: who else is there; with Join character cards, everyone's card
+function groupSection(c, p, chat) {
+  const g = chat.group, f = t => fill((t || '').trim(), c, p);
+  const others = g.members.filter(id => id !== c.id).map(id => chars.find(x => x.id === id)).filter(Boolean);
+  let out = `--- Group chat${g.name ? `: ${g.name}` : ''} ---\nThis is a group chat between ${[cn(c), ...others.map(cn)].join(', ')} and ${userName(p)}. You are ${cn(c)} and write only ${cn(c)}'s replies; the others write their own. Messages start with the name of who wrote them.`;
+  if (g.mode === 'join') for (const o of others) {
+    if (g.joinMuted === 'exclude' && isMuted(g, o.id)) continue;
+    const ff = t => fill((t || '').trim(), o, p);
+    out += `\n\n--- ${cn(o)} (another character in this chat) ---${ff(o.personality) ? `\n${ff(o.personality)}` : ''}${!g.scenario?.trim() && ff(o.scenario) ? `\n\nScenario:\n${ff(o.scenario)}` : ''}${ff(o.examples) ? `\n\nExample dialogue:\n${ff(o.examples)}` : ''}`;
+  }
+  return out;
+}
+// Who replies now, by the reply order
+function pickSpeakers(chat, hist) {
+  const g = chat.group, live = g.members.filter(id => !isMuted(g, id) && chars.some(c => c.id === id));
+  if (!live.length || g.order === 'manual') return [];
+  if (g.order === 'list') return live;
+  const last = hist.at(-1), lastSpeaker = last?.role === 'assistant' ? last.char : null;
+  const rnd = a => a[Math.floor(Math.random() * a.length)];
+  if (g.order === 'pooled') {
+    const lu = hist.map(m => m.role).lastIndexOf('user');
+    const spoke = new Set(hist.slice(lu + 1).filter(m => m.role === 'assistant').map(m => m.char));
+    const pool = live.filter(id => !spoke.has(id));
+    return [rnd(pool.length ? pool : live)];
+  }
+  // natural: mentions (whole words of the name), then talkativeness, then one at random from those
+  const text = String(last?.content || '');
+  const words = c => [...new Set([...(c.name || '').split(/\s+/), ...(c.chatName || '').split(/\s+/)].map(w => w.replace(/[^\p{L}\p{N}'-]/gu, '')).filter(w => w.length > 1))];
+  const act = new Set();
+  for (const id of live) {
+    const c = chars.find(x => x.id === id);
+    if (id === lastSpeaker && !g.self) continue;
+    if (words(c).some(w => new RegExp(`(^|[^\\p{L}\\p{N}])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[^\\p{L}\\p{N}])`, 'iu').test(text))) act.add(id);
+  }
+  for (const id of live) { if (id === lastSpeaker && !g.self) continue; if (Math.random() < (chars.find(x => x.id === id).talk ?? 0.5)) act.add(id); }
+  if (act.size) return [rnd([...act])];
+  const others = live.filter(id => id !== lastSpeaker);
+  return [rnd(others.length ? others : live)];
+}
+// Writes replies one after another (each with its own card); stops on Stop or an error
+async function groupRun(s, hist, ids) {
+  for (const id of ids) {
+    const c = chars.find(x => x.id === id); if (!c) continue;
+    if (abortCtl?.signal.aborted) break;
+    s.c = c;
+    renderGroupBar(id);
+    for (const b of $('log').querySelectorAll('.alts .cont')) b.remove(); // Continue only under the newest reply
+    const bubble = addBubble('ai', '', c);
+    try {
+      await aiTurn(s, hist, await buildMessages(c, s.p, hist, s.chat.memory, s.chat), bubble);
+      const i = +bubble.dataset.i; if (bubble.isConnected && !bubble.querySelector('.alts')) addAltNav(bubble, hist[i], i);
+    } catch (e) {
+      if (!bubble.textContent.trim()) bubble.remove();
+      if (!isAbort(e) && cur?.chat.id === s.chat.id) addBubble('err', `${cn(c)} could not reply: ${e.message}`);
+      break;
+    }
+  }
+  s.c = chars.find(x => x.id === s.chat.group.members[0]) || s.c;
+  renderGroupBar();
+}
+// Auto-mode: 5 seconds after the last reply the next one writes, until you start typing
+let groupAutoTimer = null;
+function groupAuto(s) {
+  clearTimeout(groupAutoTimer);
+  if (!s.chat.group?.auto) return;
+  groupAutoTimer = setTimeout(async () => {
+    if (cur?.chat.id !== s.chat.id || !s.chat.group.auto || busy || $('input').value.trim() || document.hidden) return;
+    const ids = pickSpeakers(s.chat, history); if (!ids.length) return;
+    setBusy(true);
+    try { await groupRun(s, history, ids); } finally { setBusy(false); }
+    groupAuto(s);
+  }, 5000);
+}
+$('input').addEventListener('input', () => {
+  const g = cur?.chat.group; if (!g?.auto) return;
+  g.auto = false; store.set('chats', chats); clearTimeout(groupAutoTimer); renderGroupBar(); toast('Auto-mode off');
+});
+// Force talk: tap a member (also when muted); long press: mute or unmute
+async function forceTalk(id) {
+  if (busy || !cur?.chat.group || !ready()) return;
+  const s = cur; setBusy(true); clearTimeout(groupAutoTimer);
+  try { await groupRun(s, history, [id]); } finally { setBusy(false); }
+  groupAuto(s);
+}
+function renderGroupBar(talking = null) {
+  const bar = $('grpBar'), g = cur?.chat.group;
+  bar.hidden = !g; $('chat').classList.toggle('grp', !!g); if (!g) return;
+  bar.replaceChildren(...g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(c => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = (isMuted(g, c.id) ? 'muted ' : '') + (talking === c.id ? 'talking' : '');
+    const a = document.createElement('span'); a.className = 'av'; setThumb(a, c);
+    const n = document.createElement('span'); n.textContent = cn(c);
+    b.append(a, n); b.setAttribute('aria-label', `Let ${cn(c)} reply`);
+    pressable(b, () => forceTalk(c.id), () => {
+      navigator.vibrate?.(12);
+      g.muted = isMuted(g, c.id) ? g.muted.filter(x => x !== c.id) : [...(g.muted || []), c.id];
+      store.set('chats', chats); renderGroupBar(); toast(isMuted(g, c.id) ? `${cn(c)} is muted (tap still makes them talk)` : `${cn(c)} talks again`);
+    });
+    return b;
+  }), (() => {
+    const a = document.createElement('button'); a.type = 'button'; a.className = 'auto' + (g.auto ? ' on' : ''); a.textContent = 'Auto';
+    a.onclick = () => { g.auto = !g.auto; store.set('chats', chats); renderGroupBar(); if (g.auto) { toast('Auto-mode on: they keep talking until you type'); groupAuto(cur); } else clearTimeout(groupAutoTimer); };
+    return a;
+  })());
+}
+function groupChatRow(ch) {
+  const g = ch.group, first = chars.find(x => x.id === g.members[0]);
+  const row = document.createElement('div'); row.className = 'crow';
+  const go = document.createElement('button'); go.type = 'button'; go.className = 'go';
+  const av = document.createElement('span'); av.className = 'av'; setThumb(av, first || { name: g.name || 'G' });
+  const txt = document.createElement('div'), who = document.createElement('div'); who.className = 'who';
+  const nm = document.createElement('span'); nm.textContent = g.name || 'Group chat';
+  if (ch.count == null) ch.count = msgGet(ch.id).length;
+  const tm = document.createElement('time'); tm.textContent = `${ch.count} message${ch.count === 1 ? '' : 's'} · ${when(ch.updated)}`;
+  who.append(nm, tm);
+  const snip = document.createElement('div'); snip.className = 'snip'; snip.textContent = stripMd(ch.preview);
+  txt.append(who, snip); go.append(av, txt);
+  pressable(go, () => openChat(ch.id), () => { navigator.vibrate?.(12); chatMenu(ch, first); });
+  const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.innerHTML = trashSvg; del.setAttribute('aria-label', 'Delete chat');
+  del.onclick = () => { if (confirm(`Delete the group chat "${g.name || 'Group chat'}"?`)) deleteChat(ch.id); };
+  row.append(go, del); return row;
+}
+// New group: name, characters (in the order picked), then the persona
+const gnPicked = [];
+function openGroupNew() {
+  if (chars.length < 2) return toast('Make at least two characters first');
+  gnPicked.length = 0; $('gnName').value = ''; renderGroupNew(); openView('groupNew');
+}
+function renderGroupNew() {
+  $('gnCount').textContent = gnPicked.length ? `(${gnPicked.length})` : '';
+  $('gnList').replaceChildren(...[...chars].sort((a, b) => a.name.localeCompare(b.name)).map(c => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'gn-item' + (gnPicked.includes(c.id) ? ' on' : '');
+    const a = document.createElement('span'); a.className = 'av'; setThumb(a, c);
+    const n = document.createElement('span'); n.textContent = c.name;
+    const k = document.createElement('span'); k.className = 'gn-n'; k.textContent = gnPicked.includes(c.id) ? gnPicked.indexOf(c.id) + 1 : '';
+    b.append(a, n, k);
+    b.onclick = () => { const i = gnPicked.indexOf(c.id); i >= 0 ? gnPicked.splice(i, 1) : gnPicked.push(c.id); renderGroupNew(); };
+    return b;
+  }));
+  $('gnGo').disabled = gnPicked.length < 2;
+}
+$('gnGo').onclick = () => {
+  if (gnPicked.length < 2) return;
+  const members = [...gnPicked], name = $('gnName').value.trim() || members.map(id => cn(chars.find(x => x.id === id))).join(', ');
+  pickPersona({ ...chars.find(x => x.id === members[0]), name }, pid => { closeView('groupNew'); newGroupChat(name, members, pid); });
+};
+async function newGroupChat(name, members, personaId) {
+  const p = personas.find(x => x.id === personaId);
+  const chat = { id: uid(), charId: members[0], personaId: p?.id || '', personaName: p?.name || '', created: Date.now(), updated: Date.now(), preview: '',
+    group: { ...GROUP_DEFAULTS, name, members, muted: [] } };
+  const last = chats.find(x => x.id === store.get('lastChat', ''));
+  if (last) for (const k of CHAT_SETTINGS) if (k in last) chat[k] = JSON.parse(JSON.stringify(last[k]));
+  // each member's first message, as in SillyTavern (characters whose opening the AI writes are left out)
+  const hist = [];
+  for (const id of members) {
+    const c = chars.find(x => x.id === id); if (!c || c.aiFirst) continue;
+    const gs = greetingsOf(c); if (!gs.length) continue;
+    const alts = gs.map(g => ({ content: fill(g.trim(), c, p) }));
+    hist.push({ role: 'assistant', content: alts[0].content, ...(alts.length > 1 ? { alts, sel: 0 } : {}), char: id, t: Date.now() });
+  }
+  chats.push(chat);
+  if (hist.length) saveMsgs(chat, hist); else store.set('chats', chats);
+  openChat(chat.id);
+}
+// Chat settings → Group
+function renderGroupSettings() {
+  const ch = cur.chat, g = ch.group, pane = $('grpPane');
+  const save = () => { store.set('chats', chats); renderChatHead(); };
+  const seg = (opts, val, on) => { const d = document.createElement('div'); d.className = 'seg'; for (const [v, l] of opts) { const b = document.createElement('button'); b.type = 'button'; b.textContent = l; b.classList.toggle('on', val === v); b.onclick = () => { on(v); save(); renderGroupSettings(); }; d.append(b); } return d; };
+  const card = () => { const c = document.createElement('div'); c.className = 'card'; c.style.marginTop = '10px'; return c; };
+  const lab = t => { const l = document.createElement('label'); l.className = 'f'; l.textContent = t; return l; };
+  const hint = t => { const h = document.createElement('div'); h.className = 'hint'; h.textContent = t; return h; };
+  const tgl = (label, val, on) => { const d = document.createElement('div'); d.className = 'line'; const sp = document.createElement('span'); sp.textContent = label; const i = document.createElement('input'); i.type = 'checkbox'; i.className = 'tgl'; i.checked = !!val; i.onchange = () => { on(i.checked); save(); }; d.append(sp, i); return d; };
+  // name and members
+  const c1 = card();
+  const ni = document.createElement('input'); ni.type = 'text'; ni.value = g.name || ''; ni.placeholder = 'Group name'; ni.oninput = () => { g.name = ni.value; save(); };
+  c1.append(lab('Name'), ni, lab('Members'));
+  const list = document.createElement('div');
+  g.members.forEach((id, k) => {
+    const c = chars.find(x => x.id === id); if (!c) return;
+    const r = document.createElement('div'); r.className = 'gm-row';
+    const a = document.createElement('span'); a.className = 'av'; setThumb(a, c);
+    const n = document.createElement('div'); n.className = 'gm-name'; n.textContent = c.name;
+    const sm = document.createElement('small'); sm.textContent = `Talkativeness ${Math.round((c.talk ?? .5) * 100)}%${isMuted(g, id) ? ' · muted' : ''}`; n.append(sm);
+    const b = (t, fn, aria) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'gm-b'; x.textContent = t; x.setAttribute('aria-label', aria); x.onclick = () => { fn(); save(); renderGroupSettings(); }; return x; };
+    const mute = document.createElement('input'); mute.type = 'checkbox'; mute.className = 'tgl'; mute.checked = !isMuted(g, id); mute.setAttribute('aria-label', 'Talks on their own');
+    mute.onchange = () => { g.muted = mute.checked ? g.muted.filter(x => x !== id) : [...g.muted, id]; save(); renderGroupSettings(); };
+    r.append(a, n, b('↑', () => { if (k) [g.members[k - 1], g.members[k]] = [g.members[k], g.members[k - 1]]; }, 'Move up'),
+      b('✕', () => { if (g.members.length <= 2) return toast('A group needs at least two characters'); g.members.splice(k, 1); g.muted = g.muted.filter(x => x !== id); ch.charId = g.members[0]; }, 'Remove'), mute);
+    list.append(r);
+  });
+  const add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.textContent = '+ Add a character'; add.style.marginTop = '8px';
+  add.onclick = () => pickChar('Add to the group', c => { if (g.members.includes(c.id)) return toast(`${c.name} is already in it`); g.members.push(c.id); save(); renderGroupSettings(); });
+  c1.append(list, add, hint('The switch: talks on their own (off = muted; tapping them above the text box still makes them talk). ↑ changes the order for List order.'));
+  // reply order
+  const c2 = card();
+  c2.append(lab('Reply order'), seg([['natural', 'Natural'], ['list', 'List'], ['pooled', 'Pooled'], ['manual', 'Manual']], g.order, v => { g.order = v; }),
+    hint({ natural: 'Characters mentioned by name in the last message, plus a roll of each one\'s talkativeness; one of those replies (otherwise someone at random).', list: 'Everyone replies, in the order of the list.', pooled: 'Someone who hasn\'t spoken since your last message replies; when everyone has, someone at random.', manual: 'Nobody replies on their own: tap a character above the text box.' }[g.order]),
+    tgl('Allow self responses', g.self, v => { g.self = v; }), hint('With Natural order: the character who just spoke may reply again when their own name is mentioned.'),
+    tgl('Auto-mode', g.auto, v => { g.auto = v; if (v) groupAuto(cur); }), hint('Characters keep replying to each other, 5 seconds apart, until you start typing.'));
+  // what the AI gets
+  const c3 = card();
+  c3.append(lab('Character cards'), seg([['swap', 'Swap'], ['join', 'Join']], g.mode, v => { g.mode = v; }),
+    hint(g.mode === 'swap' ? 'Only the card of whoever replies goes along (the chat is shared).' : 'Everyone\'s card goes along with every reply. They know each other better, but characters can get confused about who is who, and it costs more tokens.'));
+  if (g.mode === 'join') c3.append(seg([['include', 'Include muted'], ['exclude', 'Exclude muted']], g.joinMuted, v => { g.joinMuted = v; }));
+  const sc = document.createElement('textarea'); sc.value = g.scenario || ''; sc.placeholder = 'Empty: each character uses their own scenario'; sc.oninput = () => { g.scenario = sc.value; store.set('chats', chats); autosize(sc); };
+  c3.append(lab('Group scenario'), sc, hint('Replaces the scenario of every member in this chat.'));
+  pane.replaceChildren(c1, c2, c3);
+  requestAnimationFrame(() => autosizeAll(pane));
+}
+
 // ---------- Vector storage ----------
 // Each exchange (your message + the reply) gets an embedding (a "meaning fingerprint") through OpenRouter, kept per
 // chat as vec_<chatId>. With every message, the newest exchange is compared with the old ones; the closest ones
@@ -7965,7 +8287,7 @@ function vecUnits(hist, c, p) {
   for (let i = 0; i < hist.length; i++) {
     const m = hist[i]; if (m.role !== 'assistant') continue;
     const u = hist[i - 1]?.role === 'user' ? hist[i - 1] : null;
-    const text = [u && `${userName(p)}: ${String(u.content || '').replace(TAG, '').slice(0, 1500)}`, `${cn(c)}: ${String(m.content || '').replace(TAG, '').slice(0, 2000)}`].filter(Boolean).join('\n');
+    const text = [u && `${userName(p)}: ${String(u.content || '').replace(TAG, '').slice(0, 1500)}`, `${cn(speakerChar(m, c))}: ${String(m.content || '').replace(TAG, '').slice(0, 2000)}`].filter(Boolean).join('\n');
     if (text.trim()) out.push({ from: u ? i - 1 : i, to: i, t: u?.t || m.t || 0, text, key: i + '|' + vecHash(text) });
   }
   return out;

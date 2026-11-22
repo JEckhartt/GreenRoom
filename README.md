@@ -29,6 +29,16 @@ The title screen has **Chats**, **Characters**, **Personas**, **Lorebooks**, **A
 - Swipe right-to-left: search in this chat, pinned messages and all images.
 - Tap the character at the top for **Chat settings** (see below).
 
+### Group chats
+
+Chats → + → New group chat: pick two or more characters (the order you tap is the list order), a name and a persona. Every member's first message opens the chat. Each reply is written by one character with their own card; the whole chat goes along with names.
+
+- **Member bar** above the text box: tap a character to make them reply now (even when muted); long press to mute or unmute. **Auto** keeps them talking to each other, 5 seconds apart, until you type.
+- **Chat settings → Group**: name, members (add, remove, reorder, mute), reply order, self responses, auto-mode, Swap or Join character cards, group scenario.
+- **Reply order**: Natural (mentioned by name, plus each character's talkativeness; one replies), List (everyone in order), Pooled (someone who hasn't spoken since your message), Manual (only who you tap).
+- **Talkativeness** is set per character in the editor.
+- Regenerate and Continue use the character who wrote that message. Deleting a character removes them from their groups.
+
 ### Images
 
 With **Enable** on (Settings → Image proxy, or per chat):
