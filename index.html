@@ -7257,9 +7257,11 @@ async function runHelper(mode, original) {
     const pics = (await Promise.all(sent.map(m => idb.get(m.img).catch(() => null)))).filter(Boolean);
     const withPics = pics.length ? [{ type: 'text', text: `${ask}\n\n(Attached: the last ${pics.length === 1 ? 'picture' : pics.length + ' pictures'} ${cn(c)} sent in this chat${pics.length > 1 ? ', oldest first' : ''}.)` },
       ...pics.map(url => ({ type: 'image_url', image_url: { url } }))] : ask;
-    const show = r => { input.value = visible(r); input.dispatchEvent(new Event('input')); };
+    // in a group every message starts with its name; the AI copies that, so "Wyatt:" is taken off
+    const un = userName(p).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), noName = t => t.replace(new RegExp('^\\s*\\**\\s*' + un + '\\s*(?::\\s*\\**|\\**\\s*:)\\s*', 'i'), '');
+    const show = r => { input.value = noName(visible(r)); input.dispatchEvent(new Event('input')); };
     const text = await streamChat([...base, { role: 'user', content: withPics }], show), note = '';
-    input.value = visible(text, true).replace(/^\s*\[[^\]]*\]\s*/, ''); input.dispatchEvent(new Event('input'));
+    input.value = noName(visible(text, true).replace(/^\s*\[[^\]]*\]\s*/, '')); input.dispatchEvent(new Event('input'));
     $('helpState').textContent = (mode === 'enhance' ? 'Enhanced by AI' : 'Written by AI') + note;
   } catch (e) {
     input.value = original; input.dispatchEvent(new Event('input'));
@@ -8097,7 +8099,7 @@ function groupSync(s) {
   s.c = (last && chars.find(x => x.id === last.char)) || chars.find(x => x.id === s.chat.group.members[0]) || s.c;
   s.chat.charId = s.c.id; store.set('chats', chats);
 }
-const stripName = (t, c) => { for (const n of [cn(c), c.name]) { const re = new RegExp('^\\s*\\**' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\**\\s*:\\s*', 'i'); if (re.test(t)) return t.replace(re, ''); } return t; };
+const stripName = (t, c) => { for (const n of [cn(c), c.name]) { const re = new RegExp('^\\s*\\**\\s*' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(?::\\s*\\**|\\**\\s*:)\\s*', 'i'); if (re.test(t)) return t.replace(re, ''); } return t; };
 // In a group: who else is there; with Join character cards, everyone's card
 function groupSection(c, p, chat) {
   const g = chat.group, f = t => fill((t || '').trim(), c, p);
