@@ -2385,12 +2385,20 @@ let following = false, holdFollow = false; // holdFollow: you scrolled away duri
 const startFollow = () => { if (holdFollow) return; following = true; scrollDown(); }; // a new reply always starts at the end
 // You take over as soon as you touch the chat: checked at touchstart, because during a fade-in the text under
 // your finger is rebuilt and later touchmove events then come from a removed element (outside #scroller)
-let touching = false;
-for (const ev of ['touchstart', 'touchmove', 'wheel']) document.addEventListener(ev, e => { if (e.target.closest?.('#scroller')) { following = false; if (ev !== 'wheel') touching = true; } }, { passive: true });
-// Back at the bottom while a reply is still being written: it follows again (like a chat app)
+let touching = false, swiped = false, lastTop = 0;
+for (const ev of ['touchstart', 'touchmove', 'wheel']) document.addEventListener(ev, e => {
+  if (!e.target.closest?.('#scroller')) return;
+  following = false;
+  if (ev === 'touchstart') { touching = true; swiped = false; } else if (ev === 'touchmove') swiped = true;
+}, { passive: true });
+// Back at the bottom while a reply is still being written: it follows again (like a chat app). Only when you
+// scroll DOWN to the end, or tap without swiping there; a flick upwards that starts near the bottom stays free
 const refollow = () => { if (busy && !following && nearBottom()) { following = true; holdFollow = false; } };
-for (const ev of ['touchend', 'touchcancel']) document.addEventListener(ev, () => { if (!touching) return; touching = false; refollow(); }, { passive: true });
-$('scroller').addEventListener('scroll', () => { if (!touching) refollow(); }, { passive: true });
+for (const ev of ['touchend', 'touchcancel']) document.addEventListener(ev, () => { if (!touching) return; touching = false; if (!swiped) refollow(); }, { passive: true });
+$('scroller').addEventListener('scroll', () => {
+  const t = $('scroller').scrollTop, down = t > lastTop + 1; lastTop = t;
+  if (!touching && down) refollow();
+}, { passive: true });
 const follow = () => { if (following) scrollDown(); };
 // Error notes go away once you try again or pick another proxy
 const clearErrs = () => { for (const n of $('log').querySelectorAll('.msg.err')) n.remove(); };
