@@ -2265,7 +2265,7 @@ const SENDS_IMG = new RegExp([
 ].join('|'), 'i');
 const replySendsImage = t => !!t && SENDS_IMG.test(t);
 const IMG_NOTE = '\n\n[Note from the app: the user is asking for a picture. Reply in character and end your message with [[image: detailed English description of the picture]].]';
-async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
+async function buildMessages(c, p, hist, memory, chat = cur?.chat, opts = {}) {
   // images off: no pictures go to the AI, only a note that one was attached
   const withImg = imagesOn(chat) ? hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES) : [];
   const msgs = [];
@@ -2335,10 +2335,12 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat) {
       if (Array.isArray(x.content)) x.content = x.content.map(y => y.type === 'text' ? { ...y, text: pre + y.text } : y);
       else x.content = pre + (x.content || '');
     });
+    if (opts.nudge !== false) {
     const nudge = `[Write the next reply only as ${cn(c)}. Do not write for ${userName(p)} or the other characters, and do not start with a name.]`;
     const last = msgs.at(-1);
     if (last?.role === 'user') { if (Array.isArray(last.content)) last.content.push({ type: 'text', text: '\n\n' + nudge }); else last.content += '\n\n' + nudge; }
     else msgs.push({ role: 'user', content: !hist.length && chat.group.opening !== false ? groupOpeningAsk(c, p, chat) : nudge });
+    }
   }
   // Vector storage: moments from long ago that fit the newest messages (only ones the AI no longer sees)
   if (chat && vecOnFor(chat) && hist.length > 4) {
@@ -3065,7 +3067,7 @@ async function continueReply(i) {
   bubble.querySelector('.alts')?.remove();
   try {
     const ask = '[Continue your last message exactly where it stopped. Do not repeat anything you already wrote and do not start over; write only what comes next.]';
-    const messages = [...await buildMessages(s.c, s.p, hist.slice(0, i + 1), s.chat.memory), { role: 'user', content: ask }];
+    const messages = [...await buildMessages(s.c, s.p, hist.slice(0, i + 1), s.chat.memory, s.chat, { nudge: false }), { role: 'user', content: ask }];
     clearErrs(); startFollow();
     // follows How new messages appear, like a new reply: live, shown when finished, or faded in word by word
     const mode = document.body.dataset.anim;
@@ -3361,14 +3363,15 @@ async function anotherReply(i, bubble, direction = '') {
   bubble.querySelector('.alts')?.remove(); bubble.querySelector('figure')?.remove();
   setText(bubble, '');
   try {
-    const messages = i === 0
-      ? [...await buildMessages(s.c, s.p, [], s.chat.memory), { role: 'user', content: direction
+    const messages = i === 0 && s.chat.group && !direction ? await buildMessages(s.c, s.p, [], s.chat.memory)
+      : i === 0
+      ? [...await buildMessages(s.c, s.p, [], s.chat.memory, s.chat, { nudge: false }), { role: 'user', content: direction
           ? `[Rewrite ${cn(s.c)}'s opening message to start the roleplay with ${userName(s.p)}. The current version:\n\n${m.content}\n\nWhat to change: ${direction}${openingTime(s.chat)}\n\nStay fully in character. Reply with the new message only.]`
           : openingAsk(s.c, s.p) }]
       : await buildMessages(s.c, s.p, hist.slice(0, i), s.chat.memory);
     await aiTurn(s, hist, messages, bubble, m);
   } catch (e) { if (!isAbort(e) && cur?.chat.id === s.chat.id) toast('Could not write another reply: ' + e.message); }
-  finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); }
+  finally { setBusy(false); groupSync(s); if (cur?.chat.id === s.chat.id) render(); }
 }
 
 async function writeOpening() {
@@ -3419,7 +3422,7 @@ function settleScroll(id) {
 }
 function openChat(id) {
   const chat = chats.find(x => x.id === id);
-  if (chat?.group) { chat.group.members = chat.group.members.filter(m => chars.some(c => c.id === m)); if (chat.group.members.length) chat.charId = chat.group.members[0]; }
+  if (chat?.group) { chat.group.members = chat.group.members.filter(m => chars.some(c => c.id === m)); if (chat.group.members.length && !chat.group.members.includes(chat.charId)) chat.charId = chat.group.members[0]; }
   const c = chat && chars.find(x => x.id === chat.charId);
   if (!c) return;
   deliverReach();
@@ -3459,7 +3462,7 @@ function renderChatHead() {
   const pn = p?.name || chat.personaName, g = chat.group;
   $('chatName').textContent = g ? (g.name || 'Group chat') : cn(c);
   $('chatAs').textContent = g ? `${g.members.length} characters${pn ? ' · as ' + pn : ''}` : pn ? 'as ' + pn : '';
-  setThumb($('chatAv'), g ? (chars.find(x => x.id === g.members[0]) || c) : c);
+  setThumb($('chatAv'), g ? { name: g.name || 'Group' } : c);
   $('chatProfile').hidden = !!g;
   renderGroupBar();
 }
@@ -7232,8 +7235,10 @@ $('hpSave').onclick = $('hpSave2').onclick = () => {
 async function runHelper(mode, original) {
   if (busy || !cur || !ready()) return;
   if (mode === 'enhance' && !original.trim()) return toast('Type something to enhance first');
-  const s = cur, { c, p } = s;
-  const task = fill(mode === 'enhance' ? cfg.enhancePrompt : cfg.writePrompt, c, p);
+  const s = cur; groupSync(s);
+  const { c, p } = s, g = s.chat.group;
+  const task = fill(mode === 'enhance' ? cfg.enhancePrompt || HELP_DEFAULTS.enhancePrompt : cfg.writePrompt || HELP_DEFAULTS.writePrompt, c, p)
+    + (g ? ` This is a group chat with ${g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn).join(', ')}: write nothing any of them say or do.` : '');
   const ask = mode === 'enhance'
     ? `[Out of character. ${task}\nReply with the rewritten message only.]\n\n${original}`
     : `[Out of character. ${task}${original.trim() ? `\nUse this as the idea for the message: ${original.trim()}` : ''}\nReply with ${userName(p)}'s message only.]`;
@@ -7244,7 +7249,7 @@ async function runHelper(mode, original) {
   try {
     // The chat so far goes along (your own pictures included); the character's pictures are added
     // as real images too, so the AI can see what was sent
-    const base = await buildMessages(c, p, history, s.chat.memory);
+    const base = await buildMessages(c, p, history, s.chat.memory, s.chat, { nudge: false });
     const sent = imagesOn() ? history.filter(m => m.role === 'assistant' && m.img).slice(-SEND_IMAGES) : [];
     const pics = (await Promise.all(sent.map(m => idb.get(m.img).catch(() => null)))).filter(Boolean);
     const withPics = pics.length ? [{ type: 'text', text: `${ask}\n\n(Attached: the last ${pics.length === 1 ? 'picture' : pics.length + ' pictures'} ${cn(c)} sent in this chat${pics.length > 1 ? ', oldest first' : ''}.)` },
@@ -8079,6 +8084,14 @@ setTimeout(resumeStories, 3000);
 // One character writes per reply (m.char), with its own card; the shared chat goes along with names.
 const GROUP_DEFAULTS = { name: '', members: [], muted: [], order: 'natural', mode: 'swap', joinMuted: 'include', self: false, auto: false, scenario: '', scenIncl: [], opening: true };
 const isMuted = (g, id) => g.muted?.includes(id);
+// In a group, the "current" character (Write for me, pictures, …) is whoever spoke last
+function groupSync(s) {
+  if (!s?.chat.group) return;
+  const h = cur?.chat.id === s.chat.id ? history : msgGet(s.chat.id);
+  const last = [...h].reverse().find(m => m.role === 'assistant' && s.chat.group.members.includes(m.char));
+  s.c = (last && chars.find(x => x.id === last.char)) || chars.find(x => x.id === s.chat.group.members[0]) || s.c;
+  s.chat.charId = s.c.id; store.set('chats', chats);
+}
 const stripName = (t, c) => { for (const n of [cn(c), c.name]) { const re = new RegExp('^\\s*\\**' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\**\\s*:\\s*', 'i'); if (re.test(t)) return t.replace(re, ''); } return t; };
 // In a group: who else is there; with Join character cards, everyone's card
 function groupSection(c, p, chat) {
@@ -8108,14 +8121,16 @@ function pickSpeakers(chat, hist) {
   // natural: mentions (whole words of the name), then talkativeness, then one at random from those
   const text = String(last?.content || '');
   const words = c => [...new Set([...(c.name || '').split(/\s+/), ...(c.chatName || '').split(/\s+/)].map(w => w.replace(/[^\p{L}\p{N}'-]/gu, '')).filter(w => w.length > 1))];
-  const act = new Set();
+  const mentioned = [];
   for (const id of live) {
     const c = chars.find(x => x.id === id);
     if (id === lastSpeaker && !g.self) continue;
-    if (words(c).some(w => new RegExp(`(^|[^\\p{L}\\p{N}])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[^\\p{L}\\p{N}])`, 'iu').test(text))) act.add(id);
+    const at = Math.min(...words(c).map(w => text.search(new RegExp(`(^|[^\\p{L}\\p{N}])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[^\\p{L}\\p{N}])`, 'iu'))).filter(x => x >= 0));
+    if (isFinite(at)) mentioned.push({ id, at });
   }
-  for (const id of live) { if (id === lastSpeaker && !g.self) continue; if (Math.random() < (chars.find(x => x.id === id).talk ?? 0.5)) act.add(id); }
-  if (act.size) return [rnd([...act])];
+  if (mentioned.length) return mentioned.sort((a, b) => a.at - b.at).map(x => x.id);
+  const act = live.filter(id => (id !== lastSpeaker || g.self) && Math.random() < (chars.find(x => x.id === id).talk ?? 0.5));
+  if (act.length) return [rnd(act)];
   const others = live.filter(id => id !== lastSpeaker);
   return [rnd(others.length ? others : live)];
 }
@@ -8142,8 +8157,10 @@ async function groupRun(s, hist, ids) {
       break;
     }
   }
-  s.c = chars.find(x => x.id === s.chat.group.members[0]) || s.c;
+  groupSync(s);
   renderGroupBar();
+  // the reply buttons were made while busy: build them again, enabled
+  if (cur?.chat.id === s.chat.id) { busy = false; render(); busy = true; }
 }
 // Auto-mode: 5 seconds after the last reply the next one writes, until you start typing
 let groupAutoTimer = null;
