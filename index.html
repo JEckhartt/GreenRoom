@@ -3457,6 +3457,7 @@ function startChat() {
 }
 function renderChatHead() {
   const { chat, c, p } = cur;
+  if (chat.group && chat.title) { chat.group.name = chat.title; delete chat.title; store.set('chats', chats); }
   const pn = p?.name || chat.personaName, g = chat.group;
   $('chatName').textContent = g ? (g.name || 'Group chat') : cn(c);
   $('chatAs').textContent = g ? `${g.members.length} characters${pn ? ' · as ' + pn : ''}` : pn ? 'as ' + pn : '';
@@ -8081,6 +8082,8 @@ saveStories();
 setTimeout(resumeStories, 3000);
 
 // ---------- Group chats (like SillyTavern) ----------
+// groups renamed with the old Rename: that title becomes the group's name
+{ let n = 0; for (const ch of chats) if (ch.group && ch.title) { ch.group.name = ch.title; delete ch.title; n++; } if (n) store.set('chats', chats); }
 // chat.group = { name, members: [charId], muted: [charId], order: natural|list|pooled|manual, mode: swap|join,
 // joinMuted: include|exclude, self: allow self responses, auto: auto-mode, scenario: replaces the members' scenarios }.
 // One character writes per reply (m.char), with its own card; the shared chat goes along with names.
@@ -8215,7 +8218,6 @@ function renderGroupBar(talking = null) {
   })());
 }
 function groupChatRow(ch) {
-  if (ch.title) { ch.group.name = ch.title; delete ch.title; store.set('chats', chats); } // renamed before: that becomes the group's name
   const g = ch.group, first = chars.find(x => x.id === g.members[0]);
   const row = document.createElement('div'); row.className = 'crow';
   const go = document.createElement('button'); go.type = 'button'; go.className = 'go';
