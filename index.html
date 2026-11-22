@@ -262,6 +262,7 @@
   .gm-row button.gm-b { background: none; border: 1px solid var(--line); border-radius: 8px; width: 30px; height: 30px; color: var(--ink); cursor: pointer; font: inherit; }
   .grp-face { position: relative; }
   .gs-row { align-items: flex-start; }
+  .gt-row input[type=range] { width: 100%; margin: 4px 0 0; }
   .gs-text { display: -webkit-box !important; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
   .gs-text.open { -webkit-line-clamp: unset; }
   .vec-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
@@ -1306,9 +1307,6 @@
         <summary>Example dialogue <span style="font-weight:400">(optional)</span></summary>
         <textarea id="edEx" placeholder="{{user}}: Hi.&#10;{{char}}: …"></textarea>
         <div class="hint">Shows the AI how the character talks. Not part of the conversation.</div>
-        <label class="f" for="edTalk">Talkativeness in group chats <span id="edTalkV" style="font-weight:400;color:var(--ink-soft)"></span></label>
-        <input type="range" id="edTalk" min="0" max="100" step="5" value="50">
-        <div class="hint">0% shy: speaks only when mentioned. 100% chatty: always replies. With Natural order in a group chat.</div>
       </details>
     </div>
     <div class="card" id="edCounts" style="margin-top:12px;font-size:14px"></div>
@@ -4345,7 +4343,6 @@ function openEditor(kind, id) {
   $('edFirst').value = edit.greets[0]; renderTabs();
   $('edAiFirst').checked = !!it?.aiFirst;
   $('edEx').value = it?.examples || '';
-  $('edTalk').value = Math.round((it?.talk ?? 0.5) * 100); $('edTalkV').textContent = $('edTalk').value + '%';
   syncFirst();
   autosizeAll($('editor'));
   setThumb($('edThumb'), it || { name: '+' }); if (!it) $('edThumb').textContent = '+';
@@ -4483,7 +4480,7 @@ async function saveEditor() {
   it.personality = $('edPers').value.trim();
   if (edit.kind === 'char') {
     Object.assign(it, { description: isHtml($('edDesc').value) ? sanitizeHtml($('edDesc').value) : $('edDesc').value.trim(), scenario: $('edScen').value.trim(),
-      chatName: $('edChatName').value.trim(), aiFirst: $('edAiFirst').checked, examples: $('edEx').value.trim(), talk: +$('edTalk').value / 100 });
+      chatName: $('edChatName').value.trim(), aiFirst: $('edAiFirst').checked, examples: $('edEx').value.trim() });
     edit.greets[edit.gi] = $('edFirst').value;
     it.firstMessages = edit.greets.map(g => g.trim()).filter(Boolean);
     delete it.firstMessage;
@@ -6257,7 +6254,6 @@ $('csAutoPics').onchange = () => {
   store.set('chats', chats); render();
 };
 $('csCtx').oninput = () => { if (!cur) return; cur.chat.contextSize = $('csCtx').value.trim(); store.set('chats', chats); };
-$('edTalk').oninput = () => { $('edTalkV').textContent = $('edTalk').value + '%'; };
 $('csVec').onchange = () => { if (!cur) return; cur.chat.vec = $('csVec').checked; store.set('chats', chats); syncVecState(); };
 $('csCardRepeat').onchange = () => { if (!cur) return; cur.chat.cardRepeat = $('csCardRepeat').checked; store.set('chats', chats); };
 $('csRealTime').onchange = () => { if (!cur) return; if ($('csRealTime').checked) cur.chat.realTime = true; else delete cur.chat.realTime; store.set('chats', chats); };
@@ -8129,7 +8125,7 @@ function pickSpeakers(chat, hist) {
     if (isFinite(at)) mentioned.push({ id, at });
   }
   if (mentioned.length) return mentioned.sort((a, b) => a.at - b.at).map(x => x.id);
-  const act = live.filter(id => (id !== lastSpeaker || g.self) && Math.random() < (chars.find(x => x.id === id).talk ?? 0.5));
+  const act = live.filter(id => (id !== lastSpeaker || g.self) && Math.random() < (g.talk?.[id] ?? 0.5));
   if (act.length) return [rnd(act)];
   const others = live.filter(id => id !== lastSpeaker);
   return [rnd(others.length ? others : live)];
@@ -8283,7 +8279,7 @@ function renderGroupSettings() {
     const r = document.createElement('div'); r.className = 'gm-row';
     const a = document.createElement('span'); a.className = 'av'; setThumb(a, c);
     const n = document.createElement('div'); n.className = 'gm-name'; n.textContent = c.name;
-    const sm = document.createElement('small'); sm.textContent = `Talkativeness ${Math.round((c.talk ?? .5) * 100)}%${isMuted(g, id) ? ' · muted' : ''}`; n.append(sm);
+    if (isMuted(g, id)) { const sm = document.createElement('small'); sm.textContent = 'Muted'; n.append(sm); }
     const b = (t, fn, aria) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'gm-b'; x.textContent = t; x.setAttribute('aria-label', aria); x.onclick = () => { fn(); save(); renderGroupSettings(); }; return x; };
     const mute = document.createElement('input'); mute.type = 'checkbox'; mute.className = 'tgl'; mute.checked = !isMuted(g, id); mute.setAttribute('aria-label', 'Talks on their own');
     mute.onchange = () => { g.muted = mute.checked ? g.muted.filter(x => x !== id) : [...g.muted, id]; save(); renderGroupSettings(); };
@@ -8297,7 +8293,17 @@ function renderGroupSettings() {
   // reply order
   const c2 = card();
   c2.append(lab('Reply order'), seg([['natural', 'Natural'], ['list', 'List'], ['pooled', 'Pooled'], ['manual', 'Manual']], g.order, v => { g.order = v; }),
-    hint({ natural: 'Characters mentioned by name in the last message, plus a roll of each one\'s talkativeness; one of those replies (otherwise someone at random).', list: 'Everyone replies, in the order of the list.', pooled: 'Someone who hasn\'t spoken since your last message replies; when everyone has, someone at random.', manual: 'Nobody replies on their own: tap a character above the text box.' }[g.order]),
+    hint({ natural: 'Everyone mentioned by name in the last message replies, in that order. Nobody mentioned: one character, picked by their talkativeness below (otherwise someone at random).', list: 'Everyone replies, in the order of the list.', pooled: 'Someone who hasn\'t spoken since your last message replies; when everyone has, someone at random.', manual: 'Nobody replies on their own: tap a character above the text box.' }[g.order]),
+    ...(g.order === 'natural' ? [lab('Talkativeness in this group'), ...g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(c => {
+      const r = document.createElement('div'); r.className = 'gm-row gt-row';
+      const a = document.createElement('span'); a.className = 'av'; setThumb(a, c);
+      const n = document.createElement('div'); n.className = 'gm-name'; n.textContent = c.name;
+      const v = document.createElement('small'), sl = document.createElement('input');
+      sl.type = 'range'; sl.min = 0; sl.max = 100; sl.step = 5; sl.value = Math.round((g.talk?.[c.id] ?? .5) * 100); sl.setAttribute('aria-label', `${c.name}'s talkativeness`);
+      const show = () => { v.textContent = `${sl.value}%${+sl.value === 0 ? ' · only when mentioned' : +sl.value === 100 ? ' · always wants to talk' : ''}`; };
+      sl.oninput = () => { g.talk = { ...(g.talk || {}), [c.id]: +sl.value / 100 }; show(); store.set('chats', chats); };
+      show(); n.append(v, sl); r.append(a, n); return r;
+    }), hint('Only for this group chat.')] : []),
     tgl('Allow self responses', g.self, v => { g.self = v; }), hint('With Natural order: the character who just spoke may reply again when their own name is mentioned.'),
     tgl('Auto-mode', g.auto, v => { g.auto = v; if (v) groupAuto(cur); }), hint('Characters keep replying to each other, 5 seconds apart, until you start typing.'));
   // what the AI gets
