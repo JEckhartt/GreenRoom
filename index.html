@@ -7832,7 +7832,7 @@ SUMMARY: ten to fifteen sentences about everything that has happened in the stor
 }
 async function makeStoryCover(meta, s, body) {
   const r = await peopleRefs(s);
-  const prompt = `A book cover illustration for the novel "${meta.title}". Story: ${body.summary || 'see the characters'}\nShow a striking scene or the main character${s.p ? 's' : ''} in a way that captures the mood of the story, composed as a book cover with space near the top for a title. Do not write any text, letters or title on the image.`;
+  const prompt = `The cover image for the novel "${meta.title}"${meta.style ? ', in exactly the style given above' : ''}. Story: ${body.summary || 'see the characters'}\nShow a striking scene or the main character${s.p ? 's' : ''} in a way that captures the mood of the story, composed as a book cover with space near the top for a title${meta.style ? ' (the style decides the look: a photo style means a real photograph, not a drawing)' : ''}. Do not write any text, letters or title on the image.`;
   const src = await generateImage(prompt + '\nFormat: a portrait-orientation book cover with a 2:3 aspect ratio.', { list: r.list }, meta.style ? `Style: ${meta.style}` : '', r.about, '2:3');
   await idb.put('cover_' + meta.id, src);
 }
@@ -8089,6 +8089,7 @@ function rdWhere() {
     const dx = e.clientX - x0, dy = e.clientY - y0;
     if (rdPrefs.mode === 'pages' && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) return rdGo(rd.page + (dx < 0 ? 1 : -1));
     if (Math.hypot(dx, dy) > 10 || Date.now() - t0 > 500) return;
+    const pic = e.target.closest?.('.rd-cover img'); if (pic) return openLightbox(pic.src); // the cover, full screen
     const w = stage.clientWidth, x = e.clientX - stage.getBoundingClientRect().left;
     if (rdPrefs.mode === 'pages' && x < w * .28) return rdGo(rd.page - 1);
     if (rdPrefs.mode === 'pages' && x > w * .72) return rdGo(rd.page + 1);
