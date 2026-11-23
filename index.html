@@ -2246,17 +2246,24 @@ function keyHit(text, key) {
   return new RegExp(`(^|[^\\p{L}\\p{N}])${escRe(key)}($|[^\\p{L}\\p{N}])`, 'iu').test(text);
 }
 // Entries whose keywords appear in the recent messages (or that are always on)
+// What triggered in the last request (shown in What was sent): { book, title, key, where, skipped }
+let lastLoreHits = [];
 function loreFor(c, p, chat, hist) {
   const out = [], seen = new Set(); let used = 0;
+  lastLoreHits = [];
   for (const b of activeBooks(c, chat)) {
-    const text = hist.slice(-(b.depth || 4)).map(m => m.content || '').join('\n');
+    const recent = hist.slice(-(b.depth || 4)), text = recent.map(m => m.content || '').join('\n');
     for (const e of b.entries || []) {
       if (e.on === false || !e.content?.trim() || seen.has(e.id)) continue;
-      const hit = e.always || (e.keys || '').split(',').some(k => keyHit(text, k));
-      if (!hit) continue;
+      const key = e.always ? '' : (e.keys || '').split(',').map(k => k.trim()).find(k => k && keyHit(text, k));
+      if (!e.always && !key) continue;
+      // where the keyword was found: the newest message that has it
+      const m = key ? [...recent].reverse().find(x => keyHit(String(x.content || ''), key)) : null;
+      const where = e.always ? 'always on' : m?.role === 'user' ? 'your message' : m ? `${cn(speakerChar(m, c))}'s reply` : 'recent messages';
       const t = fill(e.content.trim(), c, p), cost = t.length / 4;
-      if (used + cost > LORE_BUDGET) continue;
+      if (used + cost > LORE_BUDGET) { lastLoreHits.push({ book: b.name, title: e.title || 'Untitled entry', key, where, skipped: true }); continue; }
       used += cost; seen.add(e.id); out.push(t);
+      lastLoreHits.push({ book: b.name, title: e.title || 'Untitled entry', key, where });
     }
   }
   return out.join('\n\n');
@@ -3075,7 +3082,7 @@ function logSent(target, info) { sentLog.set(target, info); while (sentLog.size 
 async function aiTurn(s, hist, messages, bubble, into) {
   const here = () => cur?.chat.id === s.chat.id;
   const pr = proxyFor('chat', s.chat);
-  const sent = { messages, proxy: pr.name || 'Proxy', model: api(s.chat).model, prompt: promptNameFor(s.chat), at: Date.now() };
+  const sent = { messages, proxy: pr.name || 'Proxy', model: api(s.chat).model, prompt: promptNameFor(s.chat), at: Date.now(), lore: lastLoreHits };
   const via = turnOverride ? `${pr.name || 'Proxy'} · ${promptNameFor(s.chat)}` : '';
   clearErrs(); startFollow();
   // How new messages appear: Slide up = you watch it being written; Appear / Fade in = written out of sight
@@ -3272,9 +3279,9 @@ function showMsgMenu(el, anchor = el, onImage = false, at = null) {
   const regen = imagesOn() && (m.role === 'assistant' || m.imgPrompt);
   // '|' starts a new group
   const acts = onImage ? [...(regen ? [['imgregen', 'Regenerate image']] : []), '|', ['imgdel', 'Delete image']]
-    : m.role === 'user' ? [['copy', 'Copy'], ['edit', 'Edit'], ['resend', 'Resend'], '|', pin, branch, '|', ['delete', 'Delete']]
+    : m.role === 'user' ? [['copy', 'Copy'], ['edit', 'Edit'], ['resend', 'Resend'], '|', pin, branch, ['npc', 'Make a character…'], '|', ['delete', 'Delete']]
     : [['copy', 'Copy'], ['aedit', 'Edit'], '|', ['other', 'Version with…'], ...(i === 0 ? [['direct', 'Rewrite with a prompt']] : []), ...(imagesOn() ? [['image', 'Create image']] : []), '|',
-       pin, branch, ['sent', 'What was sent'], '|', ['delete', 'Delete']];
+       pin, branch, ['sent', 'What was sent'], ['npc', 'Make a character…'], '|', ['delete', 'Delete']];
   const box = $('msgMenu'); box.innerHTML = '';
   for (const it of acts) {
     if (it === '|') { if (box.lastChild && !box.lastChild.classList.contains('sep')) { const d = document.createElement('div'); d.className = 'sep'; box.append(d); } continue; }
@@ -3336,6 +3343,7 @@ $('msgMenu').onclick = e => {
   if (act === 'direct') directOpening(el);
   if (act === 'aedit') editReply(el, i);
   if (act === 'sent') openSent(i);
+  if (act === 'npc') npcMenu(i);
   if (act === 'other') versionWith(i, el);
   if (act === 'imgdel') deleteImage(i);
   if (act === 'imgregen') m.role === 'user' ? regenUserImage(i) : imageForReply(i, true);
@@ -4880,6 +4888,27 @@ function askImageStyle() {
   cfg.lastImgStyle = v.trim(); saveCfg();
   return v.trim();
 }
+// Opens the character editor filled with a generated card (generator, or a side character from a chat)
+function fillGenerated(c, img = null) {
+  openEditor('char');
+  $('edName').value = c.name || ''; $('edChatName').value = c.chatName || '';
+  $('edDesc').value = c.description || ''; descLoad(); $('edPers').value = c.personality || '';
+  $('edScen').value = c.scenario || ''; $('edEx').value = Array.isArray(c.examples) ? c.examples.join('\n') : (c.examples || '');
+  const gs = (Array.isArray(c.firstMessages) ? c.firstMessages : [c.firstMessages || c.firstMessage]).filter(x => typeof x === 'string' && x.trim());
+  edit.greets = gs.length ? gs : ['']; edit.gi = 0; $('edFirst').value = edit.greets[0]; renderTabs();
+  syncFirst(); autosizeAll($('editor')); renderCounts();
+  if (img) { edit.img = img; const th = $('edThumb'); th.style.backgroundImage = `url("${img}")`; th.textContent = ''; $('edNoImg').hidden = $('edFrame').hidden = false; edit.frame = null; }
+}
+// The JSON keys both ask for
+const GEN_KEYS = `Reply with only a JSON object (no markdown fences) with these keys, each holding the filled-in text of that part of the template (without the field heading itself), with line breaks as \\n:
+"name": the full name,
+"chatName": a short name used in the chat (first name or nickname),
+"description": the public description part,
+"personality": the personality field part,
+"scenario": the scenario field part,
+"firstMessages": an array with the first message field part (add a second, different opening only if the template asks for more than one),
+"examples": the example dialogue field part,
+"appearance": one paragraph in English describing only how the character looks and the art style, for an image generator.`;
 $('genGo').onclick = async () => {
   const idea = $('genIdea').value.trim();
   if (!idea) return toast('Describe the character first');
@@ -4901,15 +4930,7 @@ END OF TEMPLATE
 Length: the personality, scenario and example dialogue together must stay between about 1,000 and 2,000 tokens (roughly 750 to 1,500 words). Keep the example dialogue short if that's needed to stay in range; the personality comes first.
 Opening messages: write every first message in third person limited, from {{char}}'s point of view: only what {{char}} sees, hears, thinks and feels; never {{user}}'s thoughts, feelings or actions.
 
-Reply with only a JSON object (no markdown fences) with these keys, each holding the filled-in text of that part of the template (without the field heading itself), with line breaks as \\n:
-"name": the full name,
-"chatName": a short name used in the chat (first name or nickname),
-"description": the public description part,
-"personality": the personality field part,
-"scenario": the scenario field part,
-"firstMessages": an array with the first message field part (add a second, different opening only if the template asks for more than one),
-"examples": the example dialogue field part,
-"appearance": one paragraph in English describing only how the character looks and the art style, for an image generator.`;
+${GEN_KEYS}`;
     const out = await streamChat([
       { role: 'system', content: 'You design characters for a roleplay chat app. You always answer with a single valid JSON object and nothing else.' },
       { role: 'user', content: ask },
@@ -4924,14 +4945,7 @@ Reply with only a JSON object (no markdown fences) with these keys, each holding
       catch (e) { if (isAbort(e)) throw e; toast('Picture failed: ' + e.message); }
     }
     $('gen').classList.remove('open');
-    openEditor('char');
-    $('edName').value = c.name || ''; $('edChatName').value = c.chatName || '';
-    $('edDesc').value = c.description || ''; descLoad(); $('edPers').value = c.personality || '';
-    $('edScen').value = c.scenario || ''; $('edEx').value = Array.isArray(c.examples) ? c.examples.join('\n') : (c.examples || '');
-    const gs = (Array.isArray(c.firstMessages) ? c.firstMessages : [c.firstMessages || c.firstMessage]).filter(x => typeof x === 'string' && x.trim());
-    edit.greets = gs.length ? gs : ['']; edit.gi = 0; $('edFirst').value = edit.greets[0]; renderTabs();
-    syncFirst(); autosizeAll($('editor')); renderCounts();
-    if (img) { edit.img = img; const th = $('edThumb'); th.style.backgroundImage = `url("${img}")`; th.textContent = ''; $('edNoImg').hidden = $('edFrame').hidden = false; edit.frame = null; }
+    fillGenerated(c, img);
     $('genIdea').value = ''; status.textContent = '';
     toast(`Here is ${c.name || 'your character'}. Change anything you like, then Save.`);
   } catch (e) {
@@ -8062,6 +8076,71 @@ function storyMenu(st) {
   ]);
 }
 
+// ---------- A side character from the chat becomes a character card ----------
+// Long press a message → Make a character…: pick a name found in it (or type one). Every message in the chat that
+// mentions them (with the one before it, for context) goes to the AI with your generator template.
+const NPC_STOP = new Set('The A An And But Or So If Then When While What Who Why How Where This That These Those He She His Her Hers Him It Its They Them Their We Our You Your I Me My Mine Not No Yes Oh Okay Ok Well Just Still Even Only Also Maybe Now Here There Hey Hi God Jesus Christ Fuck Shit Damn Mr Mrs Ms Dr Sir Ma Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December One Two Three Four Five Six Seven Eight Nine Ten Every Some Any All Both Each Another Something Nothing Everything Anything Someone Nobody Everyone Because After Before Until Again Never Always Like Yeah Nah Look Come Let Get Go Tell Said Says Okay'.split(' '));
+function npcCandidates(text) {
+  const own = new Set([...chars.flatMap(c => [c.name, c.chatName]), ...personas.map(p => p.name)].filter(Boolean).flatMap(n => [n.toLowerCase(), ...n.toLowerCase().split(/\s+/)]));
+  const found = new Map();
+  for (const m of String(text).matchAll(/\b[A-Z][a-z'’]+(?:\s[A-Z][a-z'’]+)?\b/g)) {
+    const n = m[0].replace(/['’]s$/, '').trim(), first = n.split(' ')[0];
+    if (NPC_STOP.has(first) || own.has(n.toLowerCase()) || own.has(first.toLowerCase()) || n.length < 3) continue;
+    found.set(n, 0);
+  }
+  for (const n of found.keys()) found.set(n, history.filter(x => keyHit(String(x.content || ''), n)).length);
+  return [...found].filter(([, k]) => k >= 1).sort((a, b) => b[1] - a[1]).slice(0, 6);
+}
+function npcMenu(i) {
+  const m = history[i]; if (!m || !cur) return;
+  const cands = npcCandidates(m.content || '');
+  showSheet('Make a character from…', [
+    ...cands.map(([n, k]) => ({ label: `${n} (${k} message${k === 1 ? '' : 's'})`, onClick: () => npcToChar(n) })),
+    { label: 'Another name…', onClick: () => setTimeout(() => { const n = prompt('Name of the side character'); if (n?.trim()) npcToChar(n.trim()); }, 250) },
+  ]);
+}
+async function npcToChar(name) {
+  if (busy || !cur || !ready()) return;
+  const s = cur, hits = [];
+  history.forEach((m, k) => { if (keyHit(String(m.content || ''), name)) { if (k && !hits.includes(k - 1)) hits.push(k - 1); if (!hits.includes(k)) hits.push(k); } });
+  if (!hits.length) return toast(`${name} isn't mentioned in this chat`);
+  // up to ~40,000 characters: the first meeting, the latest, and an even spread between
+  const line = k => `${history[k].role === 'user' ? userName(s.p) : cn(speakerChar(history[k], s.c))}: ${String(history[k].content || '').replace(TAG, '')}`;
+  let pick = hits, size = () => pick.reduce((n, k) => n + line(k).length, 0);
+  while (size() > 40000 && pick.length > 4) { const keep = new Set([pick[0], pick[1], pick.at(-2), pick.at(-1)]); pick = pick.filter((k, j) => keep.has(k) || j % 2 === 0); }
+  const scenes = pick.sort((a, b) => a - b).map(line).join('\n\n').slice(0, 45000);
+  const who = s.chat.group ? groupMembers(s.chat.group).map(cn).join(', ') : cn(s.c);
+  setBusy(true); toast(`Writing ${name} from ${hits.length} messages…`);
+  try {
+    const ask = `Create a character card for ${name}, a side character from a roleplay between ${who} and ${userName(s.p)}. Base everything on what the chat below shows about ${name}: looks, voice, personality, history, what happened, how they relate to ${who} and ${userName(s.p)}. Where the chat says nothing, invent details that fit what it does show; never contradict it.
+
+In the card, {{char}} is ${name} and {{user}} is the person chatting with them (in this chat that was ${userName(s.p)}). The scenario and first message should pick up from where ${name} stands at the end of the chat.
+
+Write it by filling in this template. Follow its structure exactly: keep its headings, labels and bullet-point layout, replace every [bracketed instruction] with the real content it asks for, and leave out sections or lines the template says to delete when they don't apply.
+
+TEMPLATE
+${genTemplate()}
+END OF TEMPLATE
+
+Length: the personality, scenario and example dialogue together must stay between about 1,000 and 2,000 tokens. Opening messages: third person limited, from {{char}}'s point of view.
+
+${GEN_KEYS}
+
+THE CHAT (only the parts where ${name} appears, in order)
+${scenes}`;
+    const out = await streamChat([
+      { role: 'system', content: 'You design characters for a roleplay chat app. You always answer with a single valid JSON object and nothing else.' },
+      { role: 'user', content: ask },
+    ], () => {}, { chat: s.chat, free: true, signal: abortCtl?.signal });
+    let c;
+    try { c = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)); } catch { throw new Error('The AI did not return a usable character. Try again, or try another model.'); }
+    if (!c.name) c.name = name;
+    fillGenerated(c);
+    toast(`Here is ${c.name}. Change anything you like, then Save.`);
+  } catch (e) { toast(isAbort(e) ? 'Stopped' : 'Could not make the character: ' + e.message); }
+  finally { setBusy(false); }
+}
+
 // ---------- Lorebook from chat: the AI reads the chat in parts and writes entries ----------
 // Each request gets one part of the chat (~30,000 characters) plus the entries found so far, and answers with
 // new or updated entries as JSON. Nothing is saved until you check them and tap Make the lorebook.
@@ -8179,7 +8258,7 @@ async function openSent(i) {
   let info = sentLog.get(target), rebuilt = false;
   if (!info) {
     const c = speakerChar(m, cur.c);
-    try { info = { messages: await buildMessages(c, cur.p, history.slice(0, i), cur.chat.memory, cur.chat, { vec: false }), proxy: proxyFor('chat', cur.chat).name || 'Proxy', model: api(cur.chat).model, prompt: promptNameFor(cur.chat) }; rebuilt = true; }
+    try { info = { messages: await buildMessages(c, cur.p, history.slice(0, i), cur.chat.memory, cur.chat, { vec: false }), proxy: proxyFor('chat', cur.chat).name || 'Proxy', model: api(cur.chat).model, prompt: promptNameFor(cur.chat) }; info.lore = lastLoreHits; rebuilt = true; }
     catch (e) { return toast('Could not rebuild it: ' + e.message); }
   }
   const box = $('sentBox'); box.innerHTML = '';
@@ -8192,6 +8271,11 @@ async function openSent(i) {
     + `<div>${info.messages.length} messages · ${all.length.toLocaleString()} characters · ${lib ? '' : '~'}${tok(all).toLocaleString()} tokens</div>`
     + `<div class="hint" style="margin-top:6px">${rebuilt ? 'Rebuilt from the chat as it is now: this reply was written before the app was last opened, so the exact request is gone. Settings changed since then show here as they are now; vector storage recalls are left out.' : `Exactly as sent at ${new Date(info.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}</div>`;
   box.append(info1);
+  if (info.lore) {
+    const lc = document.createElement('div'); lc.className = 'card sent-info'; lc.style.cssText = 'padding:12px 16px;margin-top:10px';
+    lc.innerHTML = `<div><b>Lorebook entries</b></div>` + (info.lore.length ? info.lore.map(h => `<div style="margin-top:4px">${escHtml(h.title)} <span style="color:var(--ink-soft)">· ${h.skipped ? 'left out (lorebook budget full)' : h.key ? `“${escHtml(h.key)}” in ${escHtml(h.where)}` : 'always on'} · ${escHtml(h.book || '')}</span></div>`).join('') : '<div class="hint" style="margin-top:4px">None triggered.</div>');
+    box.append(lc);
+  }
   info.messages.forEach((x, k) => {
     const t = textOf(x), d = document.createElement('details'); d.className = 'card sent-msg'; d.style.padding = '0 16px';
     d.open = x.role === 'system' || k === info.messages.length - 1;
