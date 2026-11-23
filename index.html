@@ -1095,16 +1095,16 @@
     <div class="card">
       <div class="tokbar" id="tokBar"></div>
       <textarea id="memory" placeholder="A summary of what happened so far, or things the character should always remember."></textarea>
-      <div class="hint">Sent with every message in this chat only. Summarize writes here; you can edit it freely.</div>
+      <div class="hint">Sent with every message in this chat only. Summarize writes here, and once there is something, Update memory brings it up to date with what happened since. You can edit it freely.</div>
       <div class="line"><span>Vector storage</span><input type="checkbox" class="tgl" id="csVec"></div>
       <div class="hint" id="csVecHint">Recalls moments from long ago in this chat that fit what you write now. Follows Settings → Extras until you change it here.</div>
       <div class="vec-row"><span class="hint" id="csVecState" style="margin:0"></span><button class="btn" type="button" id="csVecNow">Index now</button></div>
       <div class="actions" id="sumActs" hidden><button class="btn primary" type="button" id="sumBtn" style="padding:10px 18px">Summarize</button></div>
       <details class="edf" id="sumFold">
-        <summary>Summary prompt</summary>
+        <summary>Memory prompt</summary>
         <textarea id="sumPrompt" placeholder="e.g. Summarize the story so far for {{char}}'s memory: key events, relationships, promises, places and details that matter later. Short, third person, past tense."></textarea>
-        <div class="hint">Shared by all chats. Once filled in, the Summarize button appears. {{char}} and {{user}} are filled in.</div>
-        <div class="actions"><button class="btn" type="button" id="sumExample">Use an example prompt</button></div>
+        <div class="hint">Shared by all chats. Once filled in, the Summarize / Update memory button appears. It gets the current memory plus the chat since the last update. {{char}} and {{user}} are filled in.</div>
+        <div class="actions"><button class="btn" type="button" id="sumExample">Use the GreenRoom memory prompt</button></div>
       </details>
     </div>
     </details>
@@ -3561,9 +3561,13 @@ function openChat(id) {
   if (chat.pendingReach) cancelReach(chat); // back before the character wrote: cancel it
   if (cur && cur.chat.id !== id) leaveChat();
   cur = { chat, c, p: personaOf(chat) };
+  input.value = chat.draft || ''; clearTimeout(draftTimer); // its unsent text, if any
+  requestAnimationFrame(() => { input.style.height = 'auto'; if (input.value) input.style.height = Math.min(input.scrollHeight, 180) + 'px'; });
   store.set('lastChat', id);
   $('profile').classList.remove('open'); // the chat view sits below the profile
   history = msgGet(id);
+  // imported from JanitorAI with a memory before the counter knew: that memory covers what was imported (once)
+  if (chat.jan && (chat.memory || '').trim() && chat.summarizedUpTo == null) { chat.summarizedUpTo = history.length; store.set('chats', chats); }
   shownFrom = Math.max(0, history.length - SHOW_MAX);
   step(`open chat (${history.length} messages)`);
   applyLook();
@@ -3574,10 +3578,11 @@ function openChat(id) {
 // A chat you never wrote anything in isn't worth keeping
 function leaveChat() {
   $('floatPic').hidden = true;
+  clearTimeout(draftTimer); saveDraft();
   const s = cur; cur = null;
   if (s) setTimeout(() => queueReachOut(s.chat), 0);
   applyLook();
-  if (s && !busy && !history.length && !s.chat.group) deleteChat(s.chat.id); // only chats with nothing in them go (a set-up group stays)
+  if (s && !busy && !history.length && !s.chat.group && !s.chat.draft) deleteChat(s.chat.id); // only chats with nothing in them go (a set-up group stays)
 }
 function startChat() {
   const { c, p } = cur;
@@ -5370,7 +5375,8 @@ $('janGo').onclick = async () => {
         let chat = chats.find(x => x.jan === jid);
         if (!chat) { chat = { id: uid(), created: Date.parse(jr.chat.created_at) || msgs[0].t || Date.now() }; chats.push(chat); }
         Object.assign(chat, { charId: c.id, personaId: p?.id || '', personaName: p?.name || '', jan: jid, janChar: r.jc.id });
-        if (jr.chat.summary?.trim() && !chat.memory) chat.memory = jr.chat.summary.trim();
+        if (jr.chat.summary?.trim() && !chat.memory) { chat.memory = jr.chat.summary.trim(); chat.summarizedUpTo = msgs.length; }
+        else if (chat.memory && chat.summarizedUpTo == null) chat.summarizedUpTo = msgs.length;
         msgSet(chat.id, msgs);
         chat.preview = lastText(msgs); chat.count = msgs.length; chat.updated = msgs.at(-1).t || Date.now();
         n++;
@@ -6431,11 +6437,13 @@ function syncSummary() {
   bar.append(a, b);
   $('sumActs').hidden = !cfg.summaryPrompt?.trim();
   $('sumBtn').disabled = busy || !rest.length;
+  if (!busy) $('sumBtn').textContent = (cur.chat.memory || '').trim() ? 'Update memory' : 'Summarize';
 }
 $('sumPrompt').addEventListener('input', () => { cfg.summaryPrompt = $('sumPrompt').value; saveCfg(); syncSummary(); });
+const MEMORY_PROMPT = "You keep {{char}}'s long-term memory of this roleplay with {{user}}. You get the current memory and the newest part of the chat. Return the complete updated memory.\n\nRules:\n- Keep the headings below. Update facts that changed, add what is new, and remove what is no longer true or no longer matters. Never drop something that still matters just to save space.\n- Facts, not prose: short bullet points, third person. Present tense for how things are now, past tense for events.\n- Be specific: names, places, objects, dates, amounts, promises, plans, nicknames, running jokes, and words that were said and still matter.\n- Leave out small talk, blow-by-blow scene detail and anything that will never matter again.\n- Keep the whole memory under about 1,200 words. When it grows, compress older events into fewer lines instead of cutting important ones.\n\n## Right now\nWhere they are, the date and time, what is happening, what was about to happen.\n\n## {{char}} and {{user}}\nTheir relationship as it is now, how it changed, promises and plans, nicknames and inside jokes.\n\n## People\nOne line each: name: who they are, how they relate to {{char}} and {{user}}, where things stand.\n\n## Places and things\nOne line each: places that matter, important objects, gifts, money.\n\n## Story so far\nThe key events in order, one line each; the older, the shorter.\n\n## Recent events\nThe last few scenes in a little more detail (3 to 6 lines). Replace this part completely each time.\n\nOutput only the memory, nothing else.";
 $('sumExample').onclick = () => {
   if ($('sumPrompt').value.trim() && !confirm('Replace your summary prompt with the example?')) return;
-  $('sumPrompt').value = "Summarize the roleplay between {{char}} and {{user}} for {{char}}'s long-term memory. Keep every important event, decision, promise, relationship change, place, name and personal detail that may matter later; leave out small talk. Write it as a short list of facts in the past tense, third person. Merge it with the previous summary into one updated summary.";
+  $('sumPrompt').value = MEMORY_PROMPT;
   $('sumPrompt').dispatchEvent(new Event('input', { bubbles: true }));
 };
 $('sumBtn').onclick = async () => {
@@ -6443,18 +6451,20 @@ $('sumBtn').onclick = async () => {
   const s = cur, rest = unsummarized(); if (!rest.length) return;
   const upTo = history.length, before = $('memory').value;
   const prev = (s.chat.memory || '').trim();
-  const ask = `${prev ? `Previous summary:\n${prev}\n\n` : ''}Part of the chat that is not summarized yet:\n\n${transcriptOf(rest, s.c, s.p)}\n\nWrite the updated summary. Output only the summary.`;
-  setBusy(true); $('sumBtn').textContent = 'Summarizing…'; syncSummary();
+  const ask = prev
+    ? `Current memory:\n\n${prev}\n\n---\n\nThe chat since the memory was last updated:\n\n${transcriptOf(rest, s.c, s.p)}\n\n---\n\nUpdate the current memory with what happened since: change what changed, add what's new, keep what still matters. Output the complete updated memory only.`
+    : `The chat so far:\n\n${transcriptOf(rest, s.c, s.p)}\n\n---\n\nWrite the memory. Output the memory only.`;
+  setBusy(true); $('sumBtn').textContent = prev ? 'Updating…' : 'Summarizing…'; syncSummary();
   try {
     const out = await streamChat([{ role: 'system', content: fill(cfg.summaryPrompt, s.c, s.p) }, { role: 'user', content: ask }],
       r => { if (cur === s) { $('memory').value = r; autosize($('memory')); } }, { free: true });
     s.chat.memory = out.trim(); s.chat.summarizedUpTo = upTo; store.set('chats', chats);
     if (cur === s) { $('memory').value = s.chat.memory; autosize($('memory')); }
-    toast('Summary written to Memory');
+    toast(prev ? 'Memory updated' : 'Summary written to Memory');
   } catch (e) {
     if (cur === s) { $('memory').value = before; autosize($('memory')); }
     toast(isAbort(e) ? 'Summarize stopped' : 'Summarize failed: ' + e.message);
-  } finally { setBusy(false); $('sumBtn').textContent = 'Summarize'; syncSummary(); }
+  } finally { setBusy(false); syncSummary(); }
 };
 $('memory').addEventListener('input', () => syncSummary());
 $('memFold').open = store.get('memFoldOpen', true);
@@ -7639,6 +7649,11 @@ $('attachFile').onchange = async () => {
 };
 $('attachRm').onclick = () => setAttached(null);
 $('attachPv').onclick = e => { if (attached && !e.target.closest('#attachRm')) openLightbox(attached); };
+// Unsent text stays with its chat (leaving the chat, closing the app, switching chats)
+let draftTimer = null;
+const saveDraft = () => { if (!cur) return; const t = input.value; if ((cur.chat.draft || '') === t) return; if (t.trim()) cur.chat.draft = t; else delete cur.chat.draft; store.set('chats', chats); };
+input.addEventListener('input', () => { clearTimeout(draftTimer); draftTimer = setTimeout(saveDraft, 400); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { clearTimeout(draftTimer); saveDraft(); } });
 $('composer').onsubmit = e => {
   e.preventDefault();
   if (busy) { if (e.submitter === $('send')) abortCtl?.abort(); return; }
@@ -7646,6 +7661,7 @@ $('composer').onsubmit = e => {
   if ((!t && !attached && !attachedDoc) || busy) return;
   const img = attached, doc = attachedDoc, ip = attachedPrompt;
   input.value = ''; input.style.height = 'auto'; setAttached(null); setDoc(null); clearHelper();
+  clearTimeout(draftTimer); if (cur?.chat.draft) { delete cur.chat.draft; store.set('chats', chats); }
   send(t, img, false, doc, ip);
 };
 
