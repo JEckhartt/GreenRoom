@@ -1482,7 +1482,14 @@ Empty = send everything.</div>
 {{group}}: everyone in a group chat · {{charIfNotGroup}}
 {{model}}: the model's name
 {{newline}} · {{trim}} (removes the spaces and lines around it) · {{// a note to yourself}} (removed)
-Variables (per chat, see Chat settings → Prompt): {{getvar::mood}} · {{setvar::mood::angry}} · {{addvar::points::5}} · {{incvar::turn}} · {{decvar::turn}}</div>
+Variables (per chat, see Chat settings → Prompt): {{getvar::mood}} · {{setvar::mood::angry}} · {{addvar::points::5}} · {{incvar::turn}} · {{decvar::turn}}
+Shared by all chats: {{getglobalvar::x}} · {{setglobalvar::x::y}} · {{addglobalvar::x::n}} · {{incglobalvar::x}} · {{decglobalvar::x}}
+The card as text: {{description}} (the personality field) · {{scenario}} · {{mesExamples}} · {{charDepthPrompt}} (character's note) · {{persona}}
+{{notChar}}: everyone but the one replying · {{groupNotMuted}}
+{{isodate}} · {{isotime}} · {{noop}} · {{reverse:text}}</div>
+      <label class="f">Shared variables</label>
+      <div id="gVars"></div>
+      <div class="actions"><button class="btn" type="button" id="gVarAdd">+ Add variable</button></div>
     </details>
     <div class="card" style="margin-top:10px">
       <div class="line"><span>Repeat the character card near the latest message</span><input type="checkbox" class="tgl" data-k="cardRepeat"></div>
@@ -2355,11 +2362,12 @@ function fill(t, c, p) {
   if (ck && fillCache.has(ck)) return fillCache.get(ck);
   const out = fillNow(s, c, p); if (ck) fillCache.set(ck, out); return out;
 }
-function fillNow(s, c, p) {
+function fillNow(s, c, p, depth = 0) {
   s = s.replace(/\{\{\/\/[\s\S]*?\}\}/g, '');
   const chat = cur?.chat, hist = cur ? history : [], seen = {};
   const lastOf = role => [...hist].reverse().find(m => !role || m.role === role)?.content || '';
-  const vars = () => (chat ? (chat.vars ||= {}) : {});
+  const vars = () => (chat ? (chat.vars ||= {}) : {}), gvars = () => (cfg.vars ||= {});
+  const sub = t => depth < 2 ? fillNow(String(t || '').trim(), c, p, depth + 1) : String(t || '').trim(); // card fields may hold macros too
   const g = chat?.group, names = g ? g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn) : [];
   s = s.replace(/\{\{\s*([^{}]*?)\s*\}\}/g, (all, body) => {
     const [name, ...rest] = body.split(/::|:(?!:)/); const arg = body.slice(name.length).replace(/^::|^:/, ''), k = name.trim().toLowerCase();
@@ -2379,15 +2387,32 @@ function fillNow(s, c, p) {
       case 'group': return names.length ? names.join(', ') : c ? cn(c) : '';
       case 'charifnotgroup': return g ? names.join(', ') : c ? cn(c) : '';
       case 'model': return api(chat).model || '';
+      // the card and persona as text (SillyTavern's "description" is GreenRoom's personality field, which holds both)
+      case 'description': return sub(c?.personality);
+      case 'personality': return /\{\{\s*description\s*\}\}/i.test(s) ? '' : sub(c?.personality);
+      case 'scenario': return sub(g?.scenario?.trim() ? g.scenario : c?.scenario);
+      case 'persona': return sub(p?.personality);
+      case 'mesexamples': case 'mesexamplesraw': return sub(c?.examples);
+      case 'chardepthprompt': return sub(c?.note);
+      case 'charprompt': case 'charinstruction': case 'charjailbreak': return '';
+      case 'notchar': return [...(g ? names.filter(n => n !== cn(c)) : []), userName(p)].join(', ');
+      case 'groupnotmuted': return g ? g.members.filter(id => !g.muted?.includes(id)).map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn).join(', ') : c ? cn(c) : '';
+      case 'isodate': { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+      case 'isotime': { const d = new Date(); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
+      case 'noop': return '';
+      case 'reverse': return [...arg].reverse().join('');
+      case 'getglobalvar': return String(gvars()[arg.trim()] ?? '');
       case 'newline': return '\n';
       case 'trim': return '\u0000TRIM\u0000';
       case 'getvar': return String(vars()[arg.trim()] ?? '');
-      case 'setvar': case 'addvar': case 'incvar': case 'decvar': {
-        if (!macroWrite || !chat) return '';
-        const [vn, ...v] = arg.split('::'); const key = vn.trim(), val = v.join('::'), V = vars();
-        if (k === 'setvar') V[key] = val;
-        else { const cur0 = parseFloat(V[key]) || 0, add = k === 'incvar' ? 1 : k === 'decvar' ? -1 : parseFloat(val); V[key] = isNaN(add) ? String(V[key] ?? '') + val : String(cur0 + add); }
-        store.set('chats', chats); return '';
+      case 'setvar': case 'addvar': case 'incvar': case 'decvar':
+      case 'setglobalvar': case 'addglobalvar': case 'incglobalvar': case 'decglobalvar': {
+        const global = k.includes('global');
+        if (!macroWrite || (!global && !chat)) return '';
+        const [vn, ...v] = arg.split('::'); const key = vn.trim(), val = v.join('::'), V = global ? gvars() : vars(), op = k.replace('global', '');
+        if (op === 'setvar') V[key] = val;
+        else { const cur0 = parseFloat(V[key]) || 0, add = op === 'incvar' ? 1 : op === 'decvar' ? -1 : parseFloat(val); V[key] = isNaN(add) ? String(V[key] ?? '') + val : String(cur0 + add); }
+        if (global) saveCfg(); else store.set('chats', chats); return '';
       }
       default: return all; // unknown: left as it is
     }
@@ -7358,7 +7383,7 @@ async function debugReport() {
   return L.join('\n');
 }
 function openSettings() {
-  syncVecSettings(); renderRules(); renderLayoutBox($('gLayoutBox'), 'global');
+  syncVecSettings(); renderRules(); renderLayoutBox($('gLayoutBox'), 'global'); renderCsVars(true);
   syncDebug(); renderStyles(); renderPromptBox($('gPromptBox'), 'global');
   loadFonts(Object.keys(FONTS));
   renderProxyBoxes(); syncGenSummaries();
@@ -8662,20 +8687,22 @@ function renderRules() {
   }
   if (!ruleList().length) { const e = document.createElement('div'); e.className = 'hint'; e.textContent = 'No rules yet.'; box.append(e); }
 }
-function renderCsVars() {
-  const box = $('csVars'); if (!box || !cur) return; box.innerHTML = '';
-  const V = cur.chat.vars || {};
+function renderCsVars(global = false) {
+  const box = $(global ? 'gVars' : 'csVars'); if (!box || (!global && !cur)) return; box.innerHTML = '';
+  const holder = global ? cfg : cur.chat, persist = () => global ? saveCfg() : store.set('chats', chats);
+  const V = holder.vars || {};
   for (const [k, v] of Object.entries(V)) {
     const r = document.createElement('div'); r.className = 'line';
     const n = document.createElement('span'); n.textContent = k; n.style.flex = '1';
     const i = document.createElement('input'); i.type = 'text'; i.value = v; i.style.maxWidth = '50%';
-    i.oninput = () => { cur.chat.vars[k] = i.value; store.set('chats', chats); };
+    i.oninput = () => { holder.vars[k] = i.value; persist(); };
     const x = document.createElement('button'); x.type = 'button'; x.className = 'gm-b'; x.textContent = '✕'; x.setAttribute('aria-label', 'Delete ' + k);
-    x.onclick = () => { delete cur.chat.vars[k]; store.set('chats', chats); renderCsVars(); };
+    x.onclick = () => { delete holder.vars[k]; persist(); renderCsVars(global); };
     r.append(n, i, x); box.append(r);
   }
   if (!Object.keys(V).length) { const e = document.createElement('div'); e.className = 'hint'; e.style.marginTop = '0'; e.textContent = 'No variables yet.'; box.append(e); }
 }
+$('gVarAdd').onclick = () => { const k = prompt('Name of the shared variable')?.trim(); if (!k) return; (cfg.vars ||= {})[k] = cfg.vars[k] ?? ''; saveCfg(); renderCsVars(true); };
 $('csVarAdd').onclick = () => { if (!cur) return; const k = prompt('Name of the variable')?.trim(); if (!k) return; (cur.chat.vars ||= {})[k] = cur.chat.vars[k] ?? ''; store.set('chats', chats); renderCsVars(); };
 function renderCsRules() {
   const box = $('csRules'); if (!box || !cur) return; box.innerHTML = '';
