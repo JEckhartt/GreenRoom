@@ -270,6 +270,12 @@
   .gm-row button.gm-b { background: none; border: 1px solid var(--line); border-radius: 8px; width: 30px; height: 30px; color: var(--ink); cursor: pointer; font: inherit; }
   .grp-face { position: relative; }
   .gm-open { cursor: pointer; }
+  .lfc-e { margin-top: 10px; padding: 4px 16px 12px; }
+  .lfc-e .lfc-h { display: flex; align-items: center; gap: 10px; padding-top: 10px; }
+  .lfc-e .lfc-h input[type=text] { flex: 1; font-weight: 600; }
+  .lfc-e.off { opacity: .5; }
+  .lfc-e textarea { margin-top: 8px; min-height: 80px; }
+  .lfc-e .lfc-k { margin-top: 8px; font-size: 14px; }
   .msg > .via { font: 11px/1.3 'Inter', system-ui, sans-serif; color: var(--ink-soft); opacity: .8; margin: 2px 0 0 8px; }
   .sent-info { font-size: 14px; line-height: 1.5; }
   .sent-info b { font-weight: 600; }
@@ -1202,6 +1208,7 @@
       <div class="card">
         <div class="chips" id="csLore"></div>
         <div class="hint" id="csLoreHint"></div>
+        <div class="actions"><button class="btn" type="button" id="lfcOpen">Make a lorebook from this chat</button></div>
       </div>
     </details>
     <details class="sec gsec" data-g="forbid"><summary class="group-title"><span class="gt">Forbidden words</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
@@ -1722,6 +1729,34 @@ Empty = send everything.</div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <button type="button" class="st-new" id="stNew"><b>New story</b><small>Turn a chat into a novel: point of view, chapters, a cover, and Text, PDF or EPUB.</small><span class="chev"></span></button>
     <div class="st-grid" id="stGrid"></div>
+  </div></div>
+</section>
+
+<section id="lfc" class="view" aria-label="Lorebook from chat">
+  <div class="page-head"><button class="back" data-close="lfc" type="button">‹ Back</button><h1>Lorebook from chat</h1><span></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <div id="lfcSetup">
+      <div class="card">
+        <label class="f" for="lfcName" style="margin-top:12px">Name of the new lorebook</label>
+        <input type="text" id="lfcName">
+        <div class="hint">The AI reads the whole chat, part by part, and writes an entry for every side character, place, object, event and running joke that matters, each with keywords. The characters in the chat and your persona don't get entries (they have their own cards). You check the entries before anything is saved; the lorebook is then linked to this chat.</div>
+        <div class="hint" id="lfcSize"></div>
+      </div>
+      <div class="save-bar"><button class="btn primary" type="button" id="lfcGo">Read the chat</button></div>
+    </div>
+    <div id="lfcRun" hidden>
+      <div class="card" style="padding:14px 16px">
+        <div id="lfcState" style="font-size:15px"></div>
+        <div class="st-pbar" style="margin-top:10px"><i id="lfcBar"></i></div>
+        <div class="hint" id="lfcFound"></div>
+        <div class="actions"><button class="btn" type="button" id="lfcStop">Stop</button></div>
+      </div>
+    </div>
+    <div id="lfcReview" hidden>
+      <div class="hint" id="lfcReviewHint" style="margin:0 4px 10px"></div>
+      <div id="lfcList"></div>
+      <div class="save-bar"><button class="btn primary" type="button" id="lfcSave">Make the lorebook</button></div>
+    </div>
   </div></div>
 </section>
 
@@ -7998,6 +8033,113 @@ function storyMenu(st) {
       stories = stories.filter(x => x !== st); saveStories(); idb.del('story_' + st.id).catch(() => {}); idb.del('cover_' + st.id).catch(() => {}); renderStories();
     } },
   ]);
+}
+
+// ---------- Lorebook from chat: the AI reads the chat in parts and writes entries ----------
+// Each request gets one part of the chat (~30,000 characters) plus the entries found so far, and answers with
+// new or updated entries as JSON. Nothing is saved until you check them and tap Make the lorebook.
+const LFC_PART = 30000;
+let lfc = null; // { chat, c, p, parts, entries, ctl }
+function lfcParts(hist, c, p) {
+  const parts = []; let cur = '';
+  for (const m of hist) {
+    const line = `${m.role === 'user' ? userName(p) : cn(speakerChar(m, c))}: ${String(m.content || '').replace(TAG, '')}\n\n`;
+    if (cur && cur.length + line.length > LFC_PART) { parts.push(cur); cur = ''; }
+    cur += line.length > LFC_PART ? line.slice(0, LFC_PART) : line;
+  }
+  if (cur.trim()) parts.push(cur);
+  return parts;
+}
+function openLfc() {
+  if (!cur) return;
+  const g = cur.chat.group, parts = lfcParts(history, cur.c, cur.p);
+  $('lfcName').value = `${g ? (g.name || 'Group chat') : cn(cur.c)}: from the chat`;
+  $('lfcSize').textContent = parts.length ? `${history.length.toLocaleString()} messages: ${parts.length} part${parts.length === 1 ? '' : 's'}, so ${parts.length} request${parts.length === 1 ? '' : 's'} to ${proxyFor('chat', cur.chat).name || 'your proxy'}.` : 'This chat has nothing to read yet.';
+  $('lfcGo').disabled = !parts.length;
+  $('lfcSetup').hidden = false; $('lfcRun').hidden = true; $('lfcReview').hidden = true;
+  openView('lfc');
+}
+$('lfcOpen').onclick = openLfc;
+function lfcAsk(job, k) {
+  const names = job.chat.group ? job.chat.group.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn) : [cn(job.c)];
+  const known = job.entries.length ? job.entries.map(e => `- ${e.title} [${e.keys}]: ${e.content}`).join('\n') : '(none yet)';
+  const sys = `You build a lorebook (world info) for a roleplay chat between ${names.join(', ')} and ${userName(job.p)}. A lorebook entry is sent to the AI only when one of its keywords appears in the chat, so it must hold the facts needed to write about that thing correctly.
+
+Make entries for: side characters (anyone other than ${names.join(', ')} and ${userName(job.p)}), places, important objects, groups, events that are referred to later, and running jokes or nicknames. Do not make entries for ${names.join(', ')} or ${userName(job.p)} themselves (they have their own cards); facts about them belong inside the entries they relate to. Skip anything trivial that never matters again.
+
+Each entry:
+- "title": the name of the person, place or thing.
+- "keys": 2 to 6 keywords that would appear in a message when it comes up: names, nicknames, short forms.
+- "content": 2 to 5 sentences of facts, in the present tense, as things stand at the end of this part: who or what it is, key details (looks, personality, what happened), its relation to ${names.join(', ')} and ${userName(job.p)}, and its current status. Facts only, no story-telling.
+
+Answer with a JSON array only, no other text: [{"title": "...", "keys": ["...", "..."], "content": "..."}]. Include only entries that are new or that this part changes; for a changed entry use exactly the same title and give the full updated content. If this part adds nothing, answer [].`;
+  const user = `Entries so far:\n${known}\n\nPart ${k + 1} of ${job.parts.length} of the chat:\n\n${job.parts[k]}`;
+  return [{ role: 'system', content: sys }, { role: 'user', content: user }];
+}
+function lfcParse(text) {
+  const t = String(text || '').replace(/```(?:json)?/gi, ''), a = t.indexOf('['), b = t.lastIndexOf(']');
+  if (a < 0 || b < a) throw new Error('The AI did not answer with entries.');
+  const arr = JSON.parse(t.slice(a, b + 1));
+  return (Array.isArray(arr) ? arr : []).filter(x => x && x.title && x.content).map(x => ({
+    title: String(x.title).trim(), content: String(x.content).trim(),
+    keys: (Array.isArray(x.keys) ? x.keys : String(x.keys || '').split(',')).map(k => String(k).trim()).filter(Boolean).join(', ') || String(x.title).trim(),
+  }));
+}
+$('lfcGo').onclick = async () => {
+  if (!cur || lfc) return;
+  const job = lfc = { chat: cur.chat, c: cur.c, p: cur.p, parts: lfcParts(history, cur.c, cur.p), entries: [], ctl: new AbortController() };
+  $('lfcSetup').hidden = true; $('lfcRun').hidden = false; $('lfcReview').hidden = true;
+  keepAwake(true);
+  let err = null;
+  try {
+    for (let k = 0; k < job.parts.length; k++) {
+      $('lfcState').textContent = `Reading part ${k + 1} of ${job.parts.length}…`;
+      $('lfcBar').style.width = Math.round(k / job.parts.length * 100) + '%';
+      $('lfcFound').textContent = `${job.entries.length} entr${job.entries.length === 1 ? 'y' : 'ies'} so far`;
+      let found = null;
+      for (let tries = 0; tries < 2 && !found; tries++) { // a garbled answer gets one more try
+        const reply = await streamChat(lfcAsk(job, k), () => {}, { chat: job.chat, free: true, signal: job.ctl.signal });
+        try { found = lfcParse(reply); } catch (e) { if (tries) throw e; }
+      }
+      for (const e of found) {
+        const old = job.entries.find(x => x.title.toLowerCase() === e.title.toLowerCase());
+        if (old) { old.content = e.content; old.keys = [...new Set([...old.keys.split(','), ...e.keys.split(',')].map(x => x.trim()).filter(Boolean))].join(', '); }
+        else job.entries.push({ ...e, on: true });
+      }
+    }
+    $('lfcBar').style.width = '100%';
+  } catch (e) { err = e; }
+  finally { keepAwake(false); lfc = null; }
+  if (err && !job.entries.length) { $('lfcState').textContent = isAbort(err) ? 'Stopped before anything was found.' : 'It stopped: ' + err.message; $('lfcStop').hidden = true; return; }
+  lfcReview(job, err);
+};
+$('lfcStop').onclick = () => lfc?.ctl.abort();
+function lfcReview(job, err) {
+  $('lfcRun').hidden = true; $('lfcReview').hidden = false; $('lfcStop').hidden = false;
+  $('lfcReviewHint').textContent = (err ? (isAbort(err) ? 'Stopped early. ' : `It stopped early (${err.message}). `) : '')
+    + `${job.entries.length} entr${job.entries.length === 1 ? 'y' : 'ies'}. Switch off the ones you don't want; you can change titles, keywords (comma-separated) and text.`;
+  const list = $('lfcList'); list.innerHTML = '';
+  for (const e of job.entries) {
+    const card = document.createElement('div'); card.className = 'card lfc-e';
+    const h = document.createElement('div'); h.className = 'lfc-h';
+    const t = document.createElement('input'); t.type = 'text'; t.value = e.title; t.oninput = () => { e.title = t.value; };
+    const on = document.createElement('input'); on.type = 'checkbox'; on.className = 'tgl'; on.checked = e.on; on.onchange = () => { e.on = on.checked; card.classList.toggle('off', !on.checked); };
+    h.append(t, on);
+    const k = document.createElement('input'); k.type = 'text'; k.className = 'lfc-k'; k.value = e.keys; k.placeholder = 'Keywords'; k.oninput = () => { e.keys = k.value; };
+    const c = document.createElement('textarea'); c.value = e.content; c.oninput = () => { e.content = c.value; autosize(c); };
+    card.append(h, k, c); list.append(card);
+  }
+  $('lfcSave').onclick = () => {
+    const keep = job.entries.filter(e => e.on && e.title.trim() && e.content.trim());
+    if (!keep.length) return toast('No entries switched on');
+    const b = { id: uid(), name: $('lfcName').value.trim() || 'From the chat', global: false, depth: 4,
+      entries: keep.map(e => ({ id: uid(), title: e.title.trim(), keys: e.keys.trim() || e.title.trim(), content: e.content.trim(), always: false, on: true })) };
+    lorebooks.unshift(b); saveLore();
+    job.chat.lorebooks = [...new Set([...(job.chat.lorebooks || []), b.id])]; store.set('chats', chats);
+    closeView('lfc'); if (cur?.chat === job.chat) renderCsLore();
+    toast(`"${b.name}" made with ${b.entries.length} entries and linked to this chat`);
+  };
+  requestAnimationFrame(() => autosizeAll(list));
 }
 
 // ---------- What was sent: the exact request behind a reply ----------
