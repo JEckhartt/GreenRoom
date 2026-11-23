@@ -177,7 +177,7 @@
   .anrow b { color: var(--ink); font-size: 14px; }
   .anrow button { border: 0; background: none; color: var(--accent-ink); font-weight: 600; font-size: 14px; cursor: pointer; }
   .anrow select { font: inherit; font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; }
-  #log figure.gen img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  #log figure.gen img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
   #giText, #anText { display: block; width: 100%; min-height: 64px; max-height: 160px; margin: 6px 0; resize: none; border: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; outline: none; }
   .fbub { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 5px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 7%, transparent); font: 13px 'Inter', system-ui, sans-serif; }
   .msg.me .txt:not(:empty) ~ .fbub { margin-top: 8px; }
@@ -2658,7 +2658,7 @@ function addFold(fig, m) {
   set(); fig.append(b);
 }
 function showImage(fig, src) {
-  const img = new Image(); img.alt = ''; img.src = src;
+  const img = new Image(); img.alt = ''; img.draggable = false; img.src = src;
   img.onload = () => { if (stickNow() || following || nearBottom()) scrollDown(); };
   img.onerror = () => {
     const e = document.createElement('div'); e.className = 'wait'; e.style.animation = 'none'; e.style.padding = '12px'; e.style.textAlign = 'center';
@@ -3280,7 +3280,7 @@ async function send(text, img, forceImage, doc, imgPrompt) {
 // ---------- Long press on a message ----------
 // Yours: Edit / Resend / Copy / Delete. The character's: Copy / Delete, plus "Write another" on the
 // first message and "Regenerate" on the last reply.
-let menuFor = null;
+let menuFor = null, menuTop = 0;
 function hideMsgMenu() { $('msgMenu').hidden = true; menuFor?.classList.remove('held'); menuFor = null; }
 function showMsgMenu(el, anchor = el, onImage = false, at = null) {
   const i = +el.dataset.i, m = history[i]; if (!m) return;
@@ -3302,7 +3302,7 @@ function showMsgMenu(el, anchor = el, onImage = false, at = null) {
     box.append(b);
   }
   if (box.firstChild?.classList.contains('sep')) box.firstChild.remove();
-  menuFor = el; el.classList.add('held'); navigator.vibrate?.(12);
+  menuFor = el; menuTop = $('scroller').scrollTop; el.classList.add('held'); navigator.vibrate?.(12);
   box.hidden = false;
   const r = anchor.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
   // next to where you pressed: just below your finger, or above it when there's no room below
@@ -3334,7 +3334,10 @@ function showMsgMenu(el, anchor = el, onImage = false, at = null) {
   for (const ev of ['pointerup', 'pointercancel']) log.addEventListener(ev, () => { clearTimeout(timer); timer = null; });
   log.addEventListener('contextmenu', e => { if (e.target.closest('.msg')) e.preventDefault(); });
   document.addEventListener('pointerdown', e => { if (menuFor && !e.target.closest('#msgMenu')) hideMsgMenu(); }, true);
-  $('scroller').addEventListener('scroll', () => menuFor && hideMsgMenu(), { passive: true });
+  // only a real scroll closes the menu (a long press can nudge the page a few pixels)
+  $('scroller').addEventListener('scroll', () => { if (menuFor && Math.abs($('scroller').scrollTop - menuTop) > 20) hideMsgMenu(); }, { passive: true });
+  // pictures in the chat can't be dragged out (on iPhone a long press would start dragging them)
+  log.addEventListener('dragstart', e => { if (e.target.closest('figure.gen')) e.preventDefault(); });
 })();
 $('msgMenu').onclick = e => {
   const act = e.target.dataset?.act, el = menuFor; if (!act || !el) return;
