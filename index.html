@@ -270,6 +270,11 @@
   .gm-row button.gm-b { background: none; border: 1px solid var(--line); border-radius: 8px; width: 30px; height: 30px; color: var(--ink); cursor: pointer; font: inherit; }
   .grp-face { position: relative; }
   .gm-open { cursor: pointer; }
+  .rule-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .rule-row .rule-t { flex: 1; min-width: 0; font-size: 15px; }
+  .rule-row .rule-t small { display: block; color: var(--ink-soft); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .re-ex { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--bg-2); font-size: 13px; line-height: 1.45; color: var(--ink); }
+  .re-ex del { color: #e0675a; } .re-ex ins { color: var(--accent); text-decoration: none; }
   .lfc-e { margin-top: 10px; padding: 4px 16px 12px; }
   .lfc-e .lfc-h { display: flex; align-items: center; gap: 10px; padding-top: 10px; }
   .lfc-e .lfc-h input[type=text] { flex: 1; font-weight: 600; }
@@ -1213,6 +1218,9 @@
         <div class="actions"><button class="btn" type="button" id="lfcOpen">Make a lorebook from this chat</button></div>
       </div>
     </details>
+    <details class="sec" data-f="rules"><summary class="group-title"><span class="gt">Replace rules</span></summary>
+      <div class="card"><div id="csRules"></div><div class="hint">Switch a rule off for this chat only. Rules are made in Settings → Extras.</div></div>
+    </details>
     <details class="sec gsec" data-g="forbid"><summary class="group-title"><span class="gt">Forbidden words</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
       <div class="gbody"><div class="card">
         <textarea id="csForbidden" placeholder="One per line or comma separated"></textarea>
@@ -1615,6 +1623,12 @@ Empty = send everything.</div>
       <div class="actions"><button class="btn" type="button" id="vecTest">Test</button></div>
       <div class="hint" id="vecState"></div>
     </div>
+    <div class="card" style="margin-top:10px">
+      <label class="f" style="margin-top:12px">Replace rules</label>
+      <div class="hint" style="margin-top:0">Find and replace that runs by itself on messages: delete a model's pet phrases, swap words, fix formatting. Plain text works; a pattern (regex) is optional. A chat can switch single rules off (Chat settings → Prompt).</div>
+      <div id="ruleList"></div>
+      <div class="actions"><button class="btn" type="button" id="ruleAdd">+ Add rule</button><button class="btn" type="button" id="ruleDescribe">Describe it…</button></div>
+    </div>
     </details>
 
     <details class="sec" data-sec="janitor">
@@ -1739,6 +1753,35 @@ Empty = send everything.</div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <button type="button" class="st-new" id="stNew"><b>New story</b><small>Turn a chat into a novel: point of view, chapters, a cover, and Text, PDF or EPUB.</small><span class="chev"></span></button>
     <div class="st-grid" id="stGrid"></div>
+  </div></div>
+</section>
+
+<section id="ruleEd" class="view" aria-label="Replace rule">
+  <div class="page-head"><button class="back" data-close="ruleEd" type="button">‹ Cancel</button><h1>Replace rule</h1><button class="act" id="reSave" type="button">Save</button></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <div class="card">
+      <label class="f" for="reName" style="margin-top:12px">Name <span style="font-weight:400">(optional)</span></label>
+      <input type="text" id="reName" placeholder="e.g. No “a mix of”">
+      <label class="f" for="reFind">Find</label>
+      <textarea id="reFind" placeholder="e.g. a mix of"></textarea>
+      <label class="f" for="reRepl">Replace with <span style="font-weight:400">(empty: delete it)</span></label>
+      <textarea id="reRepl" placeholder=""></textarea>
+      <div class="line"><span>Find is a pattern (regex)</span><input type="checkbox" class="tgl" id="reRegex"></div>
+      <div class="line"><span>Match upper/lower case exactly</span><input type="checkbox" class="tgl" id="reCase"></div>
+      <div class="hint" id="reErr"></div>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <label class="f" style="margin-top:12px">Applies to</label>
+      <div class="seg" id="reWho"><button type="button" data-v="ai">Replies</button><button type="button" data-v="me">My messages</button><button type="button" data-v="both">Both</button></div>
+      <label class="f">Where</label>
+      <div class="seg" id="reWhere"><button type="button" data-v="both">Change it</button><button type="button" data-v="screen">On screen only</button><button type="button" data-v="sent">Only what's sent</button></div>
+      <div class="hint" id="reWhereHint"></div>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <label class="f" style="margin-top:12px">Test <span style="font-weight:400" id="reTestWhere"></span></label>
+      <div id="reTest" class="hint" style="margin-top:0"></div>
+    </div>
+    <div class="actions" style="margin-top:14px"><button class="btn danger" type="button" id="reDel">Delete this rule</button></div>
   </div></div>
 </section>
 
@@ -2387,6 +2430,12 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat, opts = {}) {
     } else if (m.role === 'user' && m.file) msgs.push({ role: 'user', content: text });
     else msgs.push({ role: m.role, content: m.content }); // old image tags are left out: the model would copy them
   }
+  // Replace rules for what is sent (only the chat's own text, before the app's notes are added)
+  msgs.forEach((x, i) => {
+    const side = hist[i]?.role === 'user' ? 'me' : 'ai';
+    if (Array.isArray(x.content)) x.content = x.content.map(y => y.type === 'text' ? { ...y, text: applyRules(y.text, chat, side, 'sent') } : y);
+    else x.content = applyRules(x.content, chat, side, 'sent');
+  });
   // Real time: the newest user message (and earlier ones after a long break) say when they were sent
   if (chat?.realTime) {
     const lastU = hist.map(m => m.role).lastIndexOf('user');
@@ -2517,7 +2566,7 @@ function addBubble(role, text, who) {
   if (role === 'err') { el.textContent = text; el.dataset.chat = cur?.chat.id || ''; console.warn(text); }
   else {
     decorate(el, role, who);
-    const t = document.createElement('span'); t.className = 'txt'; rich(t, text); el.appendChild(t);
+    const t = document.createElement('span'); t.className = 'txt'; rich(t, applyRules(text, cur?.chat, role === 'me' ? 'me' : 'ai', 'screen')); el.appendChild(t);
   }
   if (!rendering && role !== 'err') el.classList.add('new');
   $('log').appendChild(el);
@@ -2533,7 +2582,7 @@ function decorate(el, role, c, p = cur?.p) {
   setThumb(av, (role === 'ai' ? c : p) || { name: nm.textContent });
   el.prepend(av, nm);
 }
-const setText = (bubble, text) => rich(bubble.querySelector('.txt'), text);
+const setText = (bubble, text) => rich(bubble.querySelector('.txt'), applyRules(text, cur?.chat, bubble.classList.contains('me') ? 'me' : 'ai', 'screen'));
 
 // ---------- Markdown (safe: builds DOM nodes, never injects HTML) + coloured "quotes" ----------
 const MD_INLINE = [
@@ -3098,7 +3147,7 @@ function makeFader(bubble, onShow, from = '') { // from: text already on screen 
   function flush() { flushed = true; clearInterval(timer); if (target) rich(el, target); done?.(); done = null; }
   abortCtl?.signal?.addEventListener('abort', flush); // Stop: show what's written so far at once, no more fading
   return {
-    set(t) { target = t; if (shown > t.length) shown = t.length; if (flushed) rich(el, t); },
+    set(t) { t = applyRules(t, cur?.chat, 'ai', 'screen'); target = t; if (shown > t.length) shown = t.length; if (flushed) rich(el, t); },
     end() { finished = true; if (flushed) { rich(el, target); return Promise.resolve(); } return new Promise(r => { done = r; }); },
     flush,
   };
@@ -3132,7 +3181,7 @@ async function aiTurn(s, hist, messages, bubble, into) {
   }
   let imgPrompt = tagPrompt(reply);
   if (lastFilter && here()) addBubble('err', `Cut off by the provider's filter (${lastFilter}): what was written before that is kept. Try again, or long press → Version with… to use another model.`);
-  let msg = { role: 'assistant', content: visible(reply, true), t: Date.now() };
+  let msg = { role: 'assistant', content: applyRules(visible(reply, true), s.chat, 'ai', 'both'), t: Date.now() };
   if (s.chat.group) { msg.char = s.c.id; msg.content = stripName(msg.content, s.c); }
   if (via) msg.via = via;
   if (lastThink.text) { msg.thinking = lastThink.text; msg.thinkSecs = lastThink.secs; }
@@ -3230,7 +3279,7 @@ async function continueReply(i) {
       });
       if (fader) await fader.end();
     } finally { fader?.flush(); dots.remove(); }
-    const full = join(visible(out, true)).trimEnd();
+    const full = applyRules(join(visible(out, true)).trimEnd(), s.chat, 'ai', 'both');
     m.content = full; if (m.alts) m.alts[m.sel || 0].content = full;
     saveMsgs(s.chat, hist);
   } catch (e) { if (!isAbort(e)) toast('Could not continue: ' + e.message); }
@@ -3262,6 +3311,7 @@ async function send(text, img, forceImage, doc, imgPrompt) {
   const s = cur, hist = history;
   setBusy(true);
   clearErrs();
+  text = applyRules(text, s.chat, 'me', 'both');
   const msg = { role: 'user', content: text, t: Date.now() };
   if (forceImage) msg.wantsImage = true;
   if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); if (msg.img && imgPrompt) msg.imgPrompt = imgPrompt; }
@@ -6155,7 +6205,7 @@ function syncGsecs() {
 function refreshChatSettings() {
   const ch = cur.chat;
   renderProxyBoxes(); syncChatGen(); syncGenImg();
-  renderPromptBox($('cPromptBox'), 'chat'); $('csForbidden').value = ch.forbidden ?? '';
+  renderPromptBox($('cPromptBox'), 'chat'); renderCsRules(); $('csForbidden').value = ch.forbidden ?? '';
   syncGsecs(); autosizeAll?.($('chatset'));
 }
 for (const d of document.querySelectorAll('#chatset details.gsec')) {
@@ -6896,7 +6946,7 @@ async function debugReport() {
   return L.join('\n');
 }
 function openSettings() {
-  syncVecSettings();
+  syncVecSettings(); renderRules();
   syncDebug(); renderStyles(); renderPromptBox($('gPromptBox'), 'global');
   loadFonts(Object.keys(FONTS));
   renderProxyBoxes(); syncGenSummaries();
@@ -8164,6 +8214,119 @@ function storyMenu(st) {
     } },
   ]);
 }
+
+// ---------- Replace rules: find and replace on messages ----------
+// cfg.rules = [{ id, name, find, replace, regex, matchCase, who: ai|me|both, where: both|screen|sent, on }]
+// where: both = the message itself is changed when it's written; screen = only how it's shown; sent = only what the AI gets.
+// A chat can switch single rules off (chat.rulesOff).
+const ruleList = () => cfg.rules || (cfg.rules = []);
+function ruleRe(r) {
+  if (!r.find) return null;
+  try { return new RegExp(r.regex ? r.find : escRe(r.find), 'g' + (r.matchCase ? '' : 'i')); } catch { return null; }
+}
+const tidyText = t => t.replace(/[ \t]{2,}/g, ' ').replace(/ +([,.;:!?])/g, '$1').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+function applyRules(text, chat, side, where) {
+  let t = String(text ?? ''), changed = false;
+  for (const r of ruleList()) {
+    if (r.on === false || r.where !== where || !(r.who === 'both' || r.who === side) || chat?.rulesOff?.includes(r.id)) continue;
+    const re = ruleRe(r); if (!re) continue;
+    const out = r.regex ? t.replace(re, r.replace || '') : t.replace(re, () => r.replace || '');
+    if (out !== t) { t = out; changed = true; }
+  }
+  return changed ? tidyText(t) : t;
+}
+const ruleLabel = r => r.name?.trim() || (r.replace ? `“${r.find}” → “${r.replace}”` : `Delete “${r.find}”`);
+const ruleWhereText = { both: 'changes the message', screen: 'on screen only', sent: 'only what the AI gets' };
+function renderRules() {
+  const box = $('ruleList'); box.innerHTML = '';
+  for (const r of ruleList()) {
+    const row = document.createElement('div'); row.className = 'rule-row';
+    const t = document.createElement('div'); t.className = 'rule-t'; t.textContent = ruleLabel(r);
+    const sm = document.createElement('small'); sm.textContent = `${{ ai: 'Replies', me: 'My messages', both: 'Replies and my messages' }[r.who]} · ${ruleWhereText[r.where]}${r.regex ? ' · pattern' : ''}${ruleRe(r) ? '' : ' · invalid pattern'}`; t.append(sm);
+    const on = document.createElement('input'); on.type = 'checkbox'; on.className = 'tgl'; on.checked = r.on !== false;
+    on.onclick = e => e.stopPropagation(); on.onchange = () => { r.on = on.checked; saveCfg(); if (cur) render(); };
+    row.append(t, on); row.onclick = () => openRule(r);
+    box.append(row);
+  }
+  if (!ruleList().length) { const e = document.createElement('div'); e.className = 'hint'; e.textContent = 'No rules yet.'; box.append(e); }
+}
+function renderCsRules() {
+  const box = $('csRules'); if (!box || !cur) return; box.innerHTML = '';
+  const off = cur.chat.rulesOff || [];
+  for (const r of ruleList()) {
+    const d = document.createElement('div'); d.className = 'line';
+    const sp = document.createElement('span'); sp.textContent = ruleLabel(r) + (r.on === false ? ' (off everywhere)' : '');
+    const i = document.createElement('input'); i.type = 'checkbox'; i.className = 'tgl'; i.checked = !off.includes(r.id); i.disabled = r.on === false;
+    i.onchange = () => { cur.chat.rulesOff = i.checked ? off.filter(x => x !== r.id) : [...new Set([...off, r.id])]; if (!cur.chat.rulesOff.length) delete cur.chat.rulesOff; store.set('chats', chats); render(); renderCsRules(); };
+    d.append(sp, i); box.append(d);
+  }
+  if (!ruleList().length) { const e = document.createElement('div'); e.className = 'hint'; e.textContent = 'No rules yet.'; box.append(e); }
+}
+// The editor works on a copy; Save puts it in the list
+let reDraft = null, reOrig = null;
+function openRule(r = null, draft = null) {
+  reOrig = r; reDraft = { ...(draft || r || { find: '', replace: '', regex: false, matchCase: false, who: 'ai', where: 'both', on: true }) };
+  $('reName').value = reDraft.name || ''; $('reFind').value = reDraft.find || ''; $('reRepl').value = reDraft.replace || '';
+  $('reRegex').checked = !!reDraft.regex; $('reCase').checked = !!reDraft.matchCase; $('reDel').hidden = !r;
+  syncRuleEd(); openView('ruleEd');
+}
+function syncRuleEd() {
+  const d = reDraft;
+  for (const [id, k] of [['reWho', 'who'], ['reWhere', 'where']]) for (const b of $(id).children) b.classList.toggle('on', b.dataset.v === d[k]);
+  $('reWhereHint').textContent = { both: 'The message itself is changed as soon as it is written, so you see it and the AI gets it changed. The original is not kept.', screen: 'Only what you see is changed; the message stays as it is and the AI gets the original.', sent: 'Only what the AI gets is changed (for example to save tokens); you still see the original.' }[d.where];
+  const re = ruleRe(d);
+  $('reErr').textContent = d.find && !re ? 'That pattern is not valid.' : '';
+  // the test: matches in the open (or last) chat, the newest first, up to 3 examples
+  const chat = cur?.chat || chats.find(x => x.id === store.get('lastChat', '')), hist = cur ? history : chat ? msgGet(chat.id) : [];
+  $('reTestWhere').textContent = chat ? `(on ${chat.group ? (chat.group.name || 'a group chat') : 'your last chat'})` : '';
+  const box = $('reTest'); box.innerHTML = '';
+  if (!d.find || !re) { box.textContent = 'Type what to find to see what it would change.'; return; }
+  const sides = d.who === 'both' ? ['user', 'assistant'] : [d.who === 'me' ? 'user' : 'assistant'];
+  let n = 0, shown = 0;
+  for (const m of [...hist].reverse()) {
+    if (!sides.includes(m.role)) continue;
+    const t = String(m.content || ''); const hits = [...t.matchAll(new RegExp(re.source, re.flags))]; if (!hits.length) continue;
+    n += hits.length;
+    if (shown < 3) {
+      const h = hits[0], a = Math.max(0, h.index - 50), b = Math.min(t.length, h.index + h[0].length + 50);
+      const ex = document.createElement('div'); ex.className = 're-ex';
+      const repl = d.regex ? h[0].replace(new RegExp(re.source, re.flags.replace('g', '')), d.replace || '') : (d.replace || '');
+      ex.innerHTML = `${a ? '…' : ''}${escHtml(t.slice(a, h.index))}<del>${escHtml(h[0])}</del>${repl ? `<ins>${escHtml(repl)}</ins>` : ''}${escHtml(t.slice(h.index + h[0].length, b))}${b < t.length ? '…' : ''}`;
+      box.append(ex); shown++;
+    }
+  }
+  box.prepend(document.createTextNode(n ? `${n} match${n === 1 ? '' : 'es'} in this chat${n > 3 ? ', the newest:' : ':'}` : 'No matches in this chat (it may still match new messages).'));
+}
+for (const [id, k] of [['reWho', 'who'], ['reWhere', 'where']]) $(id).onclick = e => { const v = e.target.dataset?.v; if (!v) return; reDraft[k] = v; syncRuleEd(); };
+for (const [id, k] of [['reName', 'name'], ['reFind', 'find'], ['reRepl', 'replace']]) $(id).addEventListener('input', () => { reDraft[k] = $(id).value; syncRuleEd(); });
+$('reRegex').onchange = () => { reDraft.regex = $('reRegex').checked; syncRuleEd(); };
+$('reCase').onchange = () => { reDraft.matchCase = $('reCase').checked; syncRuleEd(); };
+$('reSave').onclick = () => {
+  const d = reDraft; if (!d.find) return toast('Type what to find');
+  if (!ruleRe(d)) return toast('That pattern is not valid');
+  if (reOrig) Object.assign(reOrig, d); else ruleList().push({ ...d, id: uid() });
+  saveCfg(); renderRules(); if (cur) { render(); renderCsRules(); } closeView('ruleEd'); toast('Saved');
+};
+$('reDel').onclick = () => { if (!reOrig || !confirm(`Delete "${ruleLabel(reOrig)}"?`)) return; ruleList().splice(ruleList().indexOf(reOrig), 1); saveCfg(); renderRules(); if (cur) render(); closeView('ruleEd'); };
+$('ruleAdd').onclick = () => openRule();
+// Describe it: the AI writes the rule from plain words; it opens in the editor with the test, to check before saving
+$('ruleDescribe').onclick = async () => {
+  const want = prompt('What should be removed or changed? e.g. "remove any question at the end of a reply asking what I do next"');
+  if (!want?.trim() || busy || !ready()) return;
+  setBusy(true); toast('Writing the rule…');
+  try {
+    const out = await streamChat([{ role: 'system', content: 'You write find-and-replace rules for a roleplay chat app. You always answer with a single valid JSON object and nothing else.' }, { role: 'user', content: `Write one find-and-replace rule for this wish: "${want.trim()}"
+
+The rule runs on chat messages (roleplay prose with *actions in asterisks* and "dialogue in quotes"). Use plain text (regex false) when an exact phrase is enough; otherwise a JavaScript regular expression without slashes or flags (it is applied with the g flag, case-insensitive). Make sure it doesn't match more than intended.
+
+Answer with JSON: {"name": "short name", "find": "...", "replace": "replacement, or empty to delete", "regex": true or false, "who": "ai" (the character's replies), "me" (the user's messages) or "both"}` }], () => {}, { free: true });
+    const j = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1));
+    if (!j.find) throw new Error('The AI did not write a rule.');
+    openRule(null, { name: j.name || '', find: j.find, replace: j.replace || '', regex: !!j.regex, matchCase: false, who: ['ai', 'me', 'both'].includes(j.who) ? j.who : 'ai', where: 'both', on: true });
+    toast('Check the test, then Save');
+  } catch (e) { toast(isAbort(e) ? 'Stopped' : 'Could not write the rule: ' + e.message); }
+  finally { setBusy(false); }
+};
 
 // ---------- Describe a character: one paragraph about a side character, from the chat ----------
 // Long press a message → Describe a character…: type the name. Every message that mentions them (with the one

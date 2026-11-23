@@ -86,6 +86,10 @@ The reader: pages (tap the left or right edge or swipe; tap the middle to hide t
 
 In the character editor, under Example dialogue: a few lines the AI gets with every reply, placed close to the end of the chat (at your newest message, or 2, 4, 6 or 10 messages back; 4 by default), where the AI pays the most attention. Use it for what the character tends to lose in long chats: voice, attitude, habits. In a group chat each character's note only goes with their own replies. Imported from and exported to SillyTavern / Chub cards (their "Character's Note").
 
+### Replace rules
+
+Settings → Extras → **Replace rules**: find and replace that runs by itself. Each rule: **Find** (plain text, or a pattern/regex), **Replace with** (empty deletes it), **Applies to** (the character's replies, your messages, or both) and **Where**: *Change it* (the message itself is changed when it's written), *On screen only* (you see it changed, the AI gets the original) or *Only what's sent* (the AI gets it changed, you see the original). The editor shows a **test** on your last chat: how many matches and the newest examples, before and after. **Describe it…**: say in plain words what should go ("remove the question at the end asking what I do next") and the AI writes the rule, which opens in the editor with the test to check before saving. A chat can switch single rules off in Chat settings → Prompt.
+
 ## Lorebooks and albums
 
 - **Lorebook from chat** (Chat settings → Prompt → Lorebooks → **Make a lorebook from this chat**): the AI reads the whole chat in parts (~30,000 characters each, one request per part) and writes entries for side characters, places, objects, events and running jokes, each with keywords, updating them as the story goes on. The chat's characters and your persona get no entries (they have cards). You check them (switch off, edit title, keywords, text), then **Make the lorebook** creates it and links it to the chat. Stop keeps what was found so far.
