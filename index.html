@@ -8077,27 +8077,11 @@ function storyMenu(st) {
 }
 
 // ---------- A side character from the chat becomes a character card ----------
-// Long press a message → Make a character…: pick a name found in it (or type one). Every message in the chat that
+// Long press a message → Make a character…: type the name. Every message in the chat that
 // mentions them (with the one before it, for context) goes to the AI with your generator template.
-const NPC_STOP = new Set('The A An And But Or So If Then When While What Who Why How Where This That These Those He She His Her Hers Him It Its They Them Their We Our You Your I Me My Mine Not No Yes Oh Okay Ok Well Just Still Even Only Also Maybe Now Here There Hey Hi God Jesus Christ Fuck Shit Damn Mr Mrs Ms Dr Sir Ma Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December One Two Three Four Five Six Seven Eight Nine Ten Every Some Any All Both Each Another Something Nothing Everything Anything Someone Nobody Everyone Because After Before Until Again Never Always Like Yeah Nah Look Come Let Get Go Tell Said Says Okay'.split(' '));
-function npcCandidates(text) {
-  const own = new Set([...chars.flatMap(c => [c.name, c.chatName]), ...personas.map(p => p.name)].filter(Boolean).flatMap(n => [n.toLowerCase(), ...n.toLowerCase().split(/\s+/)]));
-  const found = new Map();
-  for (const m of String(text).matchAll(/\b[A-Z][a-z'’]+(?:\s[A-Z][a-z'’]+)?\b/g)) {
-    const n = m[0].replace(/['’]s$/, '').trim(), first = n.split(' ')[0];
-    if (NPC_STOP.has(first) || own.has(n.toLowerCase()) || own.has(first.toLowerCase()) || n.length < 3) continue;
-    found.set(n, 0);
-  }
-  for (const n of found.keys()) found.set(n, history.filter(x => keyHit(String(x.content || ''), n)).length);
-  return [...found].filter(([, k]) => k >= 1).sort((a, b) => b[1] - a[1]).slice(0, 6);
-}
-function npcMenu(i) {
-  const m = history[i]; if (!m || !cur) return;
-  const cands = npcCandidates(m.content || '');
-  showSheet('Make a character from…', [
-    ...cands.map(([n, k]) => ({ label: `${n} (${k} message${k === 1 ? '' : 's'})`, onClick: () => npcToChar(n) })),
-    { label: 'Another name…', onClick: () => setTimeout(() => { const n = prompt('Name of the side character'); if (n?.trim()) npcToChar(n.trim()); }, 250) },
-  ]);
+function npcMenu() {
+  if (!cur) return;
+  setTimeout(() => { const n = prompt('Make a character from… (the name as it appears in the chat)'); if (n?.trim()) npcToChar(n.trim()); }, 50);
 }
 async function npcToChar(name) {
   if (busy || !cur || !ready()) return;
