@@ -270,7 +270,9 @@
   .gm-row button.gm-b { background: none; border: 1px solid var(--line); border-radius: 8px; width: 30px; height: 30px; color: var(--ink); cursor: pointer; font: inherit; }
   .grp-face { position: relative; }
   .gm-open { cursor: pointer; }
-  .lb-timing { display: flex; gap: 8px; margin-top: 10px; }
+  .lb-timing { display: flex; gap: 8px; margin-top: 4px; }
+  .lb-more { margin-top: 10px; border-top: 1px solid var(--line); }
+  .lb-more > summary { padding: 12px 0 4px; font-size: 14px; color: var(--ink-soft); cursor: pointer; }
   .lb-t { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-soft); }
   .lb-t input { text-align: center; }
   .rule-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
@@ -2323,7 +2325,13 @@ function loreFor(c, p, chat, hist) {
     for (const e of b.entries || []) {
       if (e.on === false || !e.content?.trim() || seen.has(e.id)) continue;
       const title = e.title || 'Untitled entry';
-      const key = e.always ? '' : (e.keys || '').split(',').map(k => k.trim()).find(k => k && keyHit(text, k));
+      let key = e.always ? '' : (e.keys || '').split(',').map(k => k.trim()).find(k => k && keyHit(text, k)) || '';
+      // second keywords: one of them must also be there (or, with "not", none of them may be)
+      if (key && e.keys2?.trim()) {
+        const k2 = e.keys2.split(',').map(k => k.trim()).find(k => k && keyHit(text, k));
+        if (e.logic2 === 'not' ? k2 : !k2) key = '';
+        else if (k2 && e.logic2 !== 'not') key = `${key}” + “${k2}`;
+      }
       const last = T[e.id], stickyEnd = last != null && e.sticky ? last + e.sticky : null;
       const sticky = !e.always && !key && stickyEnd != null && now > last && now <= stickyEnd;
       if (!e.always && !key && !sticky) continue;
@@ -2334,8 +2342,11 @@ function loreFor(c, p, chat, hist) {
         if (key) lastLoreHits.push({ book: b.name, title, key, skipped: `cooldown (${restFrom + e.cooldown - now + 1} more message${restFrom + e.cooldown - now ? 's' : ''})` });
         continue;
       }
+      // chance: rolled each time it would fire by keyword (or always on); a sticky run doesn't roll again
+      if (!sticky && e.prob && e.prob < 100 && Math.random() * 100 >= e.prob) { lastLoreHits.push({ book: b.name, title, key, skipped: `chance (${e.prob}%)` }); continue; }
       // where the keyword was found: the newest message that has it
-      const m = key ? [...recent].reverse().find(x => keyHit(String(x.content || ''), key)) : null;
+      const k1 = (key || '').split('” + “')[0];
+      const m = key ? [...recent].reverse().find(x => keyHit(String(x.content || ''), k1)) : null;
       const where = e.always ? 'always on' : sticky ? `sticky (${stickyEnd - now ? `${stickyEnd - now} more after this` : 'last one'})` : m?.role === 'user' ? 'your message' : m ? `${cn(speakerChar(m, c))}'s reply` : 'recent messages';
       const t = fill(e.content.trim(), c, p), cost = t.length / 4;
       if (used + cost > LORE_BUDGET) { lastLoreHits.push({ book: b.name, title, key, where, skipped: 'lorebook budget full' }); continue; }
@@ -5585,6 +5596,8 @@ function renderLore() {
       if (e.always) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'always'; sm.append(t); }
       if (e.on === false) { const t = document.createElement('span'); t.className = 'tag off'; t.textContent = 'off'; sm.append(t); }
       for (const [k, w] of [['sticky', 'sticky'], ['cooldown', 'cooldown'], ['delay', 'delay']]) if (e[k]) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = `${w} ${e[k]}`; sm.append(t); }
+      if (e.prob) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = `${e.prob}%`; sm.append(t); }
+      if (e.keys2?.trim()) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = e.logic2 === 'not' ? 'not if…' : '+ second key'; sm.append(t); }
     };
     label();
     const field = (lab, key, tag, ph) => {
@@ -5617,7 +5630,28 @@ function renderLore() {
     }
     const th = document.createElement('div'); th.className = 'hint'; th.style.marginTop = '4px';
     th.textContent = 'In messages; 0 = off. Sticky: stays on after it triggers, even when nobody says the keyword (people in a scene). Cooldown: afterwards it can\'t trigger for a while (running jokes). Delay: only once the chat has that many messages (slow reveals).';
-    d.append(timing, th);
+    // More options (closed by default): second keywords, chance, timing
+    const more = document.createElement('details'); more.className = 'lb-more';
+    const ms = document.createElement('summary'); ms.textContent = 'More options';
+    const l2 = document.createElement('label'); l2.className = 'f'; l2.textContent = 'Second keywords';
+    const k2 = document.createElement('input'); k2.type = 'text'; k2.value = e.keys2 || ''; k2.placeholder = 'e.g. football, game, knee';
+    k2.oninput = () => { if (k2.value.trim()) e.keys2 = k2.value; else delete e.keys2; saveLore(); label(); };
+    const seg = document.createElement('div'); seg.className = 'seg'; seg.style.marginTop = '8px';
+    for (const [v, t] of [['and', 'Also needs one of these'], ['not', 'Not if any of these']]) {
+      const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = t; bt.classList.toggle('on', (e.logic2 || 'and') === v);
+      bt.onclick = () => { if (v === 'and') delete e.logic2; else e.logic2 = v; saveLore(); for (const x of seg.children) x.classList.toggle('on', x === bt); label(); };
+      seg.append(bt);
+    }
+    const h2 = document.createElement('div'); h2.className = 'hint'; h2.textContent = 'Empty: the keywords above are enough. Otherwise one of these must also be in the recent messages (or, with "Not if", none of them may be).';
+    const pr = document.createElement('div'); pr.className = 'line';
+    const prl = document.createElement('span'); prl.textContent = 'Chance it fires (%)';
+    const pri = document.createElement('input'); pri.type = 'number'; pri.min = 1; pri.max = 100; pri.inputMode = 'numeric'; pri.placeholder = '100'; pri.value = e.prob && e.prob < 100 ? e.prob : ''; pri.style.width = '84px'; pri.style.textAlign = 'center';
+    pri.oninput = () => { const v = Math.max(1, Math.min(100, parseInt(pri.value, 10) || 100)); if (v < 100) e.prob = v; else delete e.prob; saveLore(); label(); };
+    pr.append(prl, pri);
+    const ph = document.createElement('div'); ph.className = 'hint'; ph.textContent = 'Each time its keyword comes up, it only goes along this share of the time (random events). Once it fires, sticky keeps it on without rolling again.';
+    const tl = document.createElement('label'); tl.className = 'f'; tl.textContent = 'Timing';
+    more.append(ms, l2, k2, seg, h2, pr, ph, tl, timing, th);
+    d.append(more);
     const acts = document.createElement('div'); acts.className = 'actions';
     const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete entry';
     del.onclick = () => { if (!confirm('Delete this entry?')) return; b.entries.splice(b.entries.indexOf(e), 1); saveLore(); renderLore(); };
