@@ -270,6 +270,15 @@
   .gm-row button.gm-b { background: none; border: 1px solid var(--line); border-radius: 8px; width: 30px; height: 30px; color: var(--ink); cursor: pointer; font: inherit; }
   .grp-face { position: relative; }
   .gm-open { cursor: pointer; }
+  .lay-row { border-bottom: 1px solid var(--line); }
+  .lay-row > summary { display: flex; align-items: center; gap: 6px; padding: 8px 0; list-style: none; cursor: pointer; }
+  .lay-row > summary::-webkit-details-marker { display: none; }
+  .lay-row .lay-n { flex: 1; min-width: 0; font-size: 15px; }
+  .lay-row .lay-n small { display: block; color: var(--ink-soft); font-size: 12px; }
+  .lay-row.chatb .lay-n { font-weight: 600; color: var(--accent-ink); }
+  .lay-row.off .lay-n { opacity: .45; }
+  .lay-row .gm-b { flex: none; }
+  .lay-body { padding: 0 0 12px; }
   .lb-timing { display: flex; gap: 8px; margin-top: 4px; }
   .lb-more { margin-top: 10px; border-top: 1px solid var(--line); }
   .lb-more > summary { padding: 12px 0 4px; font-size: 14px; color: var(--ink-soft); cursor: pointer; }
@@ -1200,6 +1209,10 @@
     <details class="sec gsec" data-g="prompt"><summary class="group-title"><span class="gt">System prompt</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
       <div class="gbody"><div class="card" id="cPromptBox"></div></div><div class="hint gnote"></div>
       <div class="card" style="margin-top:10px">
+        <label class="f" style="margin-top:12px">Prompt layout</label>
+        <div id="cLayoutBox"></div>
+      </div>
+      <div class="card" style="margin-top:10px">
         <div class="line"><span>Repeat the character card near the latest message</span><input type="checkbox" class="tgl" id="csCardRepeat"></div>
         <div class="hint">Every reply already ends with a short reminder to stay true to the character card. This also sends the whole personality again right at your latest message, for a character that drifts in a long chat. Stronger, but it costs the card's tokens with every message. Follows Settings → Prompt until you change it here.</div>
       </div>
@@ -1446,6 +1459,12 @@ Empty = send everything.</div>
     <div class="card">
       <label class="f">System prompts</label>
       <div id="gPromptBox"></div>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <label class="f" style="margin-top:12px">Prompt layout</label>
+      <div class="hint" style="margin-top:0">The order of everything a request is made of. Drag blocks up or down with the arrows, switch them off, add your own text, or put a block after the chat or inside it. The built-in layout is what GreenRoom always sends; make a copy to change it.</div>
+      <div id="gLayoutBox"></div>
+      <div class="actions"><button class="btn" type="button" id="stImport">Import SillyTavern preset</button></div>
     </div>
     <div class="card" style="margin-top:10px">
       <div class="line"><span>Repeat the character card near the latest message</span><input type="checkbox" class="tgl" data-k="cardRepeat"></div>
@@ -2387,9 +2406,37 @@ function timeNote(hist, i) {
   }
   return `[Time: ${clockText(m.t)}.${gap}]`;
 }
-function systemFor(c, p, memory, lore, chat = cur?.chat, hist = null) {
-  const f = t => fill((t || '').trim(), c, p);
-  const parts = [f(promptText(chat))];
+// ---------- Prompt layout: the parts of a request as blocks, in an order you choose ----------
+// Built-in blocks hold what GreenRoom always sent; "chat" is the messages. Blocks above "chat" go before it (system ones
+// into the system prompt), blocks below it after it; a block can also go into the chat at a depth. The built-in layout
+// is exactly what GreenRoom sent before layouts existed.
+const PROMPT_BLOCKS = [
+  ['main', 'Main prompt', 'The system prompt you select (Settings → Prompt, or per chat).'],
+  ['char', 'Character', 'Who the character is: name, personality and scenario.'],
+  ['group', 'Group', 'Who is in the chat and that each writes their own replies (group chats only).'],
+  ['persona', 'Persona', 'Your persona: name and description.'],
+  ['lore', 'Lorebook', 'The lorebook entries that triggered.'],
+  ['memory', 'Memory', 'The chat\'s Memory.'],
+  ['length', 'Reply length', 'The max reply length rule (when the preset sets one).'],
+  ['examples', 'Example dialogue', 'The card\'s example dialogue.'],
+  ['forbidden', 'Forbidden words', 'The forbidden words list.'],
+  ['time', 'Real time', 'The current date and time (when Real time is on).'],
+  ['images', 'Pictures', 'How the AI sends pictures (when pictures are on).'],
+  ['recall', 'Recalled moments', 'Moments from long ago found by vector storage.'],
+  ['chat', 'Chat', 'The messages. Blocks above it go before them, blocks below after them.'],
+];
+const BLOCK_INFO = Object.fromEntries(PROMPT_BLOCKS.map(([k, n, d]) => [k, { name: n, desc: d }]));
+const DEFAULT_BLOCKS = () => PROMPT_BLOCKS.map(([key]) => ({ id: 'b_' + key, key, on: true, role: 'system', place: 'order' }));
+const layoutList = () => cfg.layouts || (cfg.layouts = []);
+// the layout a chat uses: its own choice, or Settings'; null = the built-in one
+function layoutFor(chat) {
+  const id = chat && 'layoutId' in chat ? chat.layoutId : cfg.layoutId;
+  return layoutList().find(l => l.id === id) || null;
+}
+// the text of every built-in block (empty when it has nothing to say)
+function blockTexts(c, p, memory, lore, chat = cur?.chat) {
+  const f = t => fill((t || '').trim(), c, p), T = {};
+  T.main = f(promptText(chat));
   const g = chat?.group;
   let ch = `--- Character: ${cn(c)} ---\nYou are ${cn(c)}. Stay in character.`;
   if (f(c.personality)) ch += `\n\nPersonality:\n${f(c.personality)}`;
@@ -2398,20 +2445,159 @@ function systemFor(c, p, memory, lore, chat = cur?.chat, hist = null) {
       .map(o => { const t = fill((o.scenario || '').trim(), o, p); return t && `${cn(o)}'s scenario:\n${t}`; })].filter(Boolean);
     if (sc.length) ch += `\n\nScenario:\n${sc.join('\n\n')}`;
   } else if (f(c.scenario)) ch += `\n\nScenario:\n${f(c.scenario)}`;
-  parts.push(ch);
-  if (g) parts.push(groupSection(c, p, chat));
-  if (p) parts.push(`--- User: ${p.name} ---\nYou are talking with ${p.name}.${f(p.personality) ? `\n\n${f(p.personality)}` : ''}`);
-  if (lore) parts.push(`--- World info (facts about this story; use when relevant) ---\n${lore}`);
-  if (f(memory)) parts.push(`--- Memory (things to remember in this chat) ---\n${f(memory)}`);
+  T.char = ch;
+  T.group = g ? groupSection(c, p, chat) : '';
+  T.persona = p ? `--- User: ${p.name} ---\nYou are talking with ${p.name}.${f(p.personality) ? `\n\n${f(p.personality)}` : ''}` : '';
+  T.lore = lore ? `--- World info (facts about this story; use when relevant) ---\n${lore}` : '';
+  T.memory = f(memory) ? `--- Memory (things to remember in this chat) ---\n${f(memory)}` : '';
   const maxT = gen(chat).maxTokens;
-  if (maxT) parts.push(`--- Reply length (strict) ---\nEvery reply must stay under ${Math.max(15, Math.round(maxT * 0.6))} words. This is a hard limit, also for long scenes: write less, not faster. Always finish your last sentence.`);
-  if (f(c.examples)) parts.push(`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}`);
+  T.length = maxT ? `--- Reply length (strict) ---\nEvery reply must stay under ${Math.max(15, Math.round(maxT * 0.6))} words. This is a hard limit, also for long scenes: write less, not faster. Always finish your last sentence.` : '';
+  T.examples = f(c.examples) ? `--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}` : '';
   const banned = String(chat && 'forbidden' in chat ? chat.forbidden : cfg.forbidden || '').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
-  if (banned.length) parts.push(`--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.`);
-  if (chat?.realTime) parts.push(timeFor());
-  if (imageEnabled(chat)) parts.push('--- Images ---\nYou can send the user pictures. Only when the latest message from the user explicitly asks you for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never add the tag otherwise, not even when pictures were sent earlier in the chat.');
-  return parts.filter(Boolean).join('\n\n');
+  T.forbidden = banned.length ? `--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.` : '';
+  T.time = chat?.realTime ? timeFor() : '';
+  T.images = !imageEnabled(chat) ? '' : ('--- Images ---\nYou can send the user pictures. Only when the latest message from the user explicitly asks you for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never add the tag otherwise, not even when pictures were sent earlier in the chat.');
+  T.recall = ''; T.chat = '';
+  return T;
 }
+// ---------- Prompt layout screens: Settings → Prompt and Chat settings → Prompt ----------
+const openBlocks = new Set();
+function renderLayoutBox(box, scope) {
+  if (!box) return;
+  const chat = scope === 'chat' ? cur?.chat : null; if (scope === 'chat' && !chat) return;
+  const list = layoutList();
+  const selId = chat ? ('layoutId' in chat ? chat.layoutId : null) : (cfg.layoutId || '');
+  const L = chat ? layoutFor(chat) : list.find(l => l.id === cfg.layoutId) || null;
+  const save = () => { saveCfg(); if (chat) store.set('chats', chats); };
+  const rerender = () => { renderLayoutBox($('gLayoutBox'), 'global'); if (cur) renderLayoutBox($('cLayoutBox'), 'chat'); };
+  box.innerHTML = '';
+  const chips = document.createElement('div'); chips.className = 'chips';
+  const chip = (label, on, fn, onLong) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; if (on) b.className = 'on'; if (onLong) pressable(b, fn, onLong); else b.onclick = fn; chips.append(b); };
+  const pick = id => { if (chat) { if (id === null) delete chat.layoutId; else chat.layoutId = id; } else cfg.layoutId = id || ''; save(); rerender(); };
+  const menu = l => showSheet(l.name || 'Layout', [
+    { label: 'Duplicate', onClick: () => { const n = { ...JSON.parse(JSON.stringify(l)), id: uid(), name: `${l.name} copy` }; list.push(n); save(); pick(n.id); } },
+    { label: 'Rename', onClick: () => { const t = prompt('Name', l.name); if (t?.trim()) { l.name = t.trim(); save(); rerender(); } } },
+    { label: 'Delete', onClick: () => { if (!confirm(`Delete "${l.name}"? Chats that use it go back to the built-in one.`)) return; list.splice(list.indexOf(l), 1); if (cfg.layoutId === l.id) cfg.layoutId = ''; for (const ch of chats) if (ch.layoutId === l.id) delete ch.layoutId; save(); rerender(); } },
+  ]);
+  if (chat) chip(`Follow Settings (${layoutFor(null)?.name || 'Built-in'})`, selId === null, () => pick(null));
+  chip('Built-in', chat ? selId !== null && !list.some(l => l.id === selId) : !L, () => pick(chat ? 'builtin' : ''));
+  for (const l of list) chip(l.name || 'Layout', chat ? selId === l.id : L === l, () => pick(l.id), () => { navigator.vibrate?.(12); menu(l); });
+  if (!chat) chip('+ New', false, () => { const n = { id: uid(), name: `Layout ${list.length + 1}`, blocks: JSON.parse(JSON.stringify(L?.blocks || DEFAULT_BLOCKS())) }; list.push(n); save(); pick(n.id); });
+  box.append(chips);
+  const blocks = L?.blocks || DEFAULT_BLOCKS(), fixed = !L;
+  const where = b => b.key === 'chat' ? 'the messages' : `${b.role || 'system'} · ${b.place === 'depth' ? `in the chat, ${b.depth || 1} back` : blocks.indexOf(b) < blocks.findIndex(x => x.key === 'chat') ? 'before the chat' : 'after the chat'}`;
+  const listBox = document.createElement('div'); listBox.style.marginTop = '8px';
+  blocks.forEach((b, k) => {
+    const d = document.createElement('details'); d.className = 'lay-row' + (b.key === 'chat' ? ' chatb' : '') + (b.on === false ? ' off' : '');
+    d.open = !fixed && openBlocks.has(b.id);
+    d.addEventListener('toggle', () => { d.open ? openBlocks.add(b.id) : openBlocks.delete(b.id); });
+    const sm = document.createElement('summary');
+    const mv = (t, dir, aria) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'gm-b'; x.textContent = t; x.setAttribute('aria-label', aria); x.disabled = fixed || (dir < 0 ? k === 0 : k === blocks.length - 1);
+      x.onclick = e => { e.preventDefault(); const j = k + dir; [blocks[k], blocks[j]] = [blocks[j], blocks[k]]; save(); rerender(); }; return x; };
+    const n = document.createElement('div'); n.className = 'lay-n'; n.textContent = b.key ? BLOCK_INFO[b.key].name : (b.name || 'Block');
+    const sml = document.createElement('small'); sml.textContent = where(b); n.append(sml);
+    sm.append(mv('↑', -1, 'Move up'), mv('↓', 1, 'Move down'), n);
+    if (b.key !== 'chat') {
+      const on = document.createElement('input'); on.type = 'checkbox'; on.className = 'tgl'; on.checked = b.on !== false; on.disabled = fixed;
+      on.onclick = e => e.stopPropagation(); on.onchange = () => { b.on = on.checked; save(); rerender(); };
+      sm.append(on);
+    }
+    d.append(sm);
+    const body = document.createElement('div'); body.className = 'lay-body';
+    if (b.key) { const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '0'; h.textContent = BLOCK_INFO[b.key].desc; body.append(h); }
+    else {
+      const ni = document.createElement('input'); ni.type = 'text'; ni.value = b.name || ''; ni.placeholder = 'Name';
+      ni.oninput = () => { b.name = ni.value; n.firstChild.textContent = ni.value || 'Block'; save(); };
+      const ta = document.createElement('textarea'); ta.value = b.text || ''; ta.placeholder = 'The text of this block. {{char}} and {{user}} work.'; ta.style.marginTop = '8px';
+      ta.oninput = () => { b.text = ta.value; autosize(ta); save(); };
+      body.append(ni, ta);
+    }
+    if (b.key !== 'chat' && !fixed) {
+      const seg = (opts, val, set) => { const g = document.createElement('div'); g.className = 'seg'; g.style.marginTop = '8px'; for (const [v, t] of opts) { const x = document.createElement('button'); x.type = 'button'; x.textContent = t; x.classList.toggle('on', val === v); x.onclick = () => { set(v); save(); rerender(); }; g.append(x); } return g; };
+      body.append(seg([['system', 'System'], ['user', 'User'], ['assistant', 'Assistant']], b.role || 'system', v => { b.role = v; }));
+      body.append(seg([['order', 'Where it is in the list'], ['depth', 'Inside the chat']], b.place || 'order', v => { b.place = v; if (v === 'depth' && !b.depth) b.depth = 4; }));
+      if (b.place === 'depth') {
+        const r = document.createElement('div'); r.className = 'line';
+        const sp = document.createElement('span'); sp.textContent = 'Messages back (1 = your newest message)';
+        const i = document.createElement('input'); i.type = 'number'; i.min = 1; i.max = 50; i.value = b.depth || 4; i.style.width = '76px'; i.style.textAlign = 'center';
+        i.onchange = () => { b.depth = Math.max(1, Math.min(50, parseInt(i.value, 10) || 1)); save(); rerender(); };
+        r.append(sp, i); body.append(r);
+      }
+      if (!b.key) { const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete this block'; del.style.marginTop = '10px';
+        del.onclick = () => { if (!confirm(`Delete "${b.name || 'this block'}"?`)) return; blocks.splice(k, 1); save(); rerender(); }; body.append(del); }
+    }
+    d.append(body); listBox.append(d);
+  });
+  box.append(listBox);
+  if (!fixed) {
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.textContent = '+ Add block'; add.style.marginTop = '10px';
+    add.onclick = () => { const nb = { id: uid(), name: 'New block', text: '', on: true, role: 'system', place: 'order' }; const at = blocks.findIndex(x => x.key === 'chat'); blocks.splice(at < 0 ? blocks.length : at, 0, nb); openBlocks.add(nb.id); save(); rerender(); };
+    box.append(add);
+  }
+  const h = document.createElement('div'); h.className = 'hint'; h.style.marginTop = '10px';
+  h.textContent = (fixed ? 'The built-in layout can\'t be changed: tap + New in Settings for an editable copy. ' : '')
+    + 'System blocks above Chat form the system prompt; other roles there become messages before the chat. Blocks below Chat come after it (system text is added to your last message). "Inside the chat" puts a block that many messages from the end. The card reminder, author\'s note and character\'s note keep their own places.'
+    + (chat ? ' Layouts are shared with Settings and other chats.' : ' Long press a layout to duplicate, rename or delete it.');
+  box.append(h);
+}
+
+// ---------- Import a SillyTavern chat-completion preset: a layout (their prompt order) + a generation preset ----------
+// Their markers become GreenRoom's blocks (character description/personality/scenario → Character, world info → Lorebook,
+// persona → Persona, examples → Example dialogue, chat history → Chat); their own prompts (main, NSFW, jailbreak /
+// post-history, custom ones) become your own blocks with the same role and place. GreenRoom's main prompt is switched
+// off in the new layout (theirs replaces it); blocks SillyTavern doesn't have (memory, group, recalled moments…) are kept.
+function stPresetToGreenRoom(j, name) {
+  if (!Array.isArray(j?.prompts)) throw new Error('This is not a SillyTavern chat-completion preset (no prompts in it).');
+  const byId = new Map(j.prompts.map(x => [x.identifier, x]));
+  const orders = Array.isArray(j.prompt_order) ? j.prompt_order : [];
+  const order = (orders.find(o => o.character_id === 100001) || orders.find(o => Array.isArray(o.order)) || {}).order
+    || j.prompts.map(x => ({ identifier: x.identifier, enabled: x.enabled !== false }));
+  const MAP = { charDescription: 'char', charPersonality: 'char', scenario: 'char', personaDescription: 'persona', worldInfoBefore: 'lore', worldInfoAfter: 'lore', dialogueExamples: 'examples', chatHistory: 'chat' };
+  const blocks = [], used = new Set();
+  for (const o of order) {
+    const pr = byId.get(o.identifier); const on = o.enabled !== false;
+    const key = MAP[o.identifier];
+    if (key) { if (used.has(key)) { const b = blocks.find(x => x.key === key); if (on) b.on = true; continue; } used.add(key); blocks.push({ id: 'b_' + key, key, on: key === 'chat' ? true : on, role: 'system', place: 'order' }); continue; }
+    if (!pr || pr.marker) continue;
+    const text = String(pr.content || '').trim(); if (!text && !on) continue;
+    blocks.push({ id: uid(), name: pr.name || o.identifier, text, on: on && !!text, role: ['system', 'user', 'assistant'].includes(pr.role) ? pr.role : 'system',
+      place: pr.injection_position === 1 ? 'depth' : 'order', ...(pr.injection_position === 1 ? { depth: Math.max(1, (+pr.injection_depth || 4)) } : {}) });
+  }
+  if (!used.has('chat')) blocks.push({ id: 'b_chat', key: 'chat', on: true, role: 'system', place: 'order' });
+  // GreenRoom's own main prompt: kept, but off (the preset brings its own); the rest of GreenRoom's blocks go in sensible places
+  const ensure = (key, before, on = true) => { if (blocks.some(b => b.key === key)) return; const at = blocks.findIndex(b => b.key === before); blocks.splice(at < 0 ? blocks.findIndex(b => b.key === 'chat') : at, 0, { id: 'b_' + key, key, on, role: 'system', place: 'order' }); };
+  if (!blocks.some(b => b.key === 'main')) blocks.unshift({ id: 'b_main', key: 'main', on: false, role: 'system', place: 'order' });
+  ensure('char', 'chat'); ensure('group', 'persona'); ensure('persona', 'chat'); ensure('lore', 'chat'); ensure('examples', 'chat');
+  for (const k of ['memory', 'length', 'forbidden', 'time', 'images', 'recall']) ensure(k, 'chat');
+  // generation settings (their "off" values are left out, so the model default is used)
+  const num = (v, off) => v === undefined || v === null || v === '' || +v === off ? undefined : +v;
+  const pre = { id: uid(), name, temperature: num(j.temperature, undefined) ?? 0.9 };
+  const put = (k, v) => { if (v !== undefined && !isNaN(v)) pre[k] = v; };
+  put('topP', num(j.top_p, 1)); put('topK', num(j.top_k, 0)); put('topA', num(j.top_a, 0)); put('minP', num(j.min_p, 0));
+  put('repPenalty', num(j.repetition_penalty, 1)); put('freqPenalty', num(j.frequency_penalty, 0)); put('presPenalty', num(j.presence_penalty, 0));
+  put('maxTokens', num(j.openai_max_tokens, 0)); put('seed', num(j.seed, -1));
+  if (['low', 'medium', 'high'].includes(j.reasoning_effort)) pre.reasoning = j.reasoning_effort; else if (j.reasoning_effort === 'min' || j.reasoning_effort === 'minimum') pre.reasoning = 'low';
+  if (String(j.assistant_prefill || '').trim()) pre.prefill = j.assistant_prefill;
+  return { layout: { id: uid(), name, blocks }, preset: pre };
+}
+$('stImport').onclick = () => {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+  inp.onchange = async () => {
+    const f = inp.files[0]; if (!f) return;
+    try {
+      const name = f.name.replace(/\.json$/i, '').trim() || 'SillyTavern preset';
+      const { layout, preset } = stPresetToGreenRoom(JSON.parse(await f.text()), name);
+      layoutList().push(layout); cfg.presets.push(preset);
+      const own = layout.blocks.filter(b => !b.key).length;
+      if (confirm(`Imported "${name}": a layout with ${layout.blocks.length} blocks (${own} of the preset's own) and a generation preset.\n\nUse both now?`)) { cfg.layoutId = layout.id; cfg.presetId = preset.id; }
+      saveCfg(); renderLayoutBox($('gLayoutBox'), 'global'); renderProxyBoxes(); if (cur) renderLayoutBox($('cLayoutBox'), 'chat');
+    } catch (e) { toast('Could not import it: ' + e.message); }
+  };
+  inp.click();
+};
+
+// What went where in the last request (shown in What was sent)
+let lastLayoutInfo = null;
 
 // User images are sent as image content (the model must be able to see images); only the
 // last few are sent in full to keep requests small, older ones become a short note.
@@ -2500,7 +2686,18 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat, opts = {}) {
       note = ''; break;
     }
   }
-  const system = { role: 'system', content: systemFor(c, p, memory, loreFor(c, p, chat, hist), chat, hist) + (note ? `\n\n--- Author's note ---\n${note}` : '') };
+  const T = blockTexts(c, p, memory, loreFor(c, p, chat, hist), chat), L = layoutFor(chat), B = (L?.blocks || DEFAULT_BLOCKS()).filter(b => b.on !== false);
+  const chatAt = B.findIndex(b => b.key === 'chat');
+  const textOf = b => b.key ? (T[b.key] || '') : fill((b.text || '').trim(), c, p);
+  const zone = b => b.key === 'chat' ? 'chat' : b.place === 'depth' ? 'depth' : chatAt < 0 || B.indexOf(b) < chatAt ? 'before' : 'after';
+  const sysBlocks = B.filter(b => zone(b) === 'before' && (b.role || 'system') === 'system');
+  // the system prompt: the system blocks before the chat, in order (an author's note with no message to go on goes just before recalled moments)
+  const systemText = () => {
+    const items = sysBlocks.map(b => [b.key, textOf(b)]).filter(([, t]) => t);
+    if (note) { const r = items.findIndex(([k]) => k === 'recall'); items.splice(r < 0 || r !== items.length - 1 ? items.length : r, 0, ['note', `--- Author's note ---\n${note}`]); }
+    return items.map(([, t]) => t).join('\n\n');
+  };
+  const system = { role: 'system', content: systemText() };
   // Context size: drop the oldest messages until it fits (~4 characters per token, ~800 per image)
   const limit = gen(chat).contextSize;
   if (limit) {
@@ -2537,10 +2734,31 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat, opts = {}) {
     try {
       const cutoff = limit ? hist.length - msgs.length : hist.length - 60;
       const recalled = await vecRecall(chat, c, p, hist, cutoff);
-      if (recalled) system.content += `\n\n--- Earlier moments from this chat (from long ago; recalled because they relate to what is happening now) ---\n${recalled}`;
+      if (recalled) T.recall = `--- Earlier moments from this chat (from long ago; recalled because they relate to what is happening now) ---\n${recalled}`;
     } catch (e) { if (!isAbort(e)) { dbg('error', 'Vector storage: ' + e.message); toast('Vector storage failed: ' + e.message); } }
   }
-  return [system, ...msgs];
+  system.content = systemText();
+  // the other blocks: before the chat as their own messages, after it, or inside it at a depth
+  const addTo = (x, t) => { if (Array.isArray(x.content)) x.content = [...x.content, { type: 'text', text: '\n\n' + t }]; else x.content = (x.content || '') + '\n\n' + t; };
+  const head = [], info = [];
+  for (const b of B) {
+    const z = zone(b), t = textOf(b), name = b.key ? BLOCK_INFO[b.key]?.name : (b.name || 'Block'), role = b.role || 'system';
+    if (z === 'chat') { info.push({ name, where: 'chat' }); continue; }
+    if (!t) continue;
+    if (z === 'before') { if (role !== 'system') head.push({ role, content: t }); info.push({ name, where: role === 'system' ? 'system prompt' : `before the chat (${role})` }); continue; }
+    if (z === 'after') {
+      // system text after the chat rides on your last message (models handle that best); user/assistant are their own message
+      if (role === 'system' && msgs.at(-1)?.role === 'user') addTo(msgs.at(-1), t); else msgs.push({ role: role === 'system' ? 'user' : role, content: t });
+      info.push({ name, where: `after the chat (${role})` }); continue;
+    }
+    // at a depth: system text goes on your message at or above it; user/assistant become a message there
+    const at = Math.max(0, msgs.length - (b.depth || 1) + 1);
+    if (role === 'system') { let k = Math.max(0, Math.min(msgs.length - (b.depth || 1), msgs.length - 1)); while (k > 0 && msgs[k]?.role !== 'user') k--; if (msgs[k]) addTo(msgs[k], t); else msgs.push({ role: 'user', content: t }); }
+    else msgs.splice(Math.min(at, msgs.length), 0, { role, content: t });
+    info.push({ name, where: `in the chat, ${b.depth || 1} back (${role})` });
+  }
+  lastLayoutInfo = { layout: L?.name || 'Built-in', blocks: info };
+  return [system, ...head, ...msgs];
 }
 
 function visible(t, final) {
@@ -3203,7 +3421,7 @@ function logSent(target, info) { sentLog.set(target, info); while (sentLog.size 
 async function aiTurn(s, hist, messages, bubble, into) {
   const here = () => cur?.chat.id === s.chat.id;
   const pr = proxyFor('chat', s.chat);
-  const sent = { messages, proxy: pr.name || 'Proxy', model: api(s.chat).model, prompt: promptNameFor(s.chat), at: Date.now(), lore: lastLoreHits };
+  const sent = { messages, proxy: pr.name || 'Proxy', model: api(s.chat).model, prompt: promptNameFor(s.chat), at: Date.now(), lore: lastLoreHits, layout: lastLayoutInfo };
   const via = turnOverride ? `${pr.name || 'Proxy'} · ${promptNameFor(s.chat)}` : '';
   clearErrs(); startFollow();
   // How new messages appear: Slide up = you watch it being written; Appear / Fade in = written out of sight
@@ -6287,7 +6505,7 @@ function syncGsecs() {
 function refreshChatSettings() {
   const ch = cur.chat;
   renderProxyBoxes(); syncChatGen(); syncGenImg();
-  renderPromptBox($('cPromptBox'), 'chat'); renderCsRules(); $('csForbidden').value = ch.forbidden ?? '';
+  renderPromptBox($('cPromptBox'), 'chat'); renderCsRules(); renderLayoutBox($('cLayoutBox'), 'chat'); $('csForbidden').value = ch.forbidden ?? '';
   syncGsecs(); autosizeAll?.($('chatset'));
 }
 for (const d of document.querySelectorAll('#chatset details.gsec')) {
@@ -7056,7 +7274,7 @@ async function debugReport() {
   return L.join('\n');
 }
 function openSettings() {
-  syncVecSettings(); renderRules();
+  syncVecSettings(); renderRules(); renderLayoutBox($('gLayoutBox'), 'global');
   syncDebug(); renderStyles(); renderPromptBox($('gPromptBox'), 'global');
   loadFonts(Object.keys(FONTS));
   renderProxyBoxes(); syncGenSummaries();
@@ -8595,7 +8813,7 @@ async function openSent(i) {
   let info = sentLog.get(target), rebuilt = false;
   if (!info) {
     const c = speakerChar(m, cur.c);
-    try { info = { messages: await buildMessages(c, cur.p, history.slice(0, i), cur.chat.memory, cur.chat, { vec: false }), proxy: proxyFor('chat', cur.chat).name || 'Proxy', model: api(cur.chat).model, prompt: promptNameFor(cur.chat) }; info.lore = lastLoreHits; rebuilt = true; }
+    try { info = { messages: await buildMessages(c, cur.p, history.slice(0, i), cur.chat.memory, cur.chat, { vec: false }), proxy: proxyFor('chat', cur.chat).name || 'Proxy', model: api(cur.chat).model, prompt: promptNameFor(cur.chat) }; info.lore = lastLoreHits; info.layout = lastLayoutInfo; rebuilt = true; }
     catch (e) { return toast('Could not rebuild it: ' + e.message); }
   }
   const box = $('sentBox'); box.innerHTML = '';
@@ -8608,6 +8826,11 @@ async function openSent(i) {
     + `<div>${info.messages.length} messages · ${all.length.toLocaleString()} characters · ${lib ? '' : '~'}${tok(all).toLocaleString()} tokens</div>`
     + `<div class="hint" style="margin-top:6px">${rebuilt ? 'Rebuilt from the chat as it is now: this reply was written before the app was last opened, so the exact request is gone. Settings changed since then show here as they are now; vector storage recalls are left out.' : `Exactly as sent at ${new Date(info.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}</div>`;
   box.append(info1);
+  if (info.layout) {
+    const lc = document.createElement('div'); lc.className = 'card sent-info'; lc.style.cssText = 'padding:12px 16px;margin-top:10px';
+    lc.innerHTML = `<div><b>Layout: ${escHtml(info.layout.layout)}</b></div>` + info.layout.blocks.map(x => `<div style="margin-top:4px">${escHtml(x.name)} <span style="color:var(--ink-soft)">· ${escHtml(x.where)}</span></div>`).join('');
+    box.append(lc);
+  }
   if (info.lore) {
     const lc = document.createElement('div'); lc.className = 'card sent-info'; lc.style.cssText = 'padding:12px 16px;margin-top:10px';
     lc.innerHTML = `<div><b>Lorebook entries</b></div>` + (info.lore.length ? info.lore.map(h => `<div style="margin-top:4px">${escHtml(h.title)} <span style="color:var(--ink-soft)">· ${h.skipped ? `left out: ${escHtml(h.skipped === true ? 'lorebook budget full' : h.skipped)}` : h.sticky ? escHtml(h.where) : h.key ? `“${escHtml(h.key)}” in ${escHtml(h.where)}` : 'always on'} · ${escHtml(h.book || '')}</span></div>`).join('') : '<div class="hint" style="margin-top:4px">None triggered.</div>');

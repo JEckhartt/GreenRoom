@@ -82,6 +82,14 @@ The reader: pages (tap the left or right edge or swipe; tap the middle to hide t
 - **Personas**: who *you* are: image, name, personality.
 - Swipe a character or persona left for **Move** (to a folder) and **Delete**; long press to select several.
 
+### Prompt layout and SillyTavern presets
+
+Settings → Prompt → **Prompt layout**: everything a request is made of, as blocks in order: Main prompt, Character, Group, Persona, Lorebook, Memory, Reply length, Example dialogue, Forbidden words, Real time, Pictures, Recalled moments and **Chat** (the messages), plus your own blocks. **Built-in** is exactly what GreenRoom always sends; **+ New** makes an editable copy. Per block: on/off, ↑ ↓, role (system, user, assistant) and place: where it is in the list (above Chat = before the messages, system ones in the system prompt; below Chat = after them, system text added to your last message) or **inside the chat** a number of messages back. Your own blocks have a name and text. A chat can use another layout (Chat settings → Prompt). Long press a layout to duplicate, rename or delete it. What was sent lists the layout and where each block went.
+
+**Import SillyTavern preset** (same place): a chat-completion preset (.json) becomes a layout in their prompt order (their markers map to GreenRoom's blocks; their main, NSFW, post-history and custom prompts become your blocks with their role and depth; GreenRoom's own main prompt is kept but switched off) and a generation preset with their values. Logit bias is not imported.
+
+Generation presets also have **Reasoning effort** (thinking models), **Assistant prefill** (the reply starts with it; only the character's replies), **Stop strings** (the reply is cut there, e.g. `{{user}}:`), **Top-a** and **Seed**, each explained in the app.
+
 ### Character's note
 
 In the character editor, under Example dialogue: a few lines the AI gets with every reply, placed close to the end of the chat (at your newest message, or 2, 4, 6 or 10 messages back; 4 by default), where the AI pays the most attention. Use it for what the character tends to lose in long chats: voice, attitude, habits. In a group chat each character's note only goes with their own replies. Imported from and exported to SillyTavern / Chub cards (their "Character's Note").
