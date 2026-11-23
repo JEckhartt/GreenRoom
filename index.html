@@ -1498,6 +1498,7 @@ The card as text: {{description}} (the personality field) · {{scenario}} · {{m
 {{notChar}}: everyone but the one replying · {{groupNotMuted}}
 {{isodate}} · {{isotime}} · {{noop}} · {{reverse:text}}
 {{summary}}: the chat's Memory
+Old placeholders work too: &lt;USER&gt; · &lt;BOT&gt; / &lt;CHAR&gt; · &lt;GROUP&gt;
 Switches (newer SillyTavern presets): {{if .x}}…{{else}}…{{/if}} · {{#if .x}} keeps the spaces · {{if !.x}} · {{if {{getvar::x}}}}
 Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}} · {{.x == on}} (also != &gt; &lt;) · {{$x}} = shared · {{setvar::x}}longer text{{/setvar}}</div>
       <label class="f">Shared variables</label>
@@ -2368,9 +2369,11 @@ function macroRoll(spec) {
   return String(sum + (+m[3] || 0));
 }
 function idleText(ms) { const m = Math.round(ms / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} minute${m === 1 ? '' : 's'}` : m < 2880 ? `${Math.round(m / 60)} hour${Math.round(m / 60) === 1 ? '' : 's'}` : `${Math.round(m / 1440)} days`; }
+// SillyTavern's old placeholders (still in many presets and cards): <USER> <BOT> <CHAR> <GROUP> <CHARIFNOTGROUP>
+const LEGACY_PH = /<(user|bot|char|group|charifnotgroup)>/gi;
 function fill(t, c, p) {
   let s = String(t || '');
-  if (!s.includes('{{')) return s;
+  if (!s.includes('{{') && !/<(user|bot|char|group|charifnotgroup)>/i.test(s)) return s;
   const ck = fillCache && `${c?.id || c?.name || ''}|${p?.id || ''}|${s}`;
   if (ck && fillCache.has(ck)) return fillCache.get(ck);
   const out = fillNow(s, c, p); if (ck) fillCache.set(ck, out); return out;
@@ -2382,8 +2385,10 @@ function fill(t, c, p) {
 let macroScratch = null, macroDirty = null; // this request's variable values; which stores changed (saved once at the end)
 const MACRO_FALSE = new Set(['', '0', 'false', 'off', 'no', 'null', 'undefined', 'nan']);
 function fillNow(s, c, p, depth = 0, sc = macroScratch || { l: {}, g: {} }) {
-  if (!s.includes('{{')) return s;
   const chat = cur?.chat, hist = cur ? history : [], seen = {}, whole = s;
+  const gm = chat?.group ? chat.group.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn).join(', ') : '';
+  s = s.replace(LEGACY_PH, (a, k) => { k = k.toLowerCase(); return k === 'user' ? userName(p) : k === 'bot' || k === 'char' ? (c ? cn(c) : a) : gm || (c ? cn(c) : a); });
+  if (!s.includes('{{')) return s;
   const lastOf = role => [...hist].reverse().find(m => !role || m.role === role)?.content || '';
   const vars = () => (chat ? (chat.vars ||= {}) : {}), gvars = () => (cfg.vars ||= {});
   const readVar = (global, key) => { const o = sc[global ? 'g' : 'l']; return key in o ? o[key] : String((global ? cfg.vars : chat?.vars)?.[key] ?? ''); };
@@ -2793,6 +2798,7 @@ function stPresetToGreenRoom(j, name) {
   put('repPenalty', num(j.repetition_penalty, 1)); put('freqPenalty', num(j.frequency_penalty, 0)); put('presPenalty', num(j.presence_penalty, 0));
   put('maxTokens', num(j.openai_max_tokens, 0)); put('seed', num(j.seed, -1));
   if (['low', 'medium', 'high'].includes(j.reasoning_effort)) pre.reasoning = j.reasoning_effort; else if (j.reasoning_effort === 'min' || j.reasoning_effort === 'minimum') pre.reasoning = 'low';
+  else if (j.reasoning_effort === 'max' || j.reasoning_effort === 'maximum') pre.reasoning = 'high';
   if (String(j.assistant_prefill || '').trim()) pre.prefill = j.assistant_prefill;
   return { layout: { id: uid(), name, blocks }, preset: pre };
 }
