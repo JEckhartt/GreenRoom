@@ -1377,6 +1377,16 @@
           <select id="edNoteDepth" class="pick-sel"><option value="1">at the newest message</option><option value="2">2 messages back</option><option value="4">4 messages back</option><option value="6">6 messages back</option><option value="10">10 messages back</option></select></div>
         <div class="hint">A few lines the AI gets with every reply, close to the end of the chat, where it pays the most attention: what this character tends to lose in long chats (voice, attitude, habits). Short is best. {{char}} and {{user}} are filled in.</div>
       </details>
+
+      <details class="edf" data-for="char" data-f="overrides">
+        <summary>Prompts for this character <span style="font-weight:400">(optional)</span></summary>
+        <label class="f" for="edSysPrompt" style="margin-top:4px">Main prompt for this character</label>
+        <textarea id="edSysPrompt" placeholder="Empty: your selected system prompt is used. {{original}} = your system prompt."></textarea>
+        <div class="hint">Replaces your system prompt in chats with this character (as in SillyTavern cards). Put {{original}} in it to keep your system prompt and add to it.</div>
+        <label class="f" for="edPostHist">After the chat, for this character</label>
+        <textarea id="edPostHist" placeholder="e.g. Stay in {{char}}'s voice. Third person."></textarea>
+        <div class="hint">An instruction placed after the chat with every reply of this character (SillyTavern's "post-history instructions"). Very strong; keep it short.</div>
+      </details>
     </div>
     <div class="card" id="edCounts" style="margin-top:12px;font-size:14px"></div>
     <div class="save-bar"><button class="btn primary" type="button" id="edSave2">Save</button></div>
@@ -1484,7 +1494,7 @@ Empty = send everything.</div>
 {{newline}} · {{trim}} (removes the spaces and lines around it) · {{// a note to yourself}} (removed)
 Variables (per chat, see Chat settings → Prompt): {{getvar::mood}} · {{setvar::mood::angry}} · {{addvar::points::5}} · {{incvar::turn}} · {{decvar::turn}}
 Shared by all chats: {{getglobalvar::x}} · {{setglobalvar::x::y}} · {{addglobalvar::x::n}} · {{incglobalvar::x}} · {{decglobalvar::x}}
-The card as text: {{description}} (the personality field) · {{scenario}} · {{mesExamples}} · {{charDepthPrompt}} (character's note) · {{persona}}
+The card as text: {{description}} (the personality field) · {{scenario}} · {{mesExamples}} · {{charDepthPrompt}} (character's note) · {{charPrompt}} · {{charInstruction}} · {{persona}}
 {{notChar}}: everyone but the one replying · {{groupNotMuted}}
 {{isodate}} · {{isotime}} · {{noop}} · {{reverse:text}}</div>
       <label class="f">Shared variables</label>
@@ -2394,7 +2404,8 @@ function fillNow(s, c, p, depth = 0) {
       case 'persona': return sub(p?.personality);
       case 'mesexamples': case 'mesexamplesraw': return sub(c?.examples);
       case 'chardepthprompt': return sub(c?.note);
-      case 'charprompt': case 'charinstruction': case 'charjailbreak': return '';
+      case 'charprompt': return sub(c?.sysPrompt?.replace(/\{\{\s*original\s*\}\}/gi, ''));
+      case 'charinstruction': case 'charjailbreak': return sub(c?.postHistory);
       case 'notchar': return [...(g ? names.filter(n => n !== cn(c)) : []), userName(p)].join(', ');
       case 'groupnotmuted': return g ? g.members.filter(id => !g.muted?.includes(id)).map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn).join(', ') : c ? cn(c) : '';
       case 'isodate': { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
@@ -2528,6 +2539,7 @@ const PROMPT_BLOCKS = [
   ['images', 'Pictures', 'How the AI sends pictures (when pictures are on).'],
   ['recall', 'Recalled moments', 'Moments from long ago found by vector storage.'],
   ['chat', 'Chat', 'The messages. Blocks above it go before them, blocks below after them.'],
+  ['charpost', 'After the chat (character)', 'The character\'s own instruction for after the chat (character editor → Prompts for this character), when it has one.'],
 ];
 const BLOCK_INFO = Object.fromEntries(PROMPT_BLOCKS.map(([k, n, d]) => [k, { name: n, desc: d }]));
 const DEFAULT_BLOCKS = () => PROMPT_BLOCKS.map(([key]) => ({ id: 'b_' + key, key, on: true, role: 'system', place: 'order' }));
@@ -2540,7 +2552,8 @@ function layoutFor(chat) {
 // the text of every built-in block (empty when it has nothing to say)
 function blockTexts(c, p, memory, lore, chat = cur?.chat) {
   const f = t => fill((t || '').trim(), c, p), T = {};
-  T.main = f(promptText(chat));
+  // a character's own main prompt replaces yours ({{original}} = yours)
+  T.main = c.sysPrompt?.trim() ? f(c.sysPrompt.replace(/\{\{\s*original\s*\}\}/gi, () => promptText(chat) || '')) : f(promptText(chat));
   const g = chat?.group;
   let ch = `--- Character: ${cn(c)} ---\nYou are ${cn(c)}. Stay in character.`;
   if (f(c.personality)) ch += `\n\nPersonality:\n${f(c.personality)}`;
@@ -2561,6 +2574,7 @@ function blockTexts(c, p, memory, lore, chat = cur?.chat) {
   T.forbidden = banned.length ? `--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.` : '';
   T.time = chat?.realTime ? timeFor() : '';
   T.images = !imageEnabled(chat) ? '' : ('--- Images ---\nYou can send the user pictures. Only when the latest message from the user explicitly asks you for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never add the tag otherwise, not even when pictures were sent earlier in the chat.');
+  T.charpost = f(c.postHistory);
   T.recall = ''; T.chat = '';
   return T;
 }
@@ -2795,7 +2809,8 @@ async function buildMessagesInner(c, p, hist, memory, chat = cur?.chat, opts = {
       note = ''; break;
     }
   }
-  const T = blockTexts(c, p, memory, loreFor(c, p, chat, hist), chat), L = layoutFor(chat), B = (L?.blocks || DEFAULT_BLOCKS()).filter(b => b.on !== false);
+  const T = blockTexts(c, p, memory, loreFor(c, p, chat, hist), chat), L = layoutFor(chat);
+  const B0 = L?.blocks || DEFAULT_BLOCKS(), B = (B0.some(b => b.key === 'charpost') ? B0 : [...B0, { id: 'b_charpost', key: 'charpost', on: true, role: 'system', place: 'order' }]).filter(b => b.on !== false);
   const chatAt = B.findIndex(b => b.key === 'chat');
   const textOf = b => b.key ? (T[b.key] || '') : fill((b.text || '').trim(), c, p);
   const zone = b => b.key === 'chat' ? 'chat' : b.place === 'depth' ? 'depth' : chatAt < 0 || B.indexOf(b) < chatAt ? 'before' : 'after';
@@ -4953,6 +4968,8 @@ function openEditor(kind, id) {
   $('edAiFirst').checked = !!it?.aiFirst;
   $('edEx').value = it?.examples || '';
   $('edNote').value = it?.note || ''; $('edNoteDepth').value = String(it?.noteDepth ?? 4);
+  $('edSysPrompt').value = it?.sysPrompt || ''; $('edPostHist').value = it?.postHistory || '';
+  document.querySelector('#editor [data-f=overrides]').open = !!(it?.sysPrompt || it?.postHistory);
   syncFirst();
   autosizeAll($('editor'));
   setThumb($('edThumb'), it || { name: '+' }); if (!it) $('edThumb').textContent = '+';
@@ -4981,7 +4998,7 @@ function renderCounts() {
     const box = $('edCounts'); if (!box) return;
     const char = edit?.kind === 'char';
     edit && (edit.greets[edit.gi] = $('edFirst').value);
-    const always = char ? [$('edPers').value, $('edScen').value, $('edEx').value, $('edNote').value].join('\n\n').trim() : $('edPers').value.trim();
+    const always = char ? [$('edPers').value, $('edScen').value, $('edEx').value, $('edNote').value, $('edSysPrompt').value, $('edPostHist').value].join('\n\n').trim() : $('edPers').value.trim();
     const first = char && !$('edAiFirst').checked ? (edit.greets[edit.gi] || '') : '';
     const desc = char ? descPlain($('edDesc').value) : '';
     let tk = null;
@@ -4990,14 +5007,14 @@ function renderCounts() {
     const pre = tk ? '' : '≈ ';
     const row = (label, t, sent = true) => `<div class="crow2"><span>${label}</span><b>${t.length.toLocaleString()} characters${sent ? ` · ${pre}${tokens(t).toLocaleString()} tokens` : ''}</b></div>`;
     box.innerHTML = (char
-      ? row('Sent with every message<br><small style="color:var(--ink-soft)">personality, scenario, example dialogue, note</small>', always)
+      ? row('Sent with every message<br><small style="color:var(--ink-soft)">personality, scenario, example dialogue, note, own prompts</small>', always)
         + (first ? row(`First message${edit.greets.length > 1 ? ` (option ${edit.gi + 1})` : ''}`, first) : '')
         + row('Description <small style="color:var(--ink-soft)">(not sent)</small>', desc, false)
       : row('Sent with every message<br><small style="color:var(--ink-soft)">personality</small>', always))
       + `<div class="hint">${tk ? 'Counted exactly with the GPT-4o tokenizer. Other models (Claude, Llama, Gemini…) count up to ~15% differently.' : 'Estimated (about 4 characters per token). The exact count needs an internet connection.'}</div>`;
   }, 250);
 }
-for (const id of ['edPers', 'edScen', 'edEx', 'edFirst', 'edDesc', 'edNote']) $(id).addEventListener('input', renderCounts);
+for (const id of ['edPers', 'edScen', 'edEx', 'edFirst', 'edDesc', 'edNote', 'edSysPrompt', 'edPostHist']) $(id).addEventListener('input', renderCounts);
 $('edAiFirst').addEventListener('change', renderCounts);
 function renderEdLore() {
   loreChips($('edLore'), edit.lore, id => { edit.lore.has(id) ? edit.lore.delete(id) : edit.lore.add(id); renderEdLore(); });
@@ -5092,7 +5109,8 @@ async function saveEditor() {
   if (edit.kind === 'char') {
     Object.assign(it, { description: isHtml($('edDesc').value) ? sanitizeHtml($('edDesc').value) : $('edDesc').value.trim(), scenario: $('edScen').value.trim(),
       chatName: $('edChatName').value.trim(), aiFirst: $('edAiFirst').checked, examples: $('edEx').value.trim(),
-      note: $('edNote').value.trim(), noteDepth: +$('edNoteDepth').value || 4 });
+      note: $('edNote').value.trim(), noteDepth: +$('edNoteDepth').value || 4,
+      sysPrompt: $('edSysPrompt').value.trim(), postHistory: $('edPostHist').value.trim() });
     edit.greets[edit.gi] = $('edFirst').value;
     it.firstMessages = edit.greets.map(g => g.trim()).filter(Boolean);
     delete it.firstMessage;
@@ -5276,7 +5294,8 @@ async function importCardInto(f) {
     if (!c.name && !c.personality) throw new Error('No character data found in this file.');
     $('edName').value = c.name; $('edDesc').value = c.description; descLoad(); $('edPers').value = c.personality;
     $('edScen').value = c.scenario; $('edAiFirst').checked = c.aiFirst; $('edEx').value = c.examples; $('edChatName').value = c.chatName;
-    $('edNote').value = c.note || ''; $('edNoteDepth').value = [1, 2, 4, 6, 10].includes(c.noteDepth) ? String(c.noteDepth) : '4';
+    $('edNote').value = c.note || ''; $('edSysPrompt').value = c.sysPrompt || ''; $('edPostHist').value = c.postHistory || '';
+    document.querySelector('#editor [data-f=overrides]').open = !!(c.sysPrompt || c.postHistory); $('edNoteDepth').value = [1, 2, 4, 6, 10].includes(c.noteDepth) ? String(c.noteDepth) : '4';
     edit.greets = c.firstMessages.length ? c.firstMessages : ['']; edit.gi = 0; $('edFirst').value = edit.greets[0]; renderTabs();
     const book = loreFromJson(card, `${c.name || 'Character'} lore`);
     if (book) { edit.pendingLore = book; renderEdLore(); }
@@ -6219,6 +6238,7 @@ async function cardToFields(card) {
     aiFirst: !!g?.aiFirst,
     examples: htmlToText(d.mes_example),
     note: htmlToText(d.extensions?.depth_prompt?.prompt || ''),
+    sysPrompt: htmlToText(d.system_prompt || ''), postHistory: htmlToText(d.post_history_instructions || ''),
     noteDepth: Math.max(1, Math.min(10, +d.extensions?.depth_prompt?.depth || 4)),
   };
   // Album images bundled by GreenRoom: store them and put them in an album
@@ -6241,7 +6261,7 @@ async function exportCard(c) {
     const card = { spec: 'chara_card_v2', spec_version: '2.0', data: {
       name: c.name, ...(c.chatName?.trim() ? { nickname: c.chatName.trim() } : {}), description: c.personality || '', personality: '', scenario: c.scenario || '',
       first_mes: c.aiFirst ? '' : (gs[0] || ''), mes_example: c.examples || '',
-      creator_notes: isHtml(c.description) ? c.description.replace(/<img[^>]*src="gr:\/\/img\/[^"]*"[^>]*>/gi, '').trim() : stripLinks(c.description), system_prompt: '', post_history_instructions: '',
+      creator_notes: isHtml(c.description) ? c.description.replace(/<img[^>]*src="gr:\/\/img\/[^"]*"[^>]*>/gi, '').trim() : stripLinks(c.description), system_prompt: c.sysPrompt || '', post_history_instructions: c.postHistory || '',
       alternate_greetings: c.aiFirst ? [] : gs.slice(1), tags: [], creator: '', character_version: '',
       ...(() => {
         const books = lorebooks.filter(b => c.lorebooks?.includes(b.id));
