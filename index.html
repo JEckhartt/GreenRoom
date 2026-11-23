@@ -2352,7 +2352,8 @@ function loreFor(c, p, chat, hist) {
         else if (k2 && e.logic2 !== 'not') key = `${key}” + “${k2}`;
       }
       const last = T[e.id], stickyEnd = last != null && e.sticky ? last + e.sticky : null;
-      const sticky = !e.always && !key && stickyEnd != null && now > last && now <= stickyEnd;
+      const inRun = stickyEnd != null && now > last && now <= stickyEnd; // within a sticky run (keyword or not)
+      const sticky = !e.always && !key && inRun;
       if (!e.always && !key && !sticky) continue;
       if (e.delay && now < e.delay) { if (key) lastLoreHits.push({ book: b.name, title, key, skipped: `delay (from message ${e.delay})` }); continue; }
       // cooldown: after it was last on (the trigger, plus its sticky run), it rests
@@ -2362,7 +2363,7 @@ function loreFor(c, p, chat, hist) {
         continue;
       }
       // chance: rolled each time it would fire by keyword (or always on); a sticky run doesn't roll again
-      if (!sticky && e.prob && e.prob < 100 && Math.random() * 100 >= e.prob) { lastLoreHits.push({ book: b.name, title, key, skipped: `chance (${e.prob}%)` }); continue; }
+      if (!inRun && e.prob && e.prob < 100 && Math.random() * 100 >= e.prob) { lastLoreHits.push({ book: b.name, title, key, skipped: `chance (${e.prob}%)` }); continue; }
       // where the keyword was found: the newest message that has it
       const k1 = (key || '').split('” + “')[0];
       const m = key ? [...recent].reverse().find(x => keyHit(String(x.content || ''), k1)) : null;
@@ -2561,7 +2562,7 @@ function stPresetToGreenRoom(j, name) {
     if (!pr || pr.marker) continue;
     const text = String(pr.content || '').trim(); if (!text && !on) continue;
     blocks.push({ id: uid(), name: pr.name || o.identifier, text, on: on && !!text, role: ['system', 'user', 'assistant'].includes(pr.role) ? pr.role : 'system',
-      place: pr.injection_position === 1 ? 'depth' : 'order', ...(pr.injection_position === 1 ? { depth: Math.max(1, (+pr.injection_depth || 4)) } : {}) });
+      place: pr.injection_position === 1 ? 'depth' : 'order', ...(pr.injection_position === 1 ? { depth: Math.max(1, (pr.injection_depth == null ? 4 : +pr.injection_depth) + 1) } : {}) }); // their depth 0 = after the last message = GreenRoom's 1
   }
   if (!used.has('chat')) blocks.push({ id: 'b_chat', key: 'chat', on: true, role: 'system', place: 'order' });
   // GreenRoom's own main prompt: kept, but off (the preset brings its own); the rest of GreenRoom's blocks go in sensible places
