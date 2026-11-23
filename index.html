@@ -1339,6 +1339,14 @@
         <textarea id="edEx" placeholder="{{user}}: Hi.&#10;{{char}}: …"></textarea>
         <div class="hint">Shows the AI how the character talks. Not part of the conversation.</div>
       </details>
+
+      <details class="edf" data-for="char" data-f="note" open>
+        <summary>Character's note <span style="font-weight:400">(optional)</span></summary>
+        <textarea id="edNote" placeholder="e.g. {{char}}: loud, chaotic, crude humor, New England drawl, clumsy. Never quiet for long."></textarea>
+        <div class="line tight"><span>Put it</span>
+          <select id="edNoteDepth" class="pick-sel"><option value="1">at the newest message</option><option value="2">2 messages back</option><option value="4">4 messages back</option><option value="6">6 messages back</option><option value="10">10 messages back</option></select></div>
+        <div class="hint">A few lines the AI gets with every reply, close to the end of the chat, where it pays the most attention: what this character tends to lose in long chats (voice, attitude, habits). Short is best. {{char}} and {{user}} are filled in.</div>
+      </details>
     </div>
     <div class="card" id="edCounts" style="margin-top:12px;font-size:14px"></div>
     <div class="save-bar"><button class="btn primary" type="button" id="edSave2">Save</button></div>
@@ -2421,6 +2429,14 @@ async function buildMessages(c, p, hist, memory, chat = cur?.chat, opts = {}) {
     const cost = m => Array.isArray(m.content) ? m.content.reduce((n, x) => n + (x.text ? x.text.length / 4 : 800), 4) : (m.content || '').length / 4 + 4;
     let total = cost(system) + msgs.reduce((n, m) => n + cost(m), 0);
     while (msgs.length > 1 && total > limit) total -= cost(msgs.shift());
+  }
+  // Character's note: close to the end of the chat, on your message at that depth (or the nearest one above it)
+  if (fill(c.note || '', c, p).trim() && msgs.length) {
+    const note = `[${cn(c)}'s note: ${fill(c.note.trim(), c, p)}]`;
+    let k = Math.max(0, msgs.length - (c.noteDepth ?? 4));
+    while (k > 0 && msgs[k].role !== 'user') k--;
+    const x = msgs[k];
+    if (x && x.role === 'user') { if (Array.isArray(x.content)) x.content = [...x.content, { type: 'text', text: '\n\n' + note }]; else x.content = (x.content || '') + '\n\n' + note; }
   }
   // Group chat: every message carries its speaker's name, and the last instruction says who writes now
   if (chat?.group) {
@@ -4513,6 +4529,7 @@ function openEditor(kind, id) {
   $('edFirst').value = edit.greets[0]; renderTabs();
   $('edAiFirst').checked = !!it?.aiFirst;
   $('edEx').value = it?.examples || '';
+  $('edNote').value = it?.note || ''; $('edNoteDepth').value = String(it?.noteDepth ?? 4);
   syncFirst();
   autosizeAll($('editor'));
   setThumb($('edThumb'), it || { name: '+' }); if (!it) $('edThumb').textContent = '+';
@@ -4541,7 +4558,7 @@ function renderCounts() {
     const box = $('edCounts'); if (!box) return;
     const char = edit?.kind === 'char';
     edit && (edit.greets[edit.gi] = $('edFirst').value);
-    const always = char ? [$('edPers').value, $('edScen').value, $('edEx').value].join('\n\n').trim() : $('edPers').value.trim();
+    const always = char ? [$('edPers').value, $('edScen').value, $('edEx').value, $('edNote').value].join('\n\n').trim() : $('edPers').value.trim();
     const first = char && !$('edAiFirst').checked ? (edit.greets[edit.gi] || '') : '';
     const desc = char ? descPlain($('edDesc').value) : '';
     let tk = null;
@@ -4550,14 +4567,14 @@ function renderCounts() {
     const pre = tk ? '' : '≈ ';
     const row = (label, t, sent = true) => `<div class="crow2"><span>${label}</span><b>${t.length.toLocaleString()} characters${sent ? ` · ${pre}${tokens(t).toLocaleString()} tokens` : ''}</b></div>`;
     box.innerHTML = (char
-      ? row('Sent with every message<br><small style="color:var(--ink-soft)">personality, scenario, example dialogue</small>', always)
+      ? row('Sent with every message<br><small style="color:var(--ink-soft)">personality, scenario, example dialogue, note</small>', always)
         + (first ? row(`First message${edit.greets.length > 1 ? ` (option ${edit.gi + 1})` : ''}`, first) : '')
         + row('Description <small style="color:var(--ink-soft)">(not sent)</small>', desc, false)
       : row('Sent with every message<br><small style="color:var(--ink-soft)">personality</small>', always))
       + `<div class="hint">${tk ? 'Counted exactly with the GPT-4o tokenizer. Other models (Claude, Llama, Gemini…) count up to ~15% differently.' : 'Estimated (about 4 characters per token). The exact count needs an internet connection.'}</div>`;
   }, 250);
 }
-for (const id of ['edPers', 'edScen', 'edEx', 'edFirst', 'edDesc']) $(id).addEventListener('input', renderCounts);
+for (const id of ['edPers', 'edScen', 'edEx', 'edFirst', 'edDesc', 'edNote']) $(id).addEventListener('input', renderCounts);
 $('edAiFirst').addEventListener('change', renderCounts);
 function renderEdLore() {
   loreChips($('edLore'), edit.lore, id => { edit.lore.has(id) ? edit.lore.delete(id) : edit.lore.add(id); renderEdLore(); });
@@ -4651,7 +4668,8 @@ async function saveEditor() {
   it.personality = $('edPers').value.trim();
   if (edit.kind === 'char') {
     Object.assign(it, { description: isHtml($('edDesc').value) ? sanitizeHtml($('edDesc').value) : $('edDesc').value.trim(), scenario: $('edScen').value.trim(),
-      chatName: $('edChatName').value.trim(), aiFirst: $('edAiFirst').checked, examples: $('edEx').value.trim() });
+      chatName: $('edChatName').value.trim(), aiFirst: $('edAiFirst').checked, examples: $('edEx').value.trim(),
+      note: $('edNote').value.trim(), noteDepth: +$('edNoteDepth').value || 4 });
     edit.greets[edit.gi] = $('edFirst').value;
     it.firstMessages = edit.greets.map(g => g.trim()).filter(Boolean);
     delete it.firstMessage;
@@ -4835,6 +4853,7 @@ async function importCardInto(f) {
     if (!c.name && !c.personality) throw new Error('No character data found in this file.');
     $('edName').value = c.name; $('edDesc').value = c.description; descLoad(); $('edPers').value = c.personality;
     $('edScen').value = c.scenario; $('edAiFirst').checked = c.aiFirst; $('edEx').value = c.examples; $('edChatName').value = c.chatName;
+    $('edNote').value = c.note || ''; $('edNoteDepth').value = [1, 2, 4, 6, 10].includes(c.noteDepth) ? String(c.noteDepth) : '4';
     edit.greets = c.firstMessages.length ? c.firstMessages : ['']; edit.gi = 0; $('edFirst').value = edit.greets[0]; renderTabs();
     const book = loreFromJson(card, `${c.name || 'Character'} lore`);
     if (book) { edit.pendingLore = book; renderEdLore(); }
@@ -5740,6 +5759,8 @@ async function cardToFields(card) {
     chatName: g?.chatName || cardChatName(d, htmlToText(d.name)),
     aiFirst: !!g?.aiFirst,
     examples: htmlToText(d.mes_example),
+    note: htmlToText(d.extensions?.depth_prompt?.prompt || ''),
+    noteDepth: Math.max(1, Math.min(10, +d.extensions?.depth_prompt?.depth || 4)),
   };
   // Album images bundled by GreenRoom: store them and put them in an album
   const imgs = Object.entries(g?.images || {});
@@ -5769,7 +5790,7 @@ async function exportCard(c) {
         const entries = books.flatMap(b => b.entries).map((e, i) => ({ id: i, keys: (e.keys || '').split(',').map(k => k.trim()).filter(Boolean), content: e.content || '', enabled: e.on !== false, constant: !!e.always, comment: e.title || '', insertion_order: 100, extensions: {} }));
         return { character_book: { name: books.map(b => b.name).join(' + '), entries, extensions: {} } };
       })(),
-      extensions: { greenroom: { version: 2, description: c.description || '', personality: c.personality || '', chatName: c.chatName || '', firstMessages: gs, aiFirst: !!c.aiFirst, images } },
+      extensions: { ...(c.note?.trim() ? { depth_prompt: { prompt: c.note, depth: c.noteDepth ?? 4, role: 'system' } } : {}), greenroom: { version: 2, description: c.description || '', personality: c.personality || '', chatName: c.chatName || '', firstMessages: gs, aiFirst: !!c.aiFirst, images } },
     } };
     // Base image: the character's picture, or a plain one with their initial
     const cv = document.createElement('canvas'), x = cv.getContext('2d');

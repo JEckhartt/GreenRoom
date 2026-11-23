@@ -82,6 +82,10 @@ The reader: pages (tap the left or right edge or swipe; tap the middle to hide t
 - **Personas**: who *you* are: image, name, personality.
 - Swipe a character or persona left for **Move** (to a folder) and **Delete**; long press to select several.
 
+### Character's note
+
+In the character editor, under Example dialogue: a few lines the AI gets with every reply, placed close to the end of the chat (at your newest message, or 2, 4, 6 or 10 messages back; 4 by default), where the AI pays the most attention. Use it for what the character tends to lose in long chats: voice, attitude, habits. In a group chat each character's note only goes with their own replies. Imported from and exported to SillyTavern / Chub cards (their "Character's Note").
+
 ## Lorebooks and albums
 
 - **Lorebook from chat** (Chat settings → Prompt → Lorebooks → **Make a lorebook from this chat**): the AI reads the whole chat in parts (~30,000 characters each, one request per part) and writes entries for side characters, places, objects, events and running jokes, each with keywords, updating them as the story goes on. The chat's characters and your persona get no entries (they have cards). You check them (switch off, edit title, keywords, text), then **Make the lorebook** creates it and links it to the chat. Stop keeps what was found so far.
