@@ -270,6 +270,9 @@
   .gm-row button.gm-b { background: none; border: 1px solid var(--line); border-radius: 8px; width: 30px; height: 30px; color: var(--ink); cursor: pointer; font: inherit; }
   .grp-face { position: relative; }
   .gm-open { cursor: pointer; }
+  .lb-timing { display: flex; gap: 8px; margin-top: 10px; }
+  .lb-t { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-soft); }
+  .lb-t input { text-align: center; }
   .rule-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
   .rule-row .rule-t { flex: 1; min-width: 0; font-size: 15px; }
   .rule-row .rule-t small { display: block; color: var(--ink-soft); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2309,24 +2312,39 @@ function keyHit(text, key) {
 // Entries whose keywords appear in the recent messages (or that are always on)
 // What triggered in the last request (shown in What was sent): { book, title, key, where, skipped }
 let lastLoreHits = [];
+// Timing (sticky / cooldown / delay) counts messages: "now" is how many messages the chat has before the reply.
+// chat.loreT[entryId] = the message count when its keyword last triggered it. Regenerating doesn't move "now".
 function loreFor(c, p, chat, hist) {
-  const out = [], seen = new Set(); let used = 0;
+  const out = [], seen = new Set(); let used = 0, stateChanged = false;
   lastLoreHits = [];
+  const now = hist.length, T = chat ? (chat.loreT ||= {}) : {};
   for (const b of activeBooks(c, chat)) {
     const recent = hist.slice(-(b.depth || 4)), text = recent.map(m => m.content || '').join('\n');
     for (const e of b.entries || []) {
       if (e.on === false || !e.content?.trim() || seen.has(e.id)) continue;
+      const title = e.title || 'Untitled entry';
       const key = e.always ? '' : (e.keys || '').split(',').map(k => k.trim()).find(k => k && keyHit(text, k));
-      if (!e.always && !key) continue;
+      const last = T[e.id], stickyEnd = last != null && e.sticky ? last + e.sticky : null;
+      const sticky = !e.always && !key && stickyEnd != null && now > last && now <= stickyEnd;
+      if (!e.always && !key && !sticky) continue;
+      if (e.delay && now < e.delay) { if (key) lastLoreHits.push({ book: b.name, title, key, skipped: `delay (from message ${e.delay})` }); continue; }
+      // cooldown: after it was last on (the trigger, plus its sticky run), it rests
+      const restFrom = last != null ? (stickyEnd ?? last) : null;
+      if (!e.always && e.cooldown && restFrom != null && now > restFrom && now <= restFrom + e.cooldown) {
+        if (key) lastLoreHits.push({ book: b.name, title, key, skipped: `cooldown (${restFrom + e.cooldown - now + 1} more message${restFrom + e.cooldown - now ? 's' : ''})` });
+        continue;
+      }
       // where the keyword was found: the newest message that has it
       const m = key ? [...recent].reverse().find(x => keyHit(String(x.content || ''), key)) : null;
-      const where = e.always ? 'always on' : m?.role === 'user' ? 'your message' : m ? `${cn(speakerChar(m, c))}'s reply` : 'recent messages';
+      const where = e.always ? 'always on' : sticky ? `sticky (${stickyEnd - now ? `${stickyEnd - now} more after this` : 'last one'})` : m?.role === 'user' ? 'your message' : m ? `${cn(speakerChar(m, c))}'s reply` : 'recent messages';
       const t = fill(e.content.trim(), c, p), cost = t.length / 4;
-      if (used + cost > LORE_BUDGET) { lastLoreHits.push({ book: b.name, title: e.title || 'Untitled entry', key, where, skipped: true }); continue; }
+      if (used + cost > LORE_BUDGET) { lastLoreHits.push({ book: b.name, title, key, where, skipped: 'lorebook budget full' }); continue; }
       used += cost; seen.add(e.id); out.push(t);
-      lastLoreHits.push({ book: b.name, title: e.title || 'Untitled entry', key, where });
+      if (key && (e.sticky || e.cooldown) && chat && (T[e.id] ?? -1) < now) { T[e.id] = now; stateChanged = true; }
+      lastLoreHits.push({ book: b.name, title, key, where, sticky });
     }
   }
+  if (stateChanged) store.set('chats', chats);
   return out.join('\n\n');
 }
 // Real time: "Saturday 16 November 2026, 21:40 (Europe/Amsterdam)"
@@ -5566,6 +5584,7 @@ function renderLore() {
       const k = document.createElement('span'); k.className = 'ek'; k.textContent = e.title || e.keys || (e.always ? 'Always on' : 'New entry'); sm.append(k);
       if (e.always) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'always'; sm.append(t); }
       if (e.on === false) { const t = document.createElement('span'); t.className = 'tag off'; t.textContent = 'off'; sm.append(t); }
+      for (const [k, w] of [['sticky', 'sticky'], ['cooldown', 'cooldown'], ['delay', 'delay']]) if (e[k]) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = `${w} ${e[k]}`; sm.append(t); }
     };
     label();
     const field = (lab, key, tag, ph) => {
@@ -5587,6 +5606,18 @@ function renderLore() {
     };
     line('Always on (no keyword needed)', 'always', !!e.always);
     line('Enabled', 'on', e.on !== false);
+    // timing: sticky / cooldown / delay, in messages (0 = off)
+    const timing = document.createElement('div'); timing.className = 'lb-timing';
+    for (const [lab, key, hint] of [['Sticky', 'sticky', 'stays on for this many messages after it triggers'], ['Cooldown', 'cooldown', "afterwards, can't trigger again for this many messages"], ['Delay', 'delay', 'only from this message number on']]) {
+      const w = document.createElement('label'); w.className = 'lb-t';
+      const sp = document.createElement('span'); sp.textContent = lab;
+      const i = document.createElement('input'); i.type = 'number'; i.min = 0; i.max = 999; i.inputMode = 'numeric'; i.placeholder = '0'; i.value = e[key] || ''; i.title = hint;
+      i.oninput = () => { const v = Math.max(0, Math.min(999, parseInt(i.value, 10) || 0)); if (v) e[key] = v; else delete e[key]; saveLore(); label(); };
+      w.append(sp, i); timing.append(w);
+    }
+    const th = document.createElement('div'); th.className = 'hint'; th.style.marginTop = '4px';
+    th.textContent = 'In messages; 0 = off. Sticky: stays on after it triggers, even when nobody says the keyword (people in a scene). Cooldown: afterwards it can\'t trigger for a while (running jokes). Delay: only once the chat has that many messages (slow reveals).';
+    d.append(timing, th);
     const acts = document.createElement('div'); acts.className = 'actions';
     const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete entry';
     del.onclick = () => { if (!confirm('Delete this entry?')) return; b.entries.splice(b.entries.indexOf(e), 1); saveLore(); renderLore(); };
@@ -8401,7 +8432,9 @@ Each entry:
 - "keys": 2 to 6 keywords that would appear in a message when it comes up: names, nicknames, short forms.
 - "content": 2 to 5 sentences of facts, in the present tense, as things stand at the end of this part: who or what it is, key details (looks, personality, what happened), its relation to ${names.join(', ')} and ${userName(job.p)}, and its current status. Facts only, no story-telling.
 
-Answer with a JSON array only, no other text: [{"title": "...", "keys": ["...", "..."], "content": "..."}]. Include only entries that are new or that this part changes; for a changed entry use exactly the same title and give the full updated content. If this part adds nothing, answer [].`;
+- "kind": "person", "place" or "thing".
+
+Answer with a JSON array only, no other text: [{"title": "...", "kind": "person", "keys": ["...", "..."], "content": "..."}]. Include only entries that are new or that this part changes; for a changed entry use exactly the same title and give the full updated content. If this part adds nothing, answer [].`;
   const user = `Entries so far:\n${known}\n\nPart ${k + 1} of ${job.parts.length} of the chat:\n\n${job.parts[k]}`;
   return [{ role: 'system', content: sys }, { role: 'user', content: user }];
 }
@@ -8412,6 +8445,7 @@ function lfcParse(text) {
   return (Array.isArray(arr) ? arr : []).filter(x => x && x.title && x.content).map(x => ({
     title: String(x.title).trim(), content: String(x.content).trim(),
     keys: (Array.isArray(x.keys) ? x.keys : String(x.keys || '').split(',')).map(k => String(k).trim()).filter(Boolean).join(', ') || String(x.title).trim(),
+    kind: ['person', 'place', 'thing'].includes(x.kind) ? x.kind : 'thing',
   }));
 }
 $('lfcGo').onclick = async () => {
@@ -8432,7 +8466,7 @@ $('lfcGo').onclick = async () => {
       }
       for (const e of found) {
         const old = job.entries.find(x => x.title.toLowerCase() === e.title.toLowerCase());
-        if (old) { old.content = e.content; old.keys = [...new Set([...old.keys.split(','), ...e.keys.split(',')].map(x => x.trim()).filter(Boolean))].join(', '); }
+        if (old) { old.content = e.content; old.kind = e.kind || old.kind; old.keys = [...new Set([...old.keys.split(','), ...e.keys.split(',')].map(x => x.trim()).filter(Boolean))].join(', '); }
         else job.entries.push({ ...e, on: true });
       }
     }
@@ -8462,7 +8496,8 @@ function lfcReview(job, err) {
     const keep = job.entries.filter(e => e.on && e.title.trim() && e.content.trim());
     if (!keep.length) return toast('No entries switched on');
     const b = { id: uid(), name: $('lfcName').value.trim() || 'From the chat', global: false, depth: 4,
-      entries: keep.map(e => ({ id: uid(), title: e.title.trim(), keys: e.keys.trim() || e.title.trim(), content: e.content.trim(), always: false, on: true })) };
+      entries: keep.map(e => ({ id: uid(), title: e.title.trim(), keys: e.keys.trim() || e.title.trim(), content: e.content.trim(), always: false, on: true,
+        ...(e.kind === 'person' ? { sticky: 10 } : e.kind === 'place' ? { sticky: 5 } : {}) })) };
     lorebooks.unshift(b); saveLore();
     job.chat.lorebooks = [...new Set([...(job.chat.lorebooks || []), b.id])]; store.set('chats', chats);
     closeView('lfc'); if (cur?.chat === job.chat) renderCsLore();
@@ -8496,7 +8531,7 @@ async function openSent(i) {
   box.append(info1);
   if (info.lore) {
     const lc = document.createElement('div'); lc.className = 'card sent-info'; lc.style.cssText = 'padding:12px 16px;margin-top:10px';
-    lc.innerHTML = `<div><b>Lorebook entries</b></div>` + (info.lore.length ? info.lore.map(h => `<div style="margin-top:4px">${escHtml(h.title)} <span style="color:var(--ink-soft)">· ${h.skipped ? 'left out (lorebook budget full)' : h.key ? `“${escHtml(h.key)}” in ${escHtml(h.where)}` : 'always on'} · ${escHtml(h.book || '')}</span></div>`).join('') : '<div class="hint" style="margin-top:4px">None triggered.</div>');
+    lc.innerHTML = `<div><b>Lorebook entries</b></div>` + (info.lore.length ? info.lore.map(h => `<div style="margin-top:4px">${escHtml(h.title)} <span style="color:var(--ink-soft)">· ${h.skipped ? `left out: ${escHtml(h.skipped === true ? 'lorebook budget full' : h.skipped)}` : h.sticky ? escHtml(h.where) : h.key ? `“${escHtml(h.key)}” in ${escHtml(h.where)}` : 'always on'} · ${escHtml(h.book || '')}</span></div>`).join('') : '<div class="hint" style="margin-top:4px">None triggered.</div>');
     box.append(lc);
   }
   info.messages.forEach((x, k) => {
