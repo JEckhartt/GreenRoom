@@ -3016,6 +3016,7 @@ const gen = (chat = cur?.chat) => {
   return {
     temperature: numOr(pr.temperature) ?? 0.9, maxTokens: numOr(pr.maxTokens), topP: numOr(pr.topP), topK: numOr(pr.topK), minP: numOr(pr.minP),
     repPenalty: numOr(pr.repPenalty), freqPenalty: numOr(pr.freqPenalty), presPenalty: numOr(pr.presPenalty),
+    topA: numOr(pr.topA), seed: numOr(pr.seed), reasoning: pr.reasoning || '', prefill: pr.prefill || '', stop: pr.stop || '',
     contextSize: parseInt(chat && 'contextSize' in chat ? chat.contextSize : cfg.contextSize, 10) || 0,
   };
 };
@@ -3060,6 +3061,16 @@ async function streamChat(messages, onText, opts = {}) {
   if (g.repPenalty !== undefined) body.repetition_penalty = g.repPenalty;
   if (g.freqPenalty !== undefined) body.frequency_penalty = g.freqPenalty;
   if (g.presPenalty !== undefined) body.presence_penalty = g.presPenalty;
+  if (g.topA !== undefined) body.top_a = g.topA;
+  if (g.seed !== undefined) body.seed = Math.round(g.seed);
+  // reasoning effort: OpenRouter's form, or the OpenAI one for other services
+  if (g.reasoning) { if (/openrouter/i.test(a.url)) body.reasoning = g.reasoning === 'none' ? { effort: 'none', exclude: true } : { effort: g.reasoning }; else body.reasoning_effort = g.reasoning === 'none' ? 'minimal' : g.reasoning; }
+  // stop strings (also cut here, for services that ignore them); {{char}}/{{user}} from the open chat
+  const stops = opts.free ? [] : g.stop.split('\n').map(x => fill(x, cur?.c || { name: '' }, cur?.p).trim()).filter(Boolean);
+  if (stops.length) body.stop = stops.slice(0, 4);
+  // assistant prefill: only for a character's reply; the reply shown and kept starts with it
+  const prefill = opts.reply && !opts.free && g.prefill.trim() ? fill(g.prefill, cur?.c || { name: '' }, cur?.p) : '';
+  if (prefill && messages.at(-1)?.role !== 'assistant') body.messages = [...messages, { role: 'assistant', content: prefill }];
   const send = () => pfetch(a, endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), signal: opts.signal ?? (opts.chat ? undefined : abortCtl?.signal), body: JSON.stringify(body) });
   let res = await send();
   // Some models (OpenAI's newer ones) want max_completion_tokens instead of max_tokens
@@ -3070,7 +3081,7 @@ async function streamChat(messages, onText, opts = {}) {
     res = await send();
   }
   if (!res.ok) throw await httpError(res);
-  let cutOff = false, filtered = '';
+  let cutOff = false, filtered = '', stopped = false;
   lastFilter = '';
   const reader = res.body.getReader(); const dec = new TextDecoder();
   let buf = '', reply = '', raw = '', thinkField = '', t0 = 0, t1 = 0;
@@ -3087,6 +3098,7 @@ async function streamChat(messages, onText, opts = {}) {
     if (m && m[0].length > reply.length * 0.5) { reply = m[0]; onText(reply); }
   }
   if (filtered) lastFilter = filterLabel(filtered);
+  if (prefill && reply) { reply = prefill + reply; }
   if (!reply && filtered) throw new Error(`Blocked by the provider's filter (${filterLabel(filtered)}), before anything was written. That's ${a.model || 'the model'}'s provider, not the app: try again, change the wording, or use another proxy or model (Chat settings → Proxy).`);
   if (!reply) throw new Error(lastThink.text ? (cap ? 'The model only returned its thinking, no reply: the thinking used up the max reply length, or the chat fills almost the whole context window. Raise the max reply length or lower the context size, or try again.' : 'The model only returned its thinking, no reply: the model or proxy stopped by itself. Often the chat fills almost the whole context window, leaving no room to answer: lower the context size, or try again.') : 'Received an empty response.');
   return reply;
@@ -3122,7 +3134,12 @@ async function streamChat(messages, onText, opts = {}) {
           const sp = splitThink(raw);
           if (sp.think) { if (!t0) t0 = Date.now(); opts.onThink?.(thinking(), false); }
           if (sp.text && !t1) t1 = Date.now();
-          if (sp.text !== reply) { reply = sp.text; onText(reply); }
+          if (sp.text !== reply) {
+            reply = sp.text;
+            if (stops.length) { const at = Math.min(...stops.map(x => { const i = reply.indexOf(x); return i < 0 ? Infinity : i; })); if (isFinite(at)) { reply = reply.slice(0, at).trimEnd(); stopped = true; } }
+            onText(prefill + reply);
+            if (stopped) { try { reader.cancel(); } catch {} return; }
+          }
         }
       } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
     }
@@ -3202,7 +3219,7 @@ async function aiTurn(s, hist, messages, bubble, into) {
     reply = await streamChat(messages, r => {
       if (fader) return fader.set(visible(r));
       setText(bubble, visible(r)); if (live && visible(r)) dots.remove(); follow();
-    }, { onThink: (t, done, secs) => { setThink(bubble, t, done, secs); if (!bubble.classList.contains('hold')) dots.remove(); follow(); } });
+    }, { reply: true, onThink: (t, done, secs) => { setThink(bubble, t, done, secs); if (!bubble.classList.contains('hold')) dots.remove(); follow(); } });
     if (fader) await fader.end(); // let the shown text catch up and finish fading
   } finally { // stopped or failed: what was written so far shows
     fader?.flush(); dots.remove();
@@ -6322,6 +6339,10 @@ const PRESET_FIELDS = [
    'The more often a word was used, the less likely it comes back. Good against pet words like "smirk" or "chuckle".\n0 = off. Try 0.3.'],
   ['presPenalty', 'Presence penalty', '0.1', '0 – 1',
    'Words that were used before become a bit less likely, so the AI brings up new things.\n0 = off. Story going in circles? Try 0.3.'],
+  ['topA', 'Top-a', '0.01', '0 – 1',
+   'Like min-p, but stricter when the AI is very sure of its next word and looser when it is unsure.\nOnly some models use it (through OpenRouter). Try 0.1–0.2. Not sure? Leave it empty.'],
+  ['seed', 'Seed', '1', 'e.g. 1234',
+   'A fixed number makes the same request give (nearly) the same reply, where the model supports it.\nHandy for comparing prompts: change one thing, keep the seed, see what really changed.\nEmpty = a new surprise every time.'],
 ];
 // One collapsible row: name + current value, explanation and control inside
 function prow(label, value, hint, ...controls) {
@@ -6366,6 +6387,30 @@ function renderPresetBox(box, scope) {
     const i = lock(document.createElement('input')); i.type = 'number'; i.step = step; i.inputMode = 'decimal'; i.placeholder = ph + ' (empty = model default)'; i.value = pr[k] ?? '';
     const row = prow(label, pr[k] ?? 'default', hint, i);
     i.oninput = () => { const v = i.value.trim(); if (v === '') delete pr[k]; else pr[k] = v; row.setValue(v === '' ? 'default' : v); saveCfg(); };
+    box.append(row);
+  }
+  // reasoning effort (thinking models)
+  {
+    const sel = lock(document.createElement('select')); sel.className = 'ss-select';
+    for (const [v, t] of [['', 'Model default'], ['none', 'None (no thinking)'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']]) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.append(o); }
+    sel.value = pr.reasoning || '';
+    const row = prow('Reasoning effort', sel.options[sel.selectedIndex].textContent, 'For thinking models (GLM, Gemini, Claude with thinking, DeepSeek…): how much they think before writing.\nLow: faster and cheaper, fewer "only thinking, no reply" failures. High: more careful plotting, slower and pricier.\nModels that don\'t think ignore it. Not sure? Model default.', sel);
+    sel.onchange = () => { if (sel.value) pr.reasoning = sel.value; else delete pr.reasoning; row.setValue(sel.options[sel.selectedIndex].textContent); saveCfg(); };
+    box.append(row);
+  }
+  // assistant prefill
+  {
+    const ta = lock(document.createElement('textarea')); ta.value = pr.prefill || ''; ta.placeholder = 'e.g. *';
+    const row = prow('Assistant prefill', pr.prefill ? `“${pr.prefill.slice(0, 18)}${pr.prefill.length > 18 ? '…' : ''}”` : 'off', 'Words the reply is made to start with; the AI carries on from there. Very effective for steering, mainly with Claude.\n* makes every reply open with an action. A short line in character can set the voice.\nOnly for the character\'s replies (not Write for me, Continue or summaries). {{char}} and {{user}} work. Empty = off.', ta);
+    ta.oninput = () => { const v = ta.value; if (v.trim()) pr.prefill = v; else delete pr.prefill; row.setValue(v.trim() ? `“${v.slice(0, 18)}${v.length > 18 ? '…' : ''}”` : 'off'); saveCfg(); };
+    box.append(row);
+  }
+  // stop strings
+  {
+    const ta = lock(document.createElement('textarea')); ta.value = pr.stop || ''; ta.placeholder = 'One per line, e.g.\n{{user}}:';
+    const count = v => v.split('\n').filter(x => x.trim()).length;
+    const row = prow('Stop strings', pr.stop?.trim() ? `${count(pr.stop)} set` : 'off', 'The reply stops the moment one of these appears, and it is cut off there. Stops the AI from writing your lines: put {{user}}: on a line.\nOne per line; {{char}} and {{user}} work. Empty = off.', ta);
+    ta.oninput = () => { const v = ta.value; if (v.trim()) pr.stop = v; else delete pr.stop; row.setValue(v.trim() ? `${count(v)} set` : 'off'); saveCfg(); };
     box.append(row);
   }
   { const n = document.createElement('div'); n.className = 'hint'; n.style.marginTop = '10px'; n.textContent = (chat ? 'Presets are shared with Settings and other chats. ' : '') + 'Long press a preset to duplicate it.'; box.append(n); }
