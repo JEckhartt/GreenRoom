@@ -1236,6 +1236,10 @@
         <div class="actions"><button class="btn" type="button" id="lfcOpen">Make a lorebook from this chat</button></div>
       </div>
     </details>
+    <details class="sec" data-f="vars"><summary class="group-title"><span class="gt">Variables</span></summary>
+      <div class="card"><div id="csVars"></div><div class="actions"><button class="btn" type="button" id="csVarAdd">+ Add variable</button></div>
+      <div class="hint">Values this chat remembers, for macros: {{getvar::name}} reads one; {{setvar::name::value}}, {{addvar::name::5}}, {{incvar::name}} and {{decvar::name}} change it each time a request is made (in a prompt, block, card or note). You can change them here.</div></div>
+    </details>
     <details class="sec" data-f="rules"><summary class="group-title"><span class="gt">Replace rules</span></summary>
       <div class="card"><div id="csRules"></div><div class="hint">Switch a rule off for this chat only. Rules are made in Settings → Extras.</div></div>
     </details>
@@ -1466,6 +1470,20 @@ Empty = send everything.</div>
       <div id="gLayoutBox"></div>
       <div class="actions"><button class="btn" type="button" id="stImport">Import SillyTavern preset</button></div>
     </div>
+    <details class="card fold" style="margin-top:10px"><summary class="sub" style="padding:14px 0">Macros you can use</summary>
+      <div class="hint" style="margin-top:0;white-space:pre-line">In prompts, layout blocks, cards, notes, persona, lorebook entries, prefill and stop strings:
+{{char}} · {{user}}: the names
+{{random:rain,sun,fog}}: one at random, each time
+{{pick:calm,grumpy,silly}}: one at random, but the same for the whole chat
+{{roll:d20}} · {{roll:2d6+1}}: dice
+{{time}} · {{date}} · {{weekday}}: now
+{{idle_duration}}: how long since your previous message
+{{lastMessage}} · {{lastUserMessage}} · {{lastCharMessage}}
+{{group}}: everyone in a group chat · {{charIfNotGroup}}
+{{model}}: the model's name
+{{newline}} · {{trim}} (removes the spaces and lines around it) · {{// a note to yourself}} (removed)
+Variables (per chat, see Chat settings → Prompt): {{getvar::mood}} · {{setvar::mood::angry}} · {{addvar::points::5}} · {{incvar::turn}} · {{decvar::turn}}</div>
+    </details>
     <div class="card" style="margin-top:10px">
       <div class="line"><span>Repeat the character card near the latest message</span><input type="checkbox" class="tgl" data-k="cardRepeat"></div>
       <div class="hint">Every reply already ends with a short reminder to stay true to the character card. This also sends the whole personality again right at your latest message, for characters that drift in long chats. Stronger, but it costs the card's tokens with every message. A chat can have its own setting (Chat settings → Prompt).</div>
@@ -2315,7 +2333,67 @@ const imageEnabled = (chat = cur?.chat) => imagesOn(chat) && imageProxyOk(chat);
 const personaOf = chat => personas.find(p => p.id === chat.personaId) || null;
 const userName = p => p?.name || 'User';
 const cn = c => (c.chatName || '').trim() || c.name;   // name used inside chats
-const fill = (t, c, p) => (t || '').replace(/\{\{char\}\}/gi, cn(c)).replace(/\{\{user\}\}/gi, userName(p));
+// Macros (as in SillyTavern) in any text that goes to the AI: {{char}} {{user}} {{random:a,b}} {{pick:a,b}} {{roll:2d6+1}}
+// {{time}} {{date}} {{weekday}} {{idle_duration}} {{lastMessage}} {{lastUserMessage}} {{lastCharMessage}} {{group}}
+// {{charIfNotGroup}} {{model}} {{newline}} {{trim}} {{// comment}} and chat variables {{setvar::x::y}} {{getvar::x}}
+// {{addvar::x::n}} {{incvar::x}} {{decvar::x}}. Variables only change while a request is being built (macroWrite).
+let macroWrite = false, fillCache = null; // fillCache: during one request each text is filled once (same random, variables change once)
+function macroHash(t) { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+const macroOpts = a => (a.includes('::') ? a.split('::') : a.split(',')).map(x => x.trim()).filter(x => x !== '');
+function macroRoll(spec) {
+  const t = String(spec).replace(/\s/g, '');
+  const m = t.match(/^(\d*)d(\d+)([+-]\d+)?$/i) || (t.match(/^(\d+)$/) && ['', '1', t, '']); if (!m || !+m[2]) return spec;
+  const n = Math.min(100, +(m[1] || 1)), sides = +m[2]; let sum = 0;
+  for (let i = 0; i < n; i++) sum += 1 + Math.floor(Math.random() * sides);
+  return String(sum + (+m[3] || 0));
+}
+function idleText(ms) { const m = Math.round(ms / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} minute${m === 1 ? '' : 's'}` : m < 2880 ? `${Math.round(m / 60)} hour${Math.round(m / 60) === 1 ? '' : 's'}` : `${Math.round(m / 1440)} days`; }
+function fill(t, c, p) {
+  let s = String(t || '');
+  if (!s.includes('{{')) return s;
+  const ck = fillCache && `${c?.id || c?.name || ''}|${p?.id || ''}|${s}`;
+  if (ck && fillCache.has(ck)) return fillCache.get(ck);
+  const out = fillNow(s, c, p); if (ck) fillCache.set(ck, out); return out;
+}
+function fillNow(s, c, p) {
+  s = s.replace(/\{\{\/\/[\s\S]*?\}\}/g, '');
+  const chat = cur?.chat, hist = cur ? history : [], seen = {};
+  const lastOf = role => [...hist].reverse().find(m => !role || m.role === role)?.content || '';
+  const vars = () => (chat ? (chat.vars ||= {}) : {});
+  const g = chat?.group, names = g ? g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn) : [];
+  s = s.replace(/\{\{\s*([^{}]*?)\s*\}\}/g, (all, body) => {
+    const [name, ...rest] = body.split(/::|:(?!:)/); const arg = body.slice(name.length).replace(/^::|^:/, ''), k = name.trim().toLowerCase();
+    switch (k) {
+      case 'char': return cn(c);
+      case 'user': return userName(p);
+      case 'random': { const o = macroOpts(arg); return o.length ? o[Math.floor(Math.random() * o.length)] : ''; }
+      case 'pick': { const o = macroOpts(arg); if (!o.length) return ''; const n = (seen[body] = (seen[body] || 0) + 1); return o[macroHash(`${chat?.id || ''}|${body}|${n}`) % o.length]; }
+      case 'roll': return macroRoll(arg.trim() || 'd6');
+      case 'time': return new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      case 'date': return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      case 'weekday': return new Date().toLocaleDateString('en-GB', { weekday: 'long' });
+      case 'idle_duration': { const lastU = [...hist].reverse().filter(m => m.role === 'user' && m.t)[1]; return lastU ? idleText(Date.now() - lastU.t) : 'just now'; }
+      case 'lastmessage': return lastOf('');
+      case 'lastusermessage': return lastOf('user');
+      case 'lastcharmessage': return lastOf('assistant');
+      case 'group': return names.length ? names.join(', ') : c ? cn(c) : '';
+      case 'charifnotgroup': return g ? names.join(', ') : c ? cn(c) : '';
+      case 'model': return api(chat).model || '';
+      case 'newline': return '\n';
+      case 'trim': return '\u0000TRIM\u0000';
+      case 'getvar': return String(vars()[arg.trim()] ?? '');
+      case 'setvar': case 'addvar': case 'incvar': case 'decvar': {
+        if (!macroWrite || !chat) return '';
+        const [vn, ...v] = arg.split('::'); const key = vn.trim(), val = v.join('::'), V = vars();
+        if (k === 'setvar') V[key] = val;
+        else { const cur0 = parseFloat(V[key]) || 0, add = k === 'incvar' ? 1 : k === 'decvar' ? -1 : parseFloat(val); V[key] = isNaN(add) ? String(V[key] ?? '') + val : String(cur0 + add); }
+        store.set('chats', chats); return '';
+      }
+      default: return all; // unknown: left as it is
+    }
+  });
+  return s.includes('\u0000TRIM\u0000') ? s.replace(/\s*\u0000TRIM\u0000\s*/g, '') : s;
+}
 // First message options (older characters have a single firstMessage)
 const greetingsOf = c => (c?.firstMessages?.length ? c.firstMessages : [c?.firstMessage]).filter(x => x?.trim());
 
@@ -2629,6 +2707,11 @@ const SENDS_IMG = new RegExp([
 const replySendsImage = t => !!t && SENDS_IMG.test(t);
 const IMG_NOTE = '\n\n[Note from the app: the user is asking for a picture. Reply in character and end your message with [[image: detailed English description of the picture]].]';
 async function buildMessages(c, p, hist, memory, chat = cur?.chat, opts = {}) {
+  macroWrite = opts.vec !== false; // a real request (What was sent rebuilds with vec:false and changes nothing)
+  fillCache = new Map();
+  try { return await buildMessagesInner(c, p, hist, memory, chat, opts); } finally { macroWrite = false; fillCache = null; }
+}
+async function buildMessagesInner(c, p, hist, memory, chat = cur?.chat, opts = {}) {
   // images off: no pictures go to the AI, only a note that one was attached
   const withImg = imagesOn(chat) ? hist.filter(m => m.role === 'user' && m.img).slice(-SEND_IMAGES) : [];
   const msgs = [];
@@ -6506,7 +6589,7 @@ function syncGsecs() {
 function refreshChatSettings() {
   const ch = cur.chat;
   renderProxyBoxes(); syncChatGen(); syncGenImg();
-  renderPromptBox($('cPromptBox'), 'chat'); renderCsRules(); renderLayoutBox($('cLayoutBox'), 'chat'); $('csForbidden').value = ch.forbidden ?? '';
+  renderPromptBox($('cPromptBox'), 'chat'); renderCsRules(); renderLayoutBox($('cLayoutBox'), 'chat'); renderCsVars(); $('csForbidden').value = ch.forbidden ?? '';
   syncGsecs(); autosizeAll?.($('chatset'));
 }
 for (const d of document.querySelectorAll('#chatset details.gsec')) {
@@ -8579,6 +8662,21 @@ function renderRules() {
   }
   if (!ruleList().length) { const e = document.createElement('div'); e.className = 'hint'; e.textContent = 'No rules yet.'; box.append(e); }
 }
+function renderCsVars() {
+  const box = $('csVars'); if (!box || !cur) return; box.innerHTML = '';
+  const V = cur.chat.vars || {};
+  for (const [k, v] of Object.entries(V)) {
+    const r = document.createElement('div'); r.className = 'line';
+    const n = document.createElement('span'); n.textContent = k; n.style.flex = '1';
+    const i = document.createElement('input'); i.type = 'text'; i.value = v; i.style.maxWidth = '50%';
+    i.oninput = () => { cur.chat.vars[k] = i.value; store.set('chats', chats); };
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'gm-b'; x.textContent = '✕'; x.setAttribute('aria-label', 'Delete ' + k);
+    x.onclick = () => { delete cur.chat.vars[k]; store.set('chats', chats); renderCsVars(); };
+    r.append(n, i, x); box.append(r);
+  }
+  if (!Object.keys(V).length) { const e = document.createElement('div'); e.className = 'hint'; e.style.marginTop = '0'; e.textContent = 'No variables yet.'; box.append(e); }
+}
+$('csVarAdd').onclick = () => { if (!cur) return; const k = prompt('Name of the variable')?.trim(); if (!k) return; (cur.chat.vars ||= {})[k] = cur.chat.vars[k] ?? ''; store.set('chats', chats); renderCsVars(); };
 function renderCsRules() {
   const box = $('csRules'); if (!box || !cur) return; box.innerHTML = '';
   const off = cur.chat.rulesOff || [];

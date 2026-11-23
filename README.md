@@ -90,6 +90,10 @@ Settings → Prompt → **Prompt layout**: everything a request is made of, as b
 
 Generation presets also have **Reasoning effort** (thinking models), **Assistant prefill** (the reply starts with it; only the character's replies), **Stop strings** (the reply is cut there, e.g. `{{user}}:`), **Top-a** and **Seed**, each explained in the app.
 
+### Macros
+
+Placeholders filled in when a request is sent, in prompts, layout blocks, cards, notes, persona, lorebook entries, prefill and stop strings (the full list is in Settings → Prompt → Macros you can use): `{{char}}`, `{{user}}`, `{{random:a,b,c}}` (each time), `{{pick:a,b,c}}` (the same for the whole chat), `{{roll:d20}}` / `{{roll:2d6+1}}`, `{{time}}`, `{{date}}`, `{{weekday}}`, `{{idle_duration}}`, `{{lastMessage}}`, `{{lastUserMessage}}`, `{{lastCharMessage}}`, `{{group}}`, `{{charIfNotGroup}}`, `{{model}}`, `{{newline}}`, `{{trim}}`, `{{// comment}}`, and chat variables `{{getvar::x}}`, `{{setvar::x::y}}`, `{{addvar::x::n}}`, `{{incvar::x}}`, `{{decvar::x}}`. Within one request every text is filled once (same random result, a variable changes once); What was sent changes nothing. Variables can be seen and changed in Chat settings → Prompt → Variables. Unknown macros are left as they are.
+
 ### Character's note
 
 In the character editor, under Example dialogue: a few lines the AI gets with every reply, placed close to the end of the chat (at your newest message, or 2, 4, 6 or 10 messages back; 4 by default), where the AI pays the most attention. Use it for what the character tends to lose in long chats: voice, attitude, habits. In a group chat each character's note only goes with their own replies. Imported from and exported to SillyTavern / Chub cards (their "Character's Note").
