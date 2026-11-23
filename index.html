@@ -1094,7 +1094,9 @@
     <summary class="group-title">Memory</summary>
     <div class="card">
       <div class="tokbar" id="tokBar"></div>
-      <textarea id="memory" placeholder="A summary of what happened so far, or things the character should always remember."></textarea>
+      <details class="pitem fold" id="memTextFold"><summary><span class="pname" id="memTextSum">Memory text</span></summary>
+        <textarea id="memory" placeholder="A summary of what happened so far, or things the character should always remember."></textarea>
+      </details>
       <div class="hint">Sent with every message in this chat only. Summarize writes here, and once there is something, Update memory brings it up to date with what happened since. You can edit it freely.</div>
       <div class="line"><span>Vector storage</span><input type="checkbox" class="tgl" id="csVec"></div>
       <div class="hint" id="csVecHint">Recalls moments from long ago in this chat that fit what you write now. Follows Settings → Extras until you change it here.</div>
@@ -1729,6 +1731,14 @@ Empty = send everything.</div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <button type="button" class="st-new" id="stNew"><b>New story</b><small>Turn a chat into a novel: point of view, chapters, a cover, and Text, PDF or EPUB.</small><span class="chev"></span></button>
     <div class="st-grid" id="stGrid"></div>
+  </div></div>
+</section>
+
+<section id="npcView" class="view" aria-label="Character description">
+  <div class="page-head"><button class="back" data-close="npcView" type="button">‹ Back</button><h1 id="npcTitle"></h1><button class="act" id="npcCopy" type="button">Copy</button></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <div class="card" style="padding:14px 16px"><div id="npcBody" style="white-space:pre-wrap;line-height:1.55;-webkit-user-select:text;user-select:text"></div></div>
+    <div class="hint" style="margin:10px 4px">Only about this character, nothing about the others or the story. Copy it and paste it into Characters → Generate as the idea.</div>
   </div></div>
 </section>
 
@@ -3279,9 +3289,9 @@ function showMsgMenu(el, anchor = el, onImage = false, at = null) {
   const regen = imagesOn() && (m.role === 'assistant' || m.imgPrompt);
   // '|' starts a new group
   const acts = onImage ? [...(regen ? [['imgregen', 'Regenerate image']] : []), '|', ['imgdel', 'Delete image']]
-    : m.role === 'user' ? [['copy', 'Copy'], ['edit', 'Edit'], ['resend', 'Resend'], '|', pin, branch, ['npc', 'Make a character…'], '|', ['delete', 'Delete']]
+    : m.role === 'user' ? [['copy', 'Copy'], ['edit', 'Edit'], ['resend', 'Resend'], '|', pin, branch, ['npc', 'Describe a character…'], '|', ['delete', 'Delete']]
     : [['copy', 'Copy'], ['aedit', 'Edit'], '|', ['other', 'Version with…'], ...(i === 0 ? [['direct', 'Rewrite with a prompt']] : []), ...(imagesOn() ? [['image', 'Create image']] : []), '|',
-       pin, branch, ['sent', 'What was sent'], ['npc', 'Make a character…'], '|', ['delete', 'Delete']];
+       pin, branch, ['sent', 'What was sent'], ['npc', 'Describe a character…'], '|', ['delete', 'Delete']];
   const box = $('msgMenu'); box.innerHTML = '';
   for (const it of acts) {
     if (it === '|') { if (box.lastChild && !box.lastChild.classList.contains('sep')) { const d = document.createElement('div'); d.className = 'sep'; box.append(d); } continue; }
@@ -6001,7 +6011,7 @@ function albumOptions(a) {
 
 // ---------- Chat settings: memory + this chat's own style ----------
 function openChatSettings() {
-  $('memory').value = cur.chat.memory || '';
+  $('memory').value = cur.chat.memory || ''; syncMemSum();
   $('sumPrompt').value = cfg.summaryPrompt || '';
   $('sumFold').open = !cfg.summaryPrompt?.trim();
   syncSummary();
@@ -6064,7 +6074,10 @@ function renderPromptBox(box, scope) {
   for (const it of items) {
     if (it.id && !promptLib().includes(it)) continue;
     const d = document.createElement('details'); d.className = 'pitem'; d.open = openPrompts.has(scope + it.id);
-    d.addEventListener('toggle', () => { d.open ? openPrompts.add(scope + it.id) : openPrompts.delete(scope + it.id); if (d.open) autosizeAll(d); });
+    d.addEventListener('toggle', () => {
+      d.open ? openPrompts.add(scope + it.id) : openPrompts.delete(scope + it.id);
+      if (d.open) { for (const o of box.querySelectorAll('details.pitem[open]')) if (o !== d) o.open = false; autosizeAll(d); }
+    });
     const sm = document.createElement('summary');
     const dot = document.createElement('button'); dot.type = 'button'; dot.className = 'pdot' + (sel === it.id ? ' on' : ''); dot.setAttribute('aria-label', 'Use this prompt');
     dot.onclick = e => { e.preventDefault(); e.stopPropagation(); const v = sel === it.id ? '' : it.id; if (chat) chat.promptSel = v; else cfg.promptSel = v; persist(); renderPromptBox(box, scope); syncGsecs?.(); };
@@ -6495,9 +6508,9 @@ $('sumBtn').onclick = async () => {
   setBusy(true); $('sumBtn').textContent = prev ? 'Updating…' : 'Summarizing…'; syncSummary();
   try {
     const out = await streamChat([{ role: 'system', content: fill(cfg.summaryPrompt, s.c, s.p) }, { role: 'user', content: ask }],
-      r => { if (cur === s) { $('memory').value = r; autosize($('memory')); } }, { free: true });
+      r => { if (cur === s) $('sumBtn').textContent = `${prev ? 'Updating' : 'Summarizing'}… ${r.length.toLocaleString()} characters`; }, { free: true });
     s.chat.memory = out.trim(); s.chat.summarizedUpTo = upTo; store.set('chats', chats);
-    if (cur === s) { $('memory').value = s.chat.memory; autosize($('memory')); }
+    if (cur === s) { $('memory').value = s.chat.memory; autosize($('memory')); syncMemSum(); }
     toast(prev ? 'Memory updated' : 'Summary written to Memory');
   } catch (e) {
     if (cur === s) { $('memory').value = before; autosize($('memory')); }
@@ -6505,6 +6518,13 @@ $('sumBtn').onclick = async () => {
   } finally { setBusy(false); syncSummary(); }
 };
 $('memory').addEventListener('input', () => syncSummary());
+// the memory text folds away (remembered); its heading says how long it is
+const syncMemSum = () => { const w = ($('memory').value.trim().match(/\S+/g) || []).length; $('memTextSum').textContent = w ? `Memory text · ${w.toLocaleString()} words` : 'Memory text · empty'; };
+$('memTextFold').open = store.get('memTextOpen', true);
+$('memTextFold').addEventListener('toggle', () => { if ($('memTextFold').open) $('sumFold').open = false; });
+$('sumFold').addEventListener('toggle', () => { if ($('sumFold').open) $('memTextFold').open = false; });
+$('memTextFold').addEventListener('toggle', () => { store.set('memTextOpen', $('memTextFold').open); if ($('memTextFold').open) autosize($('memory')); });
+$('memory').addEventListener('input', syncMemSum);
 $('memFold').open = store.get('memFoldOpen', true);
 for (const [id, key] of [['bgFold', 'bgFoldOpen'], ['themeFold', 'themeFoldOpen']]) {
   $(id).open = store.get(key, false);
@@ -7131,25 +7151,39 @@ $('chatSearch').addEventListener('input', () => {
 // ---------- Text fields grow to show everything ----------
 function autosize(t) {
   if (!t.offsetParent) return; // hidden; sized when shown
+  // measuring shrinks the box for a moment, which would pull the page up: keep the page where it is
+  const box = t.closest('.page-body'), st = box?.scrollTop;
   t.style.height = 'auto';
   t.style.height = (t.scrollHeight + 2) + 'px';
+  if (box && box.scrollTop !== st) box.scrollTop = st;
 }
 function autosizeAll(root) { for (const t of root.querySelectorAll('.card textarea')) autosize(t); }
 document.addEventListener('input', e => {
   const t = e.target;
-  if (t.matches?.('.card textarea')) { autosize(t); if (t.selectionEnd === t.value.length) reveal(t, true); }
+  if (t.matches?.('.card textarea')) { autosize(t); reveal(t); }
 });
 
 // ---------- Keyboard: views end above it, the focused field is scrolled into sight ----------
-function reveal(el, caretAtEnd) {
+// Where the cursor is inside a text box (px from its top), measured with an invisible copy of the box
+function caretOffset(el) {
+  const cs = getComputedStyle(el), d = document.createElement('div');
+  for (const k of ['boxSizing', 'width', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+    'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'lineHeight', 'textTransform', 'wordSpacing', 'textIndent', 'tabSize']) d.style[k] = cs[k];
+  Object.assign(d.style, { position: 'absolute', visibility: 'hidden', top: '0', left: '-9999px', whiteSpace: 'pre-wrap', overflowWrap: 'break-word' });
+  d.textContent = el.value.slice(0, el.selectionEnd ?? el.value.length);
+  const mark = document.createElement('span'); mark.textContent = '\u200b'; d.append(mark); document.body.append(d);
+  const y = mark.offsetTop, h = mark.offsetHeight || parseFloat(cs.lineHeight) || 20; d.remove();
+  return { y, h };
+}
+// Scrolls the page so the cursor (not the top of a long text box) is in sight
+function reveal(el) {
   if (!el?.matches?.('input, textarea')) return;
   const box = el.closest('.page-body, main'); if (!box) return;
   const r = el.getBoundingClientRect(), b = box.getBoundingClientRect(), pad = 16;
-  if (r.bottom <= b.bottom - pad && r.top >= b.top + pad) return;
-  if (caretAtEnd || r.height > b.height - 2 * pad && el.selectionEnd === el.value.length) {
-    if (r.bottom > b.bottom - pad) box.scrollTop += r.bottom - b.bottom + pad;
-  } else if (r.bottom > b.bottom - pad) box.scrollTop += Math.min(r.bottom - b.bottom + pad, r.top - b.top - pad);
-  else box.scrollTop -= b.top + pad - r.top;
+  let top = r.top, bottom = r.bottom;
+  if (el.tagName === 'TEXTAREA' && r.height > 60) { const c = caretOffset(el); top = r.top + c.y - el.scrollTop; bottom = top + c.h; }
+  if (bottom > b.bottom - pad) box.scrollTop += bottom - b.bottom + pad;
+  else if (top < b.top + pad) box.scrollTop -= b.top + pad - top;
 }
 // Was the chat at its end when you tapped the text field? Then it stays there when the keyboard opens.
 let kbFollow = true;
@@ -8100,53 +8134,38 @@ function storyMenu(st) {
   ]);
 }
 
-// ---------- A side character from the chat becomes a character card ----------
-// Long press a message → Make a character…: type the name. Every message in the chat that
-// mentions them (with the one before it, for context) goes to the AI with your generator template.
+// ---------- Describe a character: one paragraph about a side character, from the chat ----------
+// Long press a message → Describe a character…: type the name. Every message that mentions them (with the one
+// before it) goes to the AI; it writes one paragraph about only that character, to copy into the generator.
 function npcMenu() {
   if (!cur) return;
-  setTimeout(() => { const n = prompt('Make a character from… (the name as it appears in the chat)'); if (n?.trim()) npcToChar(n.trim()); }, 50);
+  setTimeout(() => { const n = prompt('Describe which character? (the name as it appears in the chat)'); if (n?.trim()) npcDescribe(n.trim()); }, 50);
 }
-async function npcToChar(name) {
+let npcText = '';
+async function npcDescribe(name) {
   if (busy || !cur || !ready()) return;
   const s = cur, hits = [];
   history.forEach((m, k) => { if (keyHit(String(m.content || ''), name)) { if (k && !hits.includes(k - 1)) hits.push(k - 1); if (!hits.includes(k)) hits.push(k); } });
   if (!hits.length) return toast(`${name} isn't mentioned in this chat`);
-  // up to ~40,000 characters: the first meeting, the latest, and an even spread between
   const line = k => `${history[k].role === 'user' ? userName(s.p) : cn(speakerChar(history[k], s.c))}: ${String(history[k].content || '').replace(TAG, '')}`;
   let pick = hits, size = () => pick.reduce((n, k) => n + line(k).length, 0);
   while (size() > 40000 && pick.length > 4) { const keep = new Set([pick[0], pick[1], pick.at(-2), pick.at(-1)]); pick = pick.filter((k, j) => keep.has(k) || j % 2 === 0); }
-  const scenes = pick.sort((a, b) => a - b).map(line).join('\n\n').slice(0, 45000);
-  const who = s.chat.group ? groupMembers(s.chat.group).map(cn).join(', ') : cn(s.c);
-  setBusy(true); toast(`Writing ${name} from ${hits.length} messages…`);
+  const scenes = pick.sort((x, y) => x - y).map(line).join('\n\n').slice(0, 45000);
+  const others = [...(s.chat.group ? groupMembers(s.chat.group).map(cn) : [cn(s.c)]), userName(s.p)];
+  setBusy(true); toast(`Describing ${name} from ${hits.length} messages…`);
   try {
-    const ask = `Create a character card for ${name}, a side character from a roleplay between ${who} and ${userName(s.p)}. Base everything on what the chat below shows about ${name}: looks, voice, personality, history, what happened, how they relate to ${who} and ${userName(s.p)}. Where the chat says nothing, invent details that fit what it does show; never contradict it.
+    const ask = `From the roleplay chat below, write a description of ${name} as one paragraph of 5 to 8 sentences, to be used as the idea for a new character card.
 
-In the card, {{char}} is ${name} and {{user}} is the person chatting with them (in this chat that was ${userName(s.p)}). The scenario and first message should pick up from where ${name} stands at the end of the chat.
-
-Write it by filling in this template. Follow its structure exactly: keep its headings, labels and bullet-point layout, replace every [bracketed instruction] with the real content it asks for, and leave out sections or lines the template says to delete when they don't apply.
-
-TEMPLATE
-${genTemplate()}
-END OF TEMPLATE
-
-Length: the personality, scenario and example dialogue together must stay between about 1,000 and 2,000 tokens (roughly 750 to 1,500 words). Keep the example dialogue short if that's needed to stay in range; the personality comes first. Opening messages: third person limited, from {{char}}'s point of view.
-
-${GEN_KEYS}
+Describe only ${name} as a person: looks and build, age, clothing, voice and way of speaking, personality, habits, job or role, likes and dislikes, and anything else the chat shows about who ${name} is. Where the chat says nothing, leave it out rather than invent it.
+Do not mention ${others.join(' or ')}, their relationship with ${name}, or what happened in the story. Write it in the third person, present tense. Output only the paragraph.
 
 THE CHAT (only the parts where ${name} appears, in order)
 ${scenes}`;
-    const out = await streamChat([
-      { role: 'system', content: 'You design characters for a roleplay chat app. You always answer with a single valid JSON object and nothing else.' },
-      { role: 'user', content: ask },
-    ], () => {}, { chat: s.chat, free: true, signal: abortCtl?.signal });
-    let c;
-    try { c = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)); } catch { throw new Error('The AI did not return a usable character. Try again, or try another model.'); }
-    if (!c.name) c.name = name;
-    await fitCardLength(c, s.chat, t => toast(t));
-    fillGenerated(c);
-    toast(`Here is ${c.name}. Change anything you like, then Save.`);
-  } catch (e) { toast(isAbort(e) ? 'Stopped' : 'Could not make the character: ' + e.message); }
+    const out = await streamChat([{ role: 'user', content: ask }], () => {}, { chat: s.chat, free: true, signal: abortCtl?.signal });
+    npcText = out.trim();
+    $('npcTitle').textContent = name; $('npcBody').textContent = npcText;
+    openView('npcView');
+  } catch (e) { toast(isAbort(e) ? 'Stopped' : 'Could not describe them: ' + e.message); }
   finally { setBusy(false); }
 }
 
@@ -8175,6 +8194,7 @@ function openLfc() {
   openView('lfc');
 }
 $('lfcOpen').onclick = openLfc;
+$('npcCopy').onclick = () => navigator.clipboard?.writeText(npcText).then(() => toast('Copied'), () => toast('Could not copy'));
 function lfcAsk(job, k) {
   const names = job.chat.group ? job.chat.group.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn) : [cn(job.c)];
   const known = job.entries.length ? job.entries.map(e => `- ${e.title} [${e.keys}]: ${e.content}`).join('\n') : '(none yet)';
