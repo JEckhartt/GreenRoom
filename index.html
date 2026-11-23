@@ -6076,7 +6076,7 @@ function renderPromptBox(box, scope) {
     const d = document.createElement('details'); d.className = 'pitem'; d.open = openPrompts.has(scope + it.id);
     d.addEventListener('toggle', () => {
       d.open ? openPrompts.add(scope + it.id) : openPrompts.delete(scope + it.id);
-      if (d.open) { for (const o of box.querySelectorAll('details.pitem[open]')) if (o !== d) o.open = false; autosizeAll(d); }
+      if (d.open) { for (const o of box.querySelectorAll('details.pitem[open]')) if (o !== d) o.open = false; autosizeAll(d); toFoldTop(d); }
     });
     const sm = document.createElement('summary');
     const dot = document.createElement('button'); dot.type = 'button'; dot.className = 'pdot' + (sel === it.id ? ' on' : ''); dot.setAttribute('aria-label', 'Use this prompt');
@@ -6521,8 +6521,8 @@ $('memory').addEventListener('input', () => syncSummary());
 // the memory text folds away (remembered); its heading says how long it is
 const syncMemSum = () => { const w = ($('memory').value.trim().match(/\S+/g) || []).length; $('memTextSum').textContent = w ? `Memory text · ${w.toLocaleString()} words` : 'Memory text · empty'; };
 $('memTextFold').open = store.get('memTextOpen', true);
-$('memTextFold').addEventListener('toggle', () => { if ($('memTextFold').open) $('sumFold').open = false; });
-$('sumFold').addEventListener('toggle', () => { if ($('sumFold').open) $('memTextFold').open = false; });
+$('memTextFold').addEventListener('toggle', () => { if ($('memTextFold').open) { $('sumFold').open = false; toFoldTop($('memTextFold')); } });
+$('sumFold').addEventListener('toggle', () => { if ($('sumFold').open) { $('memTextFold').open = false; toFoldTop($('sumFold')); } });
 $('memTextFold').addEventListener('toggle', () => { store.set('memTextOpen', $('memTextFold').open); if ($('memTextFold').open) autosize($('memory')); });
 $('memory').addEventListener('input', syncMemSum);
 $('memFold').open = store.get('memFoldOpen', true);
@@ -7156,6 +7156,13 @@ function autosize(t) {
   t.style.height = 'auto';
   t.style.height = (t.scrollHeight + 2) + 'px';
   if (box && box.scrollTop !== st) box.scrollTop = st;
+}
+// After opening a fold (and closing the one that was open): its heading at the top of the screen
+function toFoldTop(d) {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const box = d.closest('.page-body'); if (!box) return;
+    box.scrollTop += d.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
+  }));
 }
 function autosizeAll(root) { for (const t of root.querySelectorAll('.card textarea')) autosize(t); }
 document.addEventListener('input', e => {
