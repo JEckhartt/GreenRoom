@@ -3837,9 +3837,11 @@ function deleteImage(i) {
   const m = history[i]; if (!m?.img || busy) return;
   if (!confirm('Delete this picture?')) return;
   const key = m.img;
+  // a picture belongs to the whole reply (it shows on every version): delete takes it off all of them
+  const keys = imagesOf(m);
   delete m.img; delete m.imgPrompt;
-  if (m.alts) { const a = m.alts[m.sel || 0]; delete a.img; delete a.imgPrompt; }
-  if (!imagesOf(m).includes(key)) idb.del(key).catch(() => {});
+  for (const a of m.alts || []) { delete a.img; delete a.imgPrompt; }
+  for (const k of keys) idb.del(k).catch(() => {});
   saveMsgs(cur.chat, history, true); render();
 }
 async function regenUserImage(i) {
