@@ -1496,7 +1496,10 @@ Variables (per chat, see Chat settings → Prompt): {{getvar::mood}} · {{setvar
 Shared by all chats: {{getglobalvar::x}} · {{setglobalvar::x::y}} · {{addglobalvar::x::n}} · {{incglobalvar::x}} · {{decglobalvar::x}}
 The card as text: {{description}} (the personality field) · {{scenario}} · {{mesExamples}} · {{charDepthPrompt}} (character's note) · {{charPrompt}} · {{charInstruction}} · {{persona}}
 {{notChar}}: everyone but the one replying · {{groupNotMuted}}
-{{isodate}} · {{isotime}} · {{noop}} · {{reverse:text}}</div>
+{{isodate}} · {{isotime}} · {{noop}} · {{reverse:text}}
+{{summary}}: the chat's Memory
+Switches (newer SillyTavern presets): {{if .x}}…{{else}}…{{/if}} · {{#if .x}} keeps the spaces · {{if !.x}} · {{if {{getvar::x}}}}
+Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}} · {{.x == on}} (also != &gt; &lt;) · {{$x}} = shared · {{setvar::x}}longer text{{/setvar}}</div>
       <label class="f">Shared variables</label>
       <div id="gVars"></div>
       <div class="actions"><button class="btn" type="button" id="gVarAdd">+ Add variable</button></div>
@@ -2372,20 +2375,52 @@ function fill(t, c, p) {
   if (ck && fillCache.has(ck)) return fillCache.get(ck);
   const out = fillNow(s, c, p); if (ck) fillCache.set(ck, out); return out;
 }
-function fillNow(s, c, p, depth = 0) {
-  s = s.replace(/\{\{\/\/[\s\S]*?\}\}/g, '');
-  const chat = cur?.chat, hist = cur ? history : [], seen = {};
+// The newer SillyTavern macro syntax works too: {{if x}}…{{else}}…{{/if}} (also {{#if x}}, which keeps the
+// whitespace, {{if::x}} and {{if !x}}), local variables {{.x}} {{.x = v}} {{.x += 1}} {{.x++}} {{.x == v}} (also != > < >= <=),
+// shared ones with $ ({{$x}}), and {{setvar::x}}…{{/setvar}}. Everything is worked out left to right, so an {{if}}
+// sees the variables set before it. {{.x}} is the same variable as {{getvar::x}}.
+let macroScratch = null, macroDirty = null; // this request's variable values; which stores changed (saved once at the end)
+const MACRO_FALSE = new Set(['', '0', 'false', 'off', 'no', 'null', 'undefined', 'nan']);
+function fillNow(s, c, p, depth = 0, sc = macroScratch || { l: {}, g: {} }) {
+  if (!s.includes('{{')) return s;
+  const chat = cur?.chat, hist = cur ? history : [], seen = {}, whole = s;
   const lastOf = role => [...hist].reverse().find(m => !role || m.role === role)?.content || '';
   const vars = () => (chat ? (chat.vars ||= {}) : {}), gvars = () => (cfg.vars ||= {});
-  const sub = t => depth < 2 ? fillNow(String(t || '').trim(), c, p, depth + 1) : String(t || '').trim(); // card fields may hold macros too
+  const readVar = (global, key) => { const o = sc[global ? 'g' : 'l']; return key in o ? o[key] : String((global ? cfg.vars : chat?.vars)?.[key] ?? ''); };
+  const writeVar = (global, key, val) => {
+    if (!key) return; val = String(val ?? ''); sc[global ? 'g' : 'l'][key] = val;
+    // stored only while a real request is built (not for previews or What was sent)
+    if (macroWrite && (global || chat)) { const V = global ? gvars() : vars(); if (V[key] !== val) { V[key] = val; if (macroDirty) macroDirty[global ? 'g' : 'l'] = true; else global ? saveCfg() : store.set('chats', chats); } }
+  };
+  const sub = t => depth < 2 ? fillNow(String(t || '').trim(), c, p, depth + 1, sc) : String(t || '').trim(); // card fields may hold macros too
   const g = chat?.group, names = g ? g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn) : [];
-  s = s.replace(/\{\{\s*([^{}]*?)\s*\}\}/g, (all, body) => {
-    const [name, ...rest] = body.split(/::|:(?!:)/); const arg = body.slice(name.length).replace(/^::|^:/, ''), k = name.trim().toLowerCase();
+  // {{.x}} {{$x}} and their operators
+  const dotExpr = e => {
+    const m = e.match(/^([.$])([\w-]+)\s*(\+\+|--|\+=|-=|==|!=|>=|<=|=|>|<)?\s*([\s\S]*)$/); if (!m) return null;
+    const global = m[1] === '$', key = m[2], op = m[3], v = (m[4] || '').trim(), was = readVar(global, key);
+    const num = x => x !== '' && !isNaN(+x);
+    switch (op) {
+      case undefined: return m[4]?.trim() ? null : was;
+      case '=': writeVar(global, key, v); return '';
+      case '++': case '--': writeVar(global, key, String((parseFloat(was) || 0) + (op === '++' ? 1 : -1))); return '';
+      case '+=': writeVar(global, key, num(was || '0') && num(v) ? String((parseFloat(was) || 0) + +v) : was + v); return '';
+      case '-=': writeVar(global, key, String((parseFloat(was) || 0) - (parseFloat(v) || 0))); return '';
+      default: {
+        const both = num(was) && num(v), a = both ? +was : was, b = both ? +v : v;
+        return String(op === '==' ? a == b : op === '!=' ? a != b : op === '>' ? a > b : op === '<' ? a < b : op === '>=' ? a >= b : a <= b);
+      }
+    }
+  };
+  // one macro, its inside already filled in
+  const macroValue = (body, raw) => {
+    const t = body.trim();
+    if (/^[.$][\w-]/.test(t)) { const r = dotExpr(t); if (r !== null) return r; }
+    const [name] = t.split(/::|:(?!:)/); const arg = t.slice(name.length).replace(/^::|^:/, ''), k = name.trim().toLowerCase();
     switch (k) {
       case 'char': return cn(c);
       case 'user': return userName(p);
       case 'random': { const o = macroOpts(arg); return o.length ? o[Math.floor(Math.random() * o.length)] : ''; }
-      case 'pick': { const o = macroOpts(arg); if (!o.length) return ''; const n = (seen[body] = (seen[body] || 0) + 1); return o[macroHash(`${chat?.id || ''}|${body}|${n}`) % o.length]; }
+      case 'pick': { const o = macroOpts(arg); if (!o.length) return ''; const n = (seen[t] = (seen[t] || 0) + 1); return o[macroHash(`${chat?.id || ''}|${t}|${n}`) % o.length]; }
       case 'roll': return macroRoll(arg.trim() || 'd6');
       case 'time': return new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
       case 'date': return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -2399,7 +2434,7 @@ function fillNow(s, c, p, depth = 0) {
       case 'model': return api(chat).model || '';
       // the card and persona as text (SillyTavern's "description" is GreenRoom's personality field, which holds both)
       case 'description': return sub(c?.personality);
-      case 'personality': return /\{\{\s*description\s*\}\}/i.test(s) ? '' : sub(c?.personality);
+      case 'personality': return /\{\{\s*description\s*\}\}/i.test(whole) ? '' : sub(c?.personality);
       case 'scenario': return sub(g?.scenario?.trim() ? g.scenario : c?.scenario);
       case 'persona': return sub(p?.personality);
       case 'mesexamples': case 'mesexamplesraw': return sub(c?.examples);
@@ -2412,23 +2447,84 @@ function fillNow(s, c, p, depth = 0) {
       case 'isotime': { const d = new Date(); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
       case 'noop': return '';
       case 'reverse': return [...arg].reverse().join('');
-      case 'getglobalvar': return String(gvars()[arg.trim()] ?? '');
+      case 'getglobalvar': return readVar(true, arg.trim());
       case 'newline': return '\n';
       case 'trim': return '\u0000TRIM\u0000';
-      case 'getvar': return String(vars()[arg.trim()] ?? '');
+      case 'getvar': return readVar(false, arg.trim());
+      case 'summary': return sub(chat?.memory); // SillyTavern's Summarize = GreenRoom's Memory
       case 'setvar': case 'addvar': case 'incvar': case 'decvar':
       case 'setglobalvar': case 'addglobalvar': case 'incglobalvar': case 'decglobalvar': {
         const global = k.includes('global');
-        if (!macroWrite || (!global && !chat)) return '';
-        const [vn, ...v] = arg.split('::'); const key = vn.trim(), val = v.join('::'), V = global ? gvars() : vars(), op = k.replace('global', '');
-        if (op === 'setvar') V[key] = val;
-        else { const cur0 = parseFloat(V[key]) || 0, add = op === 'incvar' ? 1 : op === 'decvar' ? -1 : parseFloat(val); V[key] = isNaN(add) ? String(V[key] ?? '') + val : String(cur0 + add); }
-        if (global) saveCfg(); else store.set('chats', chats); return '';
+        const [vn, ...v] = arg.split('::'); const key = vn.trim(), val = v.join('::'), op = k.replace('global', '');
+        if (op === 'setvar') writeVar(global, key, val);
+        else { const was = readVar(global, key), cur0 = parseFloat(was) || 0, add = op === 'incvar' ? 1 : op === 'decvar' ? -1 : parseFloat(val); writeVar(global, key, isNaN(add) ? was + val : String(cur0 + add)); }
+        return '';
       }
-      default: return all; // unknown: left as it is
+      default: return raw; // unknown: left as it is
     }
-  });
-  return s.includes('\u0000TRIM\u0000') ? s.replace(/\s*\u0000TRIM\u0000\s*/g, '') : s;
+  };
+  // split into text and macros (a macro can hold macros: {{if {{getvar::x}}}})
+  const parse = str => {
+    const out = []; let i = 0, t = '';
+    while (i < str.length) {
+      if (str.startsWith('{{', i)) {
+        let d = 0, j = i;
+        for (; j < str.length - 1; j++) { if (str.startsWith('{{', j)) { d++; j++; } else if (str.startsWith('}}', j)) { d--; if (!d) break; j++; } }
+        if (!d && j < str.length - 1) { if (t) out.push({ text: t }); t = ''; out.push({ raw: str.slice(i, j + 2), body: str.slice(i + 2, j) }); i = j + 2; continue; }
+      }
+      t += str[i++];
+    }
+    if (t) out.push({ text: t });
+    return out;
+  };
+  const IF = /^#?if(?:::|\s+|$)/i, head = n => n.body.trim();
+  // the matching closer of a block (and an {{else}} on the same level)
+  const closer = (nodes, from, open, close) => {
+    let lv = 0, els = -1;
+    for (let j = from + 1; j < nodes.length; j++) {
+      const n = nodes[j]; if (!n.body) continue; const h = head(n);
+      if (open(h)) lv++;
+      else if (close.test(h)) { if (!lv) return [j, els]; lv--; }
+      else if (!lv && els < 0 && /^else$/i.test(h)) els = j;
+    }
+    return [-1, -1];
+  };
+  const evalStr = str => run(parse(str));
+  const truthy = v => !MACRO_FALSE.has(String(v).trim().toLowerCase());
+  const run = nodes => {
+    let out = '';
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      if (n.text != null) { out += n.text; continue; }
+      const h = head(n);
+      if (h.startsWith('//')) continue; // a comment (may hold macros: {{// about {{user}} }})
+      if (IF.test(h)) {
+        const [end, els] = closer(nodes, i, x => IF.test(x), /^\/if$/i);
+        if (end < 0) { out += n.raw; continue; }
+        let cond = h.replace(/^#?if(::|\s+)?/i, '').trim(); const neg = cond.startsWith('!'); if (neg) cond = cond.slice(1).trim();
+        let v = evalStr(cond).trim();
+        if (/^[.$][\w-]/.test(v)) { const r = dotExpr(v); if (r !== null) v = r; }
+        else if (/^[a-z_]\w*$/i.test(v)) { const r = macroValue(v, '\u0001'); if (r !== '\u0001') v = r; } // {{if description}}
+        const yes = truthy(v) !== neg;
+        let part = run(yes ? nodes.slice(i + 1, els > 0 ? els : end) : els > 0 ? nodes.slice(els + 1, end) : []);
+        if (!h.startsWith('#')) part = part.trim();
+        out += part; i = end; continue;
+      }
+      const scoped = h.match(/^(setvar|setglobalvar)::([^:]+)$/i);
+      if (scoped) {
+        const [end] = closer(nodes, i, x => /^(setvar|setglobalvar)::[^:]+$/i.test(x), new RegExp(`^/${scoped[1]}$`, 'i'));
+        if (end > 0) { writeVar(/global/i.test(scoped[1]), scoped[2].trim(), run(nodes.slice(i + 1, end)).trim()); i = end; continue; }
+      }
+      if (/^(\/if|else|\/setvar|\/setglobalvar)$/i.test(h)) { out += n.raw; continue; } // stray closer
+      const inner = n.body.includes('{{') ? evalStr(n.body) : n.body;
+      out += macroValue(inner, inner === n.body ? n.raw : `{{${inner}}}`);
+    }
+    return out;
+  };
+  s = run(parse(s));
+  if (s.includes('\u0000TRIM\u0000')) s = s.replace(/\s*\u0000TRIM\u0000\s*/g, '');
+  // blocks that were left out leave no piles of empty lines
+  return /\{\{\s*#?if\b/i.test(whole) ? s.replace(/\n[ \t]*\n(?:[ \t]*\n)+/g, '\n\n') : s;
 }
 // First message options (older characters have a single firstMessage)
 const greetingsOf = c => (c?.firstMessages?.length ? c.firstMessages : [c?.firstMessage]).filter(x => x?.trim());
@@ -2749,8 +2845,12 @@ const replySendsImage = t => !!t && SENDS_IMG.test(t);
 const IMG_NOTE = '\n\n[Note from the app: the user is asking for a picture. Reply in character and end your message with [[image: detailed English description of the picture]].]';
 async function buildMessages(c, p, hist, memory, chat = cur?.chat, opts = {}) {
   macroWrite = opts.vec !== false; // a real request (What was sent rebuilds with vec:false and changes nothing)
-  fillCache = new Map();
-  try { return await buildMessagesInner(c, p, hist, memory, chat, opts); } finally { macroWrite = false; fillCache = null; }
+  fillCache = new Map(); macroScratch = { l: {}, g: {} }; macroDirty = {};
+  try { return await buildMessagesInner(c, p, hist, memory, chat, opts); }
+  finally {
+    if (macroDirty.l) store.set('chats', chats); if (macroDirty.g) saveCfg();
+    macroWrite = false; fillCache = null; macroScratch = null; macroDirty = null;
+  }
 }
 async function buildMessagesInner(c, p, hist, memory, chat = cur?.chat, opts = {}) {
   // images off: no pictures go to the AI, only a note that one was attached
