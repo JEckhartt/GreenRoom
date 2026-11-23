@@ -4888,6 +4888,29 @@ function askImageStyle() {
   cfg.lastImgStyle = v.trim(); saveCfg();
   return v.trim();
 }
+// The 2,000-token ceiling for personality + scenario + example dialogue, checked after writing: if the AI went
+// over, it gets one request to shorten those three parts (structure and facts kept)
+const CARD_MAX = 2000;
+async function fitCardLength(c, chat, onState) {
+  const tk = await loadTokenizer().catch(() => null), count = t => tk ? tk.encode(t).length : Math.ceil(t.length / 4);
+  const ex = x => Array.isArray(x) ? x.join('\n') : (x || '');
+  const total = () => count([c.personality || '', c.scenario || '', ex(c.examples)].join('\n\n'));
+  const before = total(); if (before <= CARD_MAX) return;
+  onState?.(`Shortening (${before.toLocaleString()} tokens, the limit is ${CARD_MAX.toLocaleString()})…`);
+  const ask = `These three parts of a character card are ${before.toLocaleString()} tokens together; they must be under ${CARD_MAX.toLocaleString()} (aim for about ${(CARD_MAX - 200).toLocaleString()}). Shorten them: keep every heading, label and bullet-point layout and every important fact, but tighten the wording, merge overlapping points and cut the example dialogue to fewer exchanges if needed. Don't add anything new.
+
+Reply with only a JSON object with the keys "personality", "scenario" and "examples" (line breaks as \\n).
+
+${JSON.stringify({ personality: c.personality || '', scenario: c.scenario || '', examples: ex(c.examples) })}`;
+  try {
+    const out = await streamChat([{ role: 'system', content: 'You edit character cards for a roleplay chat app. You always answer with a single valid JSON object and nothing else.' }, { role: 'user', content: ask }],
+      () => {}, { ...(chat ? { chat } : {}), free: true, signal: abortCtl?.signal });
+    const j = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1));
+    if (j.personality) { c.personality = j.personality; c.scenario = j.scenario ?? c.scenario; c.examples = j.examples ?? c.examples; }
+  } catch (e) { if (isAbort(e)) throw e; } // shortening failed: the longer card is kept
+  const after = total();
+  if (after > CARD_MAX) toast(`Still ${after.toLocaleString()} tokens (limit ${CARD_MAX.toLocaleString()}); trim it in the editor if you like.`);
+}
 // Opens the character editor filled with a generated card (generator, or a side character from a chat)
 function fillGenerated(c, img = null) {
   openEditor('char');
@@ -4938,6 +4961,7 @@ ${GEN_KEYS}`;
     const json = out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1);
     let c;
     try { c = JSON.parse(json); } catch { throw new Error('The AI did not return a usable character. Try again, or try another model.'); }
+    await fitCardLength(c, null, t => { status.textContent = t; });
     let img = null;
     if ($('genImg').checked && imageProxyOk() && (c.appearance || c.personality)) {
       status.textContent = 'Making the picture…';
@@ -8119,6 +8143,7 @@ ${scenes}`;
     let c;
     try { c = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)); } catch { throw new Error('The AI did not return a usable character. Try again, or try another model.'); }
     if (!c.name) c.name = name;
+    await fitCardLength(c, s.chat, t => toast(t));
     fillGenerated(c);
     toast(`Here is ${c.name}. Change anything you like, then Save.`);
   } catch (e) { toast(isAbort(e) ? 'Stopped' : 'Could not make the character: ' + e.message); }
