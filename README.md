@@ -199,3 +199,12 @@ Every push builds an unsigned `GreenRoom.ipa` with GitHub Actions (`.github/work
 OPENROUTER_API_KEY=sk-or-... node proxy.js
 ```
 Proxy URL: `http://localhost:8787/api/v1`. Keeps your key out of the browser.
+
+### Look and feel (recent)
+
+- Back buttons are arrows everywhere; the chat's Profile button is a person icon.
+- Headers (and the chat's message box) float over the content: they turn see-through and frosted while you scroll and solid again when you stop.
+- Style → **Side margin**: space between the messages and the screen edges (global or per chat).
+- A chat's background keeps its place when the keyboard opens; the thumbnail under Background and the text preview show it, dimmed as set.
+- Personas have a compact list too (the view button cycles list, compact, grid).
+- Chat settings no longer switch tabs on a sideways swipe.

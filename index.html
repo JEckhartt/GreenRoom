@@ -86,7 +86,7 @@
   .pill:hover { color: var(--ink); border-color: var(--ink-soft); }
 
   main { flex: 1; overflow-y: auto; }
-  #log { max-width: 760px; margin: 0 auto; padding: 6px 12px 20px; display: flex; flex-direction: column; gap: 16px; }
+  #log { max-width: 760px; margin: 0 auto; padding: 6px var(--side-m, 12px) 20px; display: flex; flex-direction: column; gap: 16px; }
   .msg { max-width: 85%; white-space: pre-wrap; overflow-wrap: anywhere; }
   .msg.me { align-self: flex-end; background: var(--bubble-me); padding: 10px 14px; border-radius: 18px 18px 4px 18px; border: 1px solid var(--line); font-family: var(--me-font); }
   .msg.ai { align-self: flex-start; }
@@ -192,8 +192,16 @@
   .view { position: fixed; inset: 0; bottom: var(--kb); z-index: 20; background: var(--bg); display: flex; flex-direction: column;
     transform: translateX(100%); visibility: hidden; transition: transform .3s cubic-bezier(.2,.8,.2,1), visibility 0s .3s; }
   .view.open { transform: none; visibility: visible; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+  /* Headers (and the chat's bottom bar) float over the content: solid when still, frosted and see-through while scrolling */
+  .view .chrome { position: relative; z-index: 6; background-color: var(--bg); transition: background-color .35s ease, backdrop-filter .35s ease, -webkit-backdrop-filter .35s ease; }
+  .view.scrolling .chrome { background-color: color-mix(in srgb, var(--bg) 58%, transparent); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%); }
+  #chat.has-bg .chrome { background-color: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+  #chat.has-bg.scrolling .chrome { background-color: color-mix(in srgb, var(--bg) 45%, transparent); }
+  .view .chrome.tb-wrap, .view input.chrome { background: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
   .page-head .act.more-act { font-size: 26px; font-weight: 700; line-height: 1; padding: 0 8px 6px; }
   .page-head .act.plus, .page-head .act.vbtn { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; line-height: 0; }
+  .page-head .act.prof-act { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border-radius: 50%; margin-right: -6px; }
+  .prof-i { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; display: block; }
   .page-head .act { justify-self: end; background: none; border: 0; color: var(--accent-ink); font-size: 17px; font-weight: 600; padding: 6px 4px; cursor: pointer; }
 
   /* ---------- Title screen ---------- */
@@ -225,7 +233,7 @@
   .menu button:active::after { transform: translateX(4px); color: var(--accent-ink); }
 
   /* ---------- Character / persona lists ---------- */
-  .create { position: sticky; top: 0; z-index: 2; padding: 12px 0; background: var(--bg); }
+  .create { position: sticky; top: var(--top-h, 0px); z-index: 2; padding: 12px 0; background: var(--bg); }
   .create button { width: 100%; padding: 15px; border-radius: 16px; border: 1.5px dashed var(--accent); background: var(--field); color: var(--accent-ink); font-size: 16px; font-weight: 600; cursor: pointer; }
   .items { display: flex; flex-direction: column; gap: 8px; }
   /* description editor: formatting toolbar + what you see is what the card shows */
@@ -637,7 +645,13 @@
   .alts .ts { margin-left: 8px; }
   .msg.flash { animation: flash 1.8s ease; border-radius: 12px; }
   @keyframes flash { 0%, 45% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent); background-color: color-mix(in srgb, var(--accent) 10%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
-  #chat.has-bg { background: linear-gradient(color-mix(in srgb, var(--bg) var(--bgdim, 40%), transparent), color-mix(in srgb, var(--bg) var(--bgdim, 40%), transparent)), var(--chatbg) center / cover no-repeat, var(--bg); }
+  /* the picture keeps the full screen height, so the keyboard opening doesn't squeeze or move it */
+  #chat.has-bg { background: var(--bg); isolation: isolate; }
+  #chat.has-bg::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: max(100lvh, 100vh, var(--fullh, 0px)); z-index: -1; pointer-events: none;
+    background: linear-gradient(color-mix(in srgb, var(--bg) var(--bgdim, 40%), transparent), color-mix(in srgb, var(--bg) var(--bgdim, 40%), transparent)), var(--chatbg) center / cover no-repeat, var(--bg); }
+  /* the small picture and the text preview show it, dimmed the same way */
+  #bgThumb.has-img { background-size: auto, cover !important; }
+  #bgThumb.has-img, #preview.has-bg { background: linear-gradient(color-mix(in srgb, var(--bg) var(--bgdim, 40%), transparent), color-mix(in srgb, var(--bg) var(--bgdim, 40%), transparent)), var(--chatbg) center / cover no-repeat, var(--bg); }
 
   /* ---------- Thinking ---------- */
   details.think { margin: 0 0 8px; font: 13px 'Inter', system-ui, sans-serif; color: var(--ink-soft); -webkit-text-fill-color: var(--ink-soft); text-shadow: none; }
@@ -792,6 +806,9 @@
   .page-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: max(8px, env(safe-area-inset-top)) 8px 8px; border-bottom: 1px solid var(--line); }
   .page-head h1 { margin: 0; font-size: 17px; font-weight: 600; }
   .back { justify-self: start; background: none; border: 0; color: var(--accent-ink); font-size: 17px; padding: 6px 4px; cursor: pointer; }
+  .back { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border-radius: 50%; margin-left: -6px; }
+  .back:active { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+  .back-i { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; display: block; }
   .page-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .page-inner { max-width: 640px; margin: 0 auto; padding: 6px 10px calc(32px + env(safe-area-inset-bottom)); }
   .group-title { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin: 0; padding: 14px 2px 7px; font-weight: 600; }
@@ -809,7 +826,7 @@
   details.fold { padding-bottom: 2px; }
   details.fold[open] { padding-bottom: 14px; }
   details.fold > summary.sub { margin: 0; padding: 14px 0 12px; }
-  .preview { position: sticky; top: 0; z-index: 2; margin-bottom: 10px; }
+  .preview { position: sticky; top: var(--top-h, 0px); z-index: 2; margin-bottom: 10px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 0 12px 12px; }
   .card + .card { margin-top: 8px; }
   #janHub .btn.primary { border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; padding: 13px; }
@@ -897,7 +914,7 @@
   .colors label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--ink-soft); }
   .gradbar { height: 10px; border-radius: 999px; margin-top: 12px; background: linear-gradient(90deg, var(--c1), var(--c2)); }
 
-  .preview { box-shadow: 0 6px 18px -10px rgba(0,0,0,.35); background: radial-gradient(120% 80% at 50% 0%, var(--bg-2), var(--bg)); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .preview { box-shadow: 0 6px 18px -10px rgba(0,0,0,.35); background: radial-gradient(120% 80% at 50% 0%, var(--bg-2), var(--bg)); border: 1px solid var(--line); border-radius: 16px; padding: 16px var(--side-m, 12px); display: flex; flex-direction: column; gap: 12px; }
   .preview .msg { max-width: 100%; }
   .btn { padding: 10px 16px; border-radius: 999px; border: 1px solid var(--line); background: none; cursor: pointer; }
   .btn.danger { color: var(--accent-ink); }
@@ -922,7 +939,7 @@
 </section>
 
 <section id="chars" class="view" aria-label="Characters">
-  <div class="page-head"><button class="back" data-close="chars" type="button">‹ Back</button><h1>Characters</h1><span class="head-acts"><button class="act vbtn" id="charView" type="button" aria-label="Grid or list"></button><button class="act plus" id="charAdd" type="button" aria-label="New character"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
+  <div class="page-head"><button class="back" data-close="chars" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Characters</h1><span class="head-acts"><button class="act vbtn" id="charView" type="button" aria-label="Grid or list"></button><button class="act plus" id="charAdd" type="button" aria-label="New character"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <input type="search" class="search" id="charSearch" placeholder="Search characters" autocomplete="off" style="margin-bottom:12px">
     <div class="items" id="charList"></div>
@@ -931,7 +948,7 @@
 </section>
 
 <section id="personas" class="view" aria-label="Personas">
-  <div class="page-head"><button class="back" data-close="personas" type="button">‹ Back</button><h1>Personas</h1><span class="head-acts"><button class="act vbtn" id="personaView" type="button" aria-label="Grid or list"></button><button class="act plus" id="newPersona" type="button" aria-label="New persona"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
+  <div class="page-head"><button class="back" data-close="personas" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Personas</h1><span class="head-acts"><button class="act vbtn" id="personaView" type="button" aria-label="Grid or list"></button><button class="act plus" id="newPersona" type="button" aria-label="New persona"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="items" id="personaList"></div>
   </div></div>
@@ -939,7 +956,7 @@
 </section>
 
 <section id="lorebooks" class="view" aria-label="Lorebooks">
-  <div class="page-head"><button class="back" data-close="lorebooks" type="button">‹ Back</button><h1>Lorebooks</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="lorebooks" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Lorebooks</h1><span></span></div>
   <div class="page-body"><div class="page-inner">
     <div class="create linkrow" style="gap:8px"><button type="button" id="newLore" style="flex:2">+ Create new lorebook</button><button type="button" id="importLore" style="flex:1">Import</button></div>
     <input type="file" id="loreFile" accept=".json,application/json" hidden>
@@ -949,7 +966,7 @@
 </section>
 
 <section id="lorebook" class="view" aria-label="Lorebook">
-  <div class="page-head"><button class="back" data-close="lorebook" type="button">‹ Lorebooks</button><h1 id="loreTitle"></h1><button class="act" id="loreMenu" type="button" aria-label="Lorebook options">•••</button></div>
+  <div class="page-head"><button class="back" data-close="lorebook" type="button" aria-label="Lorebooks"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="loreTitle"></h1><button class="act" id="loreMenu" type="button" aria-label="Lorebook options">•••</button></div>
   <div class="page-body"><div class="page-inner">
     <div class="card">
       <label class="f" for="lbName">Name</label>
@@ -965,14 +982,14 @@
 </section>
 
 <section id="albums" class="view" aria-label="Albums">
-  <div class="page-head"><button class="back" data-close="albums" type="button">‹ Back</button><h1>Albums</h1><span class="head-acts"><button class="act vbtn" id="albumView" type="button" aria-label="Grid or list"></button><button class="act plus" id="newAlbum" type="button" aria-label="New album"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
+  <div class="page-head"><button class="back" data-close="albums" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Albums</h1><span class="head-acts"><button class="act vbtn" id="albumView" type="button" aria-label="Grid or list"></button><button class="act plus" id="newAlbum" type="button" aria-label="New album"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="items" id="albumList"></div>
   </div></div>
 </section>
 
 <section id="album" class="view" aria-label="Album">
-  <div class="page-head"><button class="back" data-close="album" type="button">‹ Albums</button><h1 id="albumTitle"></h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="album" type="button" aria-label="Albums"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="albumTitle"></h1><span></span></div>
   <div class="page-body"><div class="page-inner">
     <div class="create"><button type="button" id="albumAdd">+ Add images</button></div>
     <div class="hint" style="margin:0 4px 10px">Tap an image to view it and copy its link; paste the link in a character's description to show it on the card. Long press to select several.</div>
@@ -983,7 +1000,7 @@
 </section>
 
 <section id="chats" class="view" aria-label="Chats">
-  <div class="page-head"><button class="back" data-close="chats" type="button">‹ Back</button><h1>Chats</h1><span class="head-acts"><button class="act vbtn" id="chatView" type="button" aria-label="Compact list"></button><button class="act plus" id="chatAdd" type="button" aria-label="New or imported chat"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
+  <div class="page-head"><button class="back" data-close="chats" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Chats</h1><span class="head-acts"><button class="act vbtn" id="chatView" type="button" aria-label="Compact list"></button><button class="act plus" id="chatAdd" type="button" aria-label="New or imported chat"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <input type="file" id="chatFile" hidden>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <input type="search" class="search" id="chatSearch" placeholder="Search all chats" autocomplete="off" style="margin-bottom:12px">
@@ -993,9 +1010,9 @@
 
 <section id="chat" class="view" aria-label="Chat">
   <div class="page-head">
-    <button class="back" data-close="chat" type="button">‹ Back</button>
+    <button class="back" data-close="chat" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <button class="chat-who" id="chatWho" type="button" aria-label="Chat settings"><span class="av" id="chatAv"></span><span class="gstack" id="chatAvs" hidden></span><span class="who-txt"><span id="chatName"></span><small id="chatAs"></small></span></button>
-    <button class="act" id="chatProfile" type="button">Profile</button>
+    <button class="act prof-act" id="chatProfile" type="button" aria-label="Character profile"><svg class="prof-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.19 6.26A10 10 0 0 1 6.26 20.19"/><path d="M3.81 17.74A10 10 0 0 1 17.74 3.81"/><circle cx="12" cy="9.4" r="3.5"/><path d="M6.6 18.1c.9-2.3 2.1-3.7 3.3-4.4 1.3.9 2.9.9 4.2 0 1.2.7 2.4 2.1 3.3 4.4"/></svg></button>
   </div>
   <main id="scroller"><div id="log"></div></main>
   <div class="tb-wrap"><button type="button" id="toBottom" aria-label="Scroll to the newest message" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button></div>
@@ -1075,7 +1092,7 @@
 </div>
 
 <section id="helpers" class="view" aria-label="Writing help">
-  <div class="page-head"><button class="back" data-close="helpers" type="button">‹ Back</button><h1>Writing help</h1><button class="act" id="hpSave" type="button">Save</button></div>
+  <div class="page-head"><button class="back" data-close="helpers" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Writing help</h1><button class="act" id="hpSave" type="button">Save</button></div>
   <div class="page-body"><div class="page-inner">
     <p class="group-title">Enhance my message</p>
     <div class="card">
@@ -1092,7 +1109,7 @@
 </section>
 
 <section id="chatimgs" class="view" aria-label="Images in this chat">
-  <div class="page-head"><button class="back" data-close="chatimgs" type="button">‹ Chat</button><h1 id="ciTitle"></h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="chatimgs" type="button" aria-label="Chat"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="ciTitle"></h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <input type="search" class="search" id="ciSearch" placeholder="Search this chat" autocomplete="off">
     <div class="items" id="ciResults" style="margin-top:8px"></div>
@@ -1105,7 +1122,7 @@
 </section>
 
 <section id="chatset" class="view" aria-label="Chat settings">
-  <div class="page-head"><button class="back" data-close="chatset" type="button">‹ Chat</button><h1>Chat settings</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="chatset" type="button" aria-label="Chat"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Chat settings</h1><span></span></div>
   <div class="tabbar" id="csTabs">
     <button type="button" data-t="0" class="on">Memory</button>
     <button type="button" data-t="1">Style</button>
@@ -1260,7 +1277,7 @@
 </section>
 
 <section id="profile" class="view" aria-label="Character profile">
-  <div class="page-head"><button class="back" data-close="profile" type="button">‹ Back</button><h1>Character</h1><button class="act more-act" id="profMore" type="button" aria-label="Edit, export or delete">⋯</button></div>
+  <div class="page-head"><button class="back" data-close="profile" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Character</h1><button class="act more-act" id="profMore" type="button" aria-label="Edit, export or delete">⋯</button></div>
   <div class="page-body"><div class="page-inner">
     <div class="hero-wrap"><div class="hero" id="profHero"></div><button type="button" id="profEye" aria-label="Blur picture"></button></div>
     <h2 class="prof-name" id="profName"></h2>
@@ -1275,7 +1292,7 @@
 </section>
 
 <section id="gen" class="view" aria-label="Generate a character">
-  <div class="page-head"><button class="back" data-close="gen" type="button">‹ Back</button><h1>Generate a character</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="gen" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Generate a character</h1><span></span></div>
   <div class="page-body"><div class="page-inner">
     <div class="card">
       <label class="f" for="genIdea">Describe the character in a few words</label>
@@ -1295,7 +1312,7 @@
 </section>
 
 <section id="editor" class="view" aria-label="Editor">
-  <div class="page-head"><button class="back" data-close="editor" type="button">‹ Cancel</button><h1 id="edTitle"></h1><button class="act" id="edSave" type="button">Save</button></div>
+  <div class="page-head"><button class="back" data-close="editor" type="button" aria-label="Cancel"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="edTitle"></h1><button class="act" id="edSave" type="button">Save</button></div>
   <div class="page-body"><div class="page-inner">
     <div class="card">
       <label class="f">Image</label>
@@ -1428,7 +1445,7 @@
 
 <section id="settings" class="view" aria-label="Settings">
   <div class="page-head">
-    <button class="back" data-close="settings" type="button">‹ Back</button>
+    <button class="back" data-close="settings" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <h1>Settings</h1>
     <span></span>
   </div>
@@ -1616,6 +1633,9 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
         <button type="button" data-v="normal">Normal</button>
         <button type="button" data-v="airy">Airy</button>
       </div>
+      <div class="line"><span>Side margin</span><output data-out="sideMargin"></output></div>
+      <input type="range" data-k="sideMargin" min="0" max="48" step="2">
+      <div class="hint">Space between the messages and the left and right edge of the screen.</div>
       <label class="f">How new messages appear</label>
       <div class="seg" data-k="anim">
         <button type="button" data-v="none">Appear</button>
@@ -1747,7 +1767,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="janHub" class="view" aria-label="JanitorAI">
-  <div class="page-head"><button class="back" data-close="janHub" type="button">‹ Back</button><h1>JanitorAI</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="janHub" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>JanitorAI</h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:4px">
     <div class="jan-h">Import chats</div>
     <div class="card">
@@ -1781,7 +1801,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="janImp" class="view" aria-label="Import from JanitorAI">
-  <div class="page-head"><button class="back" data-close="janImp" type="button">‹ Cancel</button><h1>Import from JanitorAI</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="janImp" type="button" aria-label="Cancel"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Import from JanitorAI</h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="hint" id="janSum" style="margin:0 4px 12px"></div>
     <div class="jan-h">Characters</div>
@@ -1794,17 +1814,17 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="janItem" class="view" aria-label="Review">
-  <div class="page-head"><button class="back" data-close="janItem" type="button">‹ Back</button><h1 id="janItTitle"></h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="janItem" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="janItTitle"></h1><span></span></div>
   <div class="page-body"><div class="page-inner" id="janItBody" style="padding-top:12px"></div></div>
 </section>
 
 <section id="janChat" class="view" aria-label="Chat preview">
-  <div class="page-head"><button class="back" data-close="janChat" type="button">‹ Back</button><h1 id="janChTitle"></h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="janChat" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="janChTitle"></h1><span></span></div>
   <div class="page-body"><div class="page-inner" id="janChBody" style="padding-top:12px"></div></div>
 </section>
 
 <section id="groupNew" class="view" aria-label="New group chat">
-  <div class="page-head"><button class="back" data-close="groupNew" type="button">‹ Back</button><h1>New group chat</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="groupNew" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>New group chat</h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="card">
       <label class="f" for="gnName" style="margin-top:12px">Name</label>
@@ -1818,7 +1838,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="stories" class="view" aria-label="Stories">
-  <div class="page-head"><button class="back" data-close="stories" type="button">‹ Back</button><h1>Stories</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="stories" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Stories</h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <button type="button" class="st-new" id="stNew"><b>New story</b><small>Turn a chat into a novel: point of view, chapters, a cover, and Text, PDF or EPUB.</small><span class="chev"></span></button>
     <div class="st-grid" id="stGrid"></div>
@@ -1826,7 +1846,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="ruleEd" class="view" aria-label="Replace rule">
-  <div class="page-head"><button class="back" data-close="ruleEd" type="button">‹ Cancel</button><h1>Replace rule</h1><button class="act" id="reSave" type="button">Save</button></div>
+  <div class="page-head"><button class="back" data-close="ruleEd" type="button" aria-label="Cancel"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Replace rule</h1><button class="act" id="reSave" type="button">Save</button></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="card">
       <label class="f" for="reName" style="margin-top:12px">Name <span style="font-weight:400">(optional)</span></label>
@@ -1855,7 +1875,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="npcView" class="view" aria-label="Character description">
-  <div class="page-head"><button class="back" data-close="npcView" type="button">‹ Back</button><h1 id="npcTitle"></h1><button class="act" id="npcCopy" type="button">Copy</button></div>
+  <div class="page-head"><button class="back" data-close="npcView" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="npcTitle"></h1><button class="act" id="npcCopy" type="button">Copy</button></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="card" style="padding:14px 16px"><div id="npcBody" style="white-space:pre-wrap;line-height:1.55;-webkit-user-select:text;user-select:text"></div></div>
     <div class="hint" style="margin:10px 4px">Only about this character, nothing about the others or the story. Copy it and paste it into Characters → Generate as the idea.</div>
@@ -1863,7 +1883,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="lfc" class="view" aria-label="Lorebook from chat">
-  <div class="page-head"><button class="back" data-close="lfc" type="button">‹ Back</button><h1>Lorebook from chat</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="lfc" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Lorebook from chat</h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div id="lfcSetup">
       <div class="card">
@@ -1891,12 +1911,12 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="sentView" class="view" aria-label="What was sent">
-  <div class="page-head"><button class="back" data-close="sentView" type="button">‹ Back</button><h1>What was sent</h1><button class="act" id="sentCopy" type="button">Copy</button></div>
+  <div class="page-head"><button class="back" data-close="sentView" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>What was sent</h1><button class="act" id="sentCopy" type="button">Copy</button></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px"><div id="sentBox"></div></div></div>
 </section>
 
 <section id="storyEdit" class="view" aria-label="Edit story">
-  <div class="page-head"><button class="back" data-close="storyEdit" type="button">‹ Cancel</button><h1>Edit story</h1><button class="act" id="seSave" type="button">Save</button></div>
+  <div class="page-head"><button class="back" data-close="storyEdit" type="button" aria-label="Cancel"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Edit story</h1><button class="act" id="seSave" type="button">Save</button></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="card">
       <label class="f" for="seTitle" style="margin-top:12px">Title</label>
@@ -1915,7 +1935,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="storySetup" class="view" aria-label="New story">
-  <div class="page-head"><button class="back" data-close="storySetup" type="button">‹ Back</button><h1>New story</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="storySetup" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>New story</h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:4px">
     <div class="jan-h">Chat</div>
     <div class="card" style="padding-top:12px">
@@ -1959,7 +1979,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="reader" class="view" aria-label="Reader">
-  <div class="rd-top" id="rdTop"><button class="back" type="button" id="rdBack">‹ Stories</button><b id="rdTitle"></b><span class="rd-acts"><button type="button" id="rdToc">Contents</button><button type="button" id="rdAa">Aa</button></span></div>
+  <div class="rd-top" id="rdTop"><button class="back" type="button" id="rdBack" aria-label="Stories"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><b id="rdTitle"></b><span class="rd-acts"><button type="button" id="rdToc">Contents</button><button type="button" id="rdAa">Aa</button></span></div>
   <div class="rd-stage" id="rdStage"><div class="rd-flow" id="rdFlow"></div></div>
   <div class="rd-bottom" id="rdBottom"><span id="rdWhere"></span><div class="rd-bar"><i id="rdFill"></i></div></div>
   <div class="rd-panel" id="rdPanel" hidden>
@@ -2051,7 +2071,7 @@ const LOOK_DEFAULTS = {
   showNames: false, nameMode: 'theme', nameC: '#d9553b', showAvatars: false, avShape: 'circle', chatHead: true,
   bubbleShape: 'tail', showTimes: true, wide: false, u_wide: false, u_aiBubble: true,
   u_showNames: false, u_nameMode: 'theme', u_nameC: '#3d63f5', u_showAvatars: false, u_avShape: 'circle', u_bubbleShape: 'tail', u_showTimes: true,
-  sides: 'default', spacing: 'normal', anim: 'slide',
+  sides: 'default', spacing: 'normal', sideMargin: 12, anim: 'slide',
   aiFont: 'Fraunces', meFont: 'Inter',
   fs: 18, fw: 300, lh: 1.6, ls: 0, glow: false,
   colorMode: 'theme', c1: '#ff7a59', c2: '#c13584', angle: 135, qOn: false, qColor: '#e8a33d',
@@ -2324,6 +2344,7 @@ function applyLook() {
     B.dataset['bubble' + side] = L[pre + 'bubbleShape'] || 'tail';
     L[pre + 'nameMode'] === 'custom' ? s.setProperty('--name-' + side, L[pre + 'nameC']) : s.removeProperty('--name-' + side);
   }
+  s.setProperty('--side-m', (L.sideMargin ?? 12) + 'px');
   B.dataset.sides = L.sides || 'default'; B.dataset.spacing = L.spacing || 'normal'; B.dataset.anim = L.anim || 'slide';
   s.setProperty('--u-fs', L.u_fs + 'px');
   s.setProperty('--u-fw', L.u_fw);
@@ -4201,11 +4222,24 @@ async function applyChatBg() {
   el.classList.toggle('has-bg', !!src);
   if (src) { el.style.setProperty('--chatbg', `url("${src}")`); el.style.setProperty('--bgdim', Math.round((ch.bgDim ?? 0.4) * 100) + '%'); }
   else el.style.removeProperty('--chatbg');
+  paintBgPreviews(src, ch?.bgDim ?? 0.4);
 }
+// the thumbnail under Background, and the text preview while this chat's style is open
+function paintBgPreviews(src, dim) {
+  const d = Math.round(dim * 100) + '%';
+  for (const [el, on] of [[$('bgThumb'), !!src], [$('preview'), !!src && lookCtx === 'chat']]) {
+    el.classList.toggle(el.id === 'bgThumb' ? 'has-img' : 'has-bg', on);
+    if (on) { el.style.setProperty('--chatbg', `url("${src}")`); el.style.setProperty('--bgdim', d); } else { el.style.removeProperty('--chatbg'); el.style.removeProperty('--bgdim'); }
+  }
+}
+// the screen's full height before any keyboard (the background is sized to it)
+const setFullH = () => { if (!document.documentElement.style.getPropertyValue('--kb') || getComputedStyle(document.documentElement).getPropertyValue('--kb').trim() === '0px') document.documentElement.style.setProperty('--fullh', innerHeight + 'px'); };
+setFullH(); addEventListener('orientationchange', () => setTimeout(setFullH, 400));
 async function syncBgControls() {
   const ch = cur?.chat; if (!ch) return;
   const src = ch.bg ? await idb.get(ch.bg).catch(() => null) : null;
-  const th = $('bgThumb'); th.style.backgroundImage = src ? `url("${src}")` : ''; th.textContent = src ? '' : '+';
+  const th = $('bgThumb'); th.style.backgroundImage = ''; th.textContent = src ? '' : '+';
+  paintBgPreviews(src, ch.bgDim ?? 0.4);
   $('bgRm').hidden = !src; $('bgDimRow').hidden = !src;
   $('bgDim').value = ch.bgDim ?? 0.4; $('bgDimOut').textContent = Math.round((ch.bgDim ?? 0.4) * 100) + '%';
 }
@@ -4867,8 +4901,8 @@ const COMPACT_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"
 const viewOf = k => store.get('view', {})[k] || 'list';
 const isGrid = k => viewOf(k) === 'grid';
 const isCompact = k => viewOf(k) === 'compact';
-// Characters cycle list → compact → grid; Chats list ↔ compact; Personas and Albums list ↔ grid
-const VIEW_CYCLE = { char: ['list', 'compact', 'grid'], chat: ['list', 'compact'], persona: ['list', 'grid'], album: ['list', 'grid'] };
+// Characters and Personas cycle list → compact → grid; Chats list ↔ compact; Albums list ↔ grid
+const VIEW_CYCLE = { char: ['list', 'compact', 'grid'], chat: ['list', 'compact'], persona: ['list', 'compact', 'grid'], album: ['list', 'grid'] };
 const VIEW_ICON = { list: LIST_SVG, compact: COMPACT_SVG, grid: GRID_SVG }, VIEW_NAME = { list: 'list', compact: 'compact list', grid: 'grid' };
 const nextView = k => { const c = VIEW_CYCLE[k]; return c[(c.indexOf(viewOf(k)) + 1) % c.length] || c[0]; };
 function syncViewBtn(k) { const b = $({ char: 'charView', persona: 'personaView', album: 'albumView', chat: 'chatView' }[k]), n = nextView(k); b.innerHTML = VIEW_ICON[n]; b.setAttribute('aria-label', 'Show as ' + VIEW_NAME[n]); }
@@ -7226,20 +7260,6 @@ function setCsTab(t) {
   requestAnimationFrame(() => autosizeAll(document.querySelector(`#csBody .cs-pane[data-t="${csTab}"]`)));
 }
 $('csTabs').onclick = e => { const t = e.target.closest('button')?.dataset.t; if (t !== undefined) setCsTab(+t); };
-(() => {
-  let x0 = 0, y0 = 0, ok = false;
-  const body = $('csBody');
-  body.addEventListener('touchstart', e => {
-    const t = e.touches[0];
-    ok = e.touches.length === 1 && t.clientX > 28 && !e.target.closest('input, textarea, select, .fonts, .presets');
-    x0 = t.clientX; y0 = t.clientY;
-  }, { passive: true });
-  body.addEventListener('touchend', e => {
-    if (!ok) return; ok = false;
-    const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) setCsTab(csTab + (dx < 0 ? 1 : -1));
-  });
-})();
 function setLookCtx(ctx) {
   lookCtx = ctx;
   $(ctx === 'chat' ? 'chatLookHost' : 'globalLookHost').append($('lookBlock'));
@@ -7247,6 +7267,7 @@ function setLookCtx(ctx) {
   syncThemeFold();
   $('lookThemeFold').hidden = ctx === 'chat'; $('resetRow').hidden = ctx === 'chat';
   applyLook(); syncControls();
+  if (ctx === 'chat' && cur) applyChatBg(); else $('preview').classList.remove('has-bg');
 }
 
 // ---------- Settings page ----------
@@ -7272,7 +7293,7 @@ function syncControls() {
     else if (document.activeElement !== el) el.value = v ?? '';
   }
   const g = k => L[sk(k)];
-  const outs = { fs: g('fs') + 'px', fw: g('fw'), lh: (+g('lh')).toFixed(2), ls: (+g('ls')).toFixed(2) + 'em', angle: g('angle') + '°' };
+  const outs = { fs: g('fs') + 'px', fw: g('fw'), lh: (+g('lh')).toFixed(2), ls: (+g('ls')).toFixed(2) + 'em', angle: g('angle') + '°', sideMargin: (g('sideMargin') ?? 12) + 'px' };
   for (const o of document.querySelectorAll('[data-out]')) o.textContent = outs[o.dataset.out];
   const fontMixed = styleTarget === 'both' && L.aiFont !== L.meFont;
   for (const b of $('fonts').children) b.classList.toggle('on', !fontMixed && b.dataset.font === L[fontKey()]);
@@ -9816,6 +9837,25 @@ if (sessionStorage.getItem('restored')) { sessionStorage.removeItem('restored');
 if (FS && store.get('bk.seeded', false)) { FS.rmdir({ path: 'GreenRoom', directory: 'LIBRARY', recursive: true }).catch(() => {}); store.del('bk.seeded'); }
 document.addEventListener('deviceready', matchNative);
 setTimeout(matchNative, 300);
+
+// ---------- Floating headers: content scrolls under the header (and the chat's bottom bar) ----------
+// Everything above a screen's scrolling part is "top chrome", everything below it "bottom chrome"; the scroller
+// reaches under both, so they can turn see-through while scrolling and solid again once it stops.
+(() => {
+  for (const v of document.querySelectorAll('.view')) {
+    const sc = v.querySelector(':scope > .page-body, :scope > #scroller'); if (!sc) continue;
+    const kids = [...v.children], i = kids.indexOf(sc), top = kids.slice(0, i), bottom = kids.slice(i + 1);
+    for (const el of [...top, ...bottom]) el.classList.add('chrome');
+    const fit = () => {
+      const th = top.reduce((n, el) => n + el.offsetHeight, 0), bh = bottom.reduce((n, el) => n + el.offsetHeight, 0);
+      sc.style.marginTop = -th + 'px'; sc.style.paddingTop = th + 'px'; sc.style.setProperty('--top-h', th + 'px');
+      sc.style.marginBottom = -bh + 'px'; sc.style.paddingBottom = bh + 'px';
+    };
+    const ro = new ResizeObserver(fit); for (const el of [...top, ...bottom]) ro.observe(el);
+    let t = null;
+    sc.addEventListener('scroll', () => { v.classList.add('scrolling'); clearTimeout(t); t = setTimeout(() => v.classList.remove('scrolling'), 320); }, { passive: true });
+  }
+})();
 </script>
 </body>
 </html>
