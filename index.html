@@ -194,6 +194,8 @@
   .view.open { transform: none; visibility: visible; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
   /* Headers (and the chat's bottom bar) float over the content: solid when still, frosted and see-through while scrolling */
   .view .chrome { position: relative; z-index: 6; background-color: var(--bg); transition: background-color .35s ease, backdrop-filter .35s ease, -webkit-backdrop-filter .35s ease; }
+  .view .page-head.chrome, .view .tabbar.chrome { transition: background-color .35s ease, backdrop-filter .35s ease, -webkit-backdrop-filter .35s ease, border-color .35s ease; }
+  .view.scrolling .page-head, .view.scrolling .tabbar { border-color: transparent !important; }
   .view.scrolling .chrome { background-color: color-mix(in srgb, var(--bg) 58%, transparent); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%); }
   #chat.has-bg .chrome { background-color: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
   #chat.has-bg.scrolling .chrome { background-color: color-mix(in srgb, var(--bg) 45%, transparent); }
