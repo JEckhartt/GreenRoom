@@ -722,16 +722,21 @@
   .pdesc-txt { font-size: 14px; line-height: 1.45; color: var(--ink-soft); white-space: pre-line; max-height: 40vh; overflow-y: auto; }
   .pdesc .btn.primary { width: 100%; margin-top: 12px; padding: 12px; border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; }
   #sheetOpts .opt.on { border-color: var(--accent-ink); }
-  #sheet { position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.35); display: flex; align-items: flex-end; justify-content: center;
-    opacity: 0; visibility: hidden; transition: opacity .2s, visibility 0s .2s; }
+  /* Option menus pop up where you tapped (like the message menu), growing out of your finger; tap outside to close */
+  #sheet { position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.22); opacity: 0; visibility: hidden; transition: opacity .2s, visibility 0s .25s; }
   #sheet.open { opacity: 1; visibility: visible; transition: opacity .2s; }
-  #sheet .panel { width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; background: var(--bg); border-radius: 22px 22px 0 0;
-    padding: 6px 16px calc(16px + env(safe-area-inset-bottom)); transform: translateY(40px); transition: transform .25s cubic-bezier(.2,.8,.2,1); }
-  #sheet.open .panel { transform: none; }
-  #sheet h2 { font-size: 14px; font-weight: 600; color: var(--ink-soft); text-align: center; margin: 12px 0 14px; }
-  .opt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); font-size: 17px; text-align: left; cursor: pointer; }
-  .opt + .opt { margin-top: 8px; }
-  .opt.cancel { justify-content: center; margin-top: 14px; background: none; color: var(--ink-soft); }
+  #sheet .panel { position: fixed; left: 12px; top: 12px; width: 264px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain;
+    border-radius: 16px; background: color-mix(in srgb, var(--card) 86%, transparent); backdrop-filter: blur(22px) saturate(160%); -webkit-backdrop-filter: blur(22px) saturate(160%);
+    border: .5px solid var(--line); box-shadow: 0 14px 40px -10px rgba(0,0,0,.55);
+    transform: scale(.55); opacity: 0; transition: transform .38s cubic-bezier(.22,1.2,.36,1), opacity .18s; }
+  #sheet.wide .panel { width: 320px; }
+  #sheet.open .panel { transform: none; opacity: 1; }
+  #sheet h2 { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin: 0; padding: 10px 14px 8px; border-bottom: .5px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .opt { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 14px; border: 0; border-radius: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; text-align: left; cursor: pointer; }
+  .opt + .opt, .pdesc + .opt { border-top: .5px solid var(--line); }
+  .opt:active { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+  .opt .av { width: 30px; height: 30px; font-size: 13px; }
+  .opt.cancel { display: none; }
 
   /* ---------- Chats ---------- */
   .group { border: 1px solid var(--line); border-radius: 16px; background: var(--card); overflow: hidden; }
@@ -768,7 +773,7 @@
   .selbar { display: flex; align-items: center; gap: 8px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--bg); }
   body.kb-open .selbar { padding-bottom: 10px; }
   .selbar span { flex: 1; font-weight: 600; }
-  .opt .ico { flex: none; width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-ink); display: grid; place-items: center; }
+  .opt .ico { flex: none; width: 28px; height: 28px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-ink); display: grid; place-items: center; }
 
   /* ---------- Albums ---------- */
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 4px; }
@@ -4252,8 +4257,34 @@ function showSheet(title, opts) {
     b.onclick = () => { if (!o.keep) hideSheet(); o.onClick(); }; // keep: the sheet stays (e.g. while the photo picker is open)
     return b;
   }));
-  $('sheet').classList.add('open');
+  openSheetAt(opts.some(o => o.av !== undefined));
 }
+// where the last tap or long press was: the menu grows out of that spot (centered when there was none)
+let menuTap = null;
+document.addEventListener('pointerdown', e => { menuTap = { x: e.clientX, y: e.clientY, t: Date.now() }; }, true);
+function openSheetAt(wide) {
+  const sh = $('sheet'), pn = sh.querySelector('.panel');
+  sh.classList.toggle('wide', !!wide);
+  sh.classList.remove('open'); void pn.offsetWidth; // restart the pop
+  const at = menuTap && Date.now() - menuTap.t < 2500 ? menuTap : null;
+  placeSheet(at);
+  sh.classList.add('open');
+  sheetAt = at;
+}
+let sheetAt = null;
+function placeSheet(at) {
+  const pn = $('sheet').querySelector('.panel'), vw = innerWidth, vh = innerHeight, m = 12;
+  const w = pn.offsetWidth, h = Math.min(pn.scrollHeight, vh - 2 * m);
+  let x, y;
+  if (at) {
+    x = Math.max(m, Math.min(vw - w - m, at.x - 24));
+    y = at.y + 12 + h <= vh - m ? at.y + 12 : at.y - 12 - h >= m ? at.y - 12 - h : Math.max(m, Math.min(vh - h - m, at.y - h / 2));
+  } else { x = (vw - w) / 2; y = Math.max(m, (vh - h) / 2); }
+  pn.style.left = x + 'px'; pn.style.top = y + 'px';
+  pn.style.transformOrigin = at ? `${at.x - x}px ${at.y - y}px` : '50% 50%';
+}
+// a menu that grows while open (a persona's description unfolds) stays on screen
+new ResizeObserver(() => { if ($('sheet').classList.contains('open')) { const pn = $('sheet').querySelector('.panel'), r = pn.getBoundingClientRect(); if (r.bottom > innerHeight - 12) pn.style.top = Math.max(12, innerHeight - 12 - r.height) + 'px'; } }).observe(document.querySelector('#sheet .panel'));
 function hideSheet() { $('sheet').classList.remove('open'); }
 $('sheetCancel').onclick = hideSheet;
 $('sheet').onclick = e => { if (e.target === $('sheet')) hideSheet(); };
