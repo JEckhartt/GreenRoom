@@ -86,7 +86,7 @@
   .pill:hover { color: var(--ink); border-color: var(--ink-soft); }
 
   main { flex: 1; overflow-y: auto; }
-  #log { max-width: 760px; margin: 0 auto; padding: 8px 16px 24px; display: flex; flex-direction: column; gap: 18px; }
+  #log { max-width: 760px; margin: 0 auto; padding: 6px 12px 20px; display: flex; flex-direction: column; gap: 16px; }
   .msg { max-width: 85%; white-space: pre-wrap; overflow-wrap: anywhere; }
   .msg.me { align-self: flex-end; background: var(--bubble-me); padding: 10px 14px; border-radius: 18px 18px 4px 18px; border: 1px solid var(--line); font-family: var(--me-font); }
   .msg.ai { align-self: flex-start; }
@@ -149,7 +149,7 @@
   #toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px); z-index: 40; background: rgba(30,30,30,.9); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 6px 16px calc(14px + env(safe-area-inset-bottom)); display: flex; }
+  form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 4px 10px calc(10px + env(safe-area-inset-bottom)); display: flex; }
   .field { flex: 1; display: flex; align-items: flex-end; border: 1px solid var(--line); border-radius: 22px; background: var(--field); transition: border-color .15s; }
   .field:focus-within { border-color: var(--accent-ink); }
   #input { flex: 1; min-width: 0; resize: none; max-height: 180px; min-height: 44px; padding: 11px 6px 11px 16px; border: 0; border-radius: 22px; background: none; color: var(--ink); font: inherit; font-family: var(--me-font); outline: none; }
@@ -213,11 +213,11 @@
   #boot .boot-logo i { position: absolute; left: 22%; right: 14%; bottom: 19%; height: 4px; border-radius: 3px; background: var(--accent); box-shadow: 0 0 12px 3px var(--accent); animation: bootGlow 1.4s ease-in-out infinite alternate; }
   @keyframes bootIn { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
   @keyframes bootGlow { from { opacity: .55; } to { opacity: 1; } }
-  #home { transition: opacity .25s ease; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
+  #home { transition: opacity .25s ease; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(20px, env(safe-area-inset-top)) 12px max(20px, env(safe-area-inset-bottom)); }
   .logo { display: flex; align-items: center; gap: 14px; font-family: 'Fraunces', Georgia, serif; font-size: 44px; font-weight: 400; letter-spacing: .01em; margin: 0 0 36px; }
   .logo .pulse { width: 16px; height: 16px; }
   .menu { width: 100%; max-width: 320px; display: flex; flex-direction: column; }
-  .menu button { display: flex; justify-content: space-between; align-items: center; padding: 18px 6px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; font-family: 'Fraunces', Georgia, serif; font-size: 21px; cursor: pointer; text-align: left; transition: color .15s; }
+  .menu button { display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; font-family: 'Fraunces', Georgia, serif; font-size: 21px; cursor: pointer; text-align: left; transition: color .15s; }
   .menu button:first-child { border-top: 1px solid var(--line); }
   .menu button::after { content: '›'; color: var(--ink-soft); font-size: 24px; line-height: 1; transition: transform .15s; }
   .menu button:active { color: var(--accent-ink); }
@@ -226,7 +226,7 @@
   /* ---------- Character / persona lists ---------- */
   .create { position: sticky; top: 0; z-index: 2; padding: 12px 0; background: var(--bg); }
   .create button { width: 100%; padding: 15px; border-radius: 16px; border: 1.5px dashed var(--accent); background: var(--field); color: var(--accent-ink); font-size: 16px; font-weight: 600; cursor: pointer; }
-  .items { display: flex; flex-direction: column; gap: 10px; }
+  .items { display: flex; flex-direction: column; gap: 8px; }
   /* description editor: formatting toolbar + what you see is what the card shows */
   .rte-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
   .rte-bar select, .rte-bar button, .rte-col { height: 38px; min-width: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--field); color: var(--ink); display: inline-grid; place-items: center; padding: 0 8px; cursor: pointer; position: relative; }
@@ -402,7 +402,7 @@
   .items.gridview .folder-head .info p { white-space: nowrap; font-size: 13px; }
   /* tapping the text of a tile shows the whole description */
   .items.gridview .item.expanded p { display: block; -webkit-line-clamp: unset; line-clamp: unset; overflow: visible; }
-  .item { display: flex; gap: 14px; align-items: flex-start; width: 100%; padding: 12px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); text-align: left; cursor: pointer; }
+  .item { display: flex; gap: 12px; align-items: flex-start; width: 100%; padding: 10px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); text-align: left; cursor: pointer; }
   .thumb { flex: none; width: 96px; aspect-ratio: 3 / 4; border-radius: 12px; background: var(--accent-soft) center / cover no-repeat; display: grid; place-items: center; font-family: 'Fraunces', Georgia, serif; font-size: 34px; color: var(--accent-ink); overflow: hidden; }
   .item .info { flex: 1; min-width: 0; }
   .item h3 { margin: 2px 0 4px; font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
@@ -522,7 +522,7 @@
   .ptest-img { display: block; width: 96px; height: 96px; object-fit: cover; border-radius: 10px; margin-top: 8px; }
   .srow2 { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
   .srow2 .pdot { margin-left: 2px; }
-  .srow2 .sname { flex: 1; text-align: left; border: 0; background: none; color: var(--ink); font: inherit; font-size: 15px; padding: 13px 2px; cursor: pointer; }
+  .srow2 .sname { flex: 1; text-align: left; border: 0; background: none; color: var(--ink); font: inherit; font-size: 15px; padding: 10px 2px; cursor: pointer; }
   .srow2 .smore { border: 0; background: none; color: var(--ink-soft); font-size: 18px; padding: 6px 8px; cursor: pointer; }
   .badge { font-size: 11px; font-weight: 600; color: var(--on-accent); background: var(--accent); padding: 2px 8px; border-radius: 999px; }
   .list-empty { text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
@@ -603,11 +603,11 @@
   .prows { padding-top: 2px; }
   details.prow { border-top: 1px solid var(--line); }
   details.prow:first-of-type { border-top: 0; }
-  .chips + details.prow, .prows > input + details.prow { border-top: 1px solid var(--line); margin-top: 12px; }
-  details.prow > summary { padding: 13px 2px; font-size: 15px; gap: 10px; }
+  .chips + details.prow, .prows > input + details.prow { border-top: 1px solid var(--line); margin-top: 10px; }
+  details.prow > summary { padding: 10px 2px; font-size: 15px; gap: 10px; }
   details.prow > summary span { flex: 1; }
   details.prow > summary em { font-style: normal; color: var(--ink-soft); font-size: 14px; font-variant-numeric: tabular-nums; }
-  details.prow[open] { padding-bottom: 12px; }
+  details.prow[open] { padding-bottom: 10px; }
   details.prow .hint { margin: -2px 2px 10px; white-space: pre-line; line-height: 1.5; }
   details.prow input[type=range] { margin-top: 0; }
 
@@ -740,7 +740,7 @@
   .group.open .chev { transform: rotate(45deg); }
   .sublist { border-top: 1px solid var(--line); padding: 2px 12px 6px; }
   .link { background: none; border: 0; color: var(--accent-ink); font-size: 15px; font-weight: 600; padding: 12px 0; cursor: pointer; }
-  .crow { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .crow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
   .crow .go { flex: 1; min-width: 0; display: flex; gap: 10px; align-items: center; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
   .crow .go > div { flex: 1; min-width: 0; }
   .crow .who { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 600; }
@@ -783,18 +783,18 @@
   .prof-name { font-family: 'Fraunces', Georgia, serif; font-size: 32px; font-weight: 400; margin: 18px 4px 12px; }
   .prof-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.5; margin-top: 2px; }
   .chat-who .av.live::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; animation: pulse 1.4s ease-out infinite; }
-  .page-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: max(10px, env(safe-area-inset-top)) 12px 10px; border-bottom: 1px solid var(--line); }
+  .page-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: max(8px, env(safe-area-inset-top)) 8px 8px; border-bottom: 1px solid var(--line); }
   .page-head h1 { margin: 0; font-size: 17px; font-weight: 600; }
   .back { justify-self: start; background: none; border: 0; color: var(--accent-ink); font-size: 17px; padding: 6px 4px; cursor: pointer; }
   .page-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-  .page-inner { max-width: 640px; margin: 0 auto; padding: 8px 16px calc(40px + env(safe-area-inset-bottom)); }
-  .group-title { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin: 0; padding: 18px 4px 10px; font-weight: 600; }
+  .page-inner { max-width: 640px; margin: 0 auto; padding: 6px 10px calc(32px + env(safe-area-inset-bottom)); }
+  .group-title { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin: 0; padding: 14px 2px 7px; font-weight: 600; }
   details > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; -webkit-user-select: none; user-select: none; }
   details > summary::-webkit-details-marker { display: none; }
   details > summary::after { content: ''; width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .2s; margin-right: 4px; opacity: .6; }
   details[open] > summary::after { transform: rotate(45deg); }
   details.sec { border-bottom: 1px solid var(--line); padding-bottom: 6px; }
-  details.sec[open] { padding-bottom: 18px; }
+  details.sec[open] { padding-bottom: 12px; }
   details.sec > summary.group-title { font-size: 13px; }
   details.sec > summary > .gt { flex: 1; }
   details.gsec > summary .glob { display: flex; align-items: center; gap: 8px; margin-right: 14px; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; }
@@ -804,8 +804,8 @@
   details.fold[open] { padding-bottom: 14px; }
   details.fold > summary.sub { margin: 0; padding: 14px 0 12px; }
   .preview { position: sticky; top: 0; z-index: 2; margin-bottom: 10px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 2px 14px 14px; }
-  .card + .card { margin-top: 10px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 0 12px 12px; }
+  .card + .card { margin-top: 8px; }
   #janHub .btn.primary { border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; padding: 13px; }
   .jan-h { font-size: 13px; color: var(--ink-soft); margin: 18px 6px 6px; text-transform: uppercase; letter-spacing: .04em; }
   .jan-list { padding: 0 14px; }
@@ -851,7 +851,7 @@
   .jmsg.me > small { color: var(--accent-ink); }
   .jmsg > div { font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
   .sub { font-size: 13px; font-weight: 600; margin: 14px 0 2px; }
-  label.f { display: block; font-size: 13px; color: var(--ink-soft); margin: 14px 0 6px; font-weight: 500; }
+  label.f { display: block; font-size: 13px; color: var(--ink-soft); margin: 11px 0 5px; font-weight: 500; }
   .card input[type=text], .card input[type=url], .card input[type=password], .card textarea {
     width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; outline: none; }
   .card input:focus, .card textarea:focus { border-color: var(--accent-ink); }
@@ -863,7 +863,7 @@
   .seg button { flex: 1; padding: 8px 6px; border-radius: 9px; border: 0; background: none; cursor: pointer; font-size: 14px; }
   .seg button.on { background: var(--accent); color: var(--on-accent); }
 
-  .line { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0 0; }
+  .line { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0 0; }
   .line > span { font-size: 15px; }
   .line output { color: var(--ink-soft); font-variant-numeric: tabular-nums; font-size: 14px; }
   input[type=range] { width: 100%; accent-color: var(--accent-ink); margin: 8px 0 0; }
@@ -895,7 +895,7 @@
   .preview .msg { max-width: 100%; }
   .btn { padding: 10px 16px; border-radius: 999px; border: 1px solid var(--line); background: none; cursor: pointer; }
   .btn.danger { color: var(--accent-ink); }
-  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 11px; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -1188,7 +1188,7 @@
     <details class="sec gsec" data-g="img"><summary class="group-title"><span class="gt">Image proxy</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
       <div class="gbody"><div class="card" id="cImgBox"></div></div><div class="hint gnote"></div>
     </details>
-    <div class="card" style="margin-top:10px">
+    <div class="card" style="margin-top:8px">
       <div class="line" style="padding-top:12px"><span>Image prompt</span></div>
       <textarea id="csImgPrompt"></textarea>
       <div class="hint">Sent to the image proxy with every image in this chat. Empty: the image prompt from Settings is used.</div>
@@ -1208,11 +1208,11 @@
     </details>
     <details class="sec gsec" data-g="prompt"><summary class="group-title"><span class="gt">System prompt</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl"></label></summary>
       <div class="gbody"><div class="card" id="cPromptBox"></div></div><div class="hint gnote"></div>
-      <div class="card" style="margin-top:10px">
+      <div class="card" style="margin-top:8px">
         <label class="f" style="margin-top:12px">Prompt layout</label>
         <div id="cLayoutBox"></div>
       </div>
-      <div class="card" style="margin-top:10px">
+      <div class="card" style="margin-top:8px">
         <div class="line"><span>Repeat the character card near the latest message</span><input type="checkbox" class="tgl" id="csCardRepeat"></div>
         <div class="hint">Every reply already ends with a short reminder to stay true to the character card. This also sends the whole personality again right at your latest message, for a character that drifts in a long chat. Stronger, but it costs the card's tokens with every message. Follows Settings → Prompt until you change it here.</div>
       </div>
@@ -1474,7 +1474,7 @@ Empty = send everything.</div>
       <label class="f">System prompts</label>
       <div id="gPromptBox"></div>
     </div>
-    <div class="card" style="margin-top:10px">
+    <div class="card" style="margin-top:8px">
       <label class="f" style="margin-top:12px">Prompt layout</label>
       <div class="hint" style="margin-top:0">The order of everything a request is made of. Drag blocks up or down with the arrows, switch them off, add your own text, or put a block after the chat or inside it. Standard is GreenRoom's own layout and can't be changed; + New makes an editable copy.</div>
       <div id="gLayoutBox"></div>
@@ -1505,7 +1505,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
       <div id="gVars"></div>
       <div class="actions"><button class="btn" type="button" id="gVarAdd">+ Add variable</button></div>
     </details>
-    <div class="card" style="margin-top:10px">
+    <div class="card" style="margin-top:8px">
       <div class="line"><span>Repeat the character card near the latest message</span><input type="checkbox" class="tgl" data-k="cardRepeat"></div>
       <div class="hint">Every reply already ends with a short reminder to stay true to the character card. This also sends the whole personality again right at your latest message, for characters that drift in long chats. Stronger, but it costs the card's tokens with every message. A chat can have its own setting (Chat settings → Prompt).</div>
     </div>
@@ -1686,7 +1686,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
       <div class="actions"><button class="btn" type="button" id="vecTest">Test</button></div>
       <div class="hint" id="vecState"></div>
     </div>
-    <div class="card" style="margin-top:10px">
+    <div class="card" style="margin-top:8px">
       <label class="f" style="margin-top:12px">Replace rules</label>
       <div class="hint" style="margin-top:0">Find and replace that runs by itself on messages: delete a model's pet phrases, swap words, fix formatting. Plain text works; a pattern (regex) is optional. A chat can switch single rules off (Chat settings → Prompt).</div>
       <div id="ruleList"></div>
@@ -1833,14 +1833,14 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
       <div class="line"><span>Match upper/lower case exactly</span><input type="checkbox" class="tgl" id="reCase"></div>
       <div class="hint" id="reErr"></div>
     </div>
-    <div class="card" style="margin-top:10px">
+    <div class="card" style="margin-top:8px">
       <label class="f" style="margin-top:12px">Applies to</label>
       <div class="seg" id="reWho"><button type="button" data-v="ai">Replies</button><button type="button" data-v="me">My messages</button><button type="button" data-v="both">Both</button></div>
       <label class="f">Where</label>
       <div class="seg" id="reWhere"><button type="button" data-v="both">Change it</button><button type="button" data-v="screen">On screen only</button><button type="button" data-v="sent">Only what's sent</button></div>
       <div class="hint" id="reWhereHint"></div>
     </div>
-    <div class="card" style="margin-top:10px">
+    <div class="card" style="margin-top:8px">
       <label class="f" style="margin-top:12px">Test <span style="font-weight:400" id="reTestWhere"></span></label>
       <div id="reTest" class="hint" style="margin-top:0"></div>
     </div>
