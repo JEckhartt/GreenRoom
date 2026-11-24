@@ -937,7 +937,9 @@
   .colors label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--ink-soft); }
   .gradbar { height: 10px; border-radius: 999px; margin-top: 12px; background: linear-gradient(90deg, var(--c1), var(--c2)); }
 
-  .preview { box-shadow: 0 6px 18px -10px rgba(0,0,0,.35); background: radial-gradient(120% 80% at 50% 0%, var(--bg-2), var(--bg)); border: 1px solid var(--line); border-radius: 16px; padding: 16px var(--side-m, 12px); display: flex; flex-direction: column; gap: 12px; }
+  .preview { box-shadow: 0 6px 18px -10px rgba(0,0,0,.35); background: radial-gradient(120% 80% at 50% 0%, var(--bg-2), var(--bg)); border: 1px solid var(--line); border-radius: 16px; padding: 16px 12px; display: flex; flex-direction: column; gap: 12px; }
+  /* the side margin moves only the sample messages; the AI / You / Both switch stays put */
+  #preview > :not(#styleTarget) { margin-left: calc(var(--side-m, 12px) - 12px); margin-right: calc(var(--side-m, 12px) - 12px); }
   .preview .msg { max-width: 100%; }
   .btn { padding: 10px 16px; border-radius: 999px; border: 1px solid var(--line); background: none; cursor: pointer; }
   .btn.danger { color: var(--accent-ink); }
@@ -4212,12 +4214,12 @@ function openChat(id) {
   if (!history.length) startChat();
 }
 // A chat you never wrote anything in isn't worth keeping
-function leaveChat() {
+function leaveChat(lookLater = false) {
   $('floatPic').hidden = true;
   clearTimeout(draftTimer); saveDraft();
   const s = cur; cur = null;
-  if (s) setTimeout(() => queueReachOut(s.chat), 0);
-  applyLook();
+  if (s) setTimeout(() => queueReachOut(s.chat), 400);
+  if (!lookLater) applyLook(); // when the chat slides away, the app's own look comes back once it's gone
   if (s && !busy && !history.length && !s.chat.group && !s.chat.draft) deleteChat(s.chat.id); // only chats with nothing in them go (a set-up group stays)
 }
 function startChat() {
@@ -4293,12 +4295,15 @@ function deleteChat(id) {
 
 // ---------- Views ----------
 function openView(id) { step('open ' + id); $(id).classList.add('open'); requestAnimationFrame(() => autosizeAll($(id))); }
+// Work that redraws a screen waits until it has slid away (so the slide stays smooth); skipped if it was opened again
+const afterSlide = (id, fn) => setTimeout(() => { if (!$(id).classList.contains('open')) fn(); }, 340);
 function closeView(id) {
-  document.activeElement?.blur(); $(id).classList.remove('open');
-  if (id === 'chats') { $('chatSearch').value = ''; expanded.clear(); renderChats(); } // leaving: everything folds again
-  if (id === 'chars') { openCharRow = null; gridOpen.clear(); renderList('char'); }
-  if (id === 'personas') { gridOpen.clear(); renderList('persona'); }
-  if (id === 'chat') { $('chat').classList.remove('has-bg'); leaveChat(); setAttached(null); setDoc(null); clearHelper(); hideSendMenu(); hidePlus(); $('anPanel').hidden = true; }
+  document.activeElement?.blur(); $(id).classList.remove('open', 'scrolling');
+  if (id === 'chats') { $('chatSearch').value = ''; expanded.clear(); afterSlide('chats', renderChats); } // leaving: everything folds again
+  if (id === 'chars') { openCharRow = null; gridOpen.clear(); afterSlide('chars', () => renderList('char')); }
+  if (id === 'personas') { gridOpen.clear(); afterSlide('personas', () => renderList('persona')); }
+  if (id === 'chat') { leaveChat(true); setAttached(null); setDoc(null); clearHelper(); hideSendMenu(); hidePlus(); $('anPanel').hidden = true;
+    afterSlide('chat', () => { $('chat').classList.remove('has-bg'); if (!cur) applyLook(); }); }
   if (id === 'settings') applyLook();
   if (id === 'chars' || id === 'personas') { endSelect(); closeSwipe(); }
   if (id === 'albums') closeSwipe();
@@ -9913,7 +9918,7 @@ setTimeout(matchNative, 300);
     };
     const ro = new ResizeObserver(fit); for (const el of [...top, ...bottom]) ro.observe(el);
     let t = null;
-    sc.addEventListener('scroll', () => { v.classList.add('scrolling'); clearTimeout(t); t = setTimeout(() => v.classList.remove('scrolling'), 320); }, { passive: true });
+    sc.addEventListener('scroll', () => { if (!v.classList.contains('open')) return; v.classList.add('scrolling'); clearTimeout(t); t = setTimeout(() => v.classList.remove('scrolling'), 320); }, { passive: true });
   }
 })();
 </script>
