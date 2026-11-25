@@ -167,7 +167,7 @@
   form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 4px 10px calc(10px + env(safe-area-inset-bottom)); display: flex; }
   .field { flex: 1; display: flex; align-items: flex-end; border: 1px solid var(--line); border-radius: 22px; background: var(--field); transition: border-color .15s; }
   .field:has(#input:focus) { border-color: var(--accent-ink); }
-  #input { flex: 1; min-width: 0; resize: none; max-height: 180px; min-height: 44px; padding: 12px 6px 12px 10px; border: 0; border-radius: 22px; background: none; color: var(--ink); font: inherit; font-size: 15px; font-family: var(--me-font); outline: none; }
+  #input { flex: 1; min-width: 0; resize: none; max-height: 180px; min-height: 46px; padding: 11px 6px 11px 10px; border: 0; border-radius: 22px; background: none; color: var(--ink); font: inherit; font-size: 15px; font-family: var(--me-font); outline: none; }
   #toolsRow { max-width: 760px; width: 100%; margin: 0 auto; padding: 6px 16px 0; display: flex; align-items: flex-end; gap: 8px; }
   #chipsRow { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
   #attachPv { position: relative; width: 56px; height: 56px; border-radius: 12px; background: var(--accent-soft) center / cover no-repeat; border: 1px solid var(--line); }
@@ -177,7 +177,7 @@
   .fchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fchip span::before, .fbub::before { content: ''; display: inline-block; width: 9px; height: 11px; margin-right: 7px; border: 1.5px solid currentColor; border-radius: 2px; vertical-align: -1px; opacity: .6; }
   .anchip { border: 1px dashed var(--accent); color: var(--accent-ink); background: none; border-radius: 999px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
-  #plusBtn { flex: none; width: 32px; height: 32px; margin: 0 0 6px 6px; border-radius: 50%; border: 1px solid var(--line); background: var(--field); color: var(--ink-soft); font-size: 22px; font-weight: 300; line-height: 1; display: grid; place-items: center; cursor: pointer; transition: transform .2s, color .2s; padding: 0 0 2px; }
+  #plusBtn { flex: none; width: 34px; height: 34px; margin: 0 0 6px 6px; border-radius: 50%; border: 1px solid var(--line); background: var(--field); color: var(--ink-soft); line-height: 0; display: grid; place-items: center; cursor: pointer; transition: transform .2s, color .2s; padding: 0; }
   #plusBtn.open { transform: rotate(45deg); color: var(--accent-ink); border-color: var(--accent-ink); }
   #plusBtn.has { color: var(--accent-ink); }
   #plusMenu { position: fixed; z-index: 32; display: flex; flex-direction: column; padding: 4px; border-radius: 14px; background: rgba(30,30,30,.94); box-shadow: 0 8px 24px -8px rgba(0,0,0,.4); min-width: 200px; }
@@ -209,7 +209,7 @@
   #giText, #anText { display: block; width: 100%; min-height: 64px; max-height: 160px; margin: 6px 0; resize: none; border: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; outline: none; }
   .fbub { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 5px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 7%, transparent); font: 13px 'Inter', system-ui, sans-serif; }
   .msg.me .txt:not(:empty) ~ .fbub { margin-top: 8px; }
-  #send { flex: none; width: 34px; height: 34px; margin: 0 5px 5px 0; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent); cursor: pointer; display: grid; place-items: center; padding: 0; }
+  #send { flex: none; width: 34px; height: 34px; margin: 0 6px 6px 0; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent); cursor: pointer; display: grid; place-items: center; padding: 0; }
   #send svg.i-send { width: 17px; height: 17px; }
   #send .i-stop, #send.stop .i-send { display: none; }
   #send.stop .i-stop { display: block; margin: auto; }
@@ -1125,7 +1125,7 @@
   <input type="file" id="attachDoc" accept=".txt,.md,.markdown,.json,.csv,.tsv,.xml,.html,.htm,.yaml,.yml,.log,.srt,.pdf,text/*,application/pdf,application/json" hidden>
   <form id="composer">
     <div class="field">
-    <button id="plusBtn" type="button" aria-label="Add">+</button>
+    <button id="plusBtn" type="button" aria-label="Add"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1.5v11M1.5 7h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
     <textarea id="input" rows="1" enterkeyhint="enter" placeholder="Say something…" autocomplete="off"></textarea>
     <button id="send" type="submit" aria-label="Send"><svg class="i-send" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg><svg class="i-stop" width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="currentColor"/></svg></button>
     </div>
