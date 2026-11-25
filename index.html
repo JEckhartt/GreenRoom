@@ -186,9 +186,9 @@
   .anrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); }
   .anrow b { color: var(--ink); font-size: 14px; }
   .anrow button { border: 0; background: none; color: var(--accent-ink); font-weight: 600; font-size: 14px; cursor: pointer; }
-  /* while the picture is being made, Generate becomes a pulsing dot (like the picture in the chat header) */
+  /* while the picture is being made, Generate becomes a pulsing square; tap it to stop */
   #giGo.busy { font-size: 0; width: 34px; height: 34px; position: relative; opacity: 1; }
-  #giGo.busy::before { content: ''; position: absolute; inset: 0; margin: auto; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); animation: pulse 1.4s ease-out infinite; }
+  #giGo.busy::before { content: ''; position: absolute; inset: 0; margin: auto; width: 12px; height: 12px; border-radius: 3px; background: var(--accent); animation: pulse 1.4s ease-out infinite; }
   .anrow select { font: inherit; font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; }
   #log figure.gen img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
   #giText, #anText { display: block; width: 100%; min-height: 64px; max-height: 160px; margin: 6px 0; resize: none; border: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; outline: none; }
@@ -3413,13 +3413,14 @@ async function requestImageOnce(prompt, modalities, a = imgApi(), aspect = '') {
   if (aspect) body.image_config = { aspect_ratio: aspect };
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), IMAGE_TIMEOUT);
   const outer = abortCtl?.signal; outer?.addEventListener('abort', () => ctl.abort());
+  const gi = giCtl?.signal; gi?.addEventListener('abort', () => ctl.abort()); // Stop on the "Picture to send" panel
   let res, raw;
   try {
     res = await pfetch(a, url, { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify(body), signal: ctl.signal });
     if (!res.ok) throw await httpError(res);
     raw = await res.text();
   } catch (e) {
-    if (e.name === 'AbortError') { if (outer?.aborted) throw e; throw new Error(`No answer from the image generator after ${IMAGE_TIMEOUT / 60000} minutes.`); }
+    if (e.name === 'AbortError') { if (outer?.aborted || gi?.aborted) throw e; throw new Error(`No answer from the image generator after ${IMAGE_TIMEOUT / 60000} minutes.`); }
     if (e instanceof TypeError) throw new Error(`Could not reach the image proxy (${e.message}). Check the URL, your connection, or whether the server allows requests from apps.`);
     throw e;
   } finally { clearTimeout(timer); }
@@ -3538,7 +3539,7 @@ function ready() {
   toast('Set up a proxy and model first'); openSettings(); return false;
 }
 // While the AI writes, the send button is a stop button; abortCtl cancels the running request
-let abortCtl = null;
+let abortCtl = null, giCtl = null; // giCtl: the picture you're making to send (its square stops it)
 const isAbort = e => e?.name === 'AbortError';
 function setBusy(on) {
   busy = on; $('chatAv').classList.toggle('live', on);
@@ -8387,12 +8388,13 @@ async function peopleRefs(s, last) {
 }
 let giBusy = false;
 $('giGo').onclick = async () => {
-  if (!cur || giBusy || busy) return;
+  if (giBusy) { giCtl?.abort(); return; } // the pulsing square: stop making the picture
+  if (!cur || busy) return;
   if (!imageProxyOk()) return toast('No image proxy is active (Settings → Image proxy)');
   const s = cur, { c, p } = s, extra = $('giText').value.trim(), match = $('giMatch').checked, typed = input.value.trim();
   if (match && !typed) return toast('Type your message first, or turn off "Match what I wrote"');
   if (!match && !extra) return $('giText').focus();
-  giBusy = true; $('giGo').disabled = true; $('giGo').classList.add('busy'); $('giGo').setAttribute('aria-label', 'Making the picture');
+  giBusy = true; giCtl = new AbortController(); $('giGo').classList.add('busy'); $('giGo').setAttribute('aria-label', 'Stop making the picture');
   try {
     // Typed straight in: {{user}}/user and {{char}}/char become names
     const named = fill(extra, c, p).replace(/\buser\b/gi, userName(p)).replace(/\bchar\b/gi, cn(c));
@@ -8402,7 +8404,7 @@ $('giGo').onclick = async () => {
       prompt = (await streamChat([
         { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
         { role: 'user', content: `${userName(p)} is chatting with ${cn(c)}.\n\n${bothAbout(c, p)}\n\nThe chat so far (most recent part):\n${recent.slice(-3000)}\n\n${userName(p)} is about to send this message with a picture:\n"${typed}"${extra ? `\n\nExtra direction for the picture: ${named}` : ''}\n\nDescribe the picture ${userName(p)} sends with that message, so it fits the message and the moment. Only include ${userName(p)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing. Do not name an art style or medium: the style is set separately.` },
-      ], () => {}, { free: true })).replace(TAG, '').trim();
+      ], () => {}, { free: true, signal: giCtl.signal })).replace(TAG, '').trim();
     }
     const src = await userPicture(s, prompt);
     if (cur?.chat.id !== s.chat.id) return;
@@ -8410,7 +8412,7 @@ $('giGo').onclick = async () => {
     $('giPanel').hidden = true; $('giText').value = '';
     toast('Picture added to your message');
   } catch (e) { if (!isAbort(e)) toast('Could not create an image: ' + e.message); }
-  finally { giBusy = false; $('giGo').disabled = false; $('giGo').classList.remove('busy'); $('giGo').removeAttribute('aria-label'); }
+  finally { giBusy = false; giCtl = null; $('giGo').classList.remove('busy'); $('giGo').removeAttribute('aria-label'); }
 };
 
 // Files: text formats are read directly, PDFs through pdf.js (loaded on first use)
