@@ -976,6 +976,11 @@
   .preview { box-shadow: 0 6px 18px -10px rgba(0,0,0,.35); background: radial-gradient(120% 80% at 50% 0%, var(--bg-2), var(--bg)); border: 1px solid var(--line); border-radius: 16px; padding: 16px 12px; display: flex; flex-direction: column; gap: 12px; }
   /* the side margin moves only the sample messages; the AI / You / Both switch stays put */
   #preview > :not(#styleTarget) { margin-left: calc(var(--side-m, 12px) - 12px); margin-right: calc(var(--side-m, 12px) - 12px); }
+  /* …plus the room for profile pictures, as in a chat (otherwise they'd stick out of the preview) */
+  body.avs-ai:not([data-sides=right]):not([data-sides=center]) #preview > .msg.ai:not(#styleTarget) { margin-left: calc(var(--side-m, 12px) - 12px + 42px); }
+  body.avs-ai[data-sides=right] #preview > .msg.ai:not(#styleTarget) { margin-right: calc(var(--side-m, 12px) - 12px + 42px); }
+  body.avs-me:not([data-sides=left]):not([data-sides=center]) #preview > .msg.me:not(#styleTarget) { margin-right: calc(var(--side-m, 12px) - 12px + 42px); }
+  body.avs-me[data-sides=left] #preview > .msg.me:not(#styleTarget) { margin-left: calc(var(--side-m, 12px) - 12px + 42px); }
   .preview .msg { max-width: 100%; }
   .btn { padding: 10px 16px; border-radius: 999px; border: 1px solid var(--line); background: none; cursor: pointer; }
   .btn.danger { color: var(--accent-ink); }
