@@ -882,6 +882,7 @@
   #chats .linkrow .link { padding: 13px 0; font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
   #chats .chev { border-color: var(--accent-ink); }
   #chats .group.pinned .chev { transform: rotate(-45deg); }
+  #chats .pin-i { color: var(--accent-ink); vertical-align: -1px; margin-right: 6px; }
   #chats .crow { padding: 10px 0; }
   #chats .crow .av:not(.gring):not(.gring > .av) { width: 30px; height: 30px; border-radius: 6px; font-size: 13px; }
   #chats .crow .who { font-size: 15px; font-weight: 500; align-items: baseline; }
@@ -4708,7 +4709,8 @@ function pinnedRow(ch) {
   const h = document.createElement('h3'); h.textContent = ch.group ? (ch.group.name || 'Group chat') : c.name;
   const pn = personaOf(ch)?.name || ch.personaName, label = chatLabel(ch);
   if (ch.count == null) ch.count = msgGet(ch.id).length;
-  const meta = document.createElement('p'); meta.textContent = ['Pinned', pn && 'as ' + pn + (label ? ' · ' + label : ''), when(ch.updated)].filter(Boolean).join(' · ');
+  const meta = document.createElement('p'); meta.textContent = [pn && 'as ' + pn + (label ? ' · ' + label : ''), when(ch.updated)].filter(Boolean).join(' · ');
+  meta.insertAdjacentHTML('afterbegin', '<svg class="pin-i" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M15 3l6 6-2.5 1.2-3.8 3.8.6 4.5-1.8 1.8-4.2-4.2L4.5 21 3 19.5l4.8-4.8-4.2-4.2L5.4 8.7l4.5.6 3.8-3.8z"/></svg>');
   const chev = document.createElement('span'); chev.className = 'chev';
   info.append(h, meta); b.append(pic, info, chev);
   pressable(b, () => openChat(ch.id), () => { navigator.vibrate?.(12); chatMenu(ch, c); });
