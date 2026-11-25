@@ -209,10 +209,16 @@
      the header is solid at the top of the screen and fades to clear at its bottom edge; the chat's bottom bar
      is clear at its top edge and solid at the bottom of the screen. No line, no blur. */
   .view .chrome { position: relative; z-index: 6; background: none; }
-  .view .page-head.chrome, .view .tabbar.chrome { border-bottom-color: transparent; }
+  /* still: the header's line; while scrolling: the line goes and the fades come in */
+  .view .page-head.chrome, .view .tabbar.chrome { transition: border-color .3s ease; }
+  .view.scrolling .page-head.chrome, .view.scrolling .tabbar.chrome { border-bottom-color: transparent; }
   .view > .fade-top, .view > .fade-bot { position: absolute; left: 0; right: 0; z-index: 5; pointer-events: none; }
-  .view > .fade-top { top: 0; height: var(--fade-top-h, 0px); background: linear-gradient(to bottom, var(--bg) 0, var(--bg) var(--fade-solid-t, 0px), transparent 100%); }
-  .view > .fade-bot { bottom: 0; height: var(--fade-bot-h, 0px); background: linear-gradient(to top, var(--bg) 0, var(--bg) var(--fade-solid-b, 0px), transparent 100%); }
+  .view > .fade-top::after, .view > .fade-bot::after { content: ''; position: absolute; inset: 0; }
+  .view > .fade-top { top: 0; height: var(--fade-top-h, 0px); background: linear-gradient(to bottom, var(--bg) 0, var(--bg) var(--fade-solid-t, 0px), transparent var(--fade-solid-t, 0px)); }
+  .view > .fade-bot { bottom: 0; height: var(--fade-bot-h, 0px); background: linear-gradient(to top, var(--bg) 0, var(--bg) var(--fade-solid-b, 0px), transparent var(--fade-solid-b, 0px)); }
+  .view > .fade-top::after { background: linear-gradient(to bottom, var(--bg) 0, var(--bg) var(--fade-solid-t, 0px), transparent 100%); opacity: 0; transition: opacity .3s ease; }
+  .view > .fade-bot::after { background: linear-gradient(to top, var(--bg) 0, var(--bg) var(--fade-solid-b, 0px), transparent 100%); opacity: 0; transition: opacity .3s ease; }
+  .view.scrolling > .fade-top::after, .view.scrolling > .fade-bot::after { opacity: 1; }
   .page-head .act.more-act { font-size: 26px; font-weight: 700; line-height: 1; padding: 0 8px 6px; }
   .page-head .act.plus, .page-head .act.vbtn { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; line-height: 0; }
   .page-head .act.prof-act { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border-radius: 50%; margin-right: -6px; }
@@ -9932,6 +9938,8 @@ setTimeout(matchNative, 300);
       sc.style.marginBottom = -bh + 'px'; sc.style.paddingBottom = pb + 'px';
     };
     const ro = new ResizeObserver(fit); for (const el of [...top, ...bottom]) ro.observe(el);
+    let t = null;
+    sc.addEventListener('scroll', () => { if (!v.classList.contains('open')) return; v.classList.add('scrolling'); clearTimeout(t); t = setTimeout(() => v.classList.remove('scrolling'), 450); }, { passive: true });
   }
 })();
 </script>
