@@ -19,6 +19,21 @@
 <link rel="stylesheet" href="fonts/fonts.css">
 <style>
   /* ---------- Themes ---------- */
+  /* The theme colours are real colours (not just text), so going back from a chat with its own look to the app's look
+     can fade from one to the other instead of switching at once */
+  @property --bg { syntax: '<color>'; inherits: true; initial-value: #f6ede6; }
+  @property --bg-2 { syntax: '<color>'; inherits: true; initial-value: #efe2d8; }
+  @property --ink { syntax: '<color>'; inherits: true; initial-value: #2b1d17; }
+  @property --ink-soft { syntax: '<color>'; inherits: true; initial-value: #7a6258; }
+  @property --accent { syntax: '<color>'; inherits: true; initial-value: #d9553b; }
+  @property --accent-soft { syntax: '<color>'; inherits: true; initial-value: #f3c9b9; }
+  @property --accent-ink { syntax: '<color>'; inherits: true; initial-value: #d9553b; }
+  @property --on-accent { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+  @property --bubble-me { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+  @property --line { syntax: '<color>'; inherits: true; initial-value: #e2cfc3; }
+  @property --field { syntax: '<color>'; inherits: true; initial-value: #fffaf6; }
+  @property --card { syntax: '<color>'; inherits: true; initial-value: #fffaf6; }
+  :root.look-fade { transition: --bg .6s ease, --bg-2 .6s ease, --ink .6s ease, --ink-soft .6s ease, --accent .6s ease, --accent-soft .6s ease, --accent-ink .6s ease, --on-accent .6s ease, --bubble-me .6s ease, --line .6s ease, --field .6s ease, --card .6s ease; }
   :root { --on-accent: #fff; --accent-ink: var(--accent); }
   :root, [data-theme="original"] {
     color-scheme: light dark;
@@ -252,9 +267,11 @@
   #homeCont { background: color-mix(in srgb, var(--ink) 6%, transparent); }
   #homeCont[hidden] { display: none; }
   #homeCont[hidden] + #homeNew { grid-column: 1 / -1; border-left: 0; }
-  .h-big { display: block; font-family: 'Inter', system-ui, sans-serif; font-size: 19px; font-weight: 500; letter-spacing: -.01em; color: var(--ink); line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .h-big { display: block; font-family: 'Inter', system-ui, sans-serif; font-size: 16px; font-weight: 500; letter-spacing: -.01em; color: var(--ink); line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .h-sub { display: block; font-size: 12px; color: var(--ink-soft); margin-top: 3px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .h-dot { align-self: flex-end; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .h-plus { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--accent-ink); color: var(--accent-ink); margin-right: 9px; vertical-align: middle; }
+  #homeNew { justify-content: flex-start; }
+  #homeNew .cap { display: flex; align-items: center; }
   .h-foot { border-top: 1px solid var(--line); padding: 0 22px; display: flex; justify-content: space-between; }
   .h-foot button { border: 0; background: none; padding: 16px 0 6px; color: var(--ink-soft); cursor: pointer; }
   .h-foot button:active { color: var(--accent-ink); }
@@ -961,6 +978,7 @@
 </head>
 <body data-color="theme">
 <!-- The app's own start screen: the logo in the theme's colours, then it fades into the title screen -->
+<div id="lookProbe" hidden></div>
 <div id="boot" aria-hidden="true"><div class="boot-logo"><i></i></div></div>
 <section id="home" class="booting" aria-label="Green Room">
   <div class="h-top">
@@ -977,7 +995,7 @@
   </nav>
   <div class="h-grid">
     <button type="button" id="homeCont"><span class="cap">Continue</span><span><span class="h-big"></span><span class="h-sub"></span></span></button>
-    <button type="button" id="homeNew"><span class="cap">New chat</span><i class="h-dot"></i></button>
+    <button type="button" id="homeNew"><span class="cap"><span class="h-plus"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>New chat</span></button>
   </div>
   <div class="h-foot"><button type="button" id="goSettings" class="cap">Settings</button></div>
 </section>
@@ -2350,9 +2368,18 @@ const rgbOf = c => { c = (c || '').trim(); let m = c.match(/^#([\da-f]{3}|[\da-f
 const lum = ([r, g, b]) => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }; return .2126 * f(r) + .7152 * f(g) + .0722 * f(b); };
 const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
 const hexOf = c => '#' + c.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+// Back from a chat: its colours fade into the app's own instead of switching at once
+let fadeT = null;
+function fadeToLook() {
+  const root = document.documentElement;
+  root.classList.add('look-fade'); applyLook();
+  clearTimeout(fadeT); fadeT = setTimeout(() => root.classList.remove('look-fade'), 700);
+}
 function syncAccentInk() {
-  const root = document.documentElement, cs = getComputedStyle(root);
-  const acc = rgbOf(cs.getPropertyValue('--accent')), bg = rgbOf(cs.getPropertyValue('--bg'));
+  const root = document.documentElement, pr = $('lookProbe');
+  pr.dataset.theme = root.dataset.theme || 'original';
+  const cs = getComputedStyle(pr), own = root.style.getPropertyValue('--accent').trim();
+  const acc = rgbOf(own || cs.getPropertyValue('--accent')), bg = rgbOf(cs.getPropertyValue('--bg'));
   if (!acc || !bg) return;
   const dark = [20, 20, 20], white = [255, 255, 255];
   root.style.setProperty('--on-accent', contrast(acc, white) >= 2.6 ? '#fff' : '#141414'); // white unless the accent is light
@@ -4329,7 +4356,7 @@ function closeView(id) {
   if (id === 'chars') { openCharRow = null; gridOpen.clear(); afterSlide('chars', () => renderList('char')); }
   if (id === 'personas') { gridOpen.clear(); afterSlide('personas', () => renderList('persona')); }
   if (id === 'chat') { leaveChat(true); setAttached(null); setDoc(null); clearHelper(); hideSendMenu(); hidePlus(); $('anPanel').hidden = true;
-    afterSlide('chat', () => { $('chat').classList.remove('has-bg'); if (!cur) applyLook(); }); }
+    afterSlide('chat', () => { $('chat').classList.remove('has-bg'); if (!cur) fadeToLook(); }); }
   if (id === 'settings') afterSlide('settings', () => applyLook());
   if (id === 'chars' || id === 'personas') { endSelect(); closeSwipe(); }
   if (id === 'albums') closeSwipe();
@@ -7349,7 +7376,7 @@ function syncControls() {
     const mixed = styleTarget === 'both' && STYLE_KEYS.includes(k) && JSON.stringify(L[k]) !== JSON.stringify(L['u_' + k]);
     if (el.classList.contains('seg')) for (const b of el.children) b.classList.toggle('on', !mixed && b.dataset.v === v);
     else if (el.type === 'checkbox') { el.indeterminate = mixed; el.checked = !mixed && !!v; }
-    else if (el.type === 'color') el.value = k === 'accent' ? (v || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#d9553b') : v;
+    else if (el.type === 'color') el.value = k === 'accent' ? (v || hexOf(rgbOf(getComputedStyle(document.documentElement).getPropertyValue('--accent')) || [217, 85, 59])) : v;
     else if (document.activeElement !== el) el.value = v ?? '';
   }
   const g = k => L[sk(k)];
