@@ -273,6 +273,8 @@
   .h-row::-webkit-scrollbar { display: none; }
   .h-card { flex: none; width: 64%; scroll-snap-align: start; padding: 14px 22px 16px; border: 0; border-radius: 0; background: none; text-align: left; cursor: pointer; color: var(--ink); font: inherit; min-width: 0; }
   .h-card > span { display: block; }
+  .h-card { display: flex; flex-direction: column; justify-content: flex-end; }
+  .h-tag2 { display: block; font-size: 12px; color: var(--ink); margin-bottom: 2px; }
   .h-card + .h-card { border-left: 1px solid var(--line); }
   .h-card:active { background: var(--bg-2); }
   .h-big { display: block; font-family: 'Inter', system-ui, sans-serif; font-size: 19px; font-weight: 500; letter-spacing: -.01em; color: var(--ink); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -877,7 +879,7 @@
   details.sec[open] { padding-bottom: 12px; }
   details.sec > summary.group-title { font-size: 13px; }
   details.sec > summary > .gt { flex: 1; }
-  details.gsec > summary .glob { display: flex; align-items: center; gap: 8px; margin-right: 14px; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; }
+  #themeFold > summary .glob, details.gsec > summary .glob { display: flex; align-items: center; gap: 8px; margin-right: 14px; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; }
   details.gsec .gnote { margin: 0 4px; }
   details.gsec .gview { margin-bottom: 8px; }
   details.fold { padding-bottom: 2px; }
@@ -1229,8 +1231,8 @@
   </div>
   <div class="page-inner cs-pane" data-t="1" hidden>
     <details class="sec" id="themeFold">
-    <summary class="group-title">Theme for this chat</summary>
-    <div class="hint" id="themeGlobalNote" hidden style="margin:4px 4px 10px">Global is on (Style below), so this chat uses the theme from Settings. Turn Global off to give it its own theme.</div>
+    <summary class="group-title"><span class="gt">Theme for this chat</span><label class="glob"><span>Global</span><input type="checkbox" class="tgl" id="csGlobalTheme"></label></summary>
+    <div class="hint" id="themeGlobalNote" hidden style="margin:4px 4px 10px">Uses the theme from Settings. Turn off Global to give this chat its own theme.</div>
     <div id="chatThemeHost"></div>
     </details>
     <details class="sec" id="bgFold">
@@ -2323,18 +2325,25 @@ const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 // A chat can override any customization; lookCtx says whether the controls edit the global look or the open chat's
 let lookCtx = 'global';
 const LOOK_KEYS = Object.keys(LOOK_DEFAULTS);
-// A chat follows the global style (Global switch on) or has its own. The theme always belongs to the chat.
+// A chat's theme (theme + accent) and its style (everything else) each follow Settings (their Global switch on) or are its own
 const THEME_KEYS = ['theme', 'accent'];
 const styleKeysOf = look => Object.keys(look || {}).filter(k => !THEME_KEYS.includes(k));
 const themeOf = look => Object.fromEntries(Object.entries(look || {}).filter(([k]) => THEME_KEYS.includes(k)));
+const styleOf = look => Object.fromEntries(Object.entries(look || {}).filter(([k]) => !THEME_KEYS.includes(k)));
 const followsGlobal = ch => ch.lookGlobal ?? !styleKeysOf(ch.look).length;
-// Global on: the chat looks exactly like Settings, theme included; off: its own style and theme
-const chatLook = () => !cur?.chat ? cfg : followsGlobal(cur.chat) ? cfg : { ...cfg, ...(cur.chat.look || {}) };
+// the theme went along with the style before it had its own switch
+const themeFollowsGlobal = ch => ch.themeGlobal ?? followsGlobal(ch);
+const chatLook = () => {
+  const ch = cur?.chat; if (!ch) return cfg;
+  return { ...cfg, ...(followsGlobal(ch) ? {} : styleOf(ch.look)), ...(themeFollowsGlobal(ch) ? {} : themeOf(ch.look)) };
+};
 const lookToChat = () => lookCtx === 'chat' && !!cur && !followsGlobal(cur.chat);
-// In Chat settings the theme controls only show when the chat has its own style (Global off)
+const themeToChat = () => lookCtx === 'chat' && !!cur && !themeFollowsGlobal(cur.chat);
+// In Chat settings the theme controls only show when the chat has its own theme (Global off)
 function syncThemeFold() {
-  const g = lookCtx === 'chat' && cur && followsGlobal(cur.chat);
+  const g = lookCtx === 'chat' && cur && themeFollowsGlobal(cur.chat);
   $('themeGlobalNote').hidden = !g; $('chatThemeHost').hidden = !!g;
+  if (lookCtx === 'chat' && cur) $('csGlobalTheme').checked = !!g;
 }
 const activeLook = () => lookCtx === 'global' && $('settings').classList.contains('open') ? cfg : chatLook();
 function isDark() { const t = activeLook().theme; return t === 'dark' || t === 'green' || (t === 'original' && darkMQ.matches); }
@@ -3138,6 +3147,12 @@ for (const ev of ['touchstart', 'touchmove', 'wheel']) document.addEventListener
 // scroll DOWN to the end, or tap without swiping there; a flick upwards that starts near the bottom stays free
 const refollow = () => { if (busy && !following && nearBottom()) { following = true; holdFollow = false; } };
 for (const ev of ['touchend', 'touchcancel']) document.addEventListener(ev, () => { if (!touching) return; touching = false; if (!swiped) refollow(); }, { passive: true });
+// The keyboard goes away when you tap the conversation, not when you scroll it
+document.addEventListener('touchend', e => {
+  if (swiped || document.activeElement !== input || !e.target.closest?.('#scroller')) return;
+  if (e.target.closest('button, a, input, textarea, select, label, [contenteditable="true"]')) return;
+  input.blur();
+}, { passive: true });
 $('scroller').addEventListener('scroll', () => {
   const t = $('scroller').scrollTop, down = t > lastTop + 1; lastTop = t;
   if (!touching && down) refollow();
@@ -4217,7 +4232,7 @@ function saveMsgs(chat, hist, quiet = false) {
   saveChats();
 }
 // A new chat starts with the chat settings of the chat used last (not its memory, author's note or lorebooks)
-const CHAT_SETTINGS = ['look', 'lookGlobal', 'lookStash', 'proxyId', 'presetId', 'contextSize', 'prompt', 'promptSel', 'forbidden', 'fbOwn',
+const CHAT_SETTINGS = ['look', 'lookGlobal', 'lookStash', 'themeGlobal', 'themeStash', 'proxyId', 'presetId', 'contextSize', 'prompt', 'promptSel', 'forbidden', 'fbOwn',
   'imgProxyId', 'imgPrompt', 'autoPics', 'genImages', 'realTime', 'cardRepeat', 'vec', 'reachOut', 'reachAfter', 'reachRandom', 'bgDim'];
 async function newChat(charId, personaId) {
   const p = personas.find(x => x.id === personaId);
@@ -4996,7 +5011,10 @@ async function setThumb(el, it) {
 const folderSvg = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
 const openFolders = new Set(store.get('openFolders', []));
 const sel = { kind: null, ids: new Set() };
-const itemsOf = kind => kind === 'char' ? chars : personas;
+const itemsOf = kind => kind === 'char' ? chars : kind === 'lore' ? lorebooks : personas;
+// Folders work the same for characters, personas and lorebooks
+const saveKind = kind => kind === 'char' ? saveChars() : kind === 'lore' ? saveLore() : savePersonas();
+const renderKind = kind => kind === 'lore' ? renderLoreList() : renderList(kind);
 const SW = 168; // width of the swipe actions
 let openSwipe = null;
 
@@ -5184,19 +5202,19 @@ function moveSheet(kind, ids) {
 }
 function moveTo(kind, list, folderId) {
   for (const it of list) { if (folderId) it.folder = folderId; else delete it.folder; }
-  kind === 'char' ? saveChars() : savePersonas();
+  saveKind(kind);
   sel.kind = null; sel.ids = new Set();
-  renderList(kind);
+  renderKind(kind);
 }
 function folderMenu(f) {
   showSheet(f.name, [
-    { label: 'Rename folder', onClick: () => { const n = prompt('Folder name', f.name)?.trim(); if (n) { f.name = n; saveFolders(); renderList(f.kind); } } },
+    { label: 'Rename folder', onClick: () => { const n = prompt('Folder name', f.name)?.trim(); if (n) { f.name = n; saveFolders(); renderKind(f.kind); } } },
     { label: 'Delete folder', onClick: () => {
       if (!confirm(`Delete the folder "${f.name}"? What's inside moves out of it; nothing is deleted.`)) return;
       for (const it of itemsOf(f.kind)) if (it.folder === f.id) delete it.folder;
       folders = folders.filter(x => x.id !== f.id); saveFolders();
-      f.kind === 'char' ? saveChars() : savePersonas();
-      renderList(f.kind);
+      saveKind(f.kind);
+      renderKind(f.kind);
     } },
   ]);
 }
@@ -6193,21 +6211,49 @@ function loreUsers(b) {
 function renderLoreList() {
   const list = $('loreList'); list.innerHTML = ''; openSwipe = null;
   if (!lorebooks.length) { const e = document.createElement('div'); e.className = 'list-empty'; e.textContent = 'No lorebooks yet.'; return list.append(e); }
-  for (const b of lorebooks) {
+  // folders first (swipe a lorebook left → Move to make one), then the lorebooks that aren't in one
+  const fs = folders.filter(f => f.kind === 'lore');
+  for (const f of fs) {
+    const inside = lorebooks.filter(b => b.folder === f.id), open = openFolders.has(f.id);
+    const g = document.createElement('div'); g.className = 'group' + (open ? ' open' : '');
+    const head = document.createElement('div'); head.className = 'folder-head';
+    const fb = document.createElement('button'); fb.type = 'button'; fb.className = 'item';
+    const fic = document.createElement('div'); fic.className = 'folder-icon'; fic.innerHTML = folderSvg;
+    const finfo = document.createElement('div'); finfo.className = 'info';
+    const fh = document.createElement('h3'); fh.textContent = f.name;
+    const fm = document.createElement('p'); fm.textContent = `${inside.length} lorebook${inside.length === 1 ? '' : 's'}`;
+    const chev = document.createElement('span'); chev.className = 'chev';
+    finfo.append(fh, fm); fb.append(fic, finfo, chev);
+    fb.onclick = () => { open ? openFolders.delete(f.id) : openFolders.add(f.id); store.set('openFolders', [...openFolders]); renderLoreList(); };
+    const more = document.createElement('button'); more.type = 'button'; more.className = 'more'; more.textContent = '⋯';
+    more.setAttribute('aria-label', 'Folder options'); more.onclick = () => folderMenu(f);
+    head.append(fb, more); g.append(head);
+    if (open) {
+      const box = document.createElement('div'); box.className = 'folder-items';
+      for (const b of inside) box.append(loreRow(b));
+      if (!inside.length) { const e = document.createElement('div'); e.className = 'hint'; e.style.padding = '0 6px 6px'; e.textContent = 'Empty. Swipe a lorebook left and choose Move.'; box.append(e); }
+      g.append(box);
+    }
+    list.append(g);
+  }
+  for (const b of lorebooks) if (!b.folder || !fs.some(f => f.id === b.folder)) list.append(loreRow(b));
+}
+function loreRow(b) {
     const w = document.createElement('div'); w.className = 'swipe';
     const acts = document.createElement('div'); acts.className = 'swipe-acts';
+    const mv = document.createElement('button'); mv.type = 'button'; mv.className = 'mv'; mv.textContent = 'Move';
+    mv.onclick = () => { closeSwipe(); moveSheet('lore', [b.id]); };
     const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'rm'; rm.textContent = 'Delete';
     rm.onclick = () => { closeSwipe(); deleteLore(b); };
-    acts.append(rm);
+    acts.append(mv, rm);
     const it = document.createElement('button'); it.type = 'button'; it.className = 'item';
     const ic = document.createElement('div'); ic.className = 'folder-icon'; ic.textContent = '📖';
     const info = document.createElement('div'); info.className = 'info';
     const h = document.createElement('h3'); h.textContent = b.name || 'Untitled';
     const pp = document.createElement('p'); pp.textContent = `${b.entries.length} entr${b.entries.length === 1 ? 'y' : 'ies'} · ${loreUsers(b)}`;
     info.append(h, pp); it.append(ic, info); w.append(acts, it);
-    gestures(w, it, () => openLore(b.id), null, 84);
-    list.append(w);
-  }
+    gestures(w, it, () => openLore(b.id), null, SW);
+    return w;
 }
 function deleteLore(b) {
   if (!confirm(`Delete the lorebook "${b.name}"? Characters and chats that use it lose it.`)) return false;
@@ -7443,14 +7489,14 @@ function syncControls() {
 }
 
 // Look keys go to the open chat in chat settings, otherwise to the global config
+const keyToChat = k => LOOK_KEYS.includes(k) && (THEME_KEYS.includes(k) ? themeToChat() : lookToChat());
 function writeLook(k, v) {
-  const toChat = lookCtx === 'chat' && cur && lookToChat();
-  if (toChat && LOOK_KEYS.includes(k)) (cur.chat.look ||= {})[k] = v;
+  if (keyToChat(k)) (cur.chat.look ||= {})[k] = v;
   else cfg[k] = v;
 }
 function update(k, v) {
   writeLook(k, v);
-  lookCtx === 'chat' && cur && lookToChat() && LOOK_KEYS.includes(k) ? store.set('chats', chats) : saveCfg();
+  keyToChat(k) ? store.set('chats', chats) : saveCfg();
   applyLook(); syncControls();
 }
 
@@ -7560,13 +7606,29 @@ function buildSettings() {
     if (me) m.append(ts); else { const n = document.createElement('div'); n.className = 'alts'; n.style.marginTop = '6px'; n.append(ts); m.append(n); }
   }
   $('accentReset').onclick = () => update('accent', '');
+  // Style's Global switch: only the style; the theme keeps its own switch
   $('csGlobalLook').onchange = () => {
     const ch = cur?.chat; if (!ch) return;
+    ch.themeGlobal = themeFollowsGlobal(ch); // pin the theme before the style changes
     if ($('csGlobalLook').checked) {
-      // its own style and theme are put away; the chat looks like Settings
-      if (Object.keys(ch.look || {}).length) ch.lookStash = { ...ch.look };
-      ch.look = {}; ch.lookGlobal = true;
+      // its own style is put away; the chat's style looks like Settings
+      const st = styleOf(ch.look); if (Object.keys(st).length) ch.lookStash = st;
+      ch.look = themeOf(ch.look); ch.lookGlobal = true;
     } else { ch.look = { ...(ch.lookStash || {}), ...(ch.look || {}) }; delete ch.lookStash; ch.lookGlobal = false; } // its own style comes back as it was
+    store.set('chats', chats); applyLook(); syncControls(); syncThemeFold();
+  };
+  // Theme's Global switch: theme and accent only
+  $('csGlobalTheme').closest('.glob').addEventListener('click', e => e.stopPropagation()); // the switch doesn't fold the section
+  $('csGlobalTheme').onchange = () => {
+    const ch = cur?.chat; if (!ch) return;
+    ch.lookGlobal = followsGlobal(ch); // pin the style before the theme changes
+    if ($('csGlobalTheme').checked) {
+      const th = themeOf(ch.look); if (Object.keys(th).length) ch.themeStash = th;
+      ch.look = styleOf(ch.look); ch.themeGlobal = true;
+    } else {
+      // its own theme comes back as it was (or starts from the one in Settings)
+      ch.look = { ...(ch.look || {}), ...(ch.themeStash || { theme: cfg.theme, ...(cfg.accent ? { accent: cfg.accent } : {}) }) }; delete ch.themeStash; ch.themeGlobal = false;
+    }
     store.set('chats', chats); applyLook(); syncControls(); syncThemeFold();
   };
   $('resetLook').onclick = () => {
@@ -7608,7 +7670,7 @@ function renderStyles() {
 }
 const currentLook = scope => { const L = scope === 'chat' ? chatLook() : cfg; return Object.fromEntries(LOOK_KEYS.map(k => [k, L[k]])); };
 function applyStyle(st, scope) {
-  if (scope === 'chat' && cur) { const ch = cur.chat; ch.look = { ...st.look }; ch.lookGlobal = false; delete ch.lookStash; store.set('chats', chats); }
+  if (scope === 'chat' && cur) { const ch = cur.chat; ch.themeGlobal = themeFollowsGlobal(ch); ch.look = { ...styleOf(st.look), ...themeOf(ch.look) }; ch.lookGlobal = false; delete ch.lookStash; store.set('chats', chats); }
   else { Object.assign(cfg, st.look); saveCfg(); }
   applyLook(); syncControls(); toast(`"${st.name}" applied`);
 }
@@ -9991,6 +10053,7 @@ function renderHome() {
     const t = document.createElement('span');
     const big = document.createElement('span'); big.className = 'h-big'; big.textContent = ch.group ? (ch.group.name || 'Group chat') : c.name;
     const sub = document.createElement('span'); sub.className = 'h-sub'; sub.textContent = [pn && 'as ' + pn, ch.updated && when(ch.updated)].filter(Boolean).join(' · ');
+    if (ch.group) { const tag = document.createElement('span'); tag.className = 'h-tag2'; tag.textContent = 'Group'; t.append(tag); }
     t.append(big, sub); b.append(t);
     b.onclick = () => openChat(ch.id);
     return b;

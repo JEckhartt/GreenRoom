@@ -4,7 +4,7 @@ A character chat app: create characters and personas and chat with them. Built o
 
 On start, iOS shows a plain launch screen (black with the logo in dark mode, cream in light mode), then the app shows the logo in your theme's colours and fades into the title screen. Fonts, the token counter and the PDF reader are inside the app; the internet is only used for your proxies, image proxies, Chub and JanitorAI.
 
-The title screen lists **Chats**, **Stories**, **Characters**, **Personas**, **Lorebooks** and **Albums** as big words near the bottom (the one you opened last in your accent colour, with counts for chats, stories and characters). Under them: **Continue**, your last five chats side by side (name, persona and when; swipe sideways for the others), and **Settings** at the very bottom. A new chat starts from **Characters** (tap a character, then **+ Start new chat**); **+ → Start new chat** on the Chats screen takes you there too. Swipe from the left edge to go back.
+The title screen lists **Chats**, **Stories**, **Characters**, **Personas**, **Lorebooks** and **Albums** as big words near the bottom (the one you opened last in your accent colour, with counts for chats, stories and characters). Under them: **Continue**, your last five chats side by side (name, persona and when, with **Group** above a group chat's name; swipe sideways for the others), and **Settings** at the very bottom. A new chat starts from **Characters** (tap a character, then **+ Start new chat**); **+ → Start new chat** on the Chats screen takes you there too. Swipe from the left edge to go back.
 
 ## Chats
 
@@ -111,7 +111,7 @@ Settings → Extras → **Replace rules**: find and replace that runs by itself.
 - **More options** per entry (folded; a tag on the entry shows when something is set): **Second keywords** (the entry only fires when one of them is also in the recent messages, or with *Not if*, when none of them is), **Chance it fires** (e.g. 30% for random events; a sticky run doesn't roll again) and the timing below.
 - **Timing** per entry (in messages; 0 = off): **Sticky** keeps an entry on for that many messages after its keyword was last seen, even when nobody says it (people in a scene); **Cooldown** stops it triggering again for a while afterwards (running jokes); **Delay** keeps it out until the chat has that many messages (slow reveals). Each chat keeps its own timing; regenerating doesn't count as a new message. What was sent shows why an entry went along or was left out (sticky, cooldown, delay, budget).
 - **Lorebook from chat** (Chat settings → Prompt → Lorebooks → **Make a lorebook from this chat**): the AI reads the whole chat in parts (~30,000 characters each, one request per part) and writes entries for side characters, places, objects, events and running jokes, each with keywords, updating them as the story goes on. The chat's characters and your persona get no entries (they have cards). You check them (switch off, edit title, keywords, text), then **Make the lorebook** creates it and links it to the chat. Stop keeps what was found so far.
-- **Lorebooks**: world info. Each entry has keywords and is only sent when one appears in the recent messages (or always, if marked). Use one everywhere, link it to a character, a persona (used in every chat where you play it) or a chat. Imported and exported with character cards; SillyTavern world info files work too.
+- **Lorebooks**: world info. Each entry has keywords and is only sent when one appears in the recent messages (or always, if marked). Use one everywhere, link it to a character, a persona (used in every chat where you play it) or a chat. Imported and exported with character cards; SillyTavern world info files work too. Folders like for characters: swipe a lorebook left → **Move** → a folder or **New folder…**; **⋯** on a folder renames or deletes it (its lorebooks move out).
 - **Albums**: collect images, last added first. While selecting, slide your finger sideways over the pictures (or long press and keep moving) to select a whole run, like Photos; near the top or bottom the page scrolls along. In the viewer, swipe or flick for the next picture; zoomed in, pan freely (it glides) and pull past the edge to go to the next one. Copy an image's link (`gr://img/…`) into a character's description to show it on the card. Long press to select several: copy links, copy or move, delete.
 
 ## Connect to JanitorAI
@@ -149,7 +149,7 @@ No workarounds: a proxy either works or it doesn't. If a model can't see images 
 Tabs (tap or swipe): **Memory**, **Style**, **Proxy**, **Image proxy**, **Prompt**. Every section folds open and closed.
 
 - **Memory**: memory sent with every message; a summary prompt and **Summarize** button that writes the not-yet-summarized part of the chat into Memory.
-- **Style**: this chat's theme and background, and its style with a **Global** switch (on: the style from Settings, controls hidden; off: the same controls, for this chat only).
+- **Style**: this chat's theme, background and style. The theme and the style each have their own **Global** switch (on: from Settings, controls hidden; off: this chat's own), so a chat can keep the app's theme with its own style, or the other way round.
 - **Proxy**: proxy, generation preset and context size, each with a **Global** switch.
 - **Image proxy**: **Enable** (follows Settings until you change it), the image proxy (with **Global**), this chat's **Image prompt** (empty: the one from Settings) and **Make images automatically**.
 - **Prompt**: system prompt and forbidden words (each with **Global**), **Repeat the character card near the latest message** (every reply already ends with a short reminder at your newest message to stay true to the character card; this sends the whole personality there too, for a character that drifts), real time (sends the date and time, and marks when messages were sent and whether time passed; an opening the AI writes, also with › under the first message, fits the time of day), lorebooks, and **Character messages you first** (a notification after 30 minutes to 3 days).
@@ -162,7 +162,7 @@ Settings → Customization, and per chat under Chat settings → Style.
 
 - **Saved styles** at the top: **+ Save current style**; tap one to use it (the dot shows which one is in use); ⋯ or long press to update, rename or delete.
 - The mock-up with **AI / You / Both**: which side a change applies to. Under Both, a setting that differs between the sides shows as mixed until you change it.
-- **Theme**: Default / Light / Dark / Green (the start-up screen's colours) and accent colour. In a chat with **Global** on, the theme comes from Settings too; turn Global off to give the chat its own theme.
+- **Theme**: Default / Light / Dark / Green (the start-up screen's colours) and accent colour. In a chat, the theme's **Global** switch (Chat settings → Style → Theme for this chat) decides: on, the theme comes from Settings; off, the chat has its own theme.
 - **Layout**: per side: bubble on/off, bubble shape and full width (with a bubble), names, profile pictures (circle or rounded square; tap one in a chat to float it), timestamps. **Picture in the chat header** on or off. For all messages: where they sit (left & right, all left, centered, all right), space between them, and how new messages appear:
   - **Appear**: typing dots while the AI writes, then the whole reply at once
   - **Fade in**: it starts showing once the AI is a little ahead, each new bit fading in, while the AI keeps writing ahead
@@ -205,5 +205,6 @@ Proxy URL: `http://localhost:8787/api/v1`. Keeps your key out of the browser.
 - Back buttons are arrows everywhere; the chat's Profile button is a person icon.
 - Style → **Side margin**: space between the messages and the screen edges (global or per chat).
 - A chat's background keeps its place when the keyboard opens; the thumbnail under Background and the text preview show it, dimmed as set.
+- In a chat the keyboard goes away when you tap the conversation, not when you scroll it.
 - Personas have a compact list too (the view button cycles list, compact, grid).
 - Chat settings no longer switch tabs on a sideways swipe.
