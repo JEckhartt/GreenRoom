@@ -265,15 +265,19 @@
   .menu sup { font-size: 11px; font-weight: 500; letter-spacing: 0; vertical-align: 2.1em; margin-left: 4px; color: var(--ink-soft); }
   .menu sup:empty { display: none; }
   .menu button.on sup { color: var(--ink-soft); }
-  .h-grid { display: grid; grid-template-columns: 1fr; border-top: 1px solid var(--line); }
-  .h-grid:not(:has(button:not([hidden]))) { display: none; }
-  .h-grid button { border: 0; border-radius: 0; background: none; text-align: left; cursor: pointer; min-height: 112px; padding: 14px 22px 16px;
-    display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; color: var(--ink-soft); }
-  .h-grid button:active { background: var(--bg-2); }
-  #homeCont { background: color-mix(in srgb, var(--ink) 6%, transparent); }
-  #homeCont[hidden] { display: none; }
-  .h-big { display: block; font-family: 'Inter', system-ui, sans-serif; font-size: 19px; font-weight: 500; letter-spacing: -.01em; color: var(--ink); line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .h-sub { display: block; font-size: 12px; color: var(--ink-soft); margin-top: 3px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Continue: your last five chats, side by side; swipe sideways for the rest */
+  .h-recent { border-top: 1px solid var(--line); padding: 14px 0 16px; }
+  .h-recent[hidden] { display: none; }
+  .h-recent > .cap { display: block; padding: 0 22px 10px; color: var(--ink-soft); }
+  .h-row { display: flex; gap: 10px; overflow-x: auto; padding: 0 22px; scroll-snap-type: x mandatory; scroll-padding: 0 22px; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .h-row::-webkit-scrollbar { display: none; }
+  .h-card { flex: none; width: 62%; max-width: 260px; scroll-snap-align: start; display: flex; align-items: center; gap: 11px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px;
+    background: color-mix(in srgb, var(--ink) 5%, transparent); text-align: left; cursor: pointer; color: var(--ink); font: inherit; }
+  .h-card:active { background: var(--bg-2); }
+  .h-card .av { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; background: var(--accent-soft) center / cover no-repeat; color: var(--accent-ink); }
+  .h-card > span:last-child { min-width: 0; }
+  .h-big { display: block; font-family: 'Inter', system-ui, sans-serif; font-size: 16px; font-weight: 500; letter-spacing: -.01em; color: var(--ink); line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .h-sub { display: block; font-size: 12px; color: var(--ink-soft); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .h-foot { border-top: 1px solid var(--line); padding: 0 22px; display: flex; justify-content: space-between; }
   .h-foot button { border: 0; background: none; padding: 16px 0 6px; color: var(--ink-soft); cursor: pointer; }
   .h-foot button:active { color: var(--accent-ink); }
@@ -995,9 +999,7 @@
     <button type="button" id="goLore" data-sec="lorebooks">Lorebooks<sup></sup></button>
     <button type="button" id="goAlbums" data-sec="albums">Albums<sup></sup></button>
   </nav>
-  <div class="h-grid">
-    <button type="button" id="homeCont"><span class="cap">Continue</span><span><span class="h-big"></span><span class="h-sub"></span></span></button>
-  </div>
+  <div class="h-recent" id="homeRecent" hidden><span class="cap">Continue</span><div class="h-row" id="homeRow"></div></div>
   <div class="h-foot"><button type="button" id="goSettings" class="cap">Settings</button></div>
 </section>
 
@@ -9966,14 +9968,23 @@ function renderHome() {
     b.classList.toggle('on', b.dataset.sec === last);
     b.querySelector('sup').textContent = n[b.dataset.sec] ? `(${n[b.dataset.sec]})` : '';
   }
-  const ch = [...chats].filter(x => chars.some(c => c.id === x.charId)).sort((a, b) => (b.updated || 0) - (a.updated || 0))[0];
-  $('homeCont').hidden = !ch;
-  if (ch) {
+  const recent = [...chats].filter(x => chars.some(c => c.id === x.charId)).sort((a, b) => (b.updated || 0) - (a.updated || 0)).slice(0, 5);
+  $('homeRecent').hidden = !recent.length;
+  const key = recent.map(x => x.id + ':' + (x.updated || 0)).join('|');
+  if ($('homeRow').dataset.key === key) return; // nothing new: leave it (and where you swiped it) alone
+  $('homeRow').dataset.key = key;
+  $('homeRow').replaceChildren(...recent.map(ch => {
     const c = chars.find(x => x.id === ch.charId), pn = personaOf(ch)?.name || ch.personaName;
-    $('homeCont').querySelector('.h-big').textContent = ch.group ? (ch.group.name || 'Group chat') : c.name;
-    $('homeCont').querySelector('.h-sub').textContent = [pn && 'as ' + pn, ch.updated && when(ch.updated)].filter(Boolean).join(' · ');
-    $('homeCont').onclick = () => openChat(ch.id);
-  }
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'h-card';
+    const av = document.createElement('span'); av.className = 'av'; setThumb(av, ch.group ? { name: ch.group.name || c.name, img: c.img } : c);
+    const t = document.createElement('span');
+    const big = document.createElement('span'); big.className = 'h-big'; big.textContent = ch.group ? (ch.group.name || 'Group chat') : c.name;
+    const sub = document.createElement('span'); sub.className = 'h-sub'; sub.textContent = [pn && 'as ' + pn, ch.updated && when(ch.updated)].filter(Boolean).join(' · ');
+    t.append(big, sub); b.append(av, t);
+    b.onclick = () => openChat(ch.id);
+    return b;
+  }));
+  $('homeRow').scrollLeft = 0;
 }
 for (const b of document.querySelectorAll('#home .menu button')) b.addEventListener('click', () => { store.set('home.last', b.dataset.sec); });
 renderHome();
