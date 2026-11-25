@@ -208,11 +208,13 @@
   /* Headers (and the chat's bottom bar) float over the content. Behind them a fade instead of a hard edge:
      the header is solid at the top of the screen and fades to clear at its bottom edge; the chat's bottom bar
      is clear at its top edge and solid at the bottom of the screen. No line, no blur. */
-  .view .chrome { position: relative; z-index: 6; background: none; }
+  .view .chrome { position: relative; z-index: 6; background-color: var(--bg); transform: translateZ(0); transition: background-color .3s ease; }
+  #chat.has-bg .chrome { background-color: color-mix(in srgb, var(--bg) 85%, transparent); }
+  .view.scrolling .chrome, .view .chrome.tb-wrap, .view input.chrome { background-color: transparent; }
   /* still: the header's line; while scrolling: the line goes and the fades come in */
   .view .page-head.chrome, .view .tabbar.chrome { transition: border-color .3s ease; }
   .view.scrolling .page-head.chrome, .view.scrolling .tabbar.chrome { border-bottom-color: transparent; }
-  .view > .fade-top, .view > .fade-bot { position: absolute; left: 0; right: 0; z-index: 5; pointer-events: none; }
+  .view > .fade-top, .view > .fade-bot { position: absolute; left: 0; right: 0; z-index: 5; pointer-events: none; transform: translateZ(0); }
   .view > .fade-top::after, .view > .fade-bot::after { content: ''; position: absolute; inset: 0; }
   .view > .fade-top { top: 0; height: var(--fade-top-h, 0px); background: linear-gradient(to bottom, var(--bg) 0, var(--bg) var(--fade-solid-t, 0px), transparent var(--fade-solid-t, 0px)); }
   .view > .fade-bot { bottom: 0; height: var(--fade-bot-h, 0px); background: linear-gradient(to top, var(--bg) 0, var(--bg) var(--fade-solid-b, 0px), transparent var(--fade-solid-b, 0px)); }
