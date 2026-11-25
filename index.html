@@ -166,8 +166,8 @@
 
   form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 4px 10px calc(10px + env(safe-area-inset-bottom)); display: flex; }
   .field { flex: 1; display: flex; align-items: flex-end; border: 1px solid var(--line); border-radius: 22px; background: var(--field); transition: border-color .15s; }
-  .field:focus-within { border-color: var(--accent-ink); }
-  #input { flex: 1; min-width: 0; resize: none; max-height: 180px; min-height: 44px; padding: 11px 6px 11px 16px; border: 0; border-radius: 22px; background: none; color: var(--ink); font: inherit; font-family: var(--me-font); outline: none; }
+  .field:has(#input:focus) { border-color: var(--accent-ink); }
+  #input { flex: 1; min-width: 0; resize: none; max-height: 180px; min-height: 44px; padding: 12px 6px 12px 10px; border: 0; border-radius: 22px; background: none; color: var(--ink); font: inherit; font-size: 15px; font-family: var(--me-font); outline: none; }
   #toolsRow { max-width: 760px; width: 100%; margin: 0 auto; padding: 6px 16px 0; display: flex; align-items: flex-end; gap: 8px; }
   #chipsRow { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
   #attachPv { position: relative; width: 56px; height: 56px; border-radius: 12px; background: var(--accent-soft) center / cover no-repeat; border: 1px solid var(--line); }
@@ -177,7 +177,7 @@
   .fchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fchip span::before, .fbub::before { content: ''; display: inline-block; width: 9px; height: 11px; margin-right: 7px; border: 1.5px solid currentColor; border-radius: 2px; vertical-align: -1px; opacity: .6; }
   .anchip { border: 1px dashed var(--accent); color: var(--accent-ink); background: none; border-radius: 999px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
-  #plusBtn { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--field); color: var(--ink-soft); font-size: 22px; font-weight: 300; line-height: 1; display: grid; place-items: center; cursor: pointer; transition: transform .2s, color .2s; padding: 0 0 2px; }
+  #plusBtn { flex: none; width: 32px; height: 32px; margin: 0 0 6px 6px; border-radius: 50%; border: 1px solid var(--line); background: var(--field); color: var(--ink-soft); font-size: 22px; font-weight: 300; line-height: 1; display: grid; place-items: center; cursor: pointer; transition: transform .2s, color .2s; padding: 0 0 2px; }
   #plusBtn.open { transform: rotate(45deg); color: var(--accent-ink); border-color: var(--accent-ink); }
   #plusBtn.has { color: var(--accent-ink); }
   #plusMenu { position: fixed; z-index: 32; display: flex; flex-direction: column; padding: 4px; border-radius: 14px; background: rgba(30,30,30,.94); box-shadow: 0 8px 24px -8px rgba(0,0,0,.4); min-width: 200px; }
@@ -267,11 +267,9 @@
   #homeCont { background: color-mix(in srgb, var(--ink) 6%, transparent); }
   #homeCont[hidden] { display: none; }
   #homeCont[hidden] + #homeNew { grid-column: 1 / -1; border-left: 0; }
-  .h-big { display: block; font-family: 'Inter', system-ui, sans-serif; font-size: 16px; font-weight: 500; letter-spacing: -.01em; color: var(--ink); line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .h-big { display: block; font-family: 'Inter', system-ui, sans-serif; font-size: 19px; font-weight: 500; letter-spacing: -.01em; color: var(--ink); line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .h-sub { display: block; font-size: 12px; color: var(--ink-soft); margin-top: 3px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .h-plus { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--accent-ink); color: var(--accent-ink); margin-right: 9px; vertical-align: middle; }
-  #homeNew { justify-content: flex-start; }
-  #homeNew .cap { display: flex; align-items: center; }
+  .h-dot { align-self: flex-end; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
   .h-foot { border-top: 1px solid var(--line); padding: 0 22px; display: flex; justify-content: space-between; }
   .h-foot button { border: 0; background: none; padding: 16px 0 6px; color: var(--ink-soft); cursor: pointer; }
   .h-foot button:active { color: var(--accent-ink); }
@@ -995,7 +993,7 @@
   </nav>
   <div class="h-grid">
     <button type="button" id="homeCont"><span class="cap">Continue</span><span><span class="h-big"></span><span class="h-sub"></span></span></button>
-    <button type="button" id="homeNew"><span class="cap"><span class="h-plus"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>New chat</span></button>
+    <button type="button" id="homeNew"><span class="cap">New chat</span><i class="h-dot"></i></button>
   </div>
   <div class="h-foot"><button type="button" id="goSettings" class="cap">Settings</button></div>
 </section>
@@ -1115,7 +1113,6 @@
     </div>
   </div>
   <div id="toolsRow">
-    <button id="plusBtn" type="button" aria-label="Add">+</button>
     <div id="chipsRow">
       <div class="pv" id="attachPv" hidden><button type="button" id="attachRm" aria-label="Remove image">✕</button></div>
       <div class="fchip" id="fileChip" hidden><span id="fileName"></span><button type="button" id="fileRm" aria-label="Remove file">✕</button></div>
@@ -1128,6 +1125,7 @@
   <input type="file" id="attachDoc" accept=".txt,.md,.markdown,.json,.csv,.tsv,.xml,.html,.htm,.yaml,.yml,.log,.srt,.pdf,text/*,application/pdf,application/json" hidden>
   <form id="composer">
     <div class="field">
+    <button id="plusBtn" type="button" aria-label="Add">+</button>
     <textarea id="input" rows="1" enterkeyhint="enter" placeholder="Say something…" autocomplete="off"></textarea>
     <button id="send" type="submit" aria-label="Send"><svg class="i-send" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg><svg class="i-stop" width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="currentColor"/></svg></button>
     </div>
