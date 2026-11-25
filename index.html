@@ -248,7 +248,7 @@
   .menu button:active::after { transform: translateX(4px); color: var(--accent-ink); }
 
   /* ---------- Character / persona lists ---------- */
-  .create { position: sticky; top: 0; z-index: 2; padding: 12px 0; background: var(--bg); }
+  .create { position: sticky; top: -10px; z-index: 7; padding: 12px 0; background: var(--bg); }
   .create button { width: 100%; padding: 15px; border-radius: 16px; border: 1.5px dashed var(--accent); background: var(--field); color: var(--accent-ink); font-size: 16px; font-weight: 600; cursor: pointer; }
   .items { display: flex; flex-direction: column; gap: 8px; }
   /* description editor: formatting toolbar + what you see is what the card shows */
@@ -849,7 +849,7 @@
   details.fold { padding-bottom: 2px; }
   details.fold[open] { padding-bottom: 14px; }
   details.fold > summary.sub { margin: 0; padding: 14px 0 12px; }
-  .preview { position: sticky; top: 0; z-index: 2; margin-bottom: 10px; }
+  .preview { position: sticky; top: -10px; z-index: 7; margin-bottom: 10px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 0 12px 12px; }
   .card + .card { margin-top: 8px; }
   #janHub .btn.primary { border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; padding: 13px; }
