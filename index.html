@@ -866,9 +866,12 @@
   .page-head h1 { margin: 0; font-size: 17px; font-weight: 600; }
 
   /* ---------- Chats: editorial, like Home — big title, thin lines instead of cards, small capitals for details ---------- */
-  #chats .page-head h1 { visibility: hidden; }
+  /* the bar's title fades in once the big title has scrolled away; search stays pinned under the bar */
+  #chats .page-head h1 { opacity: 0; transition: opacity .25s ease; }
+  #chats.titled .page-head h1 { opacity: 1; }
   .ed-title { margin: 6px 2px 14px; font-family: 'Inter', system-ui, sans-serif; font-size: 40px; font-weight: 500; letter-spacing: -.035em; line-height: 1; }
-  #chats input.search { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; padding: 10px 2px; margin-bottom: 14px; }
+  #chats input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
+  #chats #chatList { margin-top: 14px; }
   #chats .items { gap: 0; }
   #chats .items > .group { border: 0; border-radius: 0; background: none; border-top: 1px solid var(--line); overflow: visible; }
   #chats .items > .group:last-child { border-bottom: 1px solid var(--line); }
@@ -4596,6 +4599,11 @@ function parseChat(text, c) {
 }
 
 // ---------- Chats overview ----------
+// the big "Chats" title gone from view: the bar shows the title instead
+$('chats').querySelector('.page-body').addEventListener('scroll', e => {
+  const t = $('chats').querySelector('.ed-title').getBoundingClientRect(), top = e.target.getBoundingClientRect().top;
+  $('chats').classList.toggle('titled', t.bottom < top + 8);
+}, { passive: true });
 const groupSvg = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9.5" r="2.6"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5M14.8 14.6c2.6-.4 4.9 1 5.7 4.4"/></svg>';
 const expanded = new Set();
 const when = t => {
