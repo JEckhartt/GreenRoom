@@ -3147,12 +3147,28 @@ for (const ev of ['touchstart', 'touchmove', 'wheel']) document.addEventListener
 // scroll DOWN to the end, or tap without swiping there; a flick upwards that starts near the bottom stays free
 const refollow = () => { if (busy && !following && nearBottom()) { following = true; holdFollow = false; } };
 for (const ev of ['touchend', 'touchcancel']) document.addEventListener(ev, () => { if (!touching) return; touching = false; if (!swiped) refollow(); }, { passive: true });
-// The keyboard goes away when you tap the conversation, not when you scroll it
+// The keyboard goes away when you tap the conversation, not when you scroll it: only a touch that ends where it
+// started and didn't move the conversation counts as a tap (iOS doesn't always report the moves of a scroll)
+let tapStart = null;
+document.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  tapStart = e.touches.length === 1 && e.target.closest?.('#scroller') ? { x: t.clientX, y: t.clientY, top: $('scroller').scrollTop, at: Date.now() } : null;
+}, { passive: true });
 document.addEventListener('touchend', e => {
-  if (swiped || document.activeElement !== input || !e.target.closest?.('#scroller')) return;
-  if (e.target.closest('button, a, input, textarea, select, label, [contenteditable="true"]')) return;
+  const st = tapStart; tapStart = null;
+  if (!st || swiped || document.activeElement !== input) return;
+  const t = e.changedTouches[0];
+  if (Math.hypot(t.clientX - st.x, t.clientY - st.y) > 8 || Math.abs($('scroller').scrollTop - st.top) > 2 || Date.now() - st.at > 600) return;
+  if (e.target.closest?.('button, a, input, textarea, select, label, [contenteditable="true"]')) return;
   input.blur();
 }, { passive: true });
+document.addEventListener('touchcancel', () => { tapStart = null; }, { passive: true });
+// Settings → Debug: why the keyboard closed (to find what closes it while scrolling)
+{
+  let last = '';
+  for (const ev of ['touchstart', 'touchend', 'touchcancel']) document.addEventListener(ev, e => { if (document.activeElement === $('input') || ev !== 'touchstart') last = `${ev} on ${e.target.closest?.('#scroller') ? 'chat' : (e.target.id || e.target.className || e.target.tagName)} (scrollTop ${Math.round($('scroller').scrollTop)}) ${new Date().toISOString().slice(17, 23)}`; }, { passive: true, capture: true });
+  $('input').addEventListener('blur', () => { if ($('chat').classList.contains('open')) dbg('kb', `message box lost focus ${new Date().toISOString().slice(17, 23)}; last touch: ${last}; now focused: ${document.activeElement?.id || document.activeElement?.tagName}`); });
+}
 $('scroller').addEventListener('scroll', () => {
   const t = $('scroller').scrollTop, down = t > lastTop + 1; lastTop = t;
   if (!touching && down) refollow();
