@@ -2112,7 +2112,7 @@ const $ = id => document.getElementById(id);
 // ---------- Debug log: errors, warnings and the last step before a crash (Settings → Debug) ----------
 let dbgLog = (() => { try { return JSON.parse(localStorage.getItem(GR_PREFIX + 'debug') || '[]'); } catch { return []; } })();
 function dbg(type, msg) {
-  dbgLog.push({ t: new Date().toISOString(), type, msg: String(msg).slice(0, type === 'kb' ? 3000 : 700) });
+  dbgLog.push({ t: new Date().toISOString(), type, msg: String(msg).slice(0, 700) });
   if (dbgLog.length > 300) dbgLog = dbgLog.slice(-300);
   try { localStorage.setItem(GR_PREFIX + 'debug', JSON.stringify(dbgLog)); } catch {}
 }
@@ -3147,32 +3147,6 @@ for (const ev of ['touchstart', 'touchmove', 'wheel']) document.addEventListener
 // scroll DOWN to the end, or tap without swiping there; a flick upwards that starts near the bottom stays free
 const refollow = () => { if (busy && !following && nearBottom()) { following = true; holdFollow = false; } };
 for (const ev of ['touchend', 'touchcancel']) document.addEventListener(ev, () => { if (!touching) return; touching = false; if (!swiped) refollow(); }, { passive: true });
-// The keyboard goes away when you tap the conversation, not when you scroll it: only a touch that ends where it
-// started and didn't move the conversation counts as a tap (iOS doesn't always report the moves of a scroll)
-let tapStart = null;
-document.addEventListener('touchstart', e => {
-  const t = e.touches[0];
-  tapStart = e.touches.length === 1 && e.target.closest?.('#scroller') ? { x: t.clientX, y: t.clientY, top: $('scroller').scrollTop, at: Date.now() } : null;
-}, { passive: true });
-document.addEventListener('touchend', e => {
-  const st = tapStart; tapStart = null;
-  if (!st || swiped || document.activeElement !== input) return;
-  const t = e.changedTouches[0];
-  if (Math.hypot(t.clientX - st.x, t.clientY - st.y) > 8 || Math.abs($('scroller').scrollTop - st.top) > 2 || Date.now() - st.at > 600) return;
-  if (e.target.closest?.('button, a, input, textarea, select, label, [contenteditable="true"]')) return;
-  input.blur();
-}, { passive: true });
-document.addEventListener('touchcancel', () => { tapStart = null; }, { passive: true });
-// Settings → Debug: why the keyboard closed (to find what closes it while scrolling)
-{
-  let last = '';
-  for (const ev of ['touchstart', 'touchend', 'touchcancel']) document.addEventListener(ev, e => { if (document.activeElement === $('input') || ev !== 'touchstart') last = `${ev} on ${e.target.closest?.('#scroller') ? 'chat' : (e.target.id || e.target.className || e.target.tagName)} (scrollTop ${Math.round($('scroller').scrollTop)}) ${new Date().toISOString().slice(17, 23)}`; }, { passive: true, capture: true });
-  // code in the page that blurs the message box (or focuses something else) is noted with where it came from
-  const origBlur = HTMLElement.prototype.blur, origFocus = HTMLElement.prototype.focus;
-  HTMLElement.prototype.blur = function () { if (this.id === 'input' && $('chat').classList.contains('open')) dbg('kb', 'page code blurred the message box: ' + (new Error().stack || '').split('\n').slice(1, 6).join(' < ')); return origBlur.apply(this, arguments); };
-  HTMLElement.prototype.focus = function () { if (document.activeElement?.id === 'input' && this.id !== 'input' && $('chat').classList.contains('open')) dbg('kb', 'page code focused ' + (this.id || this.tagName) + ': ' + (new Error().stack || '').split('\n').slice(1, 5).join(' < ')); return origFocus.apply(this, arguments); };
-  $('input').addEventListener('blur', () => { if ($('chat').classList.contains('open')) dbg('kb', `message box lost focus ${new Date().toISOString().slice(17, 23)}; last touch: ${last}; now focused: ${document.activeElement?.id || document.activeElement?.tagName}`); });
-}
 $('scroller').addEventListener('scroll', () => {
   const t = $('scroller').scrollTop, down = t > lastTop + 1; lastTop = t;
   if (!touching && down) refollow();
@@ -7767,12 +7741,21 @@ document.addEventListener('keydown', e => {
   if (top) closeView(top.id);
 });
 
-// ---------- Touch: tap outside a field closes the keyboard; no page zoom ----------
+// ---------- Touch: a tap outside a field closes the keyboard (scrolling doesn't); no page zoom ----------
+// Only a real tap counts: the finger comes up where it went down. When you scroll, iOS takes the touch over
+// (pointercancel) or the finger moves, and the keyboard stays.
+let fieldTap = null;
 document.addEventListener('pointerdown', e => {
   const a = document.activeElement;
-  if (!a?.matches?.('input, textarea, [contenteditable]')) return;
-  if (e.target.closest('input, textarea, select, label, button, [contenteditable]')) return;
-  a.blur();
+  fieldTap = a?.matches?.('input, textarea, [contenteditable]') && !e.target.closest('input, textarea, select, label, button, [contenteditable]')
+    ? { x: e.clientX, y: e.clientY, id: e.pointerId } : null;
+}, true);
+document.addEventListener('pointercancel', () => { fieldTap = null; }, true);
+document.addEventListener('pointerup', e => {
+  const t = fieldTap; fieldTap = null;
+  if (!t || e.pointerId !== t.id || Math.hypot(e.clientX - t.x, e.clientY - t.y) > 8) return;
+  const a = document.activeElement;
+  if (a?.matches?.('input, textarea, [contenteditable]')) a.blur();
 }, true);
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
 
@@ -8089,7 +8072,7 @@ document.addEventListener('focusin', () => setTimeout(() => {
 const KB = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.Keyboard;
 if (KB?.addListener) {
   KB.addListener('keyboardWillShow', i => setKb(i.keyboardHeight));
-  KB.addListener('keyboardWillHide', () => { if ($('chat').classList.contains('open')) dbg('kb', `keyboard will hide ${new Date().toISOString().slice(17, 23)}; message box focused: ${document.activeElement?.id === 'input'}`); setKb(0); });
+  KB.addListener('keyboardWillHide', () => setKb(0));
 } else if (window.visualViewport) {
   const vv = visualViewport;
   const f = () => setKb(innerHeight - vv.height - vv.offsetTop);

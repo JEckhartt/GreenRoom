@@ -1,7 +1,5 @@
 import Foundation
 import Capacitor
-import WebKit
-import UIKit
 
 // The app's main screen: Capacitor's view controller, plus Green Room's own native plugins.
 class MainViewController: CAPBridgeViewController {
@@ -9,81 +7,6 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(NativeStreamPlugin())
         bridge?.registerPluginInstance(JanitorBrowserPlugin())
         bridge?.registerPluginInstance(StoryPdfPlugin())
-        // Scrolling a chat mustn't close the keyboard (only a tap does, handled in the page)
-        UIScrollView.grKeepKeyboardOnScroll()
-        webView?.scrollView.keyboardDismissMode = .none
-        WKWebView.grTraceResign()
-    }
-}
-
-// Settings → Debug: when iOS asks the web view to give up the keyboard, note which code asked (to find what closes it while
-// scrolling a chat)
-extension WKWebView {
-    private static var grTraced = false
-    static func grTraceResign() {
-        if grTraced { return }
-        grTraced = true
-        let cls: AnyClass = WKWebView.self
-        guard let o = class_getInstanceMethod(cls, #selector(UIResponder.resignFirstResponder)),
-              let r = class_getInstanceMethod(cls, #selector(WKWebView.gr_resignFirstResponder)) else { return }
-        if class_addMethod(cls, #selector(UIResponder.resignFirstResponder), method_getImplementation(r), method_getTypeEncoding(r)) {
-            class_replaceMethod(cls, #selector(WKWebView.gr_resignFirstResponder), method_getImplementation(o), method_getTypeEncoding(o))
-        } else {
-            method_exchangeImplementations(o, r)
-        }
-    }
-    @objc func gr_resignFirstResponder() -> Bool {
-        let frames = Thread.callStackSymbols.prefix(28).map { line -> String in
-            // "3   UIKitCore   0x00000001 -[UIScrollView _something] + 120" → "-[UIScrollView _something]"
-            let parts = line.split(separator: " ", omittingEmptySubsequences: true)
-            guard parts.count > 3 else { return line }
-            var sym = parts[3...].joined(separator: " ")
-            if let plus = sym.range(of: " + ", options: .backwards) { sym = String(sym[..<plus.lowerBound]) }
-            return sym
-        }
-        let msg = "native: web view asked to give up the keyboard by: " + frames.joined(separator: " < ")
-        if let data = try? JSONSerialization.data(withJSONObject: [msg]), let json = String(data: data, encoding: .utf8) {
-            evaluateJavaScript("window.dbg && dbg('kb', \(json)[0])", completionHandler: nil)
-        }
-        return gr_resignFirstResponder() // the original
-    }
-}
-
-// iOS scroll views can close the keyboard as soon as you drag them. Every scroll view inside the web view (the page
-// makes one for each scrolling area, like a chat's messages) is set not to, whenever it appears or is changed.
-extension UIScrollView {
-    private static var grSwapped = false
-    static func grKeepKeyboardOnScroll() {
-        if grSwapped { return }
-        grSwapped = true
-        grSwap(#selector(UIView.didMoveToWindow), #selector(UIScrollView.gr_didMoveToWindow))
-        grSwap(#selector(setter: UIScrollView.keyboardDismissMode), #selector(UIScrollView.gr_setKeyboardDismissMode(_:)))
-    }
-    private static func grSwap(_ original: Selector, _ replacement: Selector) {
-        let cls: AnyClass = UIScrollView.self
-        guard let o = class_getInstanceMethod(cls, original), let r = class_getInstanceMethod(cls, replacement) else { return }
-        if class_addMethod(cls, original, method_getImplementation(r), method_getTypeEncoding(r)) {
-            class_replaceMethod(cls, replacement, method_getImplementation(o), method_getTypeEncoding(o))
-        } else {
-            method_exchangeImplementations(o, r)
-        }
-    }
-    private var grWebView: WKWebView? {
-        var v: UIView? = superview
-        while let x = v { if let w = x as? WKWebView { return w }; v = x.superview }
-        return nil
-    }
-    @objc func gr_didMoveToWindow() {
-        gr_didMoveToWindow() // the original
-        guard window != nil, let wv = grWebView else { return }
-        if keyboardDismissMode != .none {
-            let was = keyboardDismissMode.rawValue
-            gr_setKeyboardDismissMode(.none) // the original setter
-            wv.evaluateJavaScript("window.dbg && dbg('kb', 'native: a scroll view in the page would close the keyboard on drag (mode \(was)); turned off')", completionHandler: nil)
-        }
-    }
-    @objc func gr_setKeyboardDismissMode(_ mode: UIScrollView.KeyboardDismissMode) {
-        gr_setKeyboardDismissMode(grWebView != nil ? .none : mode) // the original setter
     }
 }
 
