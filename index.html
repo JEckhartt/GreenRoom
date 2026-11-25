@@ -880,6 +880,8 @@
   #chats .item p { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
   #chats .sublist { border-top: 1px solid var(--line); padding: 0 2px 4px 62px; }
   #chats .linkrow .link { padding: 13px 0; font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+  #chats .chev { border-color: var(--accent-ink); }
+  #chats .group.pinned .chev { transform: rotate(-45deg); }
   #chats .crow { padding: 10px 0; }
   #chats .crow .av:not(.gring):not(.gring > .av) { width: 30px; height: 30px; border-radius: 6px; font-size: 13px; }
   #chats .crow .who { font-size: 15px; font-weight: 500; align-items: baseline; }
@@ -4593,6 +4595,7 @@ function parseChat(text, c) {
 }
 
 // ---------- Chats overview ----------
+const groupSvg = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9.5" r="2.6"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5M14.8 14.6c2.6-.4 4.9 1 5.7 4.4"/></svg>';
 const expanded = new Set();
 const when = t => {
   const d = new Date(t), now = new Date();
@@ -4616,12 +4619,15 @@ function renderChats() {
     e.textContent = 'No chats yet. Start one from Characters.';
     return list.appendChild(e);
   }
+  // pinned chats first (long press a chat → Pin chat); they also stay in their usual place below
+  for (const ch of chats.filter(x => x.pinned && (x.group ? x.group.members.some(m => chars.some(c => c.id === m)) : chars.some(c => c.id === x.charId))).sort((a, b) => b.updated - a.updated))
+    list.appendChild(pinnedRow(ch));
   if (groupChats.length) {
     const key = 'groups', open = expanded.has(key);
     const g = document.createElement('div'); g.className = 'group' + (open ? ' open' : '');
     const head = document.createElement('div'); head.className = 'folder-head';
     const b = document.createElement('button'); b.type = 'button'; b.className = 'item';
-    const ic = document.createElement('div'); ic.className = 'folder-icon'; ic.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9.5" r="2.6"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5M14.8 14.6c2.6-.4 4.9 1 5.7 4.4"/></svg>';
+    const ic = document.createElement('div'); ic.className = 'folder-icon'; ic.innerHTML = groupSvg;
     const info = document.createElement('div'); info.className = 'info';
     const h = document.createElement('h3'); h.textContent = 'Group chats';
     const meta = document.createElement('p'); meta.textContent = `${groupChats.length} chat${groupChats.length === 1 ? '' : 's'}`;
@@ -4690,6 +4696,25 @@ function renderChats() {
   }
 }
 
+// A pinned chat at the top of Chats: the character's picture (or the group icon), its name and which chat it is
+function pinnedRow(ch) {
+  const c = chars.find(x => x.id === (ch.group ? ch.group.members.find(m => chars.some(y => y.id === m)) : ch.charId));
+  const g = document.createElement('div'); g.className = 'group pinned';
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'item';
+  let pic;
+  if (ch.group) { pic = document.createElement('div'); pic.className = 'folder-icon'; pic.innerHTML = groupSvg; }
+  else { pic = document.createElement('div'); pic.className = 'thumb sm'; setThumb(pic, c); }
+  const info = document.createElement('div'); info.className = 'info';
+  const h = document.createElement('h3'); h.textContent = ch.group ? (ch.group.name || 'Group chat') : c.name;
+  const pn = personaOf(ch)?.name || ch.personaName, label = chatLabel(ch);
+  if (ch.count == null) ch.count = msgGet(ch.id).length;
+  const meta = document.createElement('p'); meta.textContent = ['Pinned', pn && 'as ' + pn + (label ? ' · ' + label : ''), when(ch.updated)].filter(Boolean).join(' · ');
+  const chev = document.createElement('span'); chev.className = 'chev';
+  info.append(h, meta); b.append(pic, info, chev);
+  pressable(b, () => openChat(ch.id), () => { navigator.vibrate?.(12); chatMenu(ch, c); });
+  g.append(b);
+  return g;
+}
 // One chat in the list; in a folder it also shows the character (withChar)
 function chatRow(ch, c, withChar = false) {
   const p = personaOf(ch);
@@ -4737,6 +4762,7 @@ const chatLabel = ch => ch.title ?? (ch.branchOf ? 'branch' : '');
 function chatMenu(ch, c) {
   const pn = personaOf(ch)?.name || ch.personaName || 'User';
   showSheet((ch.group ? `${ch.group.name || 'Group chat'} as ${pn}` : `Chat with ${cn(c)} as ${pn}` + (chatLabel(ch) ? ` · ${chatLabel(ch)}` : '')), [
+    { label: ch.pinned ? 'Unpin chat' : 'Pin chat', onClick: () => { if (ch.pinned) delete ch.pinned; else ch.pinned = true; store.set('chats', chats); renderChats(); } },
     { label: 'Rename chat', onClick: () => {
       if (ch.group) { // a group's name is its title
         const t = prompt('Group name', ch.group.name || ''); if (t === null || !t.trim()) return;
