@@ -164,11 +164,13 @@
   #toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px); z-index: 40; background: rgba(30,30,30,.9); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 4px 10px calc(10px + env(safe-area-inset-bottom)); display: flex; }
+  form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 0 10px calc(10px + env(safe-area-inset-bottom)); display: flex; }
   .field { flex: 1; display: flex; align-items: flex-end; border: 1px solid var(--line); border-radius: 22px; background: var(--field); transition: border-color .15s; }
   .field:has(#input:focus) { border-color: var(--accent-ink); }
   #input { flex: 1; min-width: 0; resize: none; max-height: 180px; min-height: 46px; padding: 11px 6px 11px 10px; border: 0; border-radius: 22px; background: none; color: var(--ink); font: inherit; font-size: 15px; font-family: var(--me-font); outline: none; }
-  #toolsRow { max-width: 760px; width: 100%; margin: 0 auto; padding: 6px 16px 0; display: flex; align-items: flex-end; gap: 8px; }
+  #toolsRow { max-width: 760px; width: 100%; margin: 0 auto; padding: 2px 16px 0; display: flex; align-items: flex-end; gap: 8px; }
+  /* the messages stop 2px above the box (or above the group's pictures); pictures and chips keep a little room above the box */
+  #toolsRow:has(> #grpBar:not([hidden]), #chipsRow > :not([hidden])) { padding-bottom: 6px; }
   #chipsRow { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
   #attachPv { position: relative; width: 56px; height: 56px; border-radius: 12px; background: var(--accent-soft) center / cover no-repeat; border: 1px solid var(--line); }
   #attachPv button, .fchip button { width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(30,30,30,.85); color: #fff; font-size: 11px; cursor: pointer; flex: none; }
