@@ -2343,8 +2343,13 @@ function syncAccentInk() {
   root.style.setProperty('--accent-ink', hexOf(ink));
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => syncAccentInk());
-function applyLook() {
+// Re-styling the whole app is costly on a phone (every screen is restyled), so it's skipped when nothing changed
+let lastLookKey = '';
+function applyLook(force = false) {
   const L = activeLook();
+  const key = JSON.stringify(L) + '|' + matchMedia('(prefers-color-scheme: dark)').matches;
+  if (!force && key === lastLookKey) return;
+  lastLookKey = key;
   // the character's picture in the chat header, on or off
   $('chat').classList.toggle('nohead', L.chatHead === false);
   const root = document.documentElement, s = root.style;
@@ -4304,7 +4309,7 @@ function closeView(id) {
   if (id === 'personas') { gridOpen.clear(); afterSlide('personas', () => renderList('persona')); }
   if (id === 'chat') { leaveChat(true); setAttached(null); setDoc(null); clearHelper(); hideSendMenu(); hidePlus(); $('anPanel').hidden = true;
     afterSlide('chat', () => { $('chat').classList.remove('has-bg'); if (!cur) applyLook(); }); }
-  if (id === 'settings') applyLook();
+  if (id === 'settings') afterSlide('settings', () => applyLook());
   if (id === 'chars' || id === 'personas') { endSelect(); closeSwipe(); }
   if (id === 'albums') closeSwipe();
   if (id === 'album') albumSel = null;
