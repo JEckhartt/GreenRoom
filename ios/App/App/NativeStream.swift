@@ -12,6 +12,40 @@ class MainViewController: CAPBridgeViewController {
         // Scrolling a chat mustn't close the keyboard (only a tap does, handled in the page)
         UIScrollView.grKeepKeyboardOnScroll()
         webView?.scrollView.keyboardDismissMode = .none
+        WKWebView.grTraceResign()
+    }
+}
+
+// Settings → Debug: when iOS asks the web view to give up the keyboard, note which code asked (to find what closes it while
+// scrolling a chat)
+extension WKWebView {
+    private static var grTraced = false
+    static func grTraceResign() {
+        if grTraced { return }
+        grTraced = true
+        let cls: AnyClass = WKWebView.self
+        guard let o = class_getInstanceMethod(cls, #selector(UIResponder.resignFirstResponder)),
+              let r = class_getInstanceMethod(cls, #selector(WKWebView.gr_resignFirstResponder)) else { return }
+        if class_addMethod(cls, #selector(UIResponder.resignFirstResponder), method_getImplementation(r), method_getTypeEncoding(r)) {
+            class_replaceMethod(cls, #selector(WKWebView.gr_resignFirstResponder), method_getImplementation(o), method_getTypeEncoding(o))
+        } else {
+            method_exchangeImplementations(o, r)
+        }
+    }
+    @objc func gr_resignFirstResponder() -> Bool {
+        let frames = Thread.callStackSymbols.prefix(28).map { line -> String in
+            // "3   UIKitCore   0x00000001 -[UIScrollView _something] + 120" → "-[UIScrollView _something]"
+            let parts = line.split(separator: " ", omittingEmptySubsequences: true)
+            guard parts.count > 3 else { return line }
+            var sym = parts[3...].joined(separator: " ")
+            if let plus = sym.range(of: " + ", options: .backwards) { sym = String(sym[..<plus.lowerBound]) }
+            return sym
+        }
+        let msg = "native: web view asked to give up the keyboard by: " + frames.joined(separator: " < ")
+        if let data = try? JSONSerialization.data(withJSONObject: [msg]), let json = String(data: data, encoding: .utf8) {
+            evaluateJavaScript("window.dbg && dbg('kb', \(json)[0])", completionHandler: nil)
+        }
+        return gr_resignFirstResponder() // the original
     }
 }
 
