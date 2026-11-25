@@ -169,8 +169,8 @@
   .field:has(#input:focus) { border-color: var(--accent-ink); }
   #input { flex: 1; min-width: 0; resize: none; max-height: 180px; min-height: 46px; padding: 11px 6px 11px 10px; border: 0; border-radius: 22px; background: none; color: var(--ink); font: inherit; font-size: 15px; font-family: var(--me-font); outline: none; }
   #toolsRow { max-width: 760px; width: 100%; margin: 0 auto; padding: 2px 16px 0; display: flex; align-items: flex-end; gap: 8px; }
-  /* the messages stop 2px above the box (or above the group's pictures); pictures and chips keep a little room above the box */
-  #toolsRow:has(> #grpBar:not([hidden]), #chipsRow > :not([hidden])) { padding-bottom: 6px; }
+  /* in a one-to-one chat the messages stop 2px above the box; with the group's pictures (or an attachment) above it, the spacing stays as before */
+  #toolsRow:has(> #grpBar:not([hidden]), #chipsRow > :not([hidden])) { padding: 6px 16px 4px; }
   #chipsRow { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
   #attachPv { position: relative; width: 56px; height: 56px; border-radius: 12px; background: var(--accent-soft) center / cover no-repeat; border: 1px solid var(--line); }
   #attachPv button, .fchip button { width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(30,30,30,.85); color: #fff; font-size: 11px; cursor: pointer; flex: none; }
