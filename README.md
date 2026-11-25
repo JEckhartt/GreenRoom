@@ -203,7 +203,6 @@ Proxy URL: `http://localhost:8787/api/v1`. Keeps your key out of the browser.
 ### Look and feel (recent)
 
 - Back buttons are arrows everywhere; the chat's Profile button is a person icon.
-- Headers (and the chat's message box) stay solid. Only while you scroll yourself (finger or wheel, not when a chat opens and jumps to the newest message), the line under the header goes and a soft fade slowly appears under the header (and above the message box in a chat), so the text fades out instead of meeting an edge; when you stop, it slowly goes again.
 - Style → **Side margin**: space between the messages and the screen edges (global or per chat).
 - A chat's background keeps its place when the keyboard opens; the thumbnail under Background and the text preview show it, dimmed as set.
 - Personas have a compact list too (the view button cycles list, compact, grid).

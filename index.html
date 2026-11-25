@@ -205,19 +205,6 @@
   .view { position: fixed; inset: 0; bottom: var(--kb); z-index: 20; background: var(--bg); display: flex; flex-direction: column;
     transform: translateX(100%); visibility: hidden; transition: transform .3s cubic-bezier(.2,.8,.2,1), visibility 0s .3s; }
   .view.open { transform: none; visibility: visible; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
-  /* Headers (and the chat's bottom bar) float over the content and stay solid. While you scroll, a soft fade hangs off
-     the header's bottom edge (and off the top of the chat's bottom bar), so the text fades out instead of meeting a line.
-     The fade is part of the bar itself, so iOS can't draw the scrolling text over it. */
-  .view .chrome { position: relative; z-index: 6; background-color: var(--bg); }
-  #chat.has-bg .chrome { background-color: color-mix(in srgb, var(--bg) 85%, transparent); }
-  .view .chrome.tb-wrap, .view input.chrome { background: none; }
-  .view .page-head.chrome, .view .tabbar.chrome { transition: border-color .8s ease; }
-  .view.scrolling .page-head.chrome, .view.scrolling .tabbar.chrome { border-bottom-color: transparent; }
-  .view .fade-edge-t::after, .view .fade-edge-b::before { content: ''; position: absolute; left: 0; right: 0; height: 56px; pointer-events: none; opacity: 0; transition: opacity .8s ease; }
-  .view .fade-edge-t::after { top: 100%; background: linear-gradient(to bottom, var(--bg) 0%, color-mix(in srgb, var(--bg) 82%, transparent) 25%, color-mix(in srgb, var(--bg) 50%, transparent) 55%, color-mix(in srgb, var(--bg) 18%, transparent) 80%, transparent 100%); }
-  .view .fade-edge-b::before { bottom: 100%; background: linear-gradient(to top, var(--bg) 0%, color-mix(in srgb, var(--bg) 82%, transparent) 25%, color-mix(in srgb, var(--bg) 50%, transparent) 55%, color-mix(in srgb, var(--bg) 18%, transparent) 80%, transparent 100%); }
-  #chat.has-bg .fade-edge-t::after, #chat.has-bg .fade-edge-b::before { display: none; }
-  .view.scrolling .fade-edge-t::after, .view.scrolling .fade-edge-b::before { opacity: 1; }
   .page-head .act.more-act { font-size: 26px; font-weight: 700; line-height: 1; padding: 0 8px 6px; }
   .page-head .act.plus, .page-head .act.vbtn { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; line-height: 0; }
   .page-head .act.prof-act { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border-radius: 50%; margin-right: -6px; }
@@ -253,7 +240,7 @@
   .menu button:active::after { transform: translateX(4px); color: var(--accent-ink); }
 
   /* ---------- Character / persona lists ---------- */
-  .create { position: sticky; top: -10px; z-index: 7; padding: 12px 0; background: var(--bg); }
+  .create { position: sticky; top: 0; z-index: 2; padding: 12px 0; background: var(--bg); }
   .create button { width: 100%; padding: 15px; border-radius: 16px; border: 1.5px dashed var(--accent); background: var(--field); color: var(--accent-ink); font-size: 16px; font-weight: 600; cursor: pointer; }
   .items { display: flex; flex-direction: column; gap: 8px; }
   /* description editor: formatting toolbar + what you see is what the card shows */
@@ -854,7 +841,7 @@
   details.fold { padding-bottom: 2px; }
   details.fold[open] { padding-bottom: 14px; }
   details.fold > summary.sub { margin: 0; padding: 14px 0 12px; }
-  .preview { position: sticky; top: -10px; z-index: 7; margin-bottom: 10px; }
+  .preview { position: sticky; top: 0; z-index: 2; margin-bottom: 10px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 0 12px 12px; }
   .card + .card { margin-top: 8px; }
   #janHub .btn.primary { border: 0; background: var(--accent); color: var(--on-accent); font-weight: 600; padding: 13px; }
@@ -4309,7 +4296,7 @@ function openView(id) { step('open ' + id); $(id).classList.add('open'); request
 // Work that redraws a screen waits until it has slid away (so the slide stays smooth); skipped if it was opened again
 const afterSlide = (id, fn) => setTimeout(() => { if (!$(id).classList.contains('open')) fn(); }, 340);
 function closeView(id) {
-  document.activeElement?.blur(); $(id).classList.remove('open', 'scrolling');
+  document.activeElement?.blur(); $(id).classList.remove('open');
   if (id === 'chats') { $('chatSearch').value = ''; expanded.clear(); afterSlide('chats', renderChats); } // leaving: everything folds again
   if (id === 'chars') { openCharRow = null; gridOpen.clear(); afterSlide('chars', () => renderList('char')); }
   if (id === 'personas') { gridOpen.clear(); afterSlide('personas', () => renderList('persona')); }
@@ -9915,36 +9902,6 @@ if (FS && store.get('bk.seeded', false)) { FS.rmdir({ path: 'GreenRoom', directo
 document.addEventListener('deviceready', matchNative);
 setTimeout(matchNative, 300);
 
-// ---------- Floating headers: content scrolls under the header (and the chat's bottom bar) ----------
-// Everything above a screen's scrolling part is "top chrome", everything below it "bottom chrome"; the scroller
-// reaches under both, and a fade sits behind them so the content fades out instead of meeting a hard edge.
-(() => {
-  for (const v of document.querySelectorAll('.view')) {
-    const sc = v.querySelector(':scope > .page-body, :scope > #scroller'); if (!sc) continue;
-    const kids = [...v.children], i = kids.indexOf(sc), top = kids.slice(0, i), bottom = kids.slice(i + 1);
-    for (const el of [...top, ...bottom]) el.classList.add('chrome');
-    const fit = () => {
-      const th = top.reduce((n, el) => n + el.offsetHeight, 0), bh = bottom.reduce((n, el) => n + el.offsetHeight, 0);
-      // the fade hangs off the lowest bar on top and the highest bar at the bottom
-      const lastTop = [...top].reverse().find(el => el.offsetHeight), firstBot = bottom.find(el => el.offsetHeight);
-      for (const el of top) el.classList.toggle('fade-edge-t', el === lastTop);
-      for (const el of bottom) el.classList.toggle('fade-edge-b', el === firstBot);
-      const pt = th ? th + 10 : 0, pb = bh ? bh + 10 : 0;
-      sc.style.marginTop = -th + 'px'; sc.style.paddingTop = pt + 'px'; sc.style.setProperty('--top-h', th + 'px');
-      sc.style.marginBottom = -bh + 'px'; sc.style.paddingBottom = pb + 'px';
-    };
-    const ro = new ResizeObserver(fit); for (const el of [...top, ...bottom]) ro.observe(el);
-    // only your own scrolling (a finger or a wheel, and the glide after it) shows the fade; jumping to the newest message doesn't
-    let t = null, mine = false;
-    const arm = () => { mine = true; };
-    sc.addEventListener('touchstart', arm, { passive: true }); sc.addEventListener('wheel', arm, { passive: true });
-    sc.addEventListener('scroll', () => {
-      if (!mine || !v.classList.contains('open')) return;
-      v.classList.add('scrolling'); clearTimeout(t);
-      t = setTimeout(() => { v.classList.remove('scrolling'); mine = false; }, 600);
-    }, { passive: true });
-  }
-})();
 </script>
 </body>
 </html>
