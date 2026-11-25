@@ -222,6 +222,10 @@
   .view { position: fixed; inset: 0; bottom: var(--kb); z-index: 20; background: var(--bg); display: flex; flex-direction: column;
     transform: translateX(100%); visibility: hidden; transition: transform .3s cubic-bezier(.2,.8,.2,1), visibility 0s .3s; }
   .view.open { transform: none; visibility: visible; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+  /* While the keyboard slides up the screen is already shortened; this fills the space below it so what's behind
+     (the home screen) doesn't show through. A chat's own background picture already reaches down there. */
+  .view::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: max(100lvh, 100vh, var(--fullh, 0px)); background: var(--bg); pointer-events: none; }
+  #chat.has-bg::after { display: none; }
   .page-head .act.more-act { font-size: 26px; font-weight: 700; line-height: 1; padding: 0 8px 6px; }
   .page-head .act.plus, .page-head .act.vbtn { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; line-height: 0; }
   .page-head .act.prof-act { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border-radius: 50%; margin-right: -6px; }
