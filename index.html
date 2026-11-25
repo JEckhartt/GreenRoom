@@ -4348,11 +4348,24 @@ function deleteChat(id) {
 }
 
 // ---------- Views ----------
-function openView(id) { step('open ' + id); $(id).classList.add('open'); requestAnimationFrame(() => autosizeAll($(id))); }
+// Screens stack in the order you open them (not the order they're written in the page), so the one you just opened is on top
+const viewStack = [];
+// (a screen closed some other way drops out of the list here)
+const pruneViews = () => { for (let k = viewStack.length - 1; k >= 0; k--) if (!$(viewStack[k]).classList.contains('open')) viewStack.splice(k, 1); };
+const topView = () => { pruneViews(); return viewStack.length ? $(viewStack[viewStack.length - 1]) : [...document.querySelectorAll('.view.open')].pop() || null; };
+function openView(id) {
+  step('open ' + id);
+  pruneViews();
+  const i = viewStack.indexOf(id); if (i >= 0) viewStack.splice(i, 1);
+  viewStack.push(id);
+  viewStack.forEach((v, k) => { $(v).style.zIndex = 20 + Math.min(k, 9); });
+  $(id).classList.add('open'); requestAnimationFrame(() => autosizeAll($(id)));
+}
 // Work that redraws a screen waits until it has slid away (so the slide stays smooth); skipped if it was opened again
 const afterSlide = (id, fn) => setTimeout(() => { if (!$(id).classList.contains('open')) fn(); }, 340);
 function closeView(id) {
   document.activeElement?.blur(); $(id).classList.remove('open');
+  { const i = viewStack.indexOf(id); if (i >= 0) viewStack.splice(i, 1); } // it keeps its layer while it slides away
   if (!document.querySelector('.view.open')) renderHome();
   if (id === 'chats') { $('chatSearch').value = ''; expanded.clear(); afterSlide('chats', renderChats); } // leaving: everything folds again
   if (id === 'chars') { openCharRow = null; gridOpen.clear(); afterSlide('chars', () => renderList('char')); }
@@ -4478,7 +4491,7 @@ function pickChar(title, then) {
 let importTo = null;
 $('chatAdd').onclick = () => showSheet('Chats', [
   // pick the character on the Characters screen (picture and description), then Start new chat there
-  { label: 'Start new chat', onClick: () => $('goChars').click() },
+  { label: 'Start new chat', onClick: () => openView('chars') },
   { label: 'New group chat', onClick: openGroupNew },
   { label: 'Import chat', onClick: () => pickChar('Import a chat with…', c => pickPersona(c, pid => { importTo = { c, pid }; $('chatFile').click(); })) },
 ]);
@@ -7668,7 +7681,7 @@ document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (lb.classList.contains('open')) return closeLightbox();
   if ($('sheet').classList.contains('open')) return hideSheet();
-  const top = [...document.querySelectorAll('.view.open')].pop();
+  const top = topView();
   if (top) closeView(top.id);
 });
 
@@ -7908,7 +7921,7 @@ $('chatSearch').addEventListener('input', () => {
     v = null;
     if (e.touches.length !== 1 || lb.classList.contains('open') || $('sheet').classList.contains('open')) return;
     const t = e.touches[0]; if (t.clientX > 28) return;
-    v = [...document.querySelectorAll('.view.open')].pop(); if (!v) return;
+    v = topView(); if (!v) return;
     x0 = t.clientX; y0 = t.clientY; dx = 0; t0 = Date.now(); active = false;
   }, { passive: true });
   document.addEventListener('touchmove', e => {
@@ -8626,7 +8639,7 @@ $('toBottom').onclick = () => { const sc = $('scroller'); if (busy) { following 
 
 // Tap the top of the screen: scroll the open screen back to the top
 function scrollTopOfView() {
-  const v = [...document.querySelectorAll('.view.open')].pop(); if (!v) return;
+  const v = topView(); if (!v) return;
   const sc = v.id === 'chat' ? $('scroller') : v.querySelector('.page-body'); if (!sc) return;
   sc.scrollTo({ top: 0, behavior: 'smooth' });
 }
