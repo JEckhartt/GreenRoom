@@ -34,7 +34,7 @@
   @property --field { syntax: '<color>'; inherits: true; initial-value: #fffaf6; }
   @property --card { syntax: '<color>'; inherits: true; initial-value: #fffaf6; }
   :root.look-fade { transition: --bg .6s ease, --bg-2 .6s ease, --ink .6s ease, --ink-soft .6s ease, --accent .6s ease, --accent-soft .6s ease, --accent-ink .6s ease, --on-accent .6s ease, --bubble-me .6s ease, --line .6s ease, --field .6s ease, --card .6s ease; }
-  :root { --on-accent: #fff; --accent-ink: var(--accent); }
+  :root { --on-accent: #fff; --accent-ink: var(--accent); --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   :root, [data-theme="original"] {
     color-scheme: light dark;
     --bg: #f6ede6; --bg-2: #efe2d8; --ink: #2b1d17; --ink-soft: #7a6258;
@@ -4396,17 +4396,21 @@ function openSheetAt(wide) {
 let sheetAt = null;
 function placeSheet(at) {
   const pn = $('sheet').querySelector('.panel'), vw = innerWidth, vh = innerHeight, m = 12;
-  const w = pn.offsetWidth, h = Math.min(pn.scrollHeight, vh - 2 * m);
+  // keep clear of the notch / status bar at the top and the home bar at the bottom; a long list scrolls inside
+  const cs = getComputedStyle(document.documentElement), top = m + (parseFloat(cs.getPropertyValue('--sat')) || 0), bot = vh - m - (parseFloat(cs.getPropertyValue('--sab')) || 0);
+  pn.style.maxHeight = $('sheet').classList.contains('bottom') ? '' : (bot - top) + 'px';
+  const w = pn.offsetWidth, h = Math.min(pn.scrollHeight, bot - top);
   let x, y;
   if (at) {
     x = Math.max(m, Math.min(vw - w - m, at.x - 24));
-    y = at.y + 12 + h <= vh - m ? at.y + 12 : at.y - 12 - h >= m ? at.y - 12 - h : Math.max(m, Math.min(vh - h - m, at.y - h / 2));
-  } else { x = (vw - w) / 2; y = Math.max(m, (vh - h) / 2); }
+    y = at.y + 12 + h <= bot ? at.y + 12 : at.y - 12 - h >= top ? at.y - 12 - h : Math.max(top, Math.min(bot - h, at.y - h / 2));
+  } else { x = (vw - w) / 2; y = Math.max(top, (vh - h) / 2); }
+  y = Math.max(top, Math.min(y, bot - h));
   pn.style.left = x + 'px'; pn.style.top = y + 'px';
   pn.style.transformOrigin = at ? `${at.x - x}px ${at.y - y}px` : '50% 50%';
 }
 // a menu that grows while open (a persona's description unfolds) stays on screen
-new ResizeObserver(() => { if ($('sheet').classList.contains('open')) { const pn = $('sheet').querySelector('.panel'), r = pn.getBoundingClientRect(); if (r.bottom > innerHeight - 12) pn.style.top = Math.max(12, innerHeight - 12 - r.height) + 'px'; } }).observe(document.querySelector('#sheet .panel'));
+new ResizeObserver(() => { if ($('sheet').classList.contains('open') && !$('sheet').classList.contains('bottom')) { const pn = $('sheet').querySelector('.panel'), r = pn.getBoundingClientRect(), cs = getComputedStyle(document.documentElement), top = 12 + (parseFloat(cs.getPropertyValue('--sat')) || 0), bot = innerHeight - 12 - (parseFloat(cs.getPropertyValue('--sab')) || 0); if (r.bottom > bot) pn.style.top = Math.max(top, bot - r.height) + 'px'; } }).observe(document.querySelector('#sheet .panel'));
 function hideSheet() { $('sheet').classList.remove('open'); }
 $('sheetCancel').onclick = hideSheet;
 $('sheet').onclick = e => { if (e.target === $('sheet')) hideSheet(); };
