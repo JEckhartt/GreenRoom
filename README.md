@@ -4,7 +4,7 @@ A character chat app: create characters and personas and chat with them. Built o
 
 On start, iOS shows a plain launch screen (black with the logo in dark mode, cream in light mode), then the app shows the logo in your theme's colours and fades into the title screen. Fonts, the token counter and the PDF reader are inside the app; the internet is only used for your proxies, image proxies, Chub and JanitorAI.
 
-The title screen lists **Chats**, **Stories**, **Characters**, **Personas**, **Lorebooks** and **Albums** as big words near the bottom (the one you opened last in your accent colour, with counts for chats, stories and characters). Under them: **Continue** (your most recent chat) and **New chat** (pick a character, then a persona), and **Settings** at the very bottom. Swipe from the left edge to go back.
+The title screen lists **Chats**, **Stories**, **Characters**, **Personas**, **Lorebooks** and **Albums** as big words near the bottom (the one you opened last in your accent colour, with counts for chats, stories and characters). Under them: **Continue** (your most recent chat), and **Settings** at the very bottom. A new chat starts from **Characters** (tap a character, then **+ Start new chat**); **+ → Start new chat** on the Chats screen takes you there too. Swipe from the left edge to go back.
 
 ## Chats
 
