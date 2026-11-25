@@ -8297,10 +8297,23 @@ $('plusMenu').onclick = e => {
 $('plusSub').onclick = e => {
   const act = e.target.closest('button')?.dataset.act; if (!act) return;
   hidePlus();
-  if (act === 'photos') $('attachFile').click();
-  if (act === 'camera') $('attachCam').click();
+  if (act === 'photos') pickNative('PHOTOS', 'attachFile');
+  if (act === 'camera') pickNative('CAMERA', 'attachCam');
   if (act === 'album') openAlbumPick();
 };
+// In the app, Photos and Camera open straight away (the web picker would first ask Photo Library / Take Photo / Choose File)
+async function pickNative(source, fallback) {
+  const Cam = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.Camera;
+  if (!Cam) { $(fallback).click(); return; }
+  let photo;
+  try { photo = await Cam.getPhoto({ source, resultType: 'uri', quality: 90, correctOrientation: true }); }
+  catch (e) {
+    if (/cancel/i.test(e?.message || '')) return;
+    toast(/denied|access|permission/i.test(e?.message || '') ? (source === 'CAMERA' ? 'Allow Camera for Green Room in iOS Settings' : 'Allow Photos for Green Room in iOS Settings') : (e?.message || 'Couldn\'t open ' + (source === 'CAMERA' ? 'the camera' : 'Photos')));
+    return;
+  }
+  try { const blob = await (await fetch(photo.webPath)).blob(); setAttached(await readImage(blob, 1280)); } catch (e) { toast(e.message); }
+}
 // Pick a picture from an album; it's added to your message like an upload
 let apAlbum = null, apOnPick = null;
 // onPick(src) gets the chosen picture; without one it's added to your message

@@ -25,7 +25,7 @@ The title screen has **Chats**, **Characters**, **Personas**, **Lorebooks**, **A
   - the character's: **Edit** (saved in place), **Rewrite with a prompt** (first message only), **Create image**, **Copy**, **Pin**, **Branch from here**, **Delete**
   - Deleting removes everything after it; resending asks the AI again from there. Branch makes a new chat that continues from that message.
 - Long press the send button: **Enhance my message** (the AI rewrites what you typed) and **Write for me** (the AI writes your message), each with its own saved prompt. The result lands in the text box with **Retry** and **Delete**.
-- The **+** above the text field: **Upload image** and **From album** (the character sees it; needs a chat model that accepts images), **Generate image** (a picture you send), **Upload file** (text, Markdown, JSON, CSV, HTML, PDF) and **Author's note** (a short instruction kept close to the newest messages).
+- The **+** above the text field: **Upload image** › **Photos** (opens your photo library straight away), **Camera** (opens the camera) or **From album** (the character sees it; needs a chat model that accepts images), **Generate image** (a picture you send), **Upload file** (text, Markdown, JSON, CSV, HTML, PDF) and **Author's note** (a short instruction kept close to the newest messages).
 - Swipe right-to-left: search in this chat, pinned messages and all images.
 - Tap the character at the top for **Chat settings** (see below).
 

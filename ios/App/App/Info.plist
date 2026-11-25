@@ -69,7 +69,7 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Green Room saves images you choose to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Green Room saves images you choose to your photo library.</string>
+	<string>Green Room opens your photos when you pick one to send in a chat, and saves images you choose to your photo library.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
