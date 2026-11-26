@@ -19,21 +19,6 @@
 <link rel="stylesheet" href="fonts/fonts.css">
 <style>
   /* ---------- Themes ---------- */
-  /* The theme colours are real colours (not just text), so going back from a chat with its own look to the app's look
-     can fade from one to the other instead of switching at once */
-  @property --bg { syntax: '<color>'; inherits: true; initial-value: #f6ede6; }
-  @property --bg-2 { syntax: '<color>'; inherits: true; initial-value: #efe2d8; }
-  @property --ink { syntax: '<color>'; inherits: true; initial-value: #2b1d17; }
-  @property --ink-soft { syntax: '<color>'; inherits: true; initial-value: #7a6258; }
-  @property --accent { syntax: '<color>'; inherits: true; initial-value: #d9553b; }
-  @property --accent-soft { syntax: '<color>'; inherits: true; initial-value: #f3c9b9; }
-  @property --accent-ink { syntax: '<color>'; inherits: true; initial-value: #d9553b; }
-  @property --on-accent { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
-  @property --bubble-me { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
-  @property --line { syntax: '<color>'; inherits: true; initial-value: #e2cfc3; }
-  @property --field { syntax: '<color>'; inherits: true; initial-value: #fffaf6; }
-  @property --card { syntax: '<color>'; inherits: true; initial-value: #fffaf6; }
-  :root.look-fade { transition: --bg .6s ease, --bg-2 .6s ease, --ink .6s ease, --ink-soft .6s ease, --accent .6s ease, --accent-soft .6s ease, --accent-ink .6s ease, --on-accent .6s ease, --bubble-me .6s ease, --line .6s ease, --field .6s ease, --card .6s ease; }
   :root { --on-accent: #fff; --accent-ink: var(--accent); --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   :root, [data-theme="original"] {
     color-scheme: light dark;
@@ -2461,13 +2446,18 @@ const rgbOf = c => { c = (c || '').trim(); let m = c.match(/^#([\da-f]{3}|[\da-f
 const lum = ([r, g, b]) => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }; return .2126 * f(r) + .7152 * f(g) + .0722 * f(b); };
 const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
 const hexOf = c => '#' + c.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
-// Back from a chat: its colours fade into the app's own instead of switching at once
-let fadeT = null;
-function fadeToLook() {
-  const root = document.documentElement;
-  root.classList.add('look-fade'); applyLook();
-  clearTimeout(fadeT); fadeT = setTimeout(() => root.classList.remove('look-fade'), 700);
+// Back from a chat with its own look: the app's look comes back at once, while the chat keeps its own colours and
+// style for the moment it slides away (they're copied onto it and dropped once it's gone)
+const LOOK_VARS = ['--bg', '--bg-2', '--ink', '--ink-soft', '--accent', '--accent-soft', '--accent-ink', '--on-accent', '--bubble-me', '--line', '--field', '--card'];
+let frozenVars = [];
+function lookBackAtOnce() {
+  const root = document.documentElement, cs = getComputedStyle(root), chat = $('chat');
+  const names = [...new Set([...LOOK_VARS, ...[...root.style].filter(n => n.startsWith('--'))])];
+  for (const n of names) chat.style.setProperty(n, cs.getPropertyValue(n));
+  frozenVars = names;
+  applyLook();
 }
+function unfreezeChat() { for (const n of frozenVars) $('chat').style.removeProperty(n); frozenVars = []; }
 function syncAccentInk() {
   const root = document.documentElement, pr = $('lookProbe');
   pr.dataset.theme = root.dataset.theme || 'original';
@@ -4336,6 +4326,7 @@ function settleScroll(id) {
   requestAnimationFrame(step);
 }
 function openChat(id) {
+  unfreezeChat(); // reopened before the last one finished sliding away
   const chat = chats.find(x => x.id === id);
   if (chat?.group) { chat.group.members = chat.group.members.filter(m => chars.some(c => c.id === m)); if (chat.group.members.length && !chat.group.members.includes(chat.charId)) chat.charId = chat.group.members[0]; }
   const c = chat && chars.find(x => x.id === chat.charId);
@@ -4462,7 +4453,8 @@ function closeView(id) {
   if (id === 'chars') { openCharRow = null; gridOpen.clear(); afterSlide('chars', () => renderList('char')); }
   if (id === 'personas') { gridOpen.clear(); afterSlide('personas', () => renderList('persona')); }
   if (id === 'chat') { leaveChat(true); setAttached(null); setDoc(null); clearHelper(); hideSendMenu(); hidePlus(); $('anPanel').hidden = true;
-    afterSlide('chat', () => { $('chat').classList.remove('has-bg'); if (!cur) fadeToLook(); }); }
+    if (!cur) lookBackAtOnce();
+    afterSlide('chat', () => { $('chat').classList.remove('has-bg'); unfreezeChat(); }); }
   if (id === 'settings') afterSlide('settings', () => applyLook());
   if (id === 'chars' || id === 'personas') { endSelect(); closeSwipe(); }
   if (id === 'albums') closeSwipe();
