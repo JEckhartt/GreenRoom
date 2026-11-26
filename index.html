@@ -9543,7 +9543,6 @@ function storyMenu(st) {
     ...(st.done ? (() => { const at = store.get('storyPos', {})[st.id] || 0, mark = v => { const o = store.get('storyPos', {}); if (v == null) delete o[st.id]; else o[st.id] = v; store.set('storyPos', o); renderStories(); };
       return [...(at < .995 ? [{ label: 'Mark as read', onClick: () => mark(1) }] : []), ...(at > 0 ? [{ label: 'Mark as unread', onClick: () => mark(null) }] : [])]; })() : []),
     ...(st.status !== 'writing' ? [{ label: 'Edit', onClick: () => openStoryEdit(st) }] : []),
-    { label: 'Rename', onClick: () => { const t = prompt('Title', st.title || ''); if (t?.trim()) { st.title = t.trim(); saveStories(); renderStories(); } } },
     { label: 'Delete story', onClick: () => deleteStory(st) },
   ]);
 }
