@@ -899,8 +899,16 @@
   #chats .items { gap: 0; }
   #chats .items > .group { border: 0; border-radius: 0; background: none; border-top: 1px solid var(--line); overflow: visible; }
   #chats .items > .group:last-child { border-bottom: 1px solid var(--line); }
-  #chats .pins { position: sticky; top: 41px; z-index: 2; background: var(--bg); }
-  #chats .pins > .group { border: 0; border-radius: 0; background: none; border-top: 1px solid var(--line); }
+  #chats .pins { position: sticky; top: calc(var(--search-h, 41px) - 1px); z-index: 2; background: var(--bg); }
+  #chats .pin-rows { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .25s ease; }
+  #chats .pin-rows > * { min-height: 0; overflow: hidden; }
+  #chats .pins.shut .pin-rows { grid-template-rows: 0fr; }
+  #chats .pin-rows { overflow: hidden; }
+  #chats .pin-bar { display: flex; justify-content: center; align-items: center; width: 100%; height: 22px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--ink-soft); cursor: pointer; touch-action: none; }
+  #chats .pin-bar svg { transition: transform .25s ease; }
+  #chats .pins.shut .pin-bar svg { transform: rotate(180deg); }
+  #chats .items.compact .pins .rtime { display: inline; }
+  #chats .pin-rows .group { border: 0; border-radius: 0; background: none; border-top: 1px solid var(--line); }
   #chats .items > .pins:last-child { border-bottom: 1px solid var(--line); }
   #chats .group > .item, #chats .folder-head > .item { padding: 12px 2px; gap: 14px; }
   #chats .item:active { background: color-mix(in srgb, var(--ink) 5%, transparent); }
@@ -4645,6 +4653,8 @@ const shortWhen = t => {
   if (now - d < 6 * 864e5) return d.toLocaleDateString([], { weekday: 'short' });
   return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
 };
+// pinned chats sit flush under the pinned search field, whatever height it has on this device
+new ResizeObserver(() => $('chats').style.setProperty('--search-h', $('chatSearch').offsetHeight + 'px')).observe($('chatSearch'));
 // the big "Chats" title gone from view: the bar shows the title instead
 $('chats').querySelector('.page-body').addEventListener('scroll', e => {
   const t = $('chats').querySelector('.ed-title').getBoundingClientRect(), top = e.target.getBoundingClientRect().top;
@@ -4690,10 +4700,24 @@ function renderChats() {
   // …and they stay put under the search field while the rest scrolls
   const pinned = chats.filter(x => x.pinned && (x.group ? x.group.members.some(m => chars.some(c => c.id === m)) : chars.some(c => c.id === x.charId))).sort((a, b) => b.updated - a.updated);
   if (pinned.length && tab === 'chats') {
-    const pins = document.createElement('div'); pins.className = 'pins';
-    for (const ch of pinned) pins.append(pinnedRow(ch));
+    const pins = document.createElement('div'); pins.className = 'pins' + (store.get('pinsShut', false) ? ' shut' : '');
+    const rows = document.createElement('div'); rows.className = 'pin-rows';
+    const inner = document.createElement('div'); rows.append(inner);
+    for (const ch of pinned) inner.append(pinnedRow(ch));
+    // a bar under them: tap it or swipe up to fold them away, tap or swipe down to bring them back
+    const bar = document.createElement('button'); bar.type = 'button'; bar.className = 'pin-bar';
+    bar.setAttribute('aria-label', 'Show or hide pinned chats');
+    bar.innerHTML = '<svg width="16" height="9" viewBox="0 0 16 9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5l6-5.5 6 5.5"/></svg>';
+    const setShut = v => { pins.classList.toggle('shut', v); store.set('pinsShut', v); };
+    bar.onclick = () => setShut(!pins.classList.contains('shut'));
+    let y0 = null;
+    bar.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
+    bar.addEventListener('touchend', e => {
+      if (y0 == null) return; const dy = e.changedTouches[0].clientY - y0; y0 = null;
+      if (Math.abs(dy) > 18) { e.preventDefault(); setShut(dy < 0); }
+    });
+    pins.append(rows, bar);
     list.appendChild(pins);
-    requestAnimationFrame(() => { pins.style.top = $('chatSearch').offsetHeight + 'px'; });
   }
   const groups = [...by].map(([id, cs]) => [chars.find(c => c.id === id), cs.sort((a, b) => b.updated - a.updated)])
     .sort((a, b) => b[1][0].updated - a[1][0].updated);
@@ -4765,10 +4789,9 @@ function pinnedRow(ch) {
   if (ch.count == null) ch.count = msgGet(ch.id).length;
   const meta = document.createElement('p'); meta.textContent = [pn && 'as ' + pn + (label ? ' · ' + label : '')].filter(Boolean).join(' · ');
   meta.insertAdjacentHTML('afterbegin', '<svg class="pin-i" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M15 3l6 6-2.5 1.2-3.8 3.8.6 4.5-1.8 1.8-4.2-4.2L4.5 21 3 19.5l4.8-4.8-4.2-4.2L5.4 8.7l4.5.6 3.8-3.8z"/></svg>');
-  const chev = document.createElement('span'); chev.className = 'chev';
   const tm = document.createElement('time'); tm.className = 'rtime'; tm.textContent = shortWhen(ch.updated); h.append(tm);
   const last = document.createElement('div'); last.className = 'lastline'; last.textContent = stripMd(ch.preview || '');
-  info.append(h, meta, last); b.append(pic, info, chev);
+  info.append(h, meta, last); b.append(pic, info);
   pressable(b, () => openChat(ch.id), () => { navigator.vibrate?.(12); chatMenu(ch, c); });
   g.append(b);
   return g;
@@ -4790,9 +4813,7 @@ function chatRow(ch, c, withChar = false) {
   txt.append(who, snip); go.append(av, txt);
   pressable(go, () => openChat(ch.id), () => { navigator.vibrate?.(12); chatMenu(ch, c); });
   const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.innerHTML = trashSvg;
-  del.setAttribute('aria-label', 'Delete chat');
-  del.onclick = () => { if (confirm(ch.group ? `Delete the group chat "${ch.group.name || 'Group chat'}"?` : `Delete this chat with ${c.name}?`)) deleteChat(ch.id); };
-  row.append(go, del);
+  row.append(go);
   return row;
 }
 // Chat folders: at the top of Chats. A chat in a folder also stays under its character
@@ -4833,13 +4854,6 @@ function chatMenu(ch, c) {
       store.set('chats', chats); renderChats(); if (cur?.chat.id === ch.id) renderChatHead();
     } },
     { label: 'Move to folder', onClick: () => moveChatToFolder(ch) },
-    ...(ch.group ? [] : [{ label: 'Move to another character', onClick: () => pickChar('Move this chat to…', nc => {
-      if (nc.id === ch.charId) return;
-      ch.charId = nc.id; delete ch.janChar; // a later JanitorAI import follows this choice through the chat itself
-      expanded.clear(); expanded.add(nc.id); saveChats();
-      if (cur?.chat.id === ch.id) { cur.c = nc; renderChatHead(); render(); }
-      toast(`Moved to ${nc.name}`);
-    }) }]),
     { label: 'Change persona', onClick: () => pickPersona(c, pid => {
       const np = personas.find(x => x.id === pid);
       ch.personaId = np?.id || ''; ch.personaName = np?.name || '';
@@ -9890,9 +9904,7 @@ function groupChatRow(ch) {
   const snip = document.createElement('div'); snip.className = 'snip'; snip.textContent = ch.preview ? stripMd(ch.preview) : g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn).join(', ');
   txt.append(who, snip); go.append(av, txt);
   pressable(go, () => openChat(ch.id), () => { navigator.vibrate?.(12); chatMenu(ch, first); });
-  const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.innerHTML = trashSvg; del.setAttribute('aria-label', 'Delete chat');
-  del.onclick = () => { if (confirm(`Delete the group chat "${g.name || 'Group chat'}"?`)) deleteChat(ch.id); };
-  row.append(go, del); return row;
+  row.append(go); return row;
 }
 // New group: name, characters (in the order picked), then the persona
 const gnPicked = [];
