@@ -908,8 +908,9 @@
   html #sheet :is(.opt-d + .opt, .opt + .opt-d, .opt-d + .opt-d) { border-color: var(--menu-edge); }
   .opt-row { display: flex; align-items: center; }
   .opt-row .opt { flex: 1; min-width: 0; padding-right: 4px; }
-  .opt-more { flex: none; width: 48px; align-self: stretch; display: grid; place-items: center; border: 0; background: none; color: var(--accent-ink); cursor: pointer; padding: 0; }
-  .opt-more:active { background: var(--menu-press, color-mix(in srgb, var(--ink) 9%, transparent)); }
+  .opt-more { flex: none; width: 44px; align-self: stretch; display: grid; place-items: center; border: 0; background: none; color: var(--ink-soft); cursor: pointer; padding: 0; }
+  .opt-more svg { transition: transform .25s ease; }
+  .opt-d.open .opt-more svg { transform: rotate(180deg); }
   .opt-desc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease; }
   .opt-desc > div { min-height: 0; overflow: hidden; padding: 0 14px 0 55px; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); white-space: pre-wrap; overflow-wrap: anywhere; }
   .opt-d.open .opt-desc { grid-template-rows: 1fr; }
@@ -4583,12 +4584,11 @@ function showSheet(title, opts, bottom = false) {
     if (o.fit) b.classList.add('fit'); // fit: the label stays on one line, the text shrinks if it has to
     b.onclick = () => { if (!o.keep) hideSheet(); o.onClick(); }; // keep: the sheet stays (e.g. while the photo picker is open)
     if (o.desc == null) return b;
-    // desc: tapping the option unfolds a description under it (opening one folds the one that was open); + on the right picks it
+    // desc: a small arrow unfolds a description under the option; opening one folds the one that was open
     const w = document.createElement('div'), row = document.createElement('div'), more = document.createElement('button'), d = document.createElement('div'), dt = document.createElement('div');
-    w.className = 'opt-d'; row.className = 'opt-row'; more.type = 'button'; more.className = 'opt-more'; more.setAttribute('aria-label', 'Add ' + (typeof o.label === 'string' ? o.label : ''));
-    more.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
-    more.onclick = () => { if (!o.keep) hideSheet(); o.onClick(); };
-    b.onclick = () => { const open = !w.classList.contains('open'); for (const x of $('sheetOpts').querySelectorAll('.opt-d.open')) x.classList.remove('open'); w.classList.toggle('open', open); };
+    w.className = 'opt-d'; row.className = 'opt-row'; more.type = 'button'; more.className = 'opt-more'; more.setAttribute('aria-label', 'Description');
+    more.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+    more.onclick = () => { const open = !w.classList.contains('open'); for (const x of $('sheetOpts').querySelectorAll('.opt-d.open')) x.classList.remove('open'); w.classList.toggle('open', open); };
     d.className = 'opt-desc'; dt.textContent = o.desc || 'No description.'; d.append(dt);
     row.append(b, more); w.append(row, d);
     return w;
@@ -10249,7 +10249,7 @@ function renderGroupSettings() {
     list.append(r);
   });
   const add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.textContent = '+ Add a character'; add.style.marginTop = '8px';
-  add.onclick = () => pickChar('Add to the group', c => { if (g.members.includes(c.id)) return toast(`${c.name} is already in it`); g.members.push(c.id); save(); renderGroupSettings(); }, true); // tap a name for the description, + to add
+  add.onclick = () => pickChar('Add to the group', c => { if (g.members.includes(c.id)) return toast(`${c.name} is already in it`); g.members.push(c.id); save(); renderGroupSettings(); }, true); // tap a name to add, the small arrow for the description
   c1.append(list, add, hint('The switch: talks on their own (off = muted; tapping them above the text box still makes them talk). ↑ changes the order for List order.'));
   // reply order
   const c2 = card();
