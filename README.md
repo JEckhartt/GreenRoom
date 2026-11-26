@@ -150,7 +150,7 @@ No workarounds: a proxy either works or it doesn't. If a model can't see images 
 Tabs (tap or swipe): **Memory**, **Style**, **Proxy**, **Image proxy**, **Prompt**. Every section folds open and closed.
 
 - **Memory**: memory sent with every message; a summary prompt and **Summarize** button that writes the not-yet-summarized part of the chat into Memory.
-- **Style**: this chat's theme, background and style. The theme and the style each have their own **Global** switch (on: from Settings, controls hidden; off: this chat's own), so a chat can keep the app's theme with its own style, or the other way round.
+- **Style**: this chat's background and style. The style has a **Global** switch (on: the style from Settings, controls hidden; off: this chat's own). The theme (colours and accent) always comes from Settings.
 - **Proxy**: proxy, generation preset and context size, each with a **Global** switch.
 - **Image proxy**: **Enable** (follows Settings until you change it), the image proxy (with **Global**), this chat's **Image prompt** (empty: the one from Settings) and **Make images automatically**.
 - **Prompt**: system prompt and forbidden words (each with **Global**), **Repeat the character card near the latest message** (every reply already ends with a short reminder at your newest message to stay true to the character card; this sends the whole personality there too, for a character that drifts), real time (sends the date and time, and marks when messages were sent and whether time passed; an opening the AI writes, also with › under the first message, fits the time of day), lorebooks, and **Character messages you first** (a notification after 30 minutes to 3 days).
@@ -163,7 +163,7 @@ Settings → Customization, and per chat under Chat settings → Style.
 
 - **Saved styles** at the top: **+ Save current style**; tap one to use it (the dot shows which one is in use); ⋯ or long press to update, rename or delete.
 - The mock-up with **AI / You / Both**: which side a change applies to. Under Both, a setting that differs between the sides shows as mixed until you change it.
-- **Theme**: Default / Light / Dark / Green (the start-up screen's colours) and accent colour. In a chat, the theme's **Global** switch (Chat settings → Style → Theme for this chat) decides: on, the theme comes from Settings; off, the chat has its own theme.
+- **Theme**: Default / Light / Dark / Green (the start-up screen's colours) and accent colour. Every chat uses this theme.
 - **Layout**: per side: bubble on/off, bubble shape and full width (with a bubble), names, profile pictures (circle or rounded square; tap one in a chat to float it), timestamps. **Picture in the chat header** on or off. For all messages: where they sit (left & right, all left, centered, all right), space between them, and how new messages appear:
   - **Appear**: typing dots while the AI writes, then the whole reply at once
   - **Fade in**: it starts showing once the AI is a little ahead, each new bit fading in, while the AI keeps writing ahead
