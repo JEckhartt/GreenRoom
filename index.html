@@ -238,10 +238,6 @@
   .gstack .av + .av { margin-left: -10px; }
   .gstack.many .av + .av { margin-left: -15px; }
   #chat.grp .chat-who { max-width: 72vw; gap: 8px; }
-  /* the chat header: back, picture and name on the left (like a conversation in Messages), nothing in the middle */
-  #chat > .page-head { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 2px; }
-  #chat > .page-head .chat-who { justify-self: start; max-width: 100%; }
-  #chat.grp > .page-head .chat-who { max-width: 100%; }
   #boot { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: radial-gradient(120% 80% at 50% 0%, var(--bg-2), var(--bg)); background-color: var(--bg); transition: opacity .4s ease; }
   #boot.gone { opacity: 0; pointer-events: none; }
   #boot .boot-logo { position: relative; width: 92px; height: 92px; border-radius: 30px 30px 30px 8px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 80%, #fff 20%), var(--accent-soft)); box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: bootIn .5s ease both; }
