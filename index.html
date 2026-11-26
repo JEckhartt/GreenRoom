@@ -871,7 +871,14 @@
   #chats.titled .page-head h1 { opacity: 1; }
   .ed-title { margin: 6px 2px 14px; font-family: 'Inter', system-ui, sans-serif; font-size: 40px; font-weight: 500; letter-spacing: -.035em; line-height: 1; }
   #chats input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
-  #chats #chatList { margin-top: 14px; }
+  #chats #chatList { margin-top: 6px; }
+  .ed-tabs { display: flex; gap: 20px; padding: 14px 2px 0; }
+  .ed-tabs[hidden] { display: none; }
+  .ed-tabs button { border: 0; background: none; padding: 0 0 7px; color: var(--ink-soft); font: 600 10.5px 'Inter', system-ui, sans-serif; letter-spacing: .18em; text-transform: uppercase; border-bottom: 1px solid transparent; cursor: pointer; }
+  .ed-tabs button.on { color: var(--ink); border-bottom-color: var(--accent-ink); }
+  #chats .flat > .crow { border-top: 1px solid var(--line); padding: 12px 2px; }
+  #chats .flat > .crow:last-child { border-bottom: 1px solid var(--line); }
+  #chats .flat .crow .av.gring { width: 46px; height: 46px; }
   #chats .items { gap: 0; }
   #chats .items > .group { border: 0; border-radius: 0; background: none; border-top: 1px solid var(--line); overflow: visible; }
   #chats .items > .group:last-child { border-bottom: 1px solid var(--line); }
@@ -1119,6 +1126,7 @@
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <h2 class="ed-title">Chats</h2>
     <input type="search" class="search" id="chatSearch" placeholder="Search all chats" autocomplete="off">
+    <div class="ed-tabs" id="chatTabs"><button type="button" data-t="chats">Chats</button><button type="button" data-t="groups">Groups</button><button type="button" data-t="folders">Folders</button></div>
     <div class="items" id="chatList"></div>
   </div></div>
 </section>
@@ -4638,49 +4646,41 @@ function renderChats() {
   const list = $('chatList'); list.innerHTML = ''; list.classList.toggle('compact', isCompact('chat'));
   const by = new Map();
   const groupChats = chats.filter(ch => ch.group && ch.group.members.some(m => chars.some(c => c.id === m))).sort((a, b) => b.updated - a.updated);
+  // tabs under the search field: Chats (per character), Groups, Folders
+  const tab = store.get('chatTab', 'chats');
+  $('chatTabs').hidden = false;
+  for (const b of $('chatTabs').children) b.classList.toggle('on', b.dataset.t === tab);
+  const emptyNote = t => { const e = document.createElement('div'); e.className = 'list-empty'; e.textContent = t; list.appendChild(e); };
+  if (tab === 'groups') {
+    if (!groupChats.length) return emptyNote('No group chats yet. Start one with + at the top.');
+    const box = document.createElement('div'); box.className = 'flat';
+    for (const ch of groupChats) box.append(groupChatRow(ch));
+    return list.appendChild(box);
+  }
+  if (tab === 'folders') {
+    const fs = folders.filter(f => f.kind === 'chat');
+    if (!fs.length) return emptyNote('No folders yet. Long press a chat and choose Move to folder.');
+  }
   for (const ch of chats) {
     if (ch.group || !ch.preview || !chars.some(c => c.id === ch.charId)) continue;
     if (!by.has(ch.charId)) by.set(ch.charId, []);
     by.get(ch.charId).push(ch);
   }
-  if (!by.size && !groupChats.length) {
-    const e = document.createElement('div'); e.className = 'list-empty';
-    e.textContent = 'No chats yet. Start one from Characters.';
-    return list.appendChild(e);
-  }
+  if (!by.size && !groupChats.length) { $('chatTabs').hidden = true; return emptyNote('No chats yet. Start one from Characters.'); }
+  if (tab === 'chats' && !by.size) return emptyNote('No chats with one character yet. Your group chats are under Groups.');
   // pinned chats first (long press a chat → Pin chat); they also stay in their usual place below
   // …and they stay put under the search field while the rest scrolls
   const pinned = chats.filter(x => x.pinned && (x.group ? x.group.members.some(m => chars.some(c => c.id === m)) : chars.some(c => c.id === x.charId))).sort((a, b) => b.updated - a.updated);
-  if (pinned.length) {
+  if (pinned.length && tab === 'chats') {
     const pins = document.createElement('div'); pins.className = 'pins';
     for (const ch of pinned) pins.append(pinnedRow(ch));
     list.appendChild(pins);
     requestAnimationFrame(() => { pins.style.top = $('chatSearch').offsetHeight + 'px'; });
   }
-  if (groupChats.length) {
-    const key = 'groups', open = expanded.has(key);
-    const g = document.createElement('div'); g.className = 'group' + (open ? ' open' : '');
-    const head = document.createElement('div'); head.className = 'folder-head';
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'item';
-    const ic = document.createElement('div'); ic.className = 'folder-icon'; ic.innerHTML = groupSvg;
-    const info = document.createElement('div'); info.className = 'info';
-    const h = document.createElement('h3'); h.textContent = 'Group chats';
-    const meta = document.createElement('p'); meta.textContent = `${groupChats.length} chat${groupChats.length === 1 ? '' : 's'}`;
-    const chev = document.createElement('span'); chev.className = 'chev';
-    info.append(h, meta); b.append(ic, info, chev);
-    b.onclick = () => { expanded.clear(); if (!open) expanded.add(key); renderChats(); };
-    head.append(b); g.append(head);
-    if (open) {
-      const sub = document.createElement('div'); sub.className = 'sublist';
-      for (const ch of groupChats) sub.append(groupChatRow(ch));
-      g.append(sub);
-    }
-    list.appendChild(g);
-  }
   const groups = [...by].map(([id, cs]) => [chars.find(c => c.id === id), cs.sort((a, b) => b.updated - a.updated)])
     .sort((a, b) => b[1][0].updated - a[1][0].updated);
-  // folders first
-  for (const f of folders.filter(f => f.kind === 'chat')) {
+  // folders (their own tab)
+  for (const f of tab === 'folders' ? folders.filter(f => f.kind === 'chat') : []) {
     const inside = chats.filter(ch => ch.folder === f.id && ch.preview && chars.some(c => c.id === ch.charId)).sort((a, b) => b.updated - a.updated);
     const key = 'f:' + f.id, open = expanded.has(key);
     const g = document.createElement('div'); g.className = 'group' + (open ? ' open' : '');
@@ -4704,7 +4704,7 @@ function renderChats() {
     }
     list.appendChild(g);
   }
-  for (const [c, cs] of groups) {
+  for (const [c, cs] of tab === 'chats' ? groups : []) {
     const g = document.createElement('div'); g.className = 'group' + (expanded.has(c.id) ? ' open' : '');
     const head = document.createElement('button'); head.type = 'button'; head.className = 'item';
     const th = document.createElement('div'); th.className = 'thumb sm'; setThumb(th, c);
@@ -8050,9 +8050,11 @@ $('ciSearch').addEventListener('input', () => {
 });
 
 // ---------- Search across all chats (Chats screen) ----------
+$('chatTabs').onclick = e => { const t = e.target.closest('button')?.dataset.t; if (!t) return; store.set('chatTab', t); expanded.clear(); renderChats(); };
 $('chatSearch').addEventListener('input', () => {
   const q = $('chatSearch').value.trim();
   if (q.length < 2) return renderChats();
+  $('chatTabs').hidden = true;
   const list = $('chatList'); list.innerHTML = '';
   const hits = [];
   for (const ch of [...chats].sort((a, b) => b.updated - a.updated)) {
