@@ -317,15 +317,14 @@
   .gn-item .av { width: 36px; height: 36px; }
   .gn-row { display: flex; align-items: center; }
   .gn-row .gn-item { flex: 1; min-width: 0; }
-  .gn-more { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: none; color: var(--ink-soft); cursor: pointer; padding: 0; }
-  .gn-more svg { transition: transform .25s ease; }
-  .gn-wrap.open .gn-more svg { transform: rotate(180deg); }
+  .gn-pick { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; cursor: pointer; padding: 0; }
+  .gn-wrap.on .gn-n { background: var(--accent); border-color: var(--accent); }
   .gn-desc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease; }
   .gn-desc > div { min-height: 0; overflow: hidden; padding: 0 8px 0 50px; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); white-space: pre-wrap; overflow-wrap: anywhere; }
   .gn-wrap.open .gn-desc { grid-template-rows: 1fr; }
   .gn-wrap.open .gn-desc > div { padding-bottom: 10px; }
   .gn-item span:nth-child(2) { flex: 1; }
-  .gn-item .gn-n { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 12px; color: var(--on-accent); }
+  .gn-n { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 12px; color: var(--on-accent); }
   .gn-item.on .gn-n { background: var(--accent); border-color: var(--accent); }
   .gm-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
   .gm-row:first-child { border-top: 0; }
@@ -451,10 +450,12 @@
   /* a story's book page */
   .sb-cover { width: min(62%, 240px); margin: 6px auto 0; }
   .sb-cover .st-ttl { font-size: 22px; }
+  .sb-cover:not(.plain) { cursor: zoom-in; }
   .sb-title { margin: 22px 0 6px; text-align: center; font-family: 'Fraunces', Georgia, serif; font-size: 28px; font-weight: 400; line-height: 1.15; }
   .sb-by { text-align: center; }
   .sb-read { display: block; width: 100%; margin: 22px 0 0; padding: 14px; border: 0; border-radius: 12px; background: var(--accent); color: var(--on-accent); font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; }
-  .sb-desc { margin: 24px 2px 0; font-family: 'Fraunces', Georgia, serif; font-size: 17px; line-height: 1.55; white-space: pre-wrap; }
+  #sbDesc { margin: 24px 2px 0; font-family: 'Fraunces', Georgia, serif; font-size: 17px; line-height: 1.55; }
+  #sbDesc p { margin: 0 0 10px; }
   .sb-gen { border: 0; background: none; padding: 0; color: var(--accent-ink); font: inherit; font-size: 15px; cursor: pointer; }
   .sb-info { margin: 26px 0 24px; border-top: 1px solid var(--line); }
   .sb-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 2px 12px; border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--ink); font: inherit; text-align: left; }
@@ -907,9 +908,8 @@
   html #sheet :is(.opt-d + .opt, .opt + .opt-d, .opt-d + .opt-d) { border-color: var(--menu-edge); }
   .opt-row { display: flex; align-items: center; }
   .opt-row .opt { flex: 1; min-width: 0; padding-right: 4px; }
-  .opt-more { flex: none; width: 40px; align-self: stretch; display: grid; place-items: center; border: 0; background: none; color: var(--ink-soft); cursor: pointer; padding: 0; }
-  .opt-more svg { transition: transform .25s ease; }
-  .opt-d.open .opt-more svg { transform: rotate(180deg); }
+  .opt-more { flex: none; width: 48px; align-self: stretch; display: grid; place-items: center; border: 0; background: none; color: var(--accent-ink); cursor: pointer; padding: 0; }
+  .opt-more:active { background: var(--menu-press, color-mix(in srgb, var(--ink) 9%, transparent)); }
   .opt-desc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease; }
   .opt-desc > div { min-height: 0; overflow: hidden; padding: 0 14px 0 55px; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); white-space: pre-wrap; overflow-wrap: anywhere; }
   .opt-d.open .opt-desc { grid-template-rows: 1fr; }
@@ -1581,7 +1581,7 @@
 
       <details class="edf" data-for="char" data-f="desc" open>
         <summary>Description</summary>
-        <div class="rte-bar" id="descBar">
+        <div id="descHost"><div class="rte-bar" id="descBar">
           <select id="rteBlock" aria-label="Text style"><option value="p">Paragraph</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option><option value="h3">Heading 3</option><option value="blockquote">Quote</option></select>
           <button type="button" data-cmd="bold" aria-label="Bold"><b style="font-size:17px">B</b></button>
           <button type="button" data-cmd="italic" aria-label="Italic"><i style="font-family:Georgia,serif;font-size:18px">I</i></button>
@@ -1600,7 +1600,7 @@
           <button type="button" id="rteSrc" aria-label="Show HTML"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg></button>
         </div>
         <div class="rte md" id="descEd" contenteditable="true" data-placeholder="Shown on the character list. Not sent to the AI."></div>
-        <textarea id="edDesc" hidden spellcheck="false" placeholder="HTML"></textarea>
+        <textarea id="edDesc" hidden spellcheck="false" placeholder="HTML"></textarea></div>
         <div class="actions" style="margin-top:8px"><button class="btn" type="button" id="edGenDesc">Generate description</button></div>
         <div class="hint">Written by the AI from the personality, scenario and first message.</div>
       </details>
@@ -2159,7 +2159,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="storyBook" class="view" aria-label="Story">
-  <div class="page-head"><button class="back" data-close="storyBook" type="button" aria-label="Stories"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="sbHead"></h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="storyBook" type="button" aria-label="Stories"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="sbHead"></h1><button class="act more-act" id="sbMore" type="button" aria-label="Edit or delete">⋯</button></div>
   <div class="page-body"><div class="page-inner" style="padding-top:20px">
     <div class="sb-cover st-cover plain" id="sbCover"><div class="st-ttl"></div></div>
     <h2 class="sb-title" id="sbTitle"></h2>
@@ -2183,8 +2183,8 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
       <label class="f" for="seStyle">Cover style</label>
       <input type="text" id="seStyle" placeholder="e.g. realistic 4k photo">
       <div class="hint">Used by New cover (long press the story).</div>
-      <label class="f" for="seDesc">Description</label>
-      <textarea id="seDesc" placeholder="Shown on the story's book page"></textarea>
+      <label class="f">Description</label>
+      <div id="seDescHost"></div>
       <div class="actions" style="margin-top:10px"><button class="btn" type="button" id="seGenDesc">Generate description</button></div>
     </div>
     <div class="jan-h">Text</div>
@@ -4583,11 +4583,12 @@ function showSheet(title, opts, bottom = false) {
     if (o.fit) b.classList.add('fit'); // fit: the label stays on one line, the text shrinks if it has to
     b.onclick = () => { if (!o.keep) hideSheet(); o.onClick(); }; // keep: the sheet stays (e.g. while the photo picker is open)
     if (o.desc == null) return b;
-    // desc: a small arrow unfolds a description under the option; opening one folds the one that was open
+    // desc: tapping the option unfolds a description under it (opening one folds the one that was open); + on the right picks it
     const w = document.createElement('div'), row = document.createElement('div'), more = document.createElement('button'), d = document.createElement('div'), dt = document.createElement('div');
-    w.className = 'opt-d'; row.className = 'opt-row'; more.type = 'button'; more.className = 'opt-more'; more.setAttribute('aria-label', 'Description');
-    more.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
-    more.onclick = () => { const open = !w.classList.contains('open'); for (const x of $('sheetOpts').querySelectorAll('.opt-d.open')) x.classList.remove('open'); w.classList.toggle('open', open); };
+    w.className = 'opt-d'; row.className = 'opt-row'; more.type = 'button'; more.className = 'opt-more'; more.setAttribute('aria-label', 'Add ' + (typeof o.label === 'string' ? o.label : ''));
+    more.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+    more.onclick = () => { if (!o.keep) hideSheet(); o.onClick(); };
+    b.onclick = () => { const open = !w.classList.contains('open'); for (const x of $('sheetOpts').querySelectorAll('.opt-d.open')) x.classList.remove('open'); w.classList.toggle('open', open); };
     d.className = 'opt-desc'; dt.textContent = o.desc || 'No description.'; d.append(dt);
     row.append(b, more); w.append(row, d);
     return w;
@@ -5493,6 +5494,7 @@ function openEditor(kind, id) {
   $('edName').value = it?.name || '';
   $('edName').placeholder = kind === 'char' ? 'Character name' : 'Your name';
   $('edPers').placeholder = kind === 'char' ? 'Who is this character? Looks, traits, how they talk.' : 'Who are you in the story? The character will know this.';
+  descMoveTo('descHost', 'Shown on the character list. Not sent to the AI.');
   $('edDesc').value = it?.description || ''; descShowEditor(); descLoad();
   $('edPers').value = it?.personality || '';
   $('edScen').value = it?.scenario || '';
@@ -5744,6 +5746,11 @@ $('rteLink').onclick = () => {
   const sel = descRange && !descRange.collapsed;
   sel ? descCmd('createLink', url) : descCmd('insertHTML', `<a href="${esc}">${esc.replace(/</g, '&lt;')}</a>`);
 };
+// the same editor (toolbar, formatted text, HTML) serves a character's description and a story's: it moves to the screen that's open
+function descMoveTo(host, placeholder) {
+  $(host).append($('descBar'), descEd, $('edDesc'));
+  descEd.dataset.placeholder = placeholder;
+}
 function descShowEditor() { // back to the formatted view (e.g. when the editor opens)
   $('edDesc').hidden = true; descEd.hidden = false; $('edDesc').classList.remove('src'); $('rteSrc').classList.remove('on');
   for (const el of $('descBar').querySelectorAll('button, select, input')) el.disabled = false;
@@ -9290,14 +9297,15 @@ function openBook(id) {
 function renderBook() {
   const st = stories.find(x => x.id === bookId); if (!st) return;
   const cv = $('sbCover'); cv.className = 'sb-cover st-cover plain'; cv.style.backgroundImage = ''; cv.querySelector('.st-ttl').textContent = st.title || 'Untitled';
-  idb.get('cover_' + st.id).then(src => { if (src && bookId === st.id) { cv.style.backgroundImage = `url("${src}")`; cv.classList.remove('plain'); } }).catch(() => {});
+  cv.onclick = null;
+  idb.get('cover_' + st.id).then(src => { if (src && bookId === st.id) { cv.style.backgroundImage = `url("${src}")`; cv.classList.remove('plain'); cv.onclick = () => openLightbox(src); } }).catch(() => {});
   $('sbHead').textContent = $('sbTitle').textContent = st.title || 'Untitled';
   $('sbBy').textContent = `A story with ${st.charName}`;
   const pos = store.get('storyPos', {})[st.id] || 0, pct = Math.round(pos * 100);
   $('sbRead').textContent = pos >= .995 ? 'Read again' : pct > 0 ? `Continue reading · ${pct}%` : 'Read';
   $('sbRead').onclick = () => { if (pos >= .995) { const o = store.get('storyPos', {}); o[st.id] = 0; store.set('storyPos', o); } openReader(st.id); };
-  const d = $('sbDesc'); d.replaceChildren();
-  if (st.description) d.textContent = st.description;
+  const d = $('sbDesc'); d.replaceChildren(); d.className = 'sb-desc prof-body';
+  if (st.description) renderDesc(d, st.description);
   else {
     const g = document.createElement('button'); g.type = 'button'; g.className = 'sb-gen'; g.textContent = 'Generate description';
     g.onclick = async () => {
@@ -9390,12 +9398,14 @@ function storyMenu(st) {
       try { const body = await idb.get('story_' + st.id); await makeStoryCover(st, { ch, c, p: personas.find(x => x.id === st.personaId) || personaOf(ch) }, body); coverCache.delete(st.id); shrinkCache.delete('cover_' + st.id + '|520'); saveStories(); renderStories(); toast('New cover ready'); }
       catch (e) { toast('The cover failed: ' + e.message); }
     } }] : []),
-    { label: 'Delete story', onClick: () => {
-      if (!confirm(`Delete "${st.title || 'this story'}"? The chat stays.`)) return;
-      if (storyJob?.id === st.id) { storyJob.stop = true; storyJob.ctl.abort(); }
-      stories = stories.filter(x => x !== st); saveStories(); for (const k of ['storyPos', 'storyReadAt']) { const o = store.get(k, {}); delete o[st.id]; store.set(k, o); } idb.del('story_' + st.id).catch(() => {}); idb.del('cover_' + st.id).catch(() => {}); renderStories();
-    } },
+    { label: 'Delete story', onClick: () => deleteStory(st) },
   ]);
+}
+function deleteStory(st) {
+  if (!confirm(`Delete "${st.title || 'this story'}"? The chat stays.`)) return;
+  if (storyJob?.id === st.id) { storyJob.stop = true; storyJob.ctl.abort(); }
+  stories = stories.filter(x => x !== st); saveStories(); for (const k of ['storyPos', 'storyReadAt']) { const o = store.get(k, {}); delete o[st.id]; store.set(k, o); } idb.del('story_' + st.id).catch(() => {}); idb.del('cover_' + st.id).catch(() => {}); renderStories();
+  if (bookId === st.id && topView()?.id === 'storyBook') closeView('storyBook');
 }
 
 // ---------- Replace rules: find and replace on messages ----------
@@ -9741,7 +9751,7 @@ let seStory = null, seBody = null;
 async function openStoryEdit(st) {
   const body = await idb.get('story_' + st.id).catch(() => null);
   seStory = st; seBody = body;
-  $('seTitle').value = st.title || ''; $('seNames').value = st.charName || ''; $('seStyle').value = st.style || ''; $('seDesc').value = st.description || '';
+  $('seTitle').value = st.title || ''; $('seNames').value = st.charName || ''; $('seStyle').value = st.style || ''; descMoveTo('seDescHost', "Shown on the story's book page"); $('edDesc').value = st.description || ''; descShowEditor(); descLoad();
   const box = $('seChapters'); box.innerHTML = '';
   if (!body?.chapters?.length) { const e = document.createElement('div'); e.className = 'hint'; e.textContent = 'Nothing written yet.'; box.append(e); }
   else body.chapters.forEach((c, i) => {
@@ -9764,7 +9774,7 @@ async function openStoryEdit(st) {
 async function saveStoryEdit() {
   const st = seStory; if (!st) return;
   if (storyJob?.id === st.id) return toast('The story is being written; edit it when it is done');
-  st.title = $('seTitle').value.trim() || st.title; st.charName = $('seNames').value.trim() || st.charName; st.style = $('seStyle').value.trim(); st.description = $('seDesc').value.trim();
+  st.title = $('seTitle').value.trim() || st.title; st.charName = $('seNames').value.trim() || st.charName; st.style = $('seStyle').value.trim(); st.description = $('edDesc').value.trim();
   if (seBody?.chapters?.length) {
     for (const el of $('seChapters').querySelectorAll('[data-k]')) { const c = seBody.chapters[+el.dataset.i]; if (c) c[el.dataset.k] = el.dataset.k === 'text' ? el.value.trim() : el.value.trim(); }
     st.words = seBody.chapters.reduce((n, x) => n + (x.text.trim() ? x.text.trim().split(/\s+/).length : 0), 0);
@@ -9778,7 +9788,7 @@ $('seGenDesc').onclick = async () => {
   const pr = cfg.proxies.find(x => x.id === st.proxyId) || cfg.proxies.find(x => x.id === cfg.proxyId);
   if (!pr?.url || !pr?.model) return toast('Choose a proxy with a URL and model in Settings');
   const btn = $('seGenDesc'); btn.disabled = true; btn.textContent = 'Writing…';
-  try { $('seDesc').value = await storyBlurb({ ...st, title: $('seTitle').value.trim() || st.title }, seBody, { chat: { proxyId: pr.id }, free: true }); autosize($('seDesc')); }
+  try { $('edDesc').value = await storyBlurb({ ...st, title: $('seTitle').value.trim() || st.title }, seBody, { chat: { proxyId: pr.id }, free: true }); descShowEditor(); descLoad(); }
   catch (e) { if (!isAbort(e)) toast('Could not write a description: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = 'Generate description'; }
 };
@@ -9973,6 +9983,10 @@ function rdWhere() {
   stage.addEventListener('scroll', () => { if (rdPrefs.mode === 'scroll') rdWhere(); }, { passive: true });
   addEventListener('resize', () => { if ($('reader').classList.contains('open')) applyReader(); });
 })();
+$('sbMore').onclick = () => {
+  const st = stories.find(x => x.id === bookId); if (!st) return;
+  showSheet('', [{ label: 'Edit', onClick: () => openStoryEdit(st) }, { label: 'Delete', onClick: () => deleteStory(st) }]);
+};
 $('rdBack').onclick = () => { closeView('reader'); renderStories(); if (topView()?.id === 'storyBook') renderBook(); };
 $('rdAa').onclick = () => { $('rdPanel').hidden = !$('rdPanel').hidden; };
 $('rdPanel').onclick = e => {
@@ -10172,20 +10186,19 @@ function renderGroupNew() {
     const a = document.createElement('span'); a.className = 'av'; setThumb(a, c);
     const n = document.createElement('span'); n.textContent = c.name;
     const k = document.createElement('span'); k.className = 'gn-n'; k.textContent = gnPicked.includes(c.id) ? gnPicked.indexOf(c.id) + 1 : '';
-    b.append(a, n, k);
-    b.onclick = () => { const i = gnPicked.indexOf(c.id); i >= 0 ? gnPicked.splice(i, 1) : gnPicked.push(c.id); renderGroupNew(); };
-    // the small arrow shows the character's description under it; opening one closes the one that was open
-    const w = document.createElement('div'); w.className = 'gn-wrap' + (gnOpen === c.id ? ' open' : '');
-    const row = document.createElement('div'); row.className = 'gn-row';
-    const more = document.createElement('button'); more.type = 'button'; more.className = 'gn-more'; more.setAttribute('aria-label', 'Description');
-    more.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
-    more.onclick = () => {
+    // tapping the character unfolds the description under it (opening one closes the one that was open); the circle picks them
+    b.append(a, n);
+    b.onclick = () => {
       gnOpen = gnOpen === c.id ? null : c.id;
       for (const x of $('gnList').querySelectorAll('.gn-wrap')) x.classList.toggle('open', x.dataset.id === gnOpen);
     };
+    const pick = document.createElement('button'); pick.type = 'button'; pick.className = 'gn-pick'; pick.setAttribute('aria-label', gnPicked.includes(c.id) ? `Take ${c.name} out` : `Add ${c.name}`); pick.append(k);
+    pick.onclick = () => { const i = gnPicked.indexOf(c.id); i >= 0 ? gnPicked.splice(i, 1) : gnPicked.push(c.id); renderGroupNew(); };
+    const w = document.createElement('div'); w.className = 'gn-wrap' + (gnOpen === c.id ? ' open' : '') + (gnPicked.includes(c.id) ? ' on' : '');
+    const row = document.createElement('div'); row.className = 'gn-row';
     const d = document.createElement('div'); d.className = 'gn-desc';
     const dt = document.createElement('div'); dt.textContent = htmlToText(c.description || '').trim() || 'No description.'; d.append(dt);
-    w.dataset.id = c.id; row.append(b, more); w.append(row, d);
+    w.dataset.id = c.id; row.append(b, pick); w.append(row, d);
     return w;
   }));
   $('gnGo').disabled = gnPicked.length < 2;
@@ -10236,7 +10249,7 @@ function renderGroupSettings() {
     list.append(r);
   });
   const add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.textContent = '+ Add a character'; add.style.marginTop = '8px';
-  add.onclick = () => pickChar('Add to the group', c => { if (g.members.includes(c.id)) return toast(`${c.name} is already in it`); g.members.push(c.id); save(); renderGroupSettings(); }, true); // with the small arrow for each one's description
+  add.onclick = () => pickChar('Add to the group', c => { if (g.members.includes(c.id)) return toast(`${c.name} is already in it`); g.members.push(c.id); save(); renderGroupSettings(); }, true); // tap a name for the description, + to add
   c1.append(list, add, hint('The switch: talks on their own (off = muted; tapping them above the text box still makes them talk). ↑ changes the order for List order.'));
   // reply order
   const c2 = card();
