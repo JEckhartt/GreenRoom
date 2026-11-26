@@ -86,7 +86,7 @@
   .pill:hover { color: var(--ink); border-color: var(--ink-soft); }
 
   main { flex: 1; overflow-y: auto; }
-  #log { max-width: 760px; margin: 0 auto; padding: 6px var(--side-m, 12px) 20px; display: flex; flex-direction: column; gap: 16px; }
+  #log { max-width: 760px; margin: 0 auto; padding: 6px var(--side-m, 12px) 20px; display: flex; flex-direction: column; gap: 24px; }
   .msg { max-width: 85%; white-space: pre-wrap; overflow-wrap: anywhere; }
   .msg.me { align-self: flex-end; background: var(--bubble-me); padding: 10px 14px; border-radius: 18px 18px 4px 18px; border: 1px solid var(--line); font-family: var(--me-font); }
   .msg.ai { align-self: flex-start; }
@@ -621,7 +621,7 @@
   body[data-sides=right] .msg.ai .alts .ts { margin-left: 0; margin-right: auto; order: -1; }
   .msg.me > .mname { text-align: right; }
   body[data-sides=left] .msg.me > .mname { text-align: left; }
-  .mname { display: none; font: 600 10px/1.4 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 6px; white-space: normal; background: none; text-shadow: none; }
+  .mname { display: none; font: 600 12.5px/1.4 'Inter', system-ui, sans-serif; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; white-space: normal; background: none; text-shadow: none; }
   .msg.ai > .mname { color: var(--name-ai, var(--accent)); -webkit-text-fill-color: var(--name-ai, var(--accent)); }
   .msg.me > .mname { color: var(--name-me, var(--accent)); -webkit-text-fill-color: var(--name-me, var(--accent)); }
   body.names-ai .msg.ai > .mname, body.names-me .msg.me > .mname, #chat.grp .msg.ai > .mname { display: block; }
@@ -665,7 +665,7 @@
   body.ai-bubble[data-bubbleai=block] .msg.ai { border-radius: 6px; border-color: transparent; background: var(--card); }
   body[data-sides=left][data-bubbleme=tail] .msg.me { border-radius: 18px 18px 18px 4px; }
   body.ai-bubble[data-sides=right][data-bubbleai=tail] .msg.ai { border-radius: 18px 18px 4px 18px; }
-  body[data-spacing=compact] #log { gap: 8px; } body[data-spacing=airy] #log { gap: 32px; }
+  body[data-spacing=compact] #log { gap: 12px; } body[data-spacing=airy] #log { gap: 40px; }
   body[data-spacing=compact] .preview { gap: 6px; } body[data-spacing=airy] .preview { gap: 22px; }
   body.notime-ai .msg.ai .ts, body.notime-me .msg.me .ts { display: none; }
   /* full width: edge to edge (the picture keeps its spot next to it) */
@@ -873,10 +873,10 @@
   body.notime-ai .msg.ai .ts i.tm, body.notime-me .msg.me .ts i.tm { display: none; }
   body.notime-ai .msg.ai .ts:has(b.pin-l:not(:empty)), body.notime-me .msg.me .ts:has(b.pin-l:not(:empty)) { display: inline; }
   .alts .ver { display: inline-flex; align-items: center; }
-  .alts .cmd { font: 700 10px 'Inter', system-ui, sans-serif !important; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-ink) !important; -webkit-text-fill-color: var(--accent-ink) !important; padding: 6px 0 !important; margin: 0 0 0 16px !important; }
+  .alts .cmd { font: 400 13px 'Inter', system-ui, sans-serif !important; letter-spacing: 0; text-transform: none; color: var(--ink-soft) !important; -webkit-text-fill-color: var(--ink-soft) !important; padding: 6px 0 !important; margin: 0 0 0 16px !important; }
   .alts .ver + .cmd, .alts > .cmd:first-child { margin-left: 0 !important; }
   .alts .ver + .cmd { margin-left: 10px !important; }
-  .alts.newest { opacity: 1; }
+  .alts.newest { opacity: .8; }
   .alts { display: flex; align-items: center; gap: 2px; margin-top: 4px; font: 12px 'Inter', system-ui, sans-serif; color: var(--ink-soft); opacity: .55;
     -webkit-text-fill-color: var(--ink-soft); text-shadow: none; }
   .alts button { border: 0; background: none; color: inherit; -webkit-text-fill-color: var(--ink-soft); font-size: 18px; line-height: 1; padding: 4px 8px; cursor: pointer; }
@@ -1411,7 +1411,7 @@
   <div class="page-head">
     <button class="back" data-close="chat" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <button class="chat-who" id="chatWho" type="button" aria-label="Chat settings"><span class="av" id="chatAv"></span><span class="gstack" id="chatAvs" hidden></span><span class="who-txt"><span id="chatName"></span><small id="chatAs"></small></span></button>
-    <button class="act more-act" id="chatMore" type="button" aria-label="Profile, chat settings, search and pictures">⋯</button>
+    <button class="act more-act" id="chatMore" type="button" aria-label="Profile, search and pictures">⋯</button>
   </div>
   <main id="scroller"><div id="log"></div></main>
   <div class="tb-wrap"><button type="button" id="toBottom" aria-label="Scroll to the newest message" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button></div>
@@ -5268,12 +5268,11 @@ $('profEdit').onclick = () => openEditor('char', profileId);
 $('profDelete').onclick = () => { if (deleteItems('char', [profileId])) closeView('profile'); };
 $('profExport').onclick = () => { const c = chars.find(x => x.id === profileId); if (c) exportCard(c); };
 $('chatWho').onclick = () => cur && openChatSettings();
-// ⋯ in the chat header: the character's profile, Chat settings, search in the chat and its pictures
+// ⋯ in the chat header: the character's profile, search in the chat and its pictures (Chat settings: tap the name)
 $('chatMore').onclick = () => {
   if (!cur) return;
   showSheet('', [
     ...(cur.chat.group ? [] : [{ label: 'Profile', onClick: () => openProfile(cur.c.id) }]),
-    { label: 'Chat settings', onClick: () => openChatSettings() },
     { label: 'Search in chat', onClick: () => { openChatImages(); setTimeout(() => $('ciSearch').focus(), 350); } },
     { label: 'Pictures in this chat', onClick: () => openChatImages() },
   ]);
