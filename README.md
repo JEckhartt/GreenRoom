@@ -63,7 +63,7 @@ With **Enable** off it's a regular chat: no images are made or sent to the AI (e
 
 ## Stories
 
-**Stories** on the title screen turns a chat into a novel. **New story**:
+**Stories** on the title screen turns a chat into a novel. **+** (New story):
 - **Chat** (pick the character, then the chat) and the **proxy** that writes it.
 - **Divide into chapters** (on): for longer chats, one chapter per ~14,000 characters of chat, cut at natural breaks (a long pause between messages). Shorter chats become one story.
 - **Point of view**: first person or third person limited, through the character's or the persona's eyes, or omniscient.
