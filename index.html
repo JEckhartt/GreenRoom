@@ -875,6 +875,9 @@
   #chats .items { gap: 0; }
   #chats .items > .group { border: 0; border-radius: 0; background: none; border-top: 1px solid var(--line); overflow: visible; }
   #chats .items > .group:last-child { border-bottom: 1px solid var(--line); }
+  #chats .pins { position: sticky; top: 41px; z-index: 2; background: var(--bg); }
+  #chats .pins > .group { border: 0; border-radius: 0; background: none; border-top: 1px solid var(--line); }
+  #chats .items > .pins:last-child { border-bottom: 1px solid var(--line); }
   #chats .group > .item, #chats .folder-head > .item { padding: 12px 2px; gap: 14px; }
   #chats .item:active { background: color-mix(in srgb, var(--ink) 5%, transparent); }
   #chats .thumb.sm { width: 46px; aspect-ratio: 1; border-radius: 6px; font-size: 18px; }
@@ -4629,8 +4632,14 @@ function renderChats() {
     return list.appendChild(e);
   }
   // pinned chats first (long press a chat → Pin chat); they also stay in their usual place below
-  for (const ch of chats.filter(x => x.pinned && (x.group ? x.group.members.some(m => chars.some(c => c.id === m)) : chars.some(c => c.id === x.charId))).sort((a, b) => b.updated - a.updated))
-    list.appendChild(pinnedRow(ch));
+  // …and they stay put under the search field while the rest scrolls
+  const pinned = chats.filter(x => x.pinned && (x.group ? x.group.members.some(m => chars.some(c => c.id === m)) : chars.some(c => c.id === x.charId))).sort((a, b) => b.updated - a.updated);
+  if (pinned.length) {
+    const pins = document.createElement('div'); pins.className = 'pins';
+    for (const ch of pinned) pins.append(pinnedRow(ch));
+    list.appendChild(pins);
+    requestAnimationFrame(() => { pins.style.top = $('chatSearch').offsetHeight + 'px'; });
+  }
   if (groupChats.length) {
     const key = 'groups', open = expanded.has(key);
     const g = document.createElement('div'); g.className = 'group' + (open ? ' open' : '');
