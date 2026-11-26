@@ -896,6 +896,13 @@
   #chats .crow .snip { font-size: 13.5px; margin-top: 2px; }
   #chats .crow .del { width: 32px; height: 32px; border: 0; color: var(--ink-soft); }
   #chats .crow .del:active { color: var(--accent-ink); }
+  /* normal view: tall portrait picture, time on the right (and a pinned chat's last line); compact leaves those out */
+  #chats .items:not(.compact) .thumb.sm { width: 52px; aspect-ratio: 3 / 4; border-radius: 6px; }
+  #chats .thumb.sm.pic { background-size: cover !important; }
+  #chats .items:not(.compact) .folder-icon { width: 52px; height: 52px; }
+  #chats .item h3 .rtime { margin-left: auto; flex: none; font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+  #chats .lastline { margin-top: 5px; font-size: 13.5px; line-height: 1.35; color: var(--ink-soft); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+  #chats .items.compact .rtime, #chats .items.compact .lastline { display: none; }
   #chats .items.compact .group > .item, #chats .items.compact .folder-head > .item { padding: 8px 2px; }
   #chats .items.compact .thumb.sm { width: 36px; font-size: 15px; }
   #chats .items.compact .folder-icon { width: 36px; height: 36px; }
@@ -4602,6 +4609,16 @@ function parseChat(text, c) {
 }
 
 // ---------- Chats overview ----------
+// "2M", "1H", "YDA", "MON", "21 NOV": short, for the right of a row
+const shortWhen = t => {
+  const d = new Date(t), now = new Date(), min = (now - d) / 6e4;
+  if (min < 60) return Math.max(1, Math.round(min)) + 'm';
+  if (d.toDateString() === now.toDateString()) return Math.round(min / 60) + 'h';
+  const y = new Date(now); y.setDate(now.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return 'Yda';
+  if (now - d < 6 * 864e5) return d.toLocaleDateString([], { weekday: 'short' });
+  return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+};
 // the big "Chats" title gone from view: the bar shows the title instead
 $('chats').querySelector('.page-body').addEventListener('scroll', e => {
   const t = $('chats').querySelector('.ed-title').getBoundingClientRect(), top = e.target.getBoundingClientRect().top;
@@ -4696,6 +4713,8 @@ function renderChats() {
     const names = [...new Set(cs.map(ch => personaOf(ch)?.name || ch.personaName || 'no persona'))];
     const meta = document.createElement('p'); meta.textContent = `${cs.length} chat${cs.length > 1 ? 's' : ''} · as ${names.join(', ')}`;
     const chev = document.createElement('span'); chev.className = 'chev';
+    // normal view (not compact): when you last chatted with them, on the right
+    const tm = document.createElement('time'); tm.className = 'rtime'; tm.textContent = shortWhen(cs[0].updated); h.append(tm);
     info.append(h, meta); head.append(th, info, chev);
     head.onclick = () => { const was = expanded.has(c.id); expanded.clear(); if (!was) expanded.add(c.id); renderChats(); }; // one character open at a time
     g.append(head);
@@ -4726,10 +4745,12 @@ function pinnedRow(ch) {
   const h = document.createElement('h3'); h.textContent = ch.group ? (ch.group.name || 'Group chat') : c.name;
   const pn = personaOf(ch)?.name || ch.personaName, label = chatLabel(ch);
   if (ch.count == null) ch.count = msgGet(ch.id).length;
-  const meta = document.createElement('p'); meta.textContent = [pn && 'as ' + pn + (label ? ' · ' + label : ''), when(ch.updated)].filter(Boolean).join(' · ');
+  const meta = document.createElement('p'); meta.textContent = [pn && 'as ' + pn + (label ? ' · ' + label : '')].filter(Boolean).join(' · ');
   meta.insertAdjacentHTML('afterbegin', '<svg class="pin-i" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-label="Pinned"><path d="M15 3l6 6-2.5 1.2-3.8 3.8.6 4.5-1.8 1.8-4.2-4.2L4.5 21 3 19.5l4.8-4.8-4.2-4.2L5.4 8.7l4.5.6 3.8-3.8z"/></svg>');
   const chev = document.createElement('span'); chev.className = 'chev';
-  info.append(h, meta); b.append(pic, info, chev);
+  const tm = document.createElement('time'); tm.className = 'rtime'; tm.textContent = shortWhen(ch.updated); h.append(tm);
+  const last = document.createElement('div'); last.className = 'lastline'; last.textContent = stripMd(ch.preview || '');
+  info.append(h, meta, last); b.append(pic, info, chev);
   pressable(b, () => openChat(ch.id), () => { navigator.vibrate?.(12); chatMenu(ch, c); });
   g.append(b);
   return g;
