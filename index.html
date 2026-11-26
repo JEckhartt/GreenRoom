@@ -449,6 +449,11 @@
   .ed-form .save-bar .btn.primary { width: 100%; background: var(--accent); color: var(--on-accent); border: 0; font-weight: 600; padding: 14px; }
   /* a story's book page */
   .sb-cover { width: min(62%, 240px); margin: 6px auto 0; }
+  .se-cover { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 4px 0 8px; }
+  .se-cover .st-cover { width: min(52%, 200px); }
+  .se-cover .st-cover:not(.plain) { cursor: zoom-in; }
+  #seNewCover { border: 0; background: none; padding: 4px 0; color: var(--accent-ink); font: 700 10.5px 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; }
+  #seNewCover:disabled { color: var(--ink-soft); }
   .sb-cover .st-ttl { font-size: 22px; }
   .sb-cover:not(.plain) { cursor: zoom-in; }
   .sb-title { margin: 22px 0 6px; text-align: center; font-family: 'Fraunces', Georgia, serif; font-size: 28px; font-weight: 400; line-height: 1.15; }
@@ -2304,6 +2309,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
   <div class="page-head"><button class="back" data-close="storyEdit" type="button" aria-label="Cancel"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Edit story</h1><button class="act" id="seSave" type="button">Save</button></div>
   <div class="page-body"><div class="page-inner ed-form" style="padding-top:12px">
     <h2 class="ed-title">Edit story</h2>
+    <div class="se-cover"><div class="st-cover plain" id="seCover"><div class="st-ttl"></div></div><button type="button" id="seNewCover">New cover</button></div>
     <div class="card">
       <label class="f" for="seTitle">Title</label>
       <input type="text" id="seTitle">
@@ -2312,7 +2318,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
       <div class="hint">Shown under the cover, on the title page ("A story with …") and in the exports.</div>
       <label class="f" for="seStyle">Cover style</label>
       <input type="text" id="seStyle" placeholder="e.g. realistic 4k photo">
-      <div class="hint">Used by New cover (long press the story).</div>
+      <div class="hint">Used by New cover above. Uses your image proxy.</div>
       <label class="f">Description</label>
       <div id="seDescHost"></div>
       <div class="actions" style="margin-top:10px"><button class="btn" type="button" id="seGenDesc">Generate description</button></div>
@@ -9337,6 +9343,19 @@ SUMMARY: ten to fifteen sentences about everything that has happened in the stor
     if (!isAbort(e) && !meta.autoResume) toast('The story stopped: ' + e.message);
   } finally { storyJob = null; keepAwake(false); renderStories(); }
 }
+// Edit story → New cover: a new picture for the cover, in the style written above it
+async function newStoryCover(st, style) {
+  if (!imageProxyOk()) return toast('Set up an image proxy in Settings first');
+  const c = chars.find(x => x.id === st.charId), ch = chats.find(x => x.id === st.chatId); if (!c || !ch) return toast('The chat or character is gone');
+  const btn = $('seNewCover'); if (btn.disabled) return;
+  st.style = style.trim(); btn.disabled = true; btn.textContent = 'Making a new cover…';
+  try {
+    const body = await idb.get('story_' + st.id); await makeStoryCover(st, { ch, c, p: personas.find(x => x.id === st.personaId) || personaOf(ch) }, body);
+    coverCache.delete(st.id); shrinkCache.delete('cover_' + st.id + '|520'); saveStories(); renderStories(); if (bookId === st.id) renderBook();
+    if (seStory === st) seShowCover(st); toast('New cover ready');
+  } catch (e) { toast('The cover failed: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'New cover'; }
+}
 async function makeStoryCover(meta, s, body) {
   const r = await peopleRefs(s);
   const prompt = `The cover image for the novel "${meta.title}"${meta.style ? ', in exactly the style given above' : ''}. Story: ${body.summary || 'see the characters'}\nShow a striking scene or the main character${s.p ? 's' : ''} in a way that captures the mood of the story, composed as a book cover with space near the top for a title${meta.style ? ' (the style decides the look: a photo style means a real photograph, not a drawing)' : ''}. Do not write any text, letters or title on the image.`;
@@ -9525,13 +9544,6 @@ function storyMenu(st) {
       return [...(at < .995 ? [{ label: 'Mark as read', onClick: () => mark(1) }] : []), ...(at > 0 ? [{ label: 'Mark as unread', onClick: () => mark(null) }] : [])]; })() : []),
     ...(st.status !== 'writing' ? [{ label: 'Edit', onClick: () => openStoryEdit(st) }] : []),
     { label: 'Rename', onClick: () => { const t = prompt('Title', st.title || ''); if (t?.trim()) { st.title = t.trim(); saveStories(); renderStories(); } } },
-    ...(imageProxyOk() && st.status === 'done' ? [{ label: 'New cover', onClick: async () => {
-      const style = prompt('Cover style', st.style || cfg.storyStyle || ''); if (style === null) return;
-      const c = chars.find(x => x.id === st.charId), ch = chats.find(x => x.id === st.chatId); if (!c || !ch) return toast('The chat or character is gone');
-      st.style = style.trim(); toast('Making a new cover…');
-      try { const body = await idb.get('story_' + st.id); await makeStoryCover(st, { ch, c, p: personas.find(x => x.id === st.personaId) || personaOf(ch) }, body); coverCache.delete(st.id); shrinkCache.delete('cover_' + st.id + '|520'); saveStories(); renderStories(); toast('New cover ready'); }
-      catch (e) { toast('The cover failed: ' + e.message); }
-    } }] : []),
     { label: 'Delete story', onClick: () => deleteStory(st) },
   ]);
 }
@@ -9885,7 +9897,7 @@ let seStory = null, seBody = null;
 async function openStoryEdit(st) {
   const body = await idb.get('story_' + st.id).catch(() => null);
   seStory = st; seBody = body;
-  $('seTitle').value = st.title || ''; $('seNames').value = st.charName || ''; $('seStyle').value = st.style || ''; descMoveTo('seDescHost', "Shown on the story's book page"); $('edDesc').value = st.description || ''; descShowEditor(); descLoad();
+  $('seTitle').value = st.title || ''; $('seNames').value = st.charName || ''; $('seStyle').value = st.style || ''; seShowCover(st); descMoveTo('seDescHost', "Shown on the story's book page"); $('edDesc').value = st.description || ''; descShowEditor(); descLoad();
   const box = $('seChapters'); box.innerHTML = '';
   if (!body?.chapters?.length) { const e = document.createElement('div'); e.className = 'hint'; e.textContent = 'Nothing written yet.'; box.append(e); }
   else body.chapters.forEach((c, i) => {
@@ -9917,6 +9929,11 @@ async function saveStoryEdit() {
   saveStories(); renderStories(); if (bookId === st.id) renderBook(); closeView('storyEdit'); toast('Saved');
 }
 $('seSave').onclick = saveStoryEdit;
+function seShowCover(st) {
+  const cv = $('seCover'); cv.className = 'st-cover plain'; cv.style.backgroundImage = ''; cv.querySelector('.st-ttl').textContent = $('seTitle').value.trim() || st.title || 'Untitled';
+  idb.get('cover_' + st.id).then(src => { if (src && seStory === st) { cv.style.backgroundImage = `url("${src}")`; cv.classList.remove('plain'); cv.onclick = () => openLightbox(src); } }).catch(() => {});
+}
+$('seNewCover').onclick = () => seStory && newStoryCover(seStory, $('seStyle').value);
 $('seGenDesc').onclick = async () => {
   const st = seStory; if (!st) return;
   const pr = cfg.proxies.find(x => x.id === st.proxyId) || cfg.proxies.find(x => x.id === cfg.proxyId);
