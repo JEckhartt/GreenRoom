@@ -354,26 +354,70 @@
   .gs-text.open { -webkit-line-clamp: unset; }
   .vec-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
   .vec-row .btn { flex: none; padding: 7px 12px; font-size: 14px; }
-  /* Stories: the same editorial look as Chats — big title, covers with thin lines, small capitals for details */
-  .st-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 14px; border-top: 1px solid var(--line); padding-top: 16px; }
+  /* Stories: the app's editorial bones (big title, small capitals, hairlines, accent), dressed as a bookshelf */
+  .st-cap { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+  /* Continue reading: a list that folds away */
+  .st-read:empty { display: none; }
+  .st-read { margin-bottom: 26px; }
+  .st-rhead { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 2px 9px; border: 0; border-bottom: 1px solid var(--line); background: none; font: inherit; cursor: pointer; }
+  .st-rhead svg { color: var(--ink-soft); transition: transform .25s ease; }
+  .st-read.shut .st-rhead svg { transform: rotate(180deg); }
+  .st-rrows { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .25s ease; }
+  .st-rrows > div { min-height: 0; overflow: hidden; }
+  .st-read.shut .st-rrows { grid-template-rows: 0fr; }
+  .st-row { display: flex; align-items: center; gap: 14px; width: 100%; padding: 13px 2px 12px; border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; position: relative; }
+  .st-row:active { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+  .st-row .st-rt { flex: 1; min-width: 0; }
+  .st-row h3 { margin: 0 0 4px; font-family: 'Fraunces', Georgia, serif; font-size: 18px; font-weight: 400; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st-row .st-pct { flex: none; font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--accent-ink); }
+  .st-row i { position: absolute; left: 0; bottom: -1px; height: 1px; background: var(--accent-ink); }
+  /* not read yet: book covers, the title on the image in the upper left */
+  .st-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 16px; }
+  .st-grid > .st-cap { grid-column: 1 / -1; margin: 0 2px -12px; }
   .st-card { display: flex; flex-direction: column; gap: 0; background: none; border: 0; padding: 0; color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
-  .st-cover { position: relative; aspect-ratio: 2 / 3; border-radius: 6px; overflow: hidden; background: var(--bg-2) center / cover no-repeat; border: 1px solid var(--line); display: grid; place-items: center; }
-  .st-cover:not(.plain) { border-color: transparent; }
-  .st-cover .st-ini { font-family: 'Fraunces', Georgia, serif; font-size: 54px; color: var(--accent-ink); line-height: 1; }
-  .st-cover:not(.plain) .st-ini { display: none; }
+  .st-cover { position: relative; aspect-ratio: 2 / 3; border-radius: 3px 6px 6px 3px; overflow: hidden; background: color-mix(in srgb, var(--accent) 7%, var(--card, var(--bg-2))) center / cover no-repeat; box-shadow: 0 8px 20px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.2), inset 0 0 0 1px var(--line); }
+  .st-cover::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 9px; z-index: 1; background: linear-gradient(90deg, rgba(0,0,0,.28), rgba(255,255,255,.07) 55%, transparent); pointer-events: none; }
+  .st-cover .st-ttl { position: absolute; inset: 0 0 auto 0; padding: 12px 12px 30px 16px; font-family: 'Fraunces', Georgia, serif; font-size: 19px; line-height: 1.12; color: var(--ink); overflow-wrap: anywhere; }
+  .st-cover:not(.plain) .st-ttl { color: #fff; background: linear-gradient(rgba(0,0,0,.62), rgba(0,0,0,.28) 60%, transparent); text-shadow: 0 1px 3px rgba(0,0,0,.5); }
   .st-card:active .st-cover { opacity: .85; }
-  .st-card h3 { margin: 10px 0 4px; font-size: 17px; font-weight: 500; letter-spacing: -.01em; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .st-card small { display: block; color: var(--ink-soft); font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st-card small:first-of-type { margin-top: 10px; }
   .st-card .st-state { margin-top: 2px; color: var(--accent-ink); font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
-  .st-card.open .st-cover { outline: 1px solid var(--accent-ink); outline-offset: 3px; }
+  .st-card.open .st-cover { outline: 1px solid var(--accent-ink); outline-offset: 4px; }
   .st-panel { grid-column: 1 / -1; padding: 14px 2px 16px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  .st-pt { font-size: 17px; font-weight: 500; letter-spacing: -.01em; }
+  .st-pt { font-family: 'Fraunces', Georgia, serif; font-size: 18px; }
   .st-pbar { height: 2px; background: var(--line); overflow: hidden; margin: 12px 0 10px; }
   .st-pbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .6s ease; }
   .st-pinfo { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); line-height: 1.6; }
   .st-panel .actions { margin-top: 14px; }
   .st-panel .btn.primary { background: var(--accent); color: var(--on-accent); border: 0; font-weight: 600; }
   .st-empty { grid-column: 1 / -1; text-align: center; color: var(--ink-soft); padding: 40px 0; font-size: 15px; }
+  /* Edit story and New story: forms in the same style — no boxes, hairlines, small-capital labels */
+  .ed-form .card { background: none; border: 0; border-radius: 0; padding: 0; }
+  .ed-form .jan-h { margin: 30px 2px 0; padding-bottom: 9px; border-bottom: 1px solid var(--line); font-size: 10.5px; font-weight: 600; letter-spacing: .18em; color: var(--ink); }
+  .ed-form label.f { margin: 16px 2px 2px; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+  .ed-form .card input[type=text], .ed-form .card textarea, .ed-form .ss-select { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; padding: 8px 2px 10px; }
+  .ed-form .card input:focus, .ed-form .card textarea:focus, .ed-form .ss-select:focus { border-color: var(--accent-ink); outline: none; }
+  .ed-form .hint { margin: 8px 2px 0; }
+  .ed-form .line { padding: 14px 2px 12px; border-bottom: 1px solid var(--line); }
+  .ed-form .seg { margin-top: 6px; padding: 0; gap: 18px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
+  .ed-form .seg button { flex: none; padding: 8px 0 9px; border-radius: 0; color: var(--ink-soft); border-bottom: 1px solid transparent; margin-bottom: -1px; font-size: 15px; }
+  .ed-form .seg button.on { background: none; color: var(--ink); border-bottom-color: var(--accent-ink); }
+  .ed-form .chips { margin-top: 14px; }
+  .ed-form .chips button { border-radius: 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; padding: 8px 14px; }
+  .ed-pick { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 14px 2px 13px; border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--ink); font: inherit; font-size: 17px; text-align: left; cursor: pointer; }
+  .ed-pick span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ed-pick svg { flex: none; color: var(--accent-ink); }
+  .ed-form .save-bar { margin-top: 28px; }
+  .ed-form .save-bar .btn.primary { width: 100%; background: var(--accent); color: var(--on-accent); border: 0; font-weight: 600; padding: 14px; }
+  /* chapters in Edit story fold open one by one */
+  .se-ch { border-bottom: 1px solid var(--line); }
+  .se-ch > summary { display: flex; align-items: center; gap: 12px; padding: 14px 2px 13px; list-style: none; cursor: pointer; }
+  .se-ch > summary::-webkit-details-marker { display: none; }
+  .se-ch .se-t { flex: 1; min-width: 0; }
+  .se-ch .se-t b { display: block; font-family: 'Fraunces', Georgia, serif; font-size: 17px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+  .se-ch .se-body { padding: 0 0 16px; }
+  .se-ch textarea { min-height: 220px; line-height: 1.5; }
   .ss-select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; }
   #ssFormats button { font-size: 15px; }
   /* reader */
@@ -869,8 +913,8 @@
 
   /* ---------- Chats: editorial, like Home — big title, thin lines instead of cards, small capitals for details ---------- */
   /* the bar's title fades in once the big title has scrolled away; search stays pinned under the bar */
-  #chats .page-head h1, #stories .page-head h1 { opacity: 0; transition: opacity .25s ease; }
-  #chats.titled .page-head h1, #stories.titled .page-head h1 { opacity: 1; }
+  #chats .page-head h1, #stories .page-head h1, #storyEdit .page-head h1, #storySetup .page-head h1 { opacity: 0; transition: opacity .25s ease; }
+  #chats.titled .page-head h1, #stories.titled .page-head h1, #storyEdit.titled .page-head h1, #storySetup.titled .page-head h1 { opacity: 1; }
   .ed-title { margin: 6px 2px 14px; font-family: 'Inter', system-ui, sans-serif; font-size: 40px; font-weight: 500; letter-spacing: -.035em; line-height: 1; }
   #chats input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
   #chats #chatList { margin-top: 6px; }
@@ -1974,6 +2018,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
   <div class="page-head"><button class="back" data-close="stories" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Stories</h1><span class="head-acts"><button class="act plus" id="stNew" type="button" aria-label="New story"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <h2 class="ed-title">Stories</h2>
+    <div class="st-read" id="stRead"></div>
     <div class="st-grid" id="stGrid"></div>
   </div></div>
 </section>
@@ -2050,9 +2095,10 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 
 <section id="storyEdit" class="view" aria-label="Edit story">
   <div class="page-head"><button class="back" data-close="storyEdit" type="button" aria-label="Cancel"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Edit story</h1><button class="act" id="seSave" type="button">Save</button></div>
-  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+  <div class="page-body"><div class="page-inner ed-form" style="padding-top:12px">
+    <h2 class="ed-title">Edit story</h2>
     <div class="card">
-      <label class="f" for="seTitle" style="margin-top:12px">Title</label>
+      <label class="f" for="seTitle">Title</label>
       <input type="text" id="seTitle">
       <label class="f" for="seNames">Characters</label>
       <input type="text" id="seNames" placeholder="e.g. Cormac Ashwood &amp; Joey">
@@ -2061,7 +2107,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
       <input type="text" id="seStyle" placeholder="e.g. realistic 4k photo">
       <div class="hint">Used by New cover (long press the story).</div>
     </div>
-    <div class="jan-h" style="margin-top:16px">Text</div>
+    <div class="jan-h">Text</div>
     <div id="seChapters"></div>
     <div class="save-bar"><button class="btn primary" type="button" id="seSave2">Save</button></div>
   </div></div>
@@ -2069,10 +2115,11 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 
 <section id="storySetup" class="view" aria-label="New story">
   <div class="page-head"><button class="back" data-close="storySetup" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>New story</h1><span></span></div>
-  <div class="page-body"><div class="page-inner" style="padding-top:4px">
+  <div class="page-body"><div class="page-inner ed-form" style="padding-top:12px">
+    <h2 class="ed-title">New story</h2>
     <div class="jan-h">Chat</div>
-    <div class="card" style="padding-top:12px">
-      <button type="button" class="btn" id="ssChat" style="width:100%">Choose a chat</button>
+    <div class="card">
+      <button type="button" class="ed-pick" id="ssChat"><span>Choose a chat</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
       <div class="hint" id="ssChatInfo"></div>
     </div>
     <div class="jan-h">Writing</div>
@@ -2102,7 +2149,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
       <div class="hint">Only the style: the rest of the cover is worked out from the story, with the profile pictures as reference. Uses your image proxy.</div>
     </div>
     <div class="jan-h">Publish as</div>
-    <div class="card" style="padding-top:12px">
+    <div class="card">
       <div class="chips" id="ssFormats"><button type="button" data-v="txt">Text</button><button type="button" data-v="pdf">PDF</button><button type="button" data-v="epub" class="on">EPUB</button></div>
       <div class="hint">Saved when the story is finished (you can always export again from the story).</div>
     </div>
@@ -4628,7 +4675,7 @@ const shortWhen = t => {
 // pinned chats sit flush under the pinned search field, whatever height it has on this device
 new ResizeObserver(() => $('chats').style.setProperty('--search-h', $('chatSearch').offsetHeight + 'px')).observe($('chatSearch'));
 // the big "Chats" title gone from view: the bar shows the title instead
-for (const id of ['chats', 'stories']) $(id).querySelector('.page-body').addEventListener('scroll', e => {
+for (const id of ['chats', 'stories', 'storyEdit', 'storySetup']) $(id).querySelector('.page-body').addEventListener('scroll', e => {
   const t = $(id).querySelector('.ed-title').getBoundingClientRect(), top = e.target.getBoundingClientRect().top;
   $(id).classList.toggle('titled', t.bottom < top + 8);
 }, { passive: true });
@@ -8885,7 +8932,7 @@ function openStorySetup() {
 function storyChat() { const ch = chats.find(x => x.id === setup.chatId); return ch && { ch, c: chars.find(x => x.id === ch.charId), p: personaOf(ch) }; }
 function syncStorySetup() {
   const s = storyChat();
-  $('ssChat').textContent = s?.c ? `${s.c.name} · as ${s.p?.name || s.ch.personaName || 'no persona'}` : 'Choose a chat';
+  $('ssChat').firstElementChild.textContent = s?.c ? `${s.c.name} · as ${s.p?.name || s.ch.personaName || 'no persona'}` : 'Choose a chat';
   const n = s ? storyMessages(s).length : 0, size = s ? storyMessages(s).reduce((a, m) => a + m.text.length, 0) : 0;
   const parts = s ? storyParts(storyMessages(s), $('ssChapters').checked).length : 0;
   $('ssChatInfo').textContent = s ? `${n} messages, ${Math.round(size / 1000)}k characters → ${parts} part${parts === 1 ? '' : 's'}, ${parts} request${parts === 1 ? '' : 's'} to the proxy${parts > 1 && $('ssChapters').checked ? ', one chapter each' : ''}.` : 'The chat that becomes the story.';
@@ -9045,21 +9092,44 @@ async function makeStoryCover(meta, s, body) {
 
 // ---------- The Stories page: covers in a grid ----------
 const coverCache = new Map();
+const chevSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>';
+const wordsText = st => st.words ? `${st.words.toLocaleString()} words` : 'Not started';
+const storyState = st => ({ writing: `Writing ${Math.min(st.done + 1, st.parts.length)}/${st.parts.length}…`, naming: 'Choosing a title…', cover: 'Making the cover…', stopped: `Paused at ${st.done}/${st.parts.length}`, error: `Stopped at ${st.done}/${st.parts.length}` })[st.status];
+// Stories: the ones you started reading in a list at the top (folds away), the ones not read yet as covers below
 function renderStories() {
-  const g = $('stGrid'); if (!g) return; g.innerHTML = '';
+  const g = $('stGrid'), rl = $('stRead'); if (!g) return; g.innerHTML = ''; rl.innerHTML = '';
   if (!stories.length) { const e = document.createElement('div'); e.className = 'st-empty'; e.textContent = 'No stories yet. Tap + to turn a chat into one.'; g.append(e); return; }
-  for (const st of stories) {
+  const pos = store.get('storyPos', {}), at = store.get('storyReadAt', {});
+  const reading = stories.filter(st => st.id in pos).sort((a, b) => (at[b.id] || 0) - (at[a.id] || 0));
+  const unread = stories.filter(st => !(st.id in pos));
+  if (reading.length) {
+    rl.classList.toggle('shut', !!store.get('readShut', false));
+    const head = document.createElement('button'); head.type = 'button'; head.className = 'st-rhead';
+    head.innerHTML = `<span class="st-cap" style="color:var(--ink)">Continue reading</span>${chevSvg}`;
+    head.onclick = () => { const shut = !rl.classList.contains('shut'); rl.classList.toggle('shut', shut); store.set('readShut', shut); };
+    const wrap = document.createElement('div'); wrap.className = 'st-rrows'; const inner = document.createElement('div'); wrap.append(inner);
+    for (const st of reading) {
+      const pct = Math.round(Math.min(1, Math.max(0, pos[st.id] || 0)) * 100);
+      const r = document.createElement('button'); r.type = 'button'; r.className = 'st-row';
+      r.innerHTML = `<span class="st-rt"><h3></h3><span class="st-cap"></span></span><span class="st-pct">${pct}%</span><i style="width:${pct}%"></i>`;
+      r.querySelector('h3').textContent = st.title || 'Untitled';
+      r.querySelector('.st-cap').textContent = storyState(st) || wordsText(st);
+      pressable(r, () => openReader(st.id), () => { navigator.vibrate?.(12); storyMenu(st); });
+      inner.append(r);
+    }
+    rl.append(head, wrap);
+  }
+  for (const st of unread) {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'st-card';
     const cv = document.createElement('div'); cv.className = 'st-cover plain';
-    const ini = document.createElement('span'); ini.className = 'st-ini'; ini.textContent = (st.title || st.charName || '?').trim()[0]?.toUpperCase() || '?'; cv.append(ini);
-    const t = document.createElement('h3'); t.textContent = st.title || 'Untitled';
+    const t = document.createElement('div'); t.className = 'st-ttl'; t.textContent = st.title || 'Untitled'; cv.append(t);
     const show = src => { if (!src) return; cv.style.backgroundImage = `url("${src}")`; cv.classList.remove('plain'); };
     if (coverCache.has(st.id)) show(coverCache.get(st.id));
     else idb.get('cover_' + st.id).then(src => src && shrinkSrc('cover_' + st.id, src, 520).then(sm => { coverCache.set(st.id, sm); show(sm); })).catch(() => {});
     const sm = document.createElement('small'); sm.textContent = st.charName;
-    const wd = document.createElement('small'); wd.textContent = st.words ? `${st.words.toLocaleString()} words` : 'Not started';
-    b.append(cv, t, sm, wd);
-    const state = { writing: `Writing ${Math.min(st.done + 1, st.parts.length)}/${st.parts.length}…`, naming: 'Choosing a title…', cover: 'Making the cover…', stopped: `Paused at ${st.done}/${st.parts.length}`, error: `Stopped at ${st.done}/${st.parts.length}` }[st.status];
+    const wd = document.createElement('small'); wd.textContent = wordsText(st);
+    b.append(cv, sm, wd);
+    const state = storyState(st);
     if (state) { const s2 = document.createElement('span'); s2.className = 'st-state'; s2.textContent = state; b.append(s2); }
     pressable(b, () => {
       if (st.status === 'done') return openReader(st.id);
@@ -9133,7 +9203,7 @@ function storyMenu(st) {
     { label: 'Delete story', onClick: () => {
       if (!confirm(`Delete "${st.title || 'this story'}"? The chat stays.`)) return;
       if (storyJob?.id === st.id) { storyJob.stop = true; storyJob.ctl.abort(); }
-      stories = stories.filter(x => x !== st); saveStories(); idb.del('story_' + st.id).catch(() => {}); idb.del('cover_' + st.id).catch(() => {}); renderStories();
+      stories = stories.filter(x => x !== st); saveStories(); for (const k of ['storyPos', 'storyReadAt']) { const o = store.get(k, {}); delete o[st.id]; store.set(k, o); } idb.del('story_' + st.id).catch(() => {}); idb.del('cover_' + st.id).catch(() => {}); renderStories();
     } },
   ]);
 }
@@ -9485,16 +9555,21 @@ async function openStoryEdit(st) {
   const box = $('seChapters'); box.innerHTML = '';
   if (!body?.chapters?.length) { const e = document.createElement('div'); e.className = 'hint'; e.textContent = 'Nothing written yet.'; box.append(e); }
   else body.chapters.forEach((c, i) => {
-    const card = document.createElement('div'); card.className = 'card'; card.style.marginTop = i ? '10px' : '0';
-    const l1 = document.createElement('label'); l1.className = 'f'; l1.style.marginTop = '12px';
-    l1.textContent = body.chapters.length > 1 ? `${st.chapters ? 'Chapter' : 'Part'} ${i + 1}` : 'Story';
+    // each chapter folds open on its own: the label, its title and word count, then the text
+    const d = document.createElement('details'); d.className = 'se-ch card';
+    const sum = document.createElement('summary');
+    const words = n => `${n.toLocaleString()} word${n === 1 ? '' : 's'}`, count = () => { const t = ta.value.trim(); return t ? t.split(/\s+/).length : 0; };
+    sum.innerHTML = `<span class="se-t"><span class="st-cap"></span><b></b></span>`; // the arrow is the app's usual one for folding sections
+    const lab = body.chapters.length > 1 ? `${st.chapters ? 'Chapter' : 'Part'} ${i + 1}` : 'Story';
+    const body2 = document.createElement('div'); body2.className = 'se-body';
     const t = document.createElement('input'); t.type = 'text'; t.value = c.title || ''; t.placeholder = 'Chapter title (optional)'; t.dataset.k = 'title'; t.dataset.i = i;
-    const ta = document.createElement('textarea'); ta.value = c.text || ''; ta.dataset.k = 'text'; ta.dataset.i = i; ta.style.marginTop = '8px'; ta.style.minHeight = '220px';
-    ta.oninput = () => autosize(ta);
-    card.append(l1, ...(st.chapters || c.title ? [t] : []), ta); box.append(card);
+    const ta = document.createElement('textarea'); ta.value = c.text || ''; ta.dataset.k = 'text'; ta.dataset.i = i;
+    const head = () => { sum.querySelector('.st-cap').textContent = `${lab} · ${words(count())}`; sum.querySelector('b').textContent = t.value.trim() || (c.text || '').trim().split(/\s+/).slice(0, 8).join(' ') + '…'; };
+    ta.oninput = () => { autosize(ta); head(); }; t.oninput = head; head();
+    d.ontoggle = () => { if (d.open) requestAnimationFrame(() => autosize(ta)); };
+    body2.append(...(st.chapters || c.title ? [t] : []), ta); d.append(sum, body2); box.append(d);
   });
-  openView('storyEdit');
-  requestAnimationFrame(() => autosizeAll(box));
+  $('storyEdit').querySelector('.page-body').scrollTop = 0; openView('storyEdit');
 }
 async function saveStoryEdit() {
   const st = seStory; if (!st) return;
@@ -9659,6 +9734,7 @@ function rdWhere() {
   else { const top = $('rdStage').scrollTop + 40; for (const c of rd.chapters) if (c.el.offsetTop <= top) ch = c; }
   $('rdWhere').textContent = ((ch?.title || $('rdTitle').textContent) + ' · ') + (rdPrefs.mode === 'pages' ? `${rd.page + 1} / ${rd.pages}` : `${Math.round(frac * 100)}%`);
   const pos = store.get('storyPos', {}); pos[rd.id] = frac; store.set('storyPos', pos);
+  const at = store.get('storyReadAt', {}); at[rd.id] = Date.now(); store.set('storyReadAt', at);
 }
 // pages: tap the left or right edge, or swipe; tap the middle to hide or show the bars
 (() => {
