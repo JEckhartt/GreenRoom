@@ -463,6 +463,24 @@
   .sb-row .sb-v { flex: 1; min-width: 0; font-size: 15px; overflow-wrap: anywhere; }
   .sb-row.link { cursor: pointer; } .sb-row.link .sb-v { color: var(--accent-ink); } .sb-row.link svg { flex: none; color: var(--accent-ink); }
   .sb-row.link:active { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+  /* a lorebook: its name as the big title, settings on thin lines, entries folding open below */
+  .lb-form .card #lbName { margin: 6px 0 4px; padding: 0 2px 8px; border-bottom: 0; font-family: 'Inter', system-ui, sans-serif; font-size: 40px; font-weight: 500; letter-spacing: -.035em; line-height: 1.05; }
+  .lb-form #lbUsedBy { margin-bottom: 4px; }
+  .lb-add { display: flex; align-items: center; justify-content: space-between; margin: 30px 0 0; padding: 0 2px 9px; border-bottom: 1px solid var(--line); }
+  .lb-add .st-cap { color: var(--ink); letter-spacing: .18em; }
+  .lb-add button { border: 0; background: none; padding: 0; color: var(--accent-ink); font: 700 10.5px 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; }
+  .lb-form .entry { margin: 0; border-bottom: 1px solid var(--line); }
+  .lb-form .entry > summary.sub { padding: 14px 2px 13px; font-size: 17px; font-weight: 500; letter-spacing: -.01em; }
+  .lb-form .entry[open] { padding-bottom: 18px; }
+  .lb-form .entry > summary .tag { border-radius: 4px; background: none; border: 1px solid var(--accent-ink); padding: 1px 6px; font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .lb-form .entry > summary .tag.off { border-color: var(--line); background: none; }
+  .lb-form .lb-t input { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
+  .lb-form .lb-t { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+  .lb-form .lb-more { border-top: 1px solid var(--line); margin-top: 16px; }
+  .lb-form .entry > summary::after { margin-left: 12px; }
+  .lb-form .card input[type=number] { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
+  .lb-form .entry .btn.danger { border: 0; background: none; padding: 14px 2px 0; color: #e5484d; font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+  .lb-form .lb-more > summary { padding: 13px 2px 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
   /* chapters in Edit story fold open one by one */
   .se-ch { border-bottom: 1px solid var(--line); }
   .se-ch > summary { display: flex; align-items: center; gap: 12px; padding: 14px 2px 13px; list-style: none; cursor: pointer; }
@@ -1004,8 +1022,8 @@
 
   /* ---------- Chats: editorial, like Home — big title, thin lines instead of cards, small capitals for details ---------- */
   /* the bar's title fades in once the big title has scrolled away; search stays pinned under the bar */
-  #chats .page-head h1, #chars .page-head h1, #personas .page-head h1, #lorebooks .page-head h1, #albums .page-head h1, #stories .page-head h1, #storyEdit .page-head h1, #storySetup .page-head h1 { opacity: 0; transition: opacity .25s ease; }
-  #chats.titled .page-head h1, #chars.titled .page-head h1, #personas.titled .page-head h1, #lorebooks.titled .page-head h1, #albums.titled .page-head h1, #stories.titled .page-head h1, #storyEdit.titled .page-head h1, #storySetup.titled .page-head h1 { opacity: 1; }
+  #chats .page-head h1, #lorebook .page-head h1, #chars .page-head h1, #personas .page-head h1, #lorebooks .page-head h1, #albums .page-head h1, #stories .page-head h1, #storyEdit .page-head h1, #storySetup .page-head h1 { opacity: 0; transition: opacity .25s ease; }
+  #chats.titled .page-head h1, #lorebook.titled .page-head h1, #chars.titled .page-head h1, #personas.titled .page-head h1, #lorebooks.titled .page-head h1, #albums.titled .page-head h1, #stories.titled .page-head h1, #storyEdit.titled .page-head h1, #storySetup.titled .page-head h1 { opacity: 1; }
   .ed-title { margin: 6px 2px 14px; font-family: 'Inter', system-ui, sans-serif; font-size: 40px; font-weight: 500; letter-spacing: -.035em; line-height: 1; }
   #chars input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
   #chats input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
@@ -1281,17 +1299,16 @@
 </section>
 
 <section id="lorebook" class="view" aria-label="Lorebook">
-  <div class="page-head"><button class="back" data-close="lorebook" type="button" aria-label="Lorebooks"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="loreTitle"></h1><button class="act" id="loreMenu" type="button" aria-label="Lorebook options">•••</button></div>
-  <div class="page-body"><div class="page-inner">
+  <div class="page-head"><button class="back" data-close="lorebook" type="button" aria-label="Lorebooks"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="loreTitle"></h1><button class="act more-act" id="loreMenu" type="button" aria-label="Lorebook options">⋯</button></div>
+  <div class="page-body"><div class="page-inner ed-form lb-form" style="padding-top:12px">
     <div class="card">
-      <label class="f" for="lbName">Name</label>
-      <input id="lbName" type="text" autocomplete="off">
+      <input id="lbName" type="text" autocomplete="off" aria-label="Name" placeholder="Lorebook name">
       <div class="line"><span>Use in every chat</span><input type="checkbox" class="tgl" id="lbGlobal"></div>
       <div class="line"><span>Look for keywords in the last</span>
         <select id="lbDepth" class="pick-sel"><option value="2">2 messages</option><option value="4">4 messages</option><option value="6">6 messages</option><option value="10">10 messages</option><option value="20">20 messages</option></select></div>
       <div class="hint" id="lbUsedBy"></div>
     </div>
-    <div class="create" style="margin-top:6px"><button type="button" id="lbAdd">+ Add entry</button></div>
+    <div class="lb-add"><span class="st-cap">Entries</span><button type="button" id="lbAdd">+ Add entry</button></div>
     <div id="lbEntries"></div>
   </div></div>
 </section>
@@ -4840,8 +4857,8 @@ const shortWhen = t => {
 // pinned chats sit flush under the pinned search field, whatever height it has on this device
 new ResizeObserver(() => $('chats').style.setProperty('--search-h', $('chatSearch').offsetHeight + 'px')).observe($('chatSearch'));
 // the big "Chats" title gone from view: the bar shows the title instead
-for (const id of ['chats', 'chars', 'personas', 'lorebooks', 'albums', 'stories', 'storyEdit', 'storySetup']) $(id).querySelector('.page-body').addEventListener('scroll', e => {
-  const t = $(id).querySelector('.ed-title').getBoundingClientRect(), top = e.target.getBoundingClientRect().top;
+for (const id of ['chats', 'chars', 'personas', 'lorebooks', 'albums', 'stories', 'storyEdit', 'storySetup', 'lorebook']) $(id).querySelector('.page-body').addEventListener('scroll', e => {
+  const t = $(id).querySelector('.ed-title, #lbName').getBoundingClientRect(), top = e.target.getBoundingClientRect().top;
   $(id).classList.toggle('titled', t.bottom < top + 8);
 }, { passive: true });
 const groupSvg = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="9.5" r="2.6"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5M14.8 14.6c2.6-.4 4.9 1 5.7 4.4"/></svg>';
