@@ -148,6 +148,17 @@
   #lightbox .bar button { pointer-events: auto; background: rgba(40,40,40,.75); color: #fff; border: 0; border-radius: 999px; padding: 10px 18px; font-size: 15px; cursor: pointer; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
   #toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px); z-index: 40; background: rgba(30,30,30,.9); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* an export running in the background: a small bar under the top bar, on every screen */
+  #jobBar { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 58px); transform: translateX(-50%) translateY(-8px); z-index: 41; width: min(280px, calc(100% - 32px)); padding: 9px 14px 10px; border-radius: 12px; background: var(--menu-bg, rgba(30,30,30,.92)); border: 1px solid var(--menu-edge, transparent); color: var(--ink); box-shadow: 0 8px 24px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+  #jobBar.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #jobBar { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; }
+  #jobBar b { grid-column: 1 / -1; }
+  #jobBar em { font-style: normal; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+  #jobBar span { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #jobBar b { display: block; position: relative; height: 2px; margin-top: 8px; background: var(--line); overflow: hidden; }
+  #jobBar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--accent); transition: width .3s ease; }
+  #jobBar.busy i { width: 30%; animation: jobSlide 1.1s ease-in-out infinite; }
+  @keyframes jobSlide { from { left: -30%; } to { left: 100%; } }
 
   form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 0 10px calc(10px + env(safe-area-inset-bottom)); display: flex; }
   .field { flex: 1; display: flex; align-items: flex-end; border: 1px solid var(--line); border-radius: 22px; background: var(--field); transition: border-color .15s; }
@@ -1608,6 +1619,7 @@
   <div class="bar bottom"><button type="button" id="lbSave">Save to Photos</button><button type="button" id="lbLink" hidden>Copy link</button><button type="button" id="lbDel" hidden>Delete</button></div>
 </div>
 <div id="toast"></div>
+<div id="jobBar" role="status" aria-live="polite"><span></span><em></em><b><i></i></b></div>
 <div id="framer" hidden><div class="fr-box">
   <h2>Frame picture</h2>
   <div class="fr-stage" id="frStage"><img id="frImg" alt=""><div class="fr-mask"></div></div>
@@ -9598,23 +9610,43 @@ $('seSave').onclick = saveStoryEdit; $('seSave2').onclick = saveStoryEdit;
 const storyFile = st => (st.title || 'Story').replace(/[^\p{L}\p{N} ._-]/gu, '').trim() || 'Story';
 const paras = t => String(t || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
 const inlineMd = t => escHtml(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>').replace(/\n/g, '<br/>');
+// Exports run in the background with a small progress bar at the top; the app stays usable meanwhile
+let exporting = false;
+function jobBar(text, frac) {
+  const b = $('jobBar'); if (text == null) return b.classList.remove('show');
+  b.querySelector('span').textContent = text; b.querySelector('em').textContent = frac == null ? '' : Math.round(frac * 100) + '%'; b.classList.toggle('busy', frac == null);
+  b.querySelector('i').style.width = frac == null ? '' : (Math.min(1, frac) * 100).toFixed(1) + '%';
+  b.classList.add('show');
+}
 async function publishStory(st, formats) {
-  const body = await idb.get('story_' + st.id).catch(() => null); if (!body) return toast('The story text is missing');
-  const cover = await idb.get('cover_' + st.id).catch(() => null);
-  for (const f of formats) {
-    try {
-      if (f === 'txt') await shareFile(storyFile(st) + '.txt', new Blob([storyText(st, body)], { type: 'text/plain' }));
-      if (f === 'epub') await shareFile(storyFile(st) + '.epub', await storyEpub(st, body, cover));
-      if (f === 'pdf') {
-        const P = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.StoryPdf;
-        if (!P) { toast('PDF is made in the iPhone app'); continue; }
-        toast('Making the PDF…');
-        const { b64 } = await P.make({ html: storyHtml(st, body, cover), title: st.title || 'Story' });
-        const bytes = Uint8Array.from(atob(b64), x => x.charCodeAt(0));
-        await shareFile(storyFile(st) + '.pdf', new Blob([bytes], { type: 'application/pdf' }));
-      }
-    } catch (e) { if (!(e?.name === 'AbortError' || /cancel/i.test(e?.message || ''))) toast(`Could not make the ${f.toUpperCase()}: ${e.message || e}`); }
-  }
+  if (exporting) return toast('An export is already running');
+  exporting = true;
+  const name = st.title || 'the story';
+  try {
+    const body = await idb.get('story_' + st.id).catch(() => null); if (!body) return toast('The story text is missing');
+    const cover = await idb.get('cover_' + st.id).catch(() => null);
+    for (const f of formats) {
+      const what = { txt: 'text file', epub: 'EPUB', pdf: 'PDF' }[f];
+      try {
+        jobBar(`Making the ${what} of ${name}`, null);
+        await new Promise(r => setTimeout(r, 30)); // let the bar show before the work starts
+        let blob;
+        if (f === 'txt') blob = new Blob([storyText(st, body)], { type: 'text/plain' });
+        if (f === 'epub') blob = await storyEpub(st, body, cover);
+        if (f === 'pdf') {
+          const P = window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.StoryPdf;
+          if (!P) { toast('PDF is made in the iPhone app'); continue; }
+          const sub = await P.addListener?.('progress', e => e.total && jobBar(`Making the PDF of ${name}`, e.done / e.total));
+          try {
+            const { b64 } = await P.make({ html: storyHtml(st, body, cover), title: st.title || 'Story' });
+            blob = new Blob([Uint8Array.from(atob(b64), x => x.charCodeAt(0))], { type: 'application/pdf' });
+          } finally { sub?.remove?.(); }
+        }
+        jobBar(null); // done: the share sheet takes over
+        await shareFile(storyFile(st) + '.' + f, blob);
+      } catch (e) { if (!(e?.name === 'AbortError' || /cancel/i.test(e?.message || ''))) toast(`Could not make the ${f.toUpperCase()}: ${e.message || e}`); }
+    }
+  } finally { exporting = false; jobBar(null); }
 }
 function storyText(st, body) {
   const out = [st.title || 'Story', '', `A story with ${st.charName}`, '', ''];
