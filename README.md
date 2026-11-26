@@ -32,7 +32,7 @@ The title screen lists **Chats**, **Stories**, **Characters**, **Personas**, **L
 
 ### Group chats
 
-Chats → + → New group chat: pick two or more characters (the small arrow next to one shows its description; opening another closes it) (the order you tap is the list order), a name and a persona. Chat settings → Group opens first to set it up. The chat starts empty: with **AI writes the opening** on, tap a character above the text box and they open the scene; off, you write first. Each reply is written by one character with their own card; the whole chat goes along with names.
+Chats → + → New group chat: pick two or more characters (the small arrow next to one shows its description; opening another closes it) (the order you tap is the list order), a name and a persona. Chat settings → Group opens first to set it up; **+ Add a character** there lists everyone with the same small arrow for their description. The chat starts empty: with **AI writes the opening** on, tap a character above the text box and they open the scene; off, you write first. Each reply is written by one character with their own card; the whole chat goes along with names.
 
 - **Member faces** next to + and Author's note (‹ hides them, › brings them back): tap a character to make them reply now (even when muted); long press to mute or unmute. **Auto** keeps them talking to each other, 5 seconds apart, until you type.
 - **Chat settings → Group**: name, members (add, remove, reorder, mute), reply order, self responses, auto-mode, Swap or Join character cards, group scenario, and each member's own scenario with a switch to include it.

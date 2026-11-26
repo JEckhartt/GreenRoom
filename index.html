@@ -903,6 +903,17 @@
   .opt:active { background: color-mix(in srgb, var(--ink) 9%, transparent); }
   .opt .av { width: 30px; height: 30px; font-size: 13px; }
   .opt.cancel { display: none; }
+  .opt-d + .opt, .opt + .opt-d, .opt-d + .opt-d { border-top: .5px solid var(--line); }
+  html #sheet :is(.opt-d + .opt, .opt + .opt-d, .opt-d + .opt-d) { border-color: var(--menu-edge); }
+  .opt-row { display: flex; align-items: center; }
+  .opt-row .opt { flex: 1; min-width: 0; padding-right: 4px; }
+  .opt-more { flex: none; width: 40px; align-self: stretch; display: grid; place-items: center; border: 0; background: none; color: var(--ink-soft); cursor: pointer; padding: 0; }
+  .opt-more svg { transition: transform .25s ease; }
+  .opt-d.open .opt-more svg { transform: rotate(180deg); }
+  .opt-desc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease; }
+  .opt-desc > div { min-height: 0; overflow: hidden; padding: 0 14px 0 55px; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .opt-d.open .opt-desc { grid-template-rows: 1fr; }
+  .opt-d.open .opt-desc > div { padding-bottom: 11px; }
   #sheet.bottom .panel { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: 100%; max-width: none; max-height: 70vh; border-radius: 18px 18px 0 0; border-width: .5px 0 0;
     padding-bottom: env(safe-area-inset-bottom); transform: translateY(100%); opacity: 1; transform-origin: 50% 100% !important; transition: transform .32s cubic-bezier(.2,.8,.2,1); }
   #sheet.bottom.open .panel { transform: none; }
@@ -4571,7 +4582,15 @@ function showSheet(title, opts, bottom = false) {
     b.append(o.label);
     if (o.fit) b.classList.add('fit'); // fit: the label stays on one line, the text shrinks if it has to
     b.onclick = () => { if (!o.keep) hideSheet(); o.onClick(); }; // keep: the sheet stays (e.g. while the photo picker is open)
-    return b;
+    if (o.desc == null) return b;
+    // desc: a small arrow unfolds a description under the option; opening one folds the one that was open
+    const w = document.createElement('div'), row = document.createElement('div'), more = document.createElement('button'), d = document.createElement('div'), dt = document.createElement('div');
+    w.className = 'opt-d'; row.className = 'opt-row'; more.type = 'button'; more.className = 'opt-more'; more.setAttribute('aria-label', 'Description');
+    more.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+    more.onclick = () => { const open = !w.classList.contains('open'); for (const x of $('sheetOpts').querySelectorAll('.opt-d.open')) x.classList.remove('open'); w.classList.toggle('open', open); };
+    d.className = 'opt-desc'; dt.textContent = o.desc || 'No description.'; d.append(dt);
+    row.append(b, more); w.append(row, d);
+    return w;
   }));
   openSheetAt(opts.some(o => o.av !== undefined || o.fit));
   for (const b of $('sheetOpts').querySelectorAll('.opt.fit')) {
@@ -4668,9 +4687,9 @@ function pickPersona(c, then = null) {
   none.onclick = () => { hideSheet(); go(''); };
   box.append(none);
 }
-function pickChar(title, then) {
+function pickChar(title, then, descs) {
   if (!chars.length) return toast('Make a character first');
-  showSheet(title, [...chars].sort((a, b) => a.name.localeCompare(b.name)).map(c => ({ label: c.name, av: c, onClick: () => then(c) })));
+  showSheet(title, [...chars].sort((a, b) => a.name.localeCompare(b.name)).map(c => ({ label: c.name, av: c, ...(descs ? { desc: htmlToText(c.description || '').trim() } : {}), onClick: () => then(c) })));
 }
 // Chats screen +: start a chat, or import one (SillyTavern .jsonl, Green Room text export, or JSON)
 let importTo = null;
@@ -10217,7 +10236,7 @@ function renderGroupSettings() {
     list.append(r);
   });
   const add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.textContent = '+ Add a character'; add.style.marginTop = '8px';
-  add.onclick = () => pickChar('Add to the group', c => { if (g.members.includes(c.id)) return toast(`${c.name} is already in it`); g.members.push(c.id); save(); renderGroupSettings(); });
+  add.onclick = () => pickChar('Add to the group', c => { if (g.members.includes(c.id)) return toast(`${c.name} is already in it`); g.members.push(c.id); save(); renderGroupSettings(); }, true); // with the small arrow for each one's description
   c1.append(list, add, hint('The switch: talks on their own (off = muted; tapping them above the text box still makes them talk). ↑ changes the order for List order.'));
   // reply order
   const c2 = card();
