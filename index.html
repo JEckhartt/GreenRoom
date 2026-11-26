@@ -410,6 +410,8 @@
   .ed-form .chips { margin-top: 14px; }
   .ed-form .chips button { border-radius: 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; padding: 8px 14px; }
   .ed-pick { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 14px 2px 13px; border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--ink); font: inherit; font-size: 17px; text-align: left; cursor: pointer; }
+  .ed-form .ss-chat .ed-pick { border-top: 1px solid var(--line); }
+  .ed-form .ss-chat .hint:empty { display: none; }
   .ed-pick span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ed-pick svg { flex: none; color: var(--accent-ink); }
   .ed-form .save-bar { margin-top: 28px; }
@@ -2121,8 +2123,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
   <div class="page-head"><button class="back" data-close="storySetup" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>New story</h1><span></span></div>
   <div class="page-body"><div class="page-inner ed-form" style="padding-top:12px">
     <h2 class="ed-title">New story</h2>
-    <div class="jan-h">Chat</div>
-    <div class="card">
+    <div class="card ss-chat">
       <button type="button" class="ed-pick" id="ssChat"><span>Choose a chat</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
       <div class="hint" id="ssChatInfo"></div>
     </div>
@@ -8939,7 +8940,7 @@ function syncStorySetup() {
   $('ssChat').firstElementChild.textContent = s?.c ? `${s.c.name} · as ${s.p?.name || s.ch.personaName || 'no persona'}` : 'Choose a chat';
   const n = s ? storyMessages(s).length : 0, size = s ? storyMessages(s).reduce((a, m) => a + m.text.length, 0) : 0;
   const parts = s ? storyParts(storyMessages(s), $('ssChapters').checked).length : 0;
-  $('ssChatInfo').textContent = s ? `${n} messages, ${Math.round(size / 1000)}k characters → ${parts} part${parts === 1 ? '' : 's'}, ${parts} request${parts === 1 ? '' : 's'} to the proxy${parts > 1 && $('ssChapters').checked ? ', one chapter each' : ''}.` : 'The chat that becomes the story.';
+  $('ssChatInfo').textContent = s ? `${n} messages, ${Math.round(size / 1000)}k characters → ${parts} part${parts === 1 ? '' : 's'}, ${parts} request${parts === 1 ? '' : 's'} to the proxy${parts > 1 && $('ssChapters').checked ? ', one chapter each' : ''}.` : '';
   for (const b of $('ssPov').children) b.classList.toggle('on', b.dataset.v === setup.pov);
   $('ssWhoRow').hidden = setup.pov === 'omni';
   $('ssWhoChar').textContent = s?.c ? cn(s.c) : 'Character'; $('ssWhoUser').textContent = s ? userName(s.p) : 'Persona';
@@ -9099,13 +9100,12 @@ const coverCache = new Map();
 const chevSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>';
 const wordsText = st => st.words ? `${st.words.toLocaleString()} words` : 'Not started';
 const storyState = st => ({ writing: `Writing ${Math.min(st.done + 1, st.parts.length)}/${st.parts.length}…`, naming: 'Choosing a title…', cover: 'Making the cover…', stopped: `Paused at ${st.done}/${st.parts.length}`, error: `Stopped at ${st.done}/${st.parts.length}` })[st.status];
-// Stories: the ones you started reading in a list at the top (folds away), the ones not read yet as covers below
+// Stories: the ones you're partway through in a list at the top (folds away); below it every story as a cover
 function renderStories() {
   const g = $('stGrid'), rl = $('stRead'); if (!g) return; g.innerHTML = ''; rl.innerHTML = '';
   if (!stories.length) { const e = document.createElement('div'); e.className = 'st-empty'; e.textContent = 'No stories yet. Tap + to turn a chat into one.'; g.append(e); return; }
   const pos = store.get('storyPos', {}), at = store.get('storyReadAt', {});
-  const reading = stories.filter(st => st.id in pos).sort((a, b) => (at[b.id] || 0) - (at[a.id] || 0));
-  const unread = stories.filter(st => !(st.id in pos));
+  const reading = stories.filter(st => pos[st.id] > 0 && pos[st.id] < .995).sort((a, b) => (at[b.id] || 0) - (at[a.id] || 0));
   if (reading.length) {
     rl.classList.toggle('shut', !!store.get('readShut', false));
     const head = document.createElement('button'); head.type = 'button'; head.className = 'st-rhead';
@@ -9127,7 +9127,7 @@ function renderStories() {
     }
     rl.append(head, wrap);
   }
-  for (const st of unread) {
+  for (const st of stories) {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'st-card';
     const cv = document.createElement('div'); cv.className = 'st-cover plain';
     const t = document.createElement('div'); t.className = 'st-ttl'; t.textContent = st.title || 'Untitled'; cv.append(t);
@@ -9199,6 +9199,8 @@ function resumeStories() {
 function storyMenu(st) {
   showSheet(st.title || 'Story', [
     ...(st.done ? [{ label: 'Publish / export', onClick: () => showSheet('Publish as', [['txt', 'Text (.txt)'], ['pdf', 'PDF (.pdf)'], ['epub', 'EPUB (.epub)']].map(([f, l]) => ({ label: l, onClick: () => publishStory(st, [f]) }))) }] : []),
+    ...(st.done ? (() => { const at = store.get('storyPos', {})[st.id] || 0, mark = v => { const o = store.get('storyPos', {}); if (v == null) delete o[st.id]; else o[st.id] = v; store.set('storyPos', o); renderStories(); };
+      return [...(at < .995 ? [{ label: 'Mark as read', onClick: () => mark(1) }] : []), ...(at > 0 ? [{ label: 'Mark as unread', onClick: () => mark(null) }] : [])]; })() : []),
     ...(st.status !== 'writing' ? [{ label: 'Edit', onClick: () => openStoryEdit(st) }] : []),
     { label: 'Rename', onClick: () => { const t = prompt('Title', st.title || ''); if (t?.trim()) { st.title = t.trim(); saveStories(); renderStories(); } } },
     ...(imageProxyOk() && st.status === 'done' ? [{ label: 'New cover', onClick: async () => {
