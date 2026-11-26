@@ -86,7 +86,7 @@
   .pill:hover { color: var(--ink); border-color: var(--ink-soft); }
 
   main { flex: 1; overflow-y: auto; }
-  #log { max-width: 760px; margin: 0 auto; padding: 6px var(--side-m, 12px) 20px; display: flex; flex-direction: column; gap: 24px; }
+  #log { max-width: 760px; margin: 0 auto; padding: 6px var(--side-m, 12px) 20px; display: flex; flex-direction: column; gap: 16px; }
   .msg { max-width: 85%; white-space: pre-wrap; overflow-wrap: anywhere; }
   .msg.me { align-self: flex-end; background: var(--bubble-me); padding: 10px 14px; border-radius: 18px 18px 4px 18px; border: 1px solid var(--line); font-family: var(--me-font); }
   .msg.ai { align-self: flex-start; }
@@ -160,8 +160,9 @@
   #jobBar.busy i { width: 30%; animation: jobSlide 1.1s ease-in-out infinite; }
   @keyframes jobSlide { from { left: -30%; } to { left: 100%; } }
 
-  form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 4px 8px calc(8px + env(safe-area-inset-bottom)); display: flex; border-top: 1px solid var(--line); }
-  .field { flex: 1; display: flex; align-items: flex-end; border: 0; border-radius: 0; background: none; }
+  form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 0 10px calc(10px + env(safe-area-inset-bottom)); display: flex; }
+  .field { flex: 1; display: flex; align-items: flex-end; border: 1px solid var(--line); border-radius: 22px; background: var(--field); transition: border-color .15s; }
+  .field:has(#input:focus) { border-color: var(--accent-ink); }
   #input { flex: 1; min-width: 0; resize: none; max-height: 180px; min-height: 46px; padding: 11px 6px 11px 10px; border: 0; border-radius: 22px; background: none; color: var(--ink); font: inherit; font-size: 15px; font-family: var(--me-font); outline: none; }
   #toolsRow { max-width: 760px; width: 100%; margin: 0 auto; padding: 2px 16px 0; display: flex; align-items: flex-end; gap: 8px; }
   /* in a one-to-one chat the messages stop 2px above the box; with the group's pictures (or an attachment) above it, the spacing stays as before */
@@ -174,7 +175,7 @@
   .fchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fchip span::before, .fbub::before { content: ''; display: inline-block; width: 9px; height: 11px; margin-right: 7px; border: 1.5px solid currentColor; border-radius: 2px; vertical-align: -1px; opacity: .6; }
   .anchip { border: 1px dashed var(--accent); color: var(--accent-ink); background: none; border-radius: 999px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
-  #plusBtn { flex: none; width: 34px; height: 34px; margin: 0 0 6px 2px; border-radius: 50%; border: 1px solid var(--line); background: none; color: var(--ink-soft); line-height: 0; display: grid; place-items: center; cursor: pointer; transition: transform .2s, color .2s; padding: 0; }
+  #plusBtn { flex: none; width: 34px; height: 34px; margin: 0 0 6px 6px; border-radius: 50%; border: 1px solid var(--line); background: var(--field); color: var(--ink-soft); line-height: 0; display: grid; place-items: center; cursor: pointer; transition: transform .2s, color .2s; padding: 0; }
   #plusBtn.open { transform: rotate(45deg); color: var(--accent-ink); border-color: var(--accent-ink); }
   #plusBtn.has { color: var(--accent-ink); }
   #plusMenu { position: fixed; z-index: 32; display: flex; flex-direction: column; padding: 4px; border-radius: 14px; background: rgba(30,30,30,.94); box-shadow: 0 8px 24px -8px rgba(0,0,0,.4); min-width: 200px; }
@@ -206,7 +207,7 @@
   #giText, #anText { display: block; width: 100%; min-height: 64px; max-height: 160px; margin: 6px 0; resize: none; border: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; outline: none; }
   .fbub { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 5px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 7%, transparent); font: 13px 'Inter', system-ui, sans-serif; }
   .msg.me .txt:not(:empty) ~ .fbub { margin-top: 8px; }
-  #send { flex: none; width: 34px; height: 34px; margin: 0 2px 6px 0; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent); cursor: pointer; display: grid; place-items: center; padding: 0; }
+  #send { flex: none; width: 34px; height: 34px; margin: 0 6px 6px 0; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent); cursor: pointer; display: grid; place-items: center; padding: 0; }
   #send svg.i-send { width: 17px; height: 17px; }
   #send .i-stop, #send.stop .i-send { display: none; }
   #send.stop .i-stop { display: block; margin: auto; }
@@ -617,7 +618,7 @@
   body[data-sides=right] .msg.ai .alts .ts { margin-left: 0; margin-right: auto; order: -1; }
   .msg.me > .mname { text-align: right; }
   body[data-sides=left] .msg.me > .mname { text-align: left; }
-  .mname { display: none; font: 600 12.5px/1.4 'Inter', system-ui, sans-serif; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; white-space: normal; background: none; text-shadow: none; }
+  .mname { display: none; font: 600 13px/1.3 'Inter', system-ui, sans-serif; letter-spacing: .01em; margin-bottom: 4px; white-space: normal; background: none; text-shadow: none; }
   .msg.ai > .mname { color: var(--name-ai, var(--accent)); -webkit-text-fill-color: var(--name-ai, var(--accent)); }
   .msg.me > .mname { color: var(--name-me, var(--accent)); -webkit-text-fill-color: var(--name-me, var(--accent)); }
   body.names-ai .msg.ai > .mname, body.names-me .msg.me > .mname, #chat.grp .msg.ai > .mname { display: block; }
@@ -657,17 +658,9 @@
   /* bubble shapes, per side; the tail points to the side the message sits on */
   body[data-bubbleme=round] .msg.me, body.ai-bubble[data-bubbleai=round] .msg.ai { border-radius: 18px; }
   body[data-bubbleme=sharp] .msg.me, body.ai-bubble[data-bubbleai=sharp] .msg.ai { border-radius: 5px; }
-  body[data-bubbleme=block] .msg.me { border-radius: 6px; border-color: transparent; background: color-mix(in srgb, var(--accent) 10%, var(--card)); }
-  body.ai-bubble[data-bubbleai=block] .msg.ai { border-radius: 6px; border-color: transparent; background: var(--card); }
   body[data-sides=left][data-bubbleme=tail] .msg.me { border-radius: 18px 18px 18px 4px; }
   body.ai-bubble[data-sides=right][data-bubbleai=tail] .msg.ai { border-radius: 18px 18px 4px 18px; }
-  body[data-spacing=compact] #log { gap: 12px; } body[data-spacing=airy] #log { gap: 40px; }
-  /* messages without a bubble get extra room around them, so they don't run into each other */
-  body:not(.ai-bubble) #log > .msg.ai, body.me-nobubble #log > .msg.me { margin: 10px 0; }
-  body[data-spacing=compact]:not(.ai-bubble) #log > .msg.ai, body[data-spacing=compact].me-nobubble #log > .msg.me { margin: 4px 0; }
-  /* no bubbles on either side and everything on one side: nothing else tells the messages apart, so even more room */
-  body[data-sides=left]:not(.ai-bubble).me-nobubble #log > .msg, body[data-sides=right]:not(.ai-bubble).me-nobubble #log > .msg, body[data-sides=center]:not(.ai-bubble).me-nobubble #log > .msg { margin: 20px 0; }
-  body[data-spacing=compact]:is([data-sides=left], [data-sides=right], [data-sides=center]):not(.ai-bubble).me-nobubble #log > .msg { margin: 10px 0; }
+  body[data-spacing=compact] #log { gap: 8px; } body[data-spacing=airy] #log { gap: 32px; }
   body[data-spacing=compact] .preview { gap: 6px; } body[data-spacing=airy] .preview { gap: 22px; }
   body.notime-ai .msg.ai .ts, body.notime-me .msg.me .ts { display: none; }
   /* full width: edge to edge (the picture keeps its spot next to it) */
@@ -749,11 +742,11 @@
   .save-bar .btn.primary { width: 100%; padding: 14px; border: 0; background: var(--accent); color: var(--on-accent); font-size: 16px; font-weight: 600; }
 
   /* ---------- Chat head ---------- */
-  .chat-who { display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 56vw; font-family: 'Inter', system-ui, sans-serif; font-size: 17px; font-weight: 500; letter-spacing: -.01em; }
+  .chat-who { display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 56vw; font-family: var(--ai-font); font-size: 19px; }
   .chat-who span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .av { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--accent-soft) center / cover no-repeat; display: grid; place-items: center; color: var(--accent-ink); font-size: 15px; font-family: 'Fraunces', Georgia, serif; position: relative; }
   .who-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
-  .who-txt small { font-family: 'Inter', system-ui, sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); margin-top: 3px; }
+  .who-txt small { font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: var(--ink-soft); }
   .who-txt small:empty { display: none; }
   summary .tgt { margin: 0 auto 0 6px; }
   body.kb-open form#composer { padding-bottom: 10px; }
@@ -864,21 +857,6 @@
   details.think .tbody { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--line); max-height: 320px; overflow-y: auto; line-height: 1.5; }
 
   /* ---------- Alternative replies ---------- */
-  .tdiv { display: flex; align-items: center; gap: 12px; margin: 14px 0 6px; font: 600 10px 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); -webkit-text-fill-color: var(--ink-soft); align-self: stretch; }
-  .tdiv::before, .tdiv::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-  /* Timestamps on (either side): times under the messages instead of the dividers */
-  body:not(.notime-ai) #log .tdiv, body:not(.notime-me) #log .tdiv, body:not(.notime-ai) #preview .tdiv, body:not(.notime-me) #preview .tdiv { display: none; }
-  .ts b.pin-l { font-weight: inherit; } .ts i.tm { font-style: normal; }
-  body.notime-ai .msg.ai .alts:not(:has(button)):not(:has(b.pin-l:not(:empty))) { display: none; }
-  /* All left: the character's time sits at the right, like yours */
-  body[data-sides=left] .msg.ai .alts .ts { margin-left: auto !important; margin-right: 0 !important; order: 9; }
-  body.notime-ai .msg.ai .ts i.tm, body.notime-me .msg.me .ts i.tm { display: none; }
-  body.notime-ai .msg.ai .ts:has(b.pin-l:not(:empty)), body.notime-me .msg.me .ts:has(b.pin-l:not(:empty)) { display: inline; }
-  .alts .ver { display: inline-flex; align-items: center; }
-  .alts .cmd { font: 400 13px 'Inter', system-ui, sans-serif !important; letter-spacing: 0; text-transform: none; color: var(--ink-soft) !important; -webkit-text-fill-color: var(--ink-soft) !important; padding: 6px 0 !important; margin: 0 0 0 16px !important; }
-  .alts .ver + .cmd, .alts > .cmd:first-child { margin-left: 0 !important; }
-  .alts .ver + .cmd { margin-left: 10px !important; }
-  .alts.newest { opacity: .8; }
   .alts { display: flex; align-items: center; gap: 2px; margin-top: 4px; font: 12px 'Inter', system-ui, sans-serif; color: var(--ink-soft); opacity: .55;
     -webkit-text-fill-color: var(--ink-soft); text-shadow: none; }
   .alts button { border: 0; background: none; color: inherit; -webkit-text-fill-color: var(--ink-soft); font-size: 18px; line-height: 1; padding: 4px 8px; cursor: pointer; }
@@ -1413,7 +1391,7 @@
   <div class="page-head">
     <button class="back" data-close="chat" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <button class="chat-who" id="chatWho" type="button" aria-label="Chat settings"><span class="av" id="chatAv"></span><span class="gstack" id="chatAvs" hidden></span><span class="who-txt"><span id="chatName"></span><small id="chatAs"></small></span></button>
-    <button class="act more-act" id="chatMore" type="button" aria-label="Profile, search and pictures">⋯</button>
+    <button class="act prof-act" id="chatProfile" type="button" aria-label="Character profile"><svg class="prof-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.19 6.26A10 10 0 0 1 6.26 20.19"/><path d="M3.81 17.74A10 10 0 0 1 17.74 3.81"/><circle cx="12" cy="9.4" r="3.5"/><path d="M6.6 18.1c.9-2.3 2.1-3.7 3.3-4.4 1.3.9 2.9.9 4.2 0 1.2.7 2.4 2.1 3.3 4.4"/></svg></button>
   </div>
   <main id="scroller"><div id="log"></div></main>
   <div class="tb-wrap"><button type="button" id="toBottom" aria-label="Scroll to the newest message" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button></div>
@@ -2012,14 +1990,11 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
         <button type="button" data-v="round">Rounded</button>
         <button type="button" data-v="tail">Tail</button>
         <button type="button" data-v="sharp">Sharp</button>
-        <button type="button" data-v="block">Block</button>
       </div>
-      <div class="hint">Block: narrow corners, your messages tinted with the accent colour.</div>
       </div>
       <div class="line"><span>Full width <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="wide"></div>
       <div class="hint" style="margin-top:2px">The message fills the screen from side to side, with or without a bubble.</div>
       <div class="line"><span>Timestamps <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="showTimes"></div>
-      <div class="hint" style="margin-top:2px">The time under each message. Off: the time shows as a divider at the start and wherever half an hour or more passed.</div>
       <p class="sub" style="margin:16px 0 0">For all messages</p>
       <label class="f">Where messages sit</label>
       <div class="seg" data-k="sides">
@@ -2490,8 +2465,8 @@ const store = {
 const LOOK_DEFAULTS = {
   theme: 'original', accent: '', aiBubble: false,
   showNames: false, nameMode: 'theme', nameC: '#d9553b', showAvatars: false, avShape: 'circle', chatHead: true,
-  bubbleShape: 'tail', showTimes: false, wide: false, u_wide: false, u_aiBubble: true,
-  u_showNames: false, u_nameMode: 'theme', u_nameC: '#3d63f5', u_showAvatars: false, u_avShape: 'circle', u_bubbleShape: 'tail', u_showTimes: false,
+  bubbleShape: 'tail', showTimes: true, wide: false, u_wide: false, u_aiBubble: true,
+  u_showNames: false, u_nameMode: 'theme', u_nameC: '#3d63f5', u_showAvatars: false, u_avShape: 'circle', u_bubbleShape: 'tail', u_showTimes: true,
   sides: 'default', spacing: 'normal', sideMargin: 12, anim: 'slide',
   aiFont: 'Fraunces', meFont: 'Inter',
   fs: 18, fw: 300, lh: 1.6, ls: 0, glow: false,
@@ -2513,8 +2488,8 @@ const DEFAULTS = {
   ...LOOK_DEFAULTS,
 };
 let cfg = { ...DEFAULTS, ...store.get('cfg', {}) };
-// Times became dividers between messages: the per-message timestamps start off once (switch them back on in Style → Layout)
-if (!store.get('mig_timeDividers')) { cfg.showTimes = cfg.u_showTimes = false; store.set('cfg', cfg); store.set('mig_timeDividers', 1); }
+// The chat redesign was undone: its builds switched the timestamps off once; switch them back on
+if (store.get('mig_timeDividers')) { cfg.showTimes = cfg.u_showTimes = true; store.set('cfg', cfg); store.del('mig_timeDividers'); }
 if ('textOnly' in cfg) { if (cfg.textOnly) cfg.genImages = false; delete cfg.textOnly; store.set('cfg', cfg); }
 // Layout options became per side: earlier choices apply to your side too
 for (const k of ['showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'showTimes']) {
@@ -3636,25 +3611,8 @@ function stamp(t) {
 function addStamp(el, m) {
   if (!m.t && !m.pinned) return;
   const s = document.createElement('span'); s.className = 'ts';
-  const p = document.createElement('b'); p.className = 'pin-l'; p.textContent = m.pinned ? 'Pinned' : '';
-  const tm = document.createElement('i'); tm.className = 'tm'; tm.textContent = m.t ? (m.pinned ? ' · ' : '') + stamp(m.t) : '';
-  s.append(p, tm); el.append(s);
-}
-// Time dividers: at the start and wherever half an hour or more passed (or a new day began)
-const TIME_GAP = 30 * 60000;
-function dayTime(t) {
-  const d = new Date(t), now = new Date(), y = new Date(now); y.setDate(now.getDate() - 1);
-  const hm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const day = d.toDateString() === now.toDateString() ? 'Today' : d.toDateString() === y.toDateString() ? 'Yesterday'
-    : now - d < 6 * 864e5 ? d.toLocaleDateString([], { weekday: 'long' })
-    : d.toLocaleDateString([], { day: 'numeric', month: 'long', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
-  return `${day} · ${hm}`;
-}
-function timeDivider(m, prev) {
-  if (!m?.t) return;
-  if (prev?.t && m.t - prev.t < TIME_GAP && new Date(m.t).toDateString() === new Date(prev.t).toDateString()) return;
-  const d = document.createElement('div'); d.className = 'tdiv'; const sp = document.createElement('span'); sp.textContent = dayTime(m.t); d.append(sp);
-  $('log').append(d);
+  s.textContent = [m.pinned ? 'Pinned' : '', m.t ? stamp(m.t) : ''].filter(Boolean).join(' · ');
+  el.append(s);
 }
 // Folded "Thought for 12s" above a reply (reasoning models)
 function setThink(bubble, text, done, secs) {
@@ -3737,7 +3695,6 @@ function renderLog() {
   }
   for (let i = shownFrom; i < history.length; i++) {
     const m = history[i];
-    timeDivider(m, history[i - 1]);
     const b = addBubble(m.role === 'user' ? 'me' : 'ai', m.content, m.role === 'assistant' ? speakerChar(m) : undefined);
     b.dataset.i = i;
     if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => { if (!src) return f.remove(); showImage(f, src); addFold(f, m); }).catch(() => f.remove()); }
@@ -4515,29 +4472,21 @@ function selectAlt(m, k) {
 }
 const imagesOf = m => [m.img, ...(m.alts || []).map(a => a.img)].filter((x, i, arr) => x && arr.indexOf(x) === i);
 function addAltNav(bubble, m, i) {
-  const n = m.alts?.length || 1, k = m.sel || 0, newest = i === history.length - 1;
-  const nav = document.createElement('div'); nav.className = 'alts' + (newest ? ' newest' : '');
-  // ‹ 2/3 ›: flip between the versions (shown when there is more than one)
-  if (n > 1) {
-    const prev = document.createElement('button'); prev.type = 'button'; prev.textContent = '‹'; prev.setAttribute('aria-label', 'Previous reply');
-    prev.disabled = busy || k === 0; prev.style.visibility = k === 0 ? 'hidden' : '';
-    prev.onclick = () => { if (busy) return; selectAlt(m, k - 1); saveMsgs(cur.chat, history, true); render(); };
-    const lab = document.createElement('span'); lab.textContent = `${k + 1}/${n}`;
-    const next = document.createElement('button'); next.type = 'button'; next.textContent = '›'; next.setAttribute('aria-label', 'Next reply');
-    next.disabled = busy || k === n - 1; next.style.visibility = k === n - 1 ? 'hidden' : '';
-    next.onclick = () => { if (busy) return; selectAlt(m, k + 1); saveMsgs(cur.chat, history, true); render(); };
-    const v = document.createElement('span'); v.className = 'ver'; v.append(prev, lab, next); nav.append(v);
-  }
-  // the newest reply: write another version, or carry on where it stopped
-  if (newest) {
-    const re = document.createElement('button'); re.type = 'button'; re.className = 'cmd'; re.textContent = 'Regenerate';
-    re.disabled = busy; re.onclick = () => { if (!busy) anotherReply(i, bubble); };
-    nav.append(re);
-    if (i > 0) {
-      const go = document.createElement('button'); go.type = 'button'; go.className = 'cont cmd'; go.textContent = 'Continue';
-      go.disabled = busy; go.onclick = () => continueReply(i);
-      nav.append(go);
-    }
+  const n = m.alts?.length || 1, k = m.sel || 0;
+  const nav = document.createElement('div'); nav.className = 'alts';
+  const prev = document.createElement('button'); prev.type = 'button'; prev.textContent = '‹'; prev.setAttribute('aria-label', 'Previous reply');
+  prev.hidden = k === 0; prev.disabled = busy;
+  prev.onclick = () => { if (busy) return; selectAlt(m, k - 1); saveMsgs(cur.chat, history, true); render(); };
+  const lab = document.createElement('span'); lab.textContent = n > 1 ? `${k + 1}/${n}` : '';
+  const next = document.createElement('button'); next.type = 'button'; next.textContent = '›';
+  next.setAttribute('aria-label', k < n - 1 ? 'Next reply' : 'Write another reply'); next.disabled = busy;
+  next.onclick = () => { if (busy) return; if (k < n - 1) { selectAlt(m, k + 1); saveMsgs(cur.chat, history, true); render(); } else anotherReply(i, bubble); };
+  nav.append(prev, lab, next);
+  // Continue: under the newest reply
+  if (i === history.length - 1 && i > 0) {
+    const go = document.createElement('button'); go.type = 'button'; go.className = 'cont'; go.textContent = 'Continue';
+    go.disabled = busy; go.onclick = () => continueReply(i);
+    nav.append(go);
   }
   // Auto pictures off: the character "sent" one, tap the camera to make it
   if (cur && imagesOn() && cur.chat.autoPics === false && !m.img && (m.pendingImg || replySendsImage(m.content) || wantsImage(history[i - 1]))) {
@@ -4548,7 +4497,7 @@ function addAltNav(bubble, m, i) {
     nav.append(cam);
   }
   addStamp(nav, m);
-  if (nav.children.length) bubble.append(nav);
+  bubble.append(nav);
   // a version written with another proxy / prompt (Version with…) says which, under the buttons
   const via = (m.alts?.[k] || m).via; if (via) { const v = document.createElement('div'); v.className = 'via'; v.textContent = 'Written with ' + via; nav.after(v); }
 }
@@ -4675,6 +4624,7 @@ function renderChatHead() {
   $('chatAvs').classList.toggle('many', !!g && g.members.length > 3);
   if (g) $('chatAvs').replaceChildren(...groupMembers(g).slice(0, 6).map(m => { const a = document.createElement('span'); a.className = 'av'; setThumb(a, m); return a; }));
   else setThumb($('chatAv'), c);
+  $('chatProfile').hidden = !!g;
   renderGroupBar();
 }
 async function applyChatBg() {
@@ -5270,19 +5220,11 @@ $('profEdit').onclick = () => openEditor('char', profileId);
 $('profDelete').onclick = () => { if (deleteItems('char', [profileId])) closeView('profile'); };
 $('profExport').onclick = () => { const c = chars.find(x => x.id === profileId); if (c) exportCard(c); };
 $('chatWho').onclick = () => cur && openChatSettings();
-// ⋯ in the chat header: the character's profile, search in the chat and its pictures (Chat settings: tap the name)
-$('chatMore').onclick = () => {
-  if (!cur) return;
-  showSheet('', [
-    ...(cur.chat.group ? [] : [{ label: 'Profile', onClick: () => openProfile(cur.c.id) }]),
-    { label: 'Search in chat', onClick: () => { openChatImages(); setTimeout(() => $('ciSearch').focus(), 350); } },
-    { label: 'Pictures in this chat', onClick: () => openChatImages() },
-  ]);
-};
 
 // Album links (gr://img/<id>) become images on the character card
 const IMG_LINK = /gr:\/\/img\/([A-Za-z0-9_-]+)/g;
 const stripLinks = t => (t || '').replace(IMG_LINK, '').replace(/\n{3,}/g, '\n\n').trim();
+$('chatProfile').onclick = () => cur && openProfile(cur.c.id);
 
 // ---------- Character & persona lists ----------
 const avatarCache = new Map();
@@ -8045,10 +7987,8 @@ function buildSettings() {
     const me = m.classList.contains('me');
     decorate(m, me ? 'me' : 'ai', null, null);
     const ts = document.createElement('span'); ts.className = 'ts'; ts.textContent = me ? '23:41' : '23:42';
-    if (me) m.append(ts); else { const n = document.createElement('div'); n.className = 'alts newest'; n.style.marginTop = '6px'; n.innerHTML = '<button type="button" class="cmd" tabindex="-1">Regenerate</button><button type="button" class="cmd" tabindex="-1">Continue</button>'; n.append(ts); m.append(n); }
+    if (me) m.append(ts); else { const n = document.createElement('div'); n.className = 'alts'; n.style.marginTop = '6px'; n.append(ts); m.append(n); }
   }
-  // the preview starts with a time divider, like a chat
-  { const pv = document.querySelector('#preview .msg'); if (pv) { const d = document.createElement('div'); d.className = 'tdiv'; d.innerHTML = '<span>Today · 23:41</span>'; pv.before(d); } }
   $('accentReset').onclick = () => update('accent', '');
   // Style's Global switch
   $('csGlobalLook').onchange = () => {
