@@ -868,6 +868,8 @@
   body:not(.notime-ai) #log .tdiv, body:not(.notime-me) #log .tdiv, body:not(.notime-ai) #preview .tdiv, body:not(.notime-me) #preview .tdiv { display: none; }
   .ts b.pin-l { font-weight: inherit; } .ts i.tm { font-style: normal; }
   body.notime-ai .msg.ai .alts:not(:has(button)):not(:has(b.pin-l:not(:empty))) { display: none; }
+  /* All left: the character's time sits at the right, like yours */
+  body[data-sides=left] .msg.ai .alts .ts { margin-left: auto !important; margin-right: 0 !important; order: 9; }
   body.notime-ai .msg.ai .ts i.tm, body.notime-me .msg.me .ts i.tm { display: none; }
   body.notime-ai .msg.ai .ts:has(b.pin-l:not(:empty)), body.notime-me .msg.me .ts:has(b.pin-l:not(:empty)) { display: inline; }
   .alts .ver { display: inline-flex; align-items: center; }
