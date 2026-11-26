@@ -861,6 +861,12 @@
   /* ---------- Alternative replies ---------- */
   .tdiv { display: flex; align-items: center; gap: 12px; margin: 14px 0 6px; font: 600 10px 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); -webkit-text-fill-color: var(--ink-soft); align-self: stretch; }
   .tdiv::before, .tdiv::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+  /* Timestamps on (either side): times under the messages instead of the dividers */
+  body:not(.notime-ai) #log .tdiv, body:not(.notime-me) #log .tdiv, body:not(.notime-ai) #preview .tdiv, body:not(.notime-me) #preview .tdiv { display: none; }
+  .ts b.pin-l { font-weight: inherit; } .ts i.tm { font-style: normal; }
+  body.notime-ai .msg.ai .alts:not(:has(button)):not(:has(b.pin-l:not(:empty))) { display: none; }
+  body.notime-ai .msg.ai .ts i.tm, body.notime-me .msg.me .ts i.tm { display: none; }
+  body.notime-ai .msg.ai .ts:has(b.pin-l:not(:empty)), body.notime-me .msg.me .ts:has(b.pin-l:not(:empty)) { display: inline; }
   .alts .ver { display: inline-flex; align-items: center; }
   .alts .cmd { font: 700 10px 'Inter', system-ui, sans-serif !important; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-ink) !important; -webkit-text-fill-color: var(--accent-ink) !important; padding: 6px 0 !important; margin: 0 0 0 16px !important; }
   .alts .ver + .cmd, .alts > .cmd:first-child { margin-left: 0 !important; }
@@ -1400,7 +1406,7 @@
   <div class="page-head">
     <button class="back" data-close="chat" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <button class="chat-who" id="chatWho" type="button" aria-label="Chat settings"><span class="av" id="chatAv"></span><span class="gstack" id="chatAvs" hidden></span><span class="who-txt"><span id="chatName"></span><small id="chatAs"></small></span></button>
-    <button class="act prof-act" id="chatProfile" type="button" aria-label="Character profile"><svg class="prof-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.19 6.26A10 10 0 0 1 6.26 20.19"/><path d="M3.81 17.74A10 10 0 0 1 17.74 3.81"/><circle cx="12" cy="9.4" r="3.5"/><path d="M6.6 18.1c.9-2.3 2.1-3.7 3.3-4.4 1.3.9 2.9.9 4.2 0 1.2.7 2.4 2.1 3.3 4.4"/></svg></button>
+    <span></span>
   </div>
   <main id="scroller"><div id="log"></div></main>
   <div class="tb-wrap"><button type="button" id="toBottom" aria-label="Scroll to the newest message" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button></div>
@@ -2005,6 +2011,8 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
       </div>
       <div class="line"><span>Full width <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="wide"></div>
       <div class="hint" style="margin-top:2px">The message fills the screen from side to side, with or without a bubble.</div>
+      <div class="line"><span>Timestamps <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="showTimes"></div>
+      <div class="hint" style="margin-top:2px">The time under each message. Off: the time shows as a divider at the start and wherever half an hour or more passed.</div>
       <p class="sub" style="margin:16px 0 0">For all messages</p>
       <label class="f">Where messages sit</label>
       <div class="seg" data-k="sides">
@@ -2475,8 +2483,8 @@ const store = {
 const LOOK_DEFAULTS = {
   theme: 'original', accent: '', aiBubble: false,
   showNames: false, nameMode: 'theme', nameC: '#d9553b', showAvatars: false, avShape: 'circle', chatHead: true,
-  bubbleShape: 'tail', showTimes: true, wide: false, u_wide: false, u_aiBubble: true,
-  u_showNames: false, u_nameMode: 'theme', u_nameC: '#3d63f5', u_showAvatars: false, u_avShape: 'circle', u_bubbleShape: 'tail', u_showTimes: true,
+  bubbleShape: 'tail', showTimes: false, wide: false, u_wide: false, u_aiBubble: true,
+  u_showNames: false, u_nameMode: 'theme', u_nameC: '#3d63f5', u_showAvatars: false, u_avShape: 'circle', u_bubbleShape: 'tail', u_showTimes: false,
   sides: 'default', spacing: 'normal', sideMargin: 12, anim: 'slide',
   aiFont: 'Fraunces', meFont: 'Inter',
   fs: 18, fw: 300, lh: 1.6, ls: 0, glow: false,
@@ -2498,6 +2506,8 @@ const DEFAULTS = {
   ...LOOK_DEFAULTS,
 };
 let cfg = { ...DEFAULTS, ...store.get('cfg', {}) };
+// Times became dividers between messages: the per-message timestamps start off once (switch them back on in Style → Layout)
+if (!store.get('mig_timeDividers')) { cfg.showTimes = cfg.u_showTimes = false; store.set('cfg', cfg); store.set('mig_timeDividers', 1); }
 if ('textOnly' in cfg) { if (cfg.textOnly) cfg.genImages = false; delete cfg.textOnly; store.set('cfg', cfg); }
 // Layout options became per side: earlier choices apply to your side too
 for (const k of ['showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'showTimes']) {
@@ -3616,10 +3626,12 @@ function stamp(t) {
   const d = new Date(t), now = new Date(), hm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return d.toDateString() === now.toDateString() ? hm : `${d.toLocaleDateString([], { day: 'numeric', month: 'short', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) })}, ${hm}`;
 }
-function addStamp(el, m) { // only "Pinned" now: times show as dividers between messages
-  if (!m.pinned) return;
-  const s = document.createElement('span'); s.className = 'ts'; s.textContent = 'Pinned';
-  el.append(s);
+function addStamp(el, m) {
+  if (!m.t && !m.pinned) return;
+  const s = document.createElement('span'); s.className = 'ts';
+  const p = document.createElement('b'); p.className = 'pin-l'; p.textContent = m.pinned ? 'Pinned' : '';
+  const tm = document.createElement('i'); tm.className = 'tm'; tm.textContent = m.t ? (m.pinned ? ' · ' : '') + stamp(m.t) : '';
+  s.append(p, tm); el.append(s);
 }
 // Time dividers: at the start and wherever half an hour or more passed (or a new day began)
 const TIME_GAP = 30 * 60000;
@@ -4656,7 +4668,6 @@ function renderChatHead() {
   $('chatAvs').classList.toggle('many', !!g && g.members.length > 3);
   if (g) $('chatAvs').replaceChildren(...groupMembers(g).slice(0, 6).map(m => { const a = document.createElement('span'); a.className = 'av'; setThumb(a, m); return a; }));
   else setThumb($('chatAv'), c);
-  $('chatProfile').hidden = !!g;
   renderGroupBar();
 }
 async function applyChatBg() {
@@ -5256,7 +5267,6 @@ $('chatWho').onclick = () => cur && openChatSettings();
 // Album links (gr://img/<id>) become images on the character card
 const IMG_LINK = /gr:\/\/img\/([A-Za-z0-9_-]+)/g;
 const stripLinks = t => (t || '').replace(IMG_LINK, '').replace(/\n{3,}/g, '\n\n').trim();
-$('chatProfile').onclick = () => cur && openProfile(cur.c.id);
 
 // ---------- Character & persona lists ----------
 const avatarCache = new Map();
@@ -8018,7 +8028,8 @@ function buildSettings() {
   for (const m of document.querySelectorAll('#preview .msg')) {
     const me = m.classList.contains('me');
     decorate(m, me ? 'me' : 'ai', null, null);
-    if (!me) { const n = document.createElement('div'); n.className = 'alts newest'; n.style.marginTop = '6px'; n.innerHTML = '<button type="button" class="cmd" tabindex="-1">Regenerate</button><button type="button" class="cmd" tabindex="-1">Continue</button>'; m.append(n); }
+    const ts = document.createElement('span'); ts.className = 'ts'; ts.textContent = me ? '23:41' : '23:42';
+    if (me) m.append(ts); else { const n = document.createElement('div'); n.className = 'alts newest'; n.style.marginTop = '6px'; n.innerHTML = '<button type="button" class="cmd" tabindex="-1">Regenerate</button><button type="button" class="cmd" tabindex="-1">Continue</button>'; n.append(ts); m.append(n); }
   }
   // the preview starts with a time divider, like a chat
   { const pv = document.querySelector('#preview .msg'); if (pv) { const d = document.createElement('div'); d.className = 'tdiv'; d.innerHTML = '<span>Today · 23:41</span>'; pv.before(d); } }
