@@ -665,6 +665,9 @@
   /* messages without a bubble get extra room around them, so they don't run into each other */
   body:not(.ai-bubble) #log > .msg.ai, body.me-nobubble #log > .msg.me { margin: 10px 0; }
   body[data-spacing=compact]:not(.ai-bubble) #log > .msg.ai, body[data-spacing=compact].me-nobubble #log > .msg.me { margin: 4px 0; }
+  /* no bubbles on either side and everything on one side: nothing else tells the messages apart, so even more room */
+  body[data-sides=left]:not(.ai-bubble).me-nobubble #log > .msg, body[data-sides=right]:not(.ai-bubble).me-nobubble #log > .msg, body[data-sides=center]:not(.ai-bubble).me-nobubble #log > .msg { margin: 20px 0; }
+  body[data-spacing=compact]:is([data-sides=left], [data-sides=right], [data-sides=center]):not(.ai-bubble).me-nobubble #log > .msg { margin: 10px 0; }
   body[data-spacing=compact] .preview { gap: 6px; } body[data-spacing=airy] .preview { gap: 22px; }
   body.notime-ai .msg.ai .ts, body.notime-me .msg.me .ts { display: none; }
   /* full width: edge to edge (the picture keeps its spot next to it) */
