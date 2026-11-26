@@ -1411,7 +1411,7 @@
   <div class="page-head">
     <button class="back" data-close="chat" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <button class="chat-who" id="chatWho" type="button" aria-label="Chat settings"><span class="av" id="chatAv"></span><span class="gstack" id="chatAvs" hidden></span><span class="who-txt"><span id="chatName"></span><small id="chatAs"></small></span></button>
-    <span></span>
+    <button class="act more-act" id="chatMore" type="button" aria-label="Profile, chat settings, search and pictures">⋯</button>
   </div>
   <main id="scroller"><div id="log"></div></main>
   <div class="tb-wrap"><button type="button" id="toBottom" aria-label="Scroll to the newest message" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button></div>
@@ -5268,6 +5268,16 @@ $('profEdit').onclick = () => openEditor('char', profileId);
 $('profDelete').onclick = () => { if (deleteItems('char', [profileId])) closeView('profile'); };
 $('profExport').onclick = () => { const c = chars.find(x => x.id === profileId); if (c) exportCard(c); };
 $('chatWho').onclick = () => cur && openChatSettings();
+// ⋯ in the chat header: the character's profile, Chat settings, search in the chat and its pictures
+$('chatMore').onclick = () => {
+  if (!cur) return;
+  showSheet('', [
+    ...(cur.chat.group ? [] : [{ label: 'Profile', onClick: () => openProfile(cur.c.id) }]),
+    { label: 'Chat settings', onClick: () => openChatSettings() },
+    { label: 'Search in chat', onClick: () => { openChatImages(); setTimeout(() => $('ciSearch').focus(), 350); } },
+    { label: 'Pictures in this chat', onClick: () => openChatImages() },
+  ]);
+};
 
 // Album links (gr://img/<id>) become images on the character card
 const IMG_LINK = /gr:\/\/img\/([A-Za-z0-9_-]+)/g;
