@@ -621,7 +621,7 @@
   body[data-sides=right] .msg.ai .alts .ts { margin-left: 0; margin-right: auto; order: -1; }
   .msg.me > .mname { text-align: right; }
   body[data-sides=left] .msg.me > .mname { text-align: left; }
-  .mname { display: none; font: 600 13px/1.3 'Inter', system-ui, sans-serif; letter-spacing: .01em; margin-bottom: 4px; white-space: normal; background: none; text-shadow: none; }
+  .mname { display: none; font: 600 10px/1.4 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 6px; white-space: normal; background: none; text-shadow: none; }
   .msg.ai > .mname { color: var(--name-ai, var(--accent)); -webkit-text-fill-color: var(--name-ai, var(--accent)); }
   .msg.me > .mname { color: var(--name-me, var(--accent)); -webkit-text-fill-color: var(--name-me, var(--accent)); }
   body.names-ai .msg.ai > .mname, body.names-me .msg.me > .mname, #chat.grp .msg.ai > .mname { display: block; }
@@ -663,7 +663,6 @@
   body[data-bubbleme=sharp] .msg.me, body.ai-bubble[data-bubbleai=sharp] .msg.ai { border-radius: 5px; }
   body[data-bubbleme=block] .msg.me { border-radius: 6px; border-color: transparent; background: color-mix(in srgb, var(--accent) 10%, var(--card)); }
   body.ai-bubble[data-bubbleai=block] .msg.ai { border-radius: 6px; border-color: transparent; background: var(--card); }
-  body[data-bubbleme=block] .msg.me > .mname, body.ai-bubble[data-bubbleai=block] .msg.ai > .mname { font: 600 10px/1.4 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 6px; }
   body[data-sides=left][data-bubbleme=tail] .msg.me { border-radius: 18px 18px 18px 4px; }
   body.ai-bubble[data-sides=right][data-bubbleai=tail] .msg.ai { border-radius: 18px 18px 4px 18px; }
   body[data-spacing=compact] #log { gap: 8px; } body[data-spacing=airy] #log { gap: 32px; }
@@ -2011,7 +2010,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
         <button type="button" data-v="sharp">Sharp</button>
         <button type="button" data-v="block">Block</button>
       </div>
-      <div class="hint">Block: narrow corners, your messages tinted with the accent colour and names in small capitals.</div>
+      <div class="hint">Block: narrow corners, your messages tinted with the accent colour.</div>
       </div>
       <div class="line"><span>Full width <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="wide"></div>
       <div class="hint" style="margin-top:2px">The message fills the screen from side to side, with or without a bubble.</div>
