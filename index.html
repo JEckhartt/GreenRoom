@@ -315,6 +315,15 @@
   .gn-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
   .gn-item { display: flex; align-items: center; gap: 10px; padding: 6px 4px; background: none; border: 0; border-radius: 10px; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
   .gn-item .av { width: 36px; height: 36px; }
+  .gn-row { display: flex; align-items: center; }
+  .gn-row .gn-item { flex: 1; min-width: 0; }
+  .gn-more { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: none; color: var(--ink-soft); cursor: pointer; padding: 0; }
+  .gn-more svg { transition: transform .25s ease; }
+  .gn-wrap.open .gn-more svg { transform: rotate(180deg); }
+  .gn-desc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease; }
+  .gn-desc > div { min-height: 0; overflow: hidden; padding: 0 8px 0 50px; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .gn-wrap.open .gn-desc { grid-template-rows: 1fr; }
+  .gn-wrap.open .gn-desc > div { padding-bottom: 10px; }
   .gn-item span:nth-child(2) { flex: 1; }
   .gn-item .gn-n { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 12px; color: var(--on-accent); }
   .gn-item.on .gn-n { background: var(--accent); border-color: var(--accent); }
@@ -397,6 +406,18 @@
   .st-card:active .st-cover { opacity: .85; }
   .st-card small { display: block; color: var(--ink-soft); font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .st-card small:first-of-type { margin-top: 10px; }
+  .st-wd { display: flex !important; justify-content: space-between; gap: 8px; }
+  .st-wd span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .st-wd em { flex: none; font-style: normal; color: var(--accent-ink); }
+  .st-grid.st-list { display: block; }
+  .st-grid.st-list .st-empty { padding: 40px 0; }
+  .st-lrow { align-items: flex-start; border-bottom: 1px solid var(--line); }
+  .st-grid.st-list .st-lrow:first-child { border-top: 1px solid var(--line); }
+  .st-lrow .st-mini { width: 54px; font-size: 24px; }
+  .st-lrow h3 { margin-top: 2px !important; }
+  .st-lrow small { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st-lrow .st-state { display: block; margin-top: 2px; color: var(--accent-ink); font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+  .st-lrow.open .st-mini { outline: 1px solid var(--accent-ink); outline-offset: 3px; }
   .st-card .st-state { margin-top: 2px; color: var(--accent-ink); font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
   .st-card.open .st-cover { outline: 1px solid var(--accent-ink); outline-offset: 4px; }
   .st-panel { grid-column: 1 / -1; padding: 14px 2px 16px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -427,6 +448,20 @@
   .ed-pick svg { flex: none; color: var(--accent-ink); }
   .ed-form .save-bar { margin-top: 28px; }
   .ed-form .save-bar .btn.primary { width: 100%; background: var(--accent); color: var(--on-accent); border: 0; font-weight: 600; padding: 14px; }
+  /* a story's book page */
+  .sb-cover { width: min(62%, 240px); margin: 6px auto 0; }
+  .sb-cover .st-ttl { font-size: 22px; }
+  .sb-title { margin: 22px 0 6px; text-align: center; font-family: 'Fraunces', Georgia, serif; font-size: 28px; font-weight: 400; line-height: 1.15; }
+  .sb-by { text-align: center; }
+  .sb-read { display: block; width: 100%; margin: 22px 0 0; padding: 14px; border: 0; border-radius: 12px; background: var(--accent); color: var(--on-accent); font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .sb-desc { margin: 24px 2px 0; font-family: 'Fraunces', Georgia, serif; font-size: 17px; line-height: 1.55; white-space: pre-wrap; }
+  .sb-gen { border: 0; background: none; padding: 0; color: var(--accent-ink); font: inherit; font-size: 15px; cursor: pointer; }
+  .sb-info { margin: 26px 0 24px; border-top: 1px solid var(--line); }
+  .sb-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 2px 12px; border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--ink); font: inherit; text-align: left; }
+  .sb-row .st-cap { flex: none; width: 112px; }
+  .sb-row .sb-v { flex: 1; min-width: 0; font-size: 15px; overflow-wrap: anywhere; }
+  .sb-row.link { cursor: pointer; } .sb-row.link .sb-v { color: var(--accent-ink); } .sb-row.link svg { flex: none; color: var(--accent-ink); }
+  .sb-row.link:active { background: color-mix(in srgb, var(--ink) 5%, transparent); }
   /* chapters in Edit story fold open one by one */
   .se-ch { border-bottom: 1px solid var(--line); }
   .se-ch > summary { display: flex; align-items: center; gap: 12px; padding: 14px 2px 13px; list-style: none; cursor: pointer; }
@@ -859,6 +894,7 @@
     border: .5px solid var(--line); box-shadow: 0 14px 40px -10px rgba(0,0,0,.55);
     transform: scale(.55); opacity: 0; transition: transform .38s cubic-bezier(.22,1.2,.36,1), opacity .18s; }
   #sheet.wide .panel { width: 320px; }
+  #sheet .opt.fit { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* still too long at the smallest size: the chat's name, last, is cut */
   #sheet.open .panel { transform: none; opacity: 1; }
   #sheet:not(.bottom) h2 { display: none; }
   #sheet h2 { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin: 0; padding: 10px 14px 8px; border-bottom: .5px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -935,6 +971,8 @@
   .ed-title { margin: 6px 2px 14px; font-family: 'Inter', system-ui, sans-serif; font-size: 40px; font-weight: 500; letter-spacing: -.035em; line-height: 1; }
   #chats input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
   #chats #chatList { margin-top: 6px; }
+  #chatList.from-r { animation: tabFromR .22s ease-out; } #chatList.from-l { animation: tabFromL .22s ease-out; }
+  @keyframes tabFromR { from { transform: translateX(24px); opacity: .4; } } @keyframes tabFromL { from { transform: translateX(-24px); opacity: .4; } }
   .ed-tabs { display: flex; gap: 20px; padding: 14px 2px 0; }
   .ed-tabs[hidden] { display: none; }
   .ed-tabs button { border: 0; background: none; padding: 0 0 7px; color: var(--ink-soft); font: 600 10.5px 'Inter', system-ui, sans-serif; letter-spacing: .18em; text-transform: uppercase; border-bottom: 1px solid transparent; cursor: pointer; }
@@ -1126,7 +1164,7 @@
     <button type="button" id="goLore" data-sec="lorebooks">Lorebooks<sup></sup></button>
     <button type="button" id="goAlbums" data-sec="albums">Albums<sup></sup></button>
   </nav>
-  <div class="h-recent" id="homeRecent" hidden><span class="cap">Continue</span><div class="h-row" id="homeRow"></div></div>
+  <div class="h-recent" id="homeRecent" hidden><span class="cap">Continue chat</span><div class="h-row" id="homeRow"></div></div>
   <div class="h-foot"><button type="button" id="goSettings" class="cap">Settings</button></div>
 </section>
 
@@ -1303,7 +1341,6 @@
       <textarea id="hpWrite"></textarea>
       <div class="hint">Used by Write for me: the AI writes your next message. Anything already in the text box is passed along as an idea.</div>
     </div>
-    <div class="save-bar"><button class="btn primary" type="button" id="hpSave2">Save</button></div>
   </div></div>
 </section>
 
@@ -1606,7 +1643,6 @@
       </details>
     </div>
     <div class="card" id="edCounts" style="margin-top:12px;font-size:14px"></div>
-    <div class="save-bar"><button class="btn primary" type="button" id="edSave2">Save</button></div>
     <div class="actions">
       <button class="btn danger" type="button" id="edDelete">Delete</button>
     </div>
@@ -2033,7 +2069,7 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="stories" class="view" aria-label="Stories">
-  <div class="page-head"><button class="back" data-close="stories" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Stories</h1><span class="head-acts"><button class="act plus" id="stNew" type="button" aria-label="New story"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
+  <div class="page-head"><button class="back" data-close="stories" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Stories</h1><span class="head-acts"><button class="act vbtn" id="storyView" type="button" aria-label="List"></button><button class="act plus" id="stNew" type="button" aria-label="New story"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <h2 class="ed-title">Stories</h2>
     <div class="st-read" id="stRead"></div>
@@ -2111,6 +2147,18 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
   <div class="page-body"><div class="page-inner" style="padding-top:12px"><div id="sentBox"></div></div></div>
 </section>
 
+<section id="storyBook" class="view" aria-label="Story">
+  <div class="page-head"><button class="back" data-close="storyBook" type="button" aria-label="Stories"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="sbHead"></h1><span></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:20px">
+    <div class="sb-cover st-cover plain" id="sbCover"><div class="st-ttl"></div></div>
+    <h2 class="sb-title" id="sbTitle"></h2>
+    <div class="sb-by st-cap" id="sbBy"></div>
+    <button type="button" class="sb-read" id="sbRead"></button>
+    <div class="sb-desc" id="sbDesc"></div>
+    <div class="sb-info" id="sbInfo"></div>
+  </div></div>
+</section>
+
 <section id="storyEdit" class="view" aria-label="Edit story">
   <div class="page-head"><button class="back" data-close="storyEdit" type="button" aria-label="Cancel"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Edit story</h1><button class="act" id="seSave" type="button">Save</button></div>
   <div class="page-body"><div class="page-inner ed-form" style="padding-top:12px">
@@ -2124,10 +2172,12 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
       <label class="f" for="seStyle">Cover style</label>
       <input type="text" id="seStyle" placeholder="e.g. realistic 4k photo">
       <div class="hint">Used by New cover (long press the story).</div>
+      <label class="f" for="seDesc">Description</label>
+      <textarea id="seDesc" placeholder="Shown on the story's book page"></textarea>
+      <div class="actions" style="margin-top:10px"><button class="btn" type="button" id="seGenDesc">Generate description</button></div>
     </div>
     <div class="jan-h">Text</div>
     <div id="seChapters"></div>
-    <div class="save-bar"><button class="btn primary" type="button" id="seSave2">Save</button></div>
   </div></div>
 </section>
 
@@ -2157,6 +2207,8 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
       </div>
       <label class="f" for="ssTitle">Title</label>
       <input type="text" id="ssTitle" placeholder="Leave empty and the AI picks one">
+      <div class="line"><span>Write a description</span><input type="checkbox" class="tgl" id="ssDesc" checked></div>
+      <div class="hint">A few lines about the story for its book page, like the back of a book. No spoilers.</div>
     </div>
     <div class="jan-h">Cover</div>
     <div class="card">
@@ -4517,10 +4569,15 @@ function showSheet(title, opts, bottom = false) {
     if (o.av !== undefined) { const a = document.createElement('span'); a.className = 'av'; setThumb(a, o.av || { name: '–' }); b.append(a); }
     if (o.icon) { const a = document.createElement('span'); a.className = 'ico'; a.innerHTML = o.icon; b.append(a); }
     b.append(o.label);
+    if (o.fit) b.classList.add('fit'); // fit: the label stays on one line, the text shrinks if it has to
     b.onclick = () => { if (!o.keep) hideSheet(); o.onClick(); }; // keep: the sheet stays (e.g. while the photo picker is open)
     return b;
   }));
-  openSheetAt(opts.some(o => o.av !== undefined));
+  openSheetAt(opts.some(o => o.av !== undefined || o.fit));
+  for (const b of $('sheetOpts').querySelectorAll('.opt.fit')) {
+    b.style.fontSize = '';
+    for (let fs = parseFloat(getComputedStyle(b).fontSize); b.scrollWidth > b.clientWidth && fs > 11.5; ) b.style.fontSize = (fs -= .5) + 'px';
+  }
 }
 // where the last tap or long press was: the menu grows out of that spot (centered when there was none)
 let menuTap = null;
@@ -4619,7 +4676,7 @@ function pickChar(title, then) {
 let importTo = null;
 $('chatAdd').onclick = () => showSheet('Chats', [
   // pick the character on the Characters screen (picture and description), then Start new chat there
-  { label: 'Start new chat', onClick: () => openView('chars') },
+  { label: 'Start new chat', onClick: () => { const v = store.get('view', {}); v.char = 'grid'; store.set('view', v); syncViewBtn('char'); renderList('char'); openView('chars'); } }, // always as a grid of pictures
   { label: 'New group chat', onClick: openGroupNew },
   { label: 'Import chat', onClick: () => pickChar('Import a chat with…', c => pickPersona(c, pid => { importTo = { c, pid }; $('chatFile').click(); })) },
 ]);
@@ -5587,7 +5644,7 @@ async function saveEditor() {
   if (cur && (cur.c.id === it.id || cur.p?.id === it.id)) renderChatHead();
   closeView('editor');
 }
-$('edSave').onclick = $('edSave2').onclick = saveEditor;
+$('edSave').onclick = saveEditor;
 
 $('edDelete').onclick = () => { if (edit.kind === 'persona' && deleteItems('persona', [edit.id])) closeView('editor'); };
 
@@ -8102,6 +8159,18 @@ $('ciSearch').addEventListener('input', () => {
 
 // ---------- Search across all chats (Chats screen) ----------
 $('chatTabs').onclick = e => { const t = e.target.closest('button')?.dataset.t; if (!t) return; store.set('chatTab', t); expanded.clear(); renderChats(); };
+// swipe sideways over the list for the next or previous tab (not from the screen's left edge: that's back)
+(() => {
+  const el = $('chats').querySelector('.page-body'), order = ['chats', 'groups', 'folders']; let s0 = null;
+  el.addEventListener('touchstart', e => { const t = e.touches[0]; s0 = e.touches.length === 1 && t.clientX > 28 && !e.target.closest('.pin-bar, input') ? { x: t.clientX, y: t.clientY, t: Date.now() } : null; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (!s0 || $('chatTabs').hidden) return; const t = e.changedTouches[0], dx = t.clientX - s0.x, dy = t.clientY - s0.y, quick = Date.now() - s0.t < 700; s0 = null;
+    if (!quick || Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+    const i = order.indexOf(store.get('chatTab', 'chats')), j = i + (dx < 0 ? 1 : -1); if (j < 0 || j >= order.length) return;
+    store.set('chatTab', order[j]); expanded.clear(); renderChats();
+    const l = $('chatList'); l.classList.remove('from-r', 'from-l'); void l.offsetWidth; l.classList.add(dx < 0 ? 'from-r' : 'from-l');
+  }, { passive: true });
+})();
 $('chatSearch').addEventListener('input', () => {
   const q = $('chatSearch').value.trim();
   if (q.length < 2) return renderChats();
@@ -8480,7 +8549,7 @@ function openHelpers(focus) {
   openView('helpers');
   if (focus) setTimeout(() => $(focus === 'enhancePrompt' ? 'hpEnhance' : 'hpWrite').focus(), 350);
 }
-$('hpSave').onclick = $('hpSave2').onclick = () => {
+$('hpSave').onclick = () => {
   cfg.enhancePrompt = $('hpEnhance').value.trim(); cfg.writePrompt = $('hpWrite').value.trim(); saveCfg();
   toast('Saved. Long press send to use them.'); closeView('helpers');
 };
@@ -8939,6 +9008,7 @@ $('goStories').onclick = () => { renderStories(); openView('stories'); };
 $('stNew').onclick = openStorySetup;
 
 function openStorySetup() {
+  setup.chatId = null; // a new story starts without a chat chosen
   const sel = $('ssProxy'); sel.innerHTML = '';
   for (const pr of cfg.proxies) { const o = document.createElement('option'); o.value = pr.id; o.textContent = pr.name || 'Unnamed'; sel.append(o); }
   sel.value = cfg.proxyId || cfg.proxies[0]?.id || '';
@@ -8968,7 +9038,7 @@ $('ssFormats').onclick = e => { const v = e.target.dataset?.v; if (!v) return; s
 $('ssChat').onclick = () => pickChar('Story from a chat with…', c => {
   const cs = chats.filter(ch => ch.charId === c.id && ch.preview).sort((a, b) => b.updated - a.updated);
   if (!cs.length) return toast(`No chats with ${c.name} yet`);
-  showSheet(`Which chat with ${c.name}?`, cs.map(ch => ({ label: `as ${personaOf(ch)?.name || ch.personaName || 'no persona'}${chatLabel(ch) ? ' · ' + chatLabel(ch) : ''} · ${ch.count ?? msgGet(ch.id).length} messages · ${when(ch.updated)}`, onClick: () => { setup.chatId = ch.id; syncStorySetup(); } })));
+  showSheet(`Which chat with ${c.name}?`, cs.map(ch => ({ label: `as ${personaOf(ch)?.name || ch.personaName || 'no persona'} · ${ch.count ?? msgGet(ch.id).length} messages · ${when(ch.updated)}${chatLabel(ch) ? ' · ' + chatLabel(ch) : ''}`, fit: true, onClick: () => { setup.chatId = ch.id; syncStorySetup(); } })));
 });
 
 // The chat as plain messages (the versions that show, no picture tags)
@@ -9012,6 +9082,7 @@ $('ssGo').onclick = () => {
   const msgs = storyMessages(s); if (!msgs.length) return toast('That chat has no messages');
   cfg.storyStyle = $('ssStyle').value.trim(); saveCfg();
   const meta = { id: uid(), created: Date.now(), chatId: s.ch.id, charId: s.c.id, personaId: s.p?.id || '', charName: s.c.name,
+    personaName: s.p?.name || s.ch.personaName || '', describe: $('ssDesc').checked, chatMsgs: msgs.length, chatChars: msgs.reduce((a, m) => a + m.text.length, 0),
     title: $('ssTitle').value.trim(), userTitle: !!$('ssTitle').value.trim(), proxyId: pr.id, chapters: $('ssChapters').checked,
     pov: setup.pov, who: setup.who, cover: $('ssCover').checked && imageProxyOk(), style: cfg.storyStyle, formats: [...setup.formats],
     parts: storyParts(msgs, $('ssChapters').checked), done: 0, status: 'writing', words: 0 };
@@ -9033,6 +9104,8 @@ async function writeStory(id) {
   Object.assign(storyLive, { id, step: 'write', part: meta.done, parts: meta.parts.length, chars: 0, partStart: Date.now(), times: storyLive.id === id ? storyLive.times : [] });
   keepAwake(true); // the screen stays on while writing (iOS pauses the app when it locks)
   const opts = { chat: { proxyId: meta.proxyId }, free: true, signal: job.ctl.signal };
+  const model = cfg.proxies.find(x => x.id === meta.proxyId)?.model; // which model wrote it (a paused story can be continued with another)
+  if (model && !(meta.models ||= []).includes(model)) { meta.models.push(model); saveStories(); }
   try {
     const people = [`${cc}:\n${fill(c.personality || '', c, p).trim() || '(nothing written)'}`, `${uu}:\n${fill(p?.personality || '', c, p).trim() || '(nothing written)'}`].join('\n\n');
     for (let i = meta.done; i < meta.parts.length; i++) {
@@ -9085,6 +9158,10 @@ SUMMARY: ten to fifteen sentences about everything that has happened in the stor
       const t = await streamChat([{ role: 'user', content: `Give this novel a title. The story:\n${body.summary}\n\nThe main characters are ${cc} and ${uu}. Reply with the title only, no quotes.` }], () => {}, opts);
       meta.title = t.replace(/["“”*#]/g, '').split('\n')[0].trim().slice(0, 90) || `${cc}`;
     }
+    if (meta.describe && !meta.description) {
+      meta.status = 'describing'; storyLive.step = 'describing'; saveStories(); renderStories();
+      try { meta.description = await storyBlurb(meta, body, opts); } catch (e) { if (isAbort(e)) throw e; toast('The description failed: ' + e.message); }
+    }
     if (meta.cover && !(await idb.get('cover_' + id).catch(() => null))) {
       meta.status = 'cover'; storyLive.step = 'cover'; saveStories(); renderStories();
       try { await makeStoryCover(meta, s, body); } catch (e) { if (isAbort(e)) throw e; meta.coverError = e.message; toast('The cover failed: ' + e.message); }
@@ -9111,7 +9188,7 @@ async function makeStoryCover(meta, s, body) {
 const coverCache = new Map();
 const chevSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>';
 const wordsText = st => st.words ? `${st.words.toLocaleString()} words` : 'Not started';
-const storyState = st => ({ writing: `Writing ${Math.min(st.done + 1, st.parts.length)}/${st.parts.length}…`, naming: 'Choosing a title…', cover: 'Making the cover…', stopped: `Paused at ${st.done}/${st.parts.length}`, error: `Stopped at ${st.done}/${st.parts.length}` })[st.status];
+const storyState = st => ({ writing: `Writing ${Math.min(st.done + 1, st.parts.length)}/${st.parts.length}…`, naming: 'Choosing a title…', describing: 'Writing the description…', cover: 'Making the cover…', stopped: `Paused at ${st.done}/${st.parts.length}`, error: `Stopped at ${st.done}/${st.parts.length}` })[st.status];
 // Stories: the ones you're partway through in a list at the top (folds away); below it every story as a cover
 function renderStories() {
   const g = $('stGrid'), rl = $('stRead'); if (!g) return; g.innerHTML = ''; rl.innerHTML = '';
@@ -9129,36 +9206,108 @@ function renderStories() {
       const r = document.createElement('button'); r.type = 'button'; r.className = 'st-row';
       r.innerHTML = `<span class="st-mini plain"></span><span class="st-rt"><h3></h3><span class="st-cap"></span></span><span class="st-pct">${pct}%</span><i style="width:${pct}%"></i>`;
       r.querySelector('h3').textContent = st.title || 'Untitled';
-      const mini = r.querySelector('.st-mini'), show = src => { if (!src) return; mini.style.backgroundImage = `url("${src}")`; mini.classList.remove('plain'); };
-      mini.textContent = (st.title || st.charName || '?').trim()[0]?.toUpperCase() || '?';
-      if (coverCache.has(st.id)) show(coverCache.get(st.id));
-      else idb.get('cover_' + st.id).then(src => src && shrinkSrc('cover_' + st.id, src, 520).then(sm => { coverCache.set(st.id, sm); show(sm); })).catch(() => {});
+      coverInto(r.querySelector('.st-mini'), st, true);
       r.querySelector('.st-cap').textContent = storyState(st) || wordsText(st);
       pressable(r, () => openReader(st.id), () => { navigator.vibrate?.(12); storyMenu(st); });
       inner.append(r);
     }
     rl.append(head, wrap);
   }
+  // the library: every story, as covers or as a list
+  const asList = storyViewOf() === 'list'; g.classList.toggle('st-list', asList);
   for (const st of stories) {
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'st-card';
-    const cv = document.createElement('div'); cv.className = 'st-cover plain';
-    const t = document.createElement('div'); t.className = 'st-ttl'; t.textContent = st.title || 'Untitled'; cv.append(t);
-    const show = src => { if (!src) return; cv.style.backgroundImage = `url("${src}")`; cv.classList.remove('plain'); };
-    if (coverCache.has(st.id)) show(coverCache.get(st.id));
-    else idb.get('cover_' + st.id).then(src => src && shrinkSrc('cover_' + st.id, src, 520).then(sm => { coverCache.set(st.id, sm); show(sm); })).catch(() => {});
-    const sm = document.createElement('small'); sm.textContent = st.charName;
-    const wd = document.createElement('small'); wd.textContent = wordsText(st);
-    b.append(cv, sm, wd);
-    const state = storyState(st);
-    if (state) { const s2 = document.createElement('span'); s2.className = 'st-state'; s2.textContent = state; b.append(s2); }
+    const read = (pos[st.id] || 0) >= .995, who = [st.charName, stPersona(st) && 'as ' + stPersona(st)].filter(Boolean).join(' · ');
+    const b = document.createElement('button'); b.type = 'button';
+    const wd = document.createElement('small'); wd.className = 'st-wd'; wd.innerHTML = `<span></span>${read ? '<em>Read</em>' : ''}`; wd.firstChild.textContent = wordsText(st);
+    const sm = document.createElement('small'); sm.textContent = who;
+    const state = storyState(st), s2 = state && document.createElement('span'); if (s2) { s2.className = 'st-state'; s2.textContent = state; }
+    if (asList) {
+      b.className = 'st-row st-lrow';
+      const mini = document.createElement('span'); mini.className = 'st-mini plain'; coverInto(mini, st, true);
+      const tx = document.createElement('span'); tx.className = 'st-rt'; const h = document.createElement('h3'); h.textContent = st.title || 'Untitled';
+      tx.append(h, sm, wd); if (s2) tx.append(s2); b.append(mini, tx);
+    } else {
+      b.className = 'st-card';
+      const cv = document.createElement('div'); cv.className = 'st-cover plain';
+      const t = document.createElement('div'); t.className = 'st-ttl'; t.textContent = st.title || 'Untitled'; cv.append(t); coverInto(cv, st);
+      b.append(cv, sm, wd); if (s2) b.append(s2);
+    }
     pressable(b, () => {
-      if (st.status === 'done') return openReader(st.id);
+      if (st.status === 'done') return openBook(st.id);
       stOpen = stOpen === st.id ? null : st.id; renderStories();
     }, () => { navigator.vibrate?.(12); storyMenu(st); });
     b.classList.toggle('open', stOpen === st.id);
     g.append(b);
     if (stOpen === st.id && st.status !== 'done') g.append(storyPanel(st));
   }
+}
+// a story's cover (small or big) into an element, from the cache or the database
+function coverInto(el, st, mini) {
+  if (mini) el.textContent = (st.title || st.charName || '?').trim()[0]?.toUpperCase() || '?';
+  const show = src => { if (!src) return; el.style.backgroundImage = `url("${src}")`; el.classList.remove('plain'); };
+  if (coverCache.has(st.id)) show(coverCache.get(st.id));
+  else idb.get('cover_' + st.id).then(src => src && shrinkSrc('cover_' + st.id, src, 520).then(sm => { coverCache.set(st.id, sm); show(sm); })).catch(() => {});
+}
+const stPersona = st => personas.find(x => x.id === st.personaId)?.name || st.personaName || '';
+const storyViewOf = () => store.get('view', {}).story || 'grid';
+function syncStoryView() { const n = storyViewOf() === 'list' ? 'grid' : 'list'; $('storyView').innerHTML = n === 'list' ? LIST_SVG : GRID_SVG; $('storyView').setAttribute('aria-label', 'Show as ' + n); }
+$('storyView').onclick = () => { const v = store.get('view', {}); v.story = storyViewOf() === 'list' ? 'grid' : 'list'; store.set('view', v); syncStoryView(); renderStories(); };
+syncStoryView();
+// A story's book page: the cover, the description, what it was made from, and Read
+let bookId = null;
+async function storyBlurb(st, body, opts) {
+  const story = body?.summary || (body?.chapters || []).map(c => c.text).join('\n\n').slice(0, 12000);
+  const out = await streamChat([
+    { role: 'system', content: 'You write the text on the back of novels. Output only that text.' },
+    { role: 'user', content: `Write the back-cover description of the novel "${st.title || 'Untitled'}": 3 to 5 sentences that set up the characters and the situation and make people want to read it. No spoilers, don't reveal the ending, no quotes around it.\n\nThe story:\n${story}` },
+  ], () => {}, opts);
+  return out.replace(/^["“]|["”]$/g, '').trim();
+}
+function openBook(id) {
+  const st = stories.find(x => x.id === id); if (!st) return;
+  bookId = id; renderBook();
+  $('storyBook').querySelector('.page-body').scrollTop = 0; openView('storyBook');
+}
+function renderBook() {
+  const st = stories.find(x => x.id === bookId); if (!st) return;
+  const cv = $('sbCover'); cv.className = 'sb-cover st-cover plain'; cv.style.backgroundImage = ''; cv.querySelector('.st-ttl').textContent = st.title || 'Untitled';
+  idb.get('cover_' + st.id).then(src => { if (src && bookId === st.id) { cv.style.backgroundImage = `url("${src}")`; cv.classList.remove('plain'); } }).catch(() => {});
+  $('sbHead').textContent = $('sbTitle').textContent = st.title || 'Untitled';
+  $('sbBy').textContent = `A story with ${st.charName}`;
+  const pos = store.get('storyPos', {})[st.id] || 0, pct = Math.round(pos * 100);
+  $('sbRead').textContent = pos >= .995 ? 'Read again' : pct > 0 ? `Continue reading · ${pct}%` : 'Read';
+  $('sbRead').onclick = () => { if (pos >= .995) { const o = store.get('storyPos', {}); o[st.id] = 0; store.set('storyPos', o); } openReader(st.id); };
+  const d = $('sbDesc'); d.replaceChildren();
+  if (st.description) d.textContent = st.description;
+  else {
+    const g = document.createElement('button'); g.type = 'button'; g.className = 'sb-gen'; g.textContent = 'Generate description';
+    g.onclick = async () => {
+      const pr = cfg.proxies.find(x => x.id === st.proxyId) || cfg.proxies.find(x => x.id === cfg.proxyId);
+      if (!pr?.url || !pr?.model) return toast('Choose a proxy with a URL and model in Settings');
+      g.disabled = true; g.textContent = 'Writing…';
+      try { st.description = await storyBlurb(st, await idb.get('story_' + st.id).catch(() => null), { chat: { proxyId: pr.id }, free: true }); saveStories(); }
+      catch (e) { if (!isAbort(e)) toast('Could not write a description: ' + e.message); }
+      if (bookId === st.id) renderBook();
+    };
+    d.append(g);
+  }
+  // the facts, in small capitals with hairlines
+  const ch = chats.find(x => x.id === st.chatId), c = chars.find(x => x.id === st.charId);
+  const msgs = st.chatMsgs ?? (ch ? storyMessages({ ch, c, p: personaOf(ch) }).length : st.parts.at(-1)?.[1]);
+  const size = st.chatChars ?? (ch ? storyMessages({ ch, c, p: personaOf(ch) }).reduce((a, m) => a + m.text.length, 0) : null);
+  const models = st.models?.length ? st.models : [cfg.proxies.find(x => x.id === st.proxyId)?.model].filter(Boolean);
+  const rows = [
+    ['Character', st.charName, c ? () => openProfile(c.id) : null],
+    ['Persona', stPersona(st) || '—'],
+    ['Words', st.words ? st.words.toLocaleString() : '—'],
+    ['Written by', models.join(', ') || '—'],
+    ['Original chat', msgs != null ? `${msgs.toLocaleString()} message${msgs === 1 ? '' : 's'}${size != null ? ` · ${Math.round(size / 1000).toLocaleString()}k characters` : ''}` : '—'],
+  ];
+  $('sbInfo').replaceChildren(...rows.map(([k, v, go]) => {
+    const r = document.createElement(go ? 'button' : 'div'); r.className = 'sb-row' + (go ? ' link' : ''); if (go) { r.type = 'button'; r.onclick = go; }
+    r.innerHTML = `<span class="st-cap"></span><span class="sb-v"></span>${go ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>' : ''}`;
+    r.firstChild.textContent = k; r.children[1].textContent = v; return r;
+  }));
 }
 // The panel under a story that's being written or has paused: what it's doing, a progress bar, the buttons
 function storyPanel(st) {
@@ -9184,7 +9333,7 @@ function liveUpdate(box = $('stPanel'), st = stories.find(x => x.id === stOpen))
   const what = st.chapters && n > 1 ? 'chapter' : 'part';
   let head, info = '';
   if (live) {
-    head = storyLive.step === 'naming' ? 'Choosing a title…' : storyLive.step === 'cover' ? 'Making the cover…'
+    head = storyLive.step === 'naming' ? 'Choosing a title…' : storyLive.step === 'describing' ? 'Writing the description…' : storyLive.step === 'cover' ? 'Making the cover…'
       : `Writing ${what} ${storyLive.part + 1} of ${n}…`;
     if (storyLive.step === 'write') info = storyLive.chars ? `${storyLive.chars.toLocaleString()} characters of this ${what} so far` : 'Waiting for the first words…';
     const t = storyLive.times, avg = t.length ? t.reduce((a, x) => a + x, 0) / t.length : 0, left = n - storyLive.part - (storyLive.step === 'write' ? 0 : 1);
@@ -9573,7 +9722,7 @@ let seStory = null, seBody = null;
 async function openStoryEdit(st) {
   const body = await idb.get('story_' + st.id).catch(() => null);
   seStory = st; seBody = body;
-  $('seTitle').value = st.title || ''; $('seNames').value = st.charName || ''; $('seStyle').value = st.style || '';
+  $('seTitle').value = st.title || ''; $('seNames').value = st.charName || ''; $('seStyle').value = st.style || ''; $('seDesc').value = st.description || '';
   const box = $('seChapters'); box.innerHTML = '';
   if (!body?.chapters?.length) { const e = document.createElement('div'); e.className = 'hint'; e.textContent = 'Nothing written yet.'; box.append(e); }
   else body.chapters.forEach((c, i) => {
@@ -9596,15 +9745,24 @@ async function openStoryEdit(st) {
 async function saveStoryEdit() {
   const st = seStory; if (!st) return;
   if (storyJob?.id === st.id) return toast('The story is being written; edit it when it is done');
-  st.title = $('seTitle').value.trim() || st.title; st.charName = $('seNames').value.trim() || st.charName; st.style = $('seStyle').value.trim();
+  st.title = $('seTitle').value.trim() || st.title; st.charName = $('seNames').value.trim() || st.charName; st.style = $('seStyle').value.trim(); st.description = $('seDesc').value.trim();
   if (seBody?.chapters?.length) {
     for (const el of $('seChapters').querySelectorAll('[data-k]')) { const c = seBody.chapters[+el.dataset.i]; if (c) c[el.dataset.k] = el.dataset.k === 'text' ? el.value.trim() : el.value.trim(); }
     st.words = seBody.chapters.reduce((n, x) => n + (x.text.trim() ? x.text.trim().split(/\s+/).length : 0), 0);
     try { await idb.put('story_' + st.id, seBody); } catch (e) { return toast('Could not save the text: ' + e.message); }
   }
-  saveStories(); renderStories(); closeView('storyEdit'); toast('Saved');
+  saveStories(); renderStories(); if (bookId === st.id) renderBook(); closeView('storyEdit'); toast('Saved');
 }
-$('seSave').onclick = saveStoryEdit; $('seSave2').onclick = saveStoryEdit;
+$('seSave').onclick = saveStoryEdit;
+$('seGenDesc').onclick = async () => {
+  const st = seStory; if (!st) return;
+  const pr = cfg.proxies.find(x => x.id === st.proxyId) || cfg.proxies.find(x => x.id === cfg.proxyId);
+  if (!pr?.url || !pr?.model) return toast('Choose a proxy with a URL and model in Settings');
+  const btn = $('seGenDesc'); btn.disabled = true; btn.textContent = 'Writing…';
+  try { $('seDesc').value = await storyBlurb({ ...st, title: $('seTitle').value.trim() || st.title }, seBody, { chat: { proxyId: pr.id }, free: true }); autosize($('seDesc')); }
+  catch (e) { if (!isAbort(e)) toast('Could not write a description: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Generate description'; }
+};
 
 // ---------- Publishing: Text, PDF, EPUB ----------
 const storyFile = st => (st.title || 'Story').replace(/[^\p{L}\p{N} ._-]/gu, '').trim() || 'Story';
@@ -9796,7 +9954,7 @@ function rdWhere() {
   stage.addEventListener('scroll', () => { if (rdPrefs.mode === 'scroll') rdWhere(); }, { passive: true });
   addEventListener('resize', () => { if ($('reader').classList.contains('open')) applyReader(); });
 })();
-$('rdBack').onclick = () => { closeView('reader'); renderStories(); };
+$('rdBack').onclick = () => { closeView('reader'); renderStories(); if (topView()?.id === 'storyBook') renderBook(); };
 $('rdAa').onclick = () => { $('rdPanel').hidden = !$('rdPanel').hidden; };
 $('rdPanel').onclick = e => {
   const a = e.target.dataset?.rd; if (!a) return;
@@ -9809,7 +9967,7 @@ $('rdToc').onclick = () => showSheet('Contents', rd.chapters.map(c => ({ label: 
   else { $('rdStage').scrollTop = c.el.offsetTop - 10; rdWhere(); }
 } })));
 // a story that was being written when the app closed can be continued
-for (const st of stories) if (['writing', 'naming', 'cover'].includes(st.status)) { st.status = 'stopped'; st.autoResume = true; }
+for (const st of stories) if (['writing', 'naming', 'describing', 'cover'].includes(st.status)) { st.status = 'stopped'; st.autoResume = true; }
 saveStories();
 setTimeout(resumeStories, 3000);
 
@@ -9983,9 +10141,10 @@ function groupChatRow(ch) {
 }
 // New group: name, characters (in the order picked), then the persona
 const gnPicked = [];
+let gnOpen = null; // the character whose description is unfolded
 function openGroupNew() {
   if (chars.length < 2) return toast('Make at least two characters first');
-  gnPicked.length = 0; $('gnName').value = ''; renderGroupNew(); openView('groupNew');
+  gnPicked.length = 0; gnOpen = null; $('gnName').value = ''; renderGroupNew(); openView('groupNew');
 }
 function renderGroupNew() {
   $('gnCount').textContent = gnPicked.length ? `(${gnPicked.length})` : '';
@@ -9996,7 +10155,19 @@ function renderGroupNew() {
     const k = document.createElement('span'); k.className = 'gn-n'; k.textContent = gnPicked.includes(c.id) ? gnPicked.indexOf(c.id) + 1 : '';
     b.append(a, n, k);
     b.onclick = () => { const i = gnPicked.indexOf(c.id); i >= 0 ? gnPicked.splice(i, 1) : gnPicked.push(c.id); renderGroupNew(); };
-    return b;
+    // the small arrow shows the character's description under it; opening one closes the one that was open
+    const w = document.createElement('div'); w.className = 'gn-wrap' + (gnOpen === c.id ? ' open' : '');
+    const row = document.createElement('div'); row.className = 'gn-row';
+    const more = document.createElement('button'); more.type = 'button'; more.className = 'gn-more'; more.setAttribute('aria-label', 'Description');
+    more.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+    more.onclick = () => {
+      gnOpen = gnOpen === c.id ? null : c.id;
+      for (const x of $('gnList').querySelectorAll('.gn-wrap')) x.classList.toggle('open', x.dataset.id === gnOpen);
+    };
+    const d = document.createElement('div'); d.className = 'gn-desc';
+    const dt = document.createElement('div'); dt.textContent = htmlToText(c.description || '').trim() || 'No description.'; d.append(dt);
+    w.dataset.id = c.id; row.append(b, more); w.append(row, d);
+    return w;
   }));
   $('gnGo').disabled = gnPicked.length < 2;
 }
@@ -10245,7 +10416,7 @@ $('dummyReset').onclick = async () => {
 };
 // ---------- Home: counts, the section you opened last, and your last chat ----------
 function renderHome() {
-  const n = { chats: chats.length, stories: stories.length, chars: chars.length };
+  const n = { chats: chats.length, stories: stories.length };
   const last = store.get('home.last', 'chats');
   for (const b of document.querySelectorAll('#home .menu button')) {
     b.classList.toggle('on', b.dataset.sec === last);
