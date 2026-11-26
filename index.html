@@ -978,8 +978,8 @@
 
   /* ---------- Chats: editorial, like Home — big title, thin lines instead of cards, small capitals for details ---------- */
   /* the bar's title fades in once the big title has scrolled away; search stays pinned under the bar */
-  #chats .page-head h1, #chars .page-head h1, #personas .page-head h1, #stories .page-head h1, #storyEdit .page-head h1, #storySetup .page-head h1 { opacity: 0; transition: opacity .25s ease; }
-  #chats.titled .page-head h1, #chars.titled .page-head h1, #personas.titled .page-head h1, #stories.titled .page-head h1, #storyEdit.titled .page-head h1, #storySetup.titled .page-head h1 { opacity: 1; }
+  #chats .page-head h1, #chars .page-head h1, #personas .page-head h1, #lorebooks .page-head h1, #albums .page-head h1, #stories .page-head h1, #storyEdit .page-head h1, #storySetup .page-head h1 { opacity: 0; transition: opacity .25s ease; }
+  #chats.titled .page-head h1, #chars.titled .page-head h1, #personas.titled .page-head h1, #lorebooks.titled .page-head h1, #albums.titled .page-head h1, #stories.titled .page-head h1, #storyEdit.titled .page-head h1, #storySetup.titled .page-head h1 { opacity: 1; }
   .ed-title { margin: 6px 2px 14px; font-family: 'Inter', system-ui, sans-serif; font-size: 40px; font-weight: 500; letter-spacing: -.035em; line-height: 1; }
   #chars input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
   #chats input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
@@ -1035,44 +1035,50 @@
   #chats .items.compact .group > .item, #chats .items.compact .folder-head > .item { padding: 8px 2px; }
   #chats .items.compact .thumb.sm { width: 36px; font-size: 15px; }
   #chats .items.compact .folder-icon { width: 36px; height: 36px; }
-  /* ---------- Characters and Personas: the same editorial look — big title, pinned search, thin lines instead of cards ---------- */
+  /* ---------- Characters, Personas, Lorebooks and Albums: the same editorial look — big title, pinned search, thin lines instead of cards ---------- */
   #chars #charList { margin-top: 10px; }
-  :is(#chars, #personas) .items:not(.gridview) { gap: 0; }
-  :is(#chars, #personas) .items:not(.gridview) .swipe { border-radius: 0; }
-  :is(#chars, #personas) .items:not(.gridview) > .swipe, :is(#chars, #personas) .items:not(.gridview) > .group, :is(#chars, #personas) .items:not(.gridview) .folder-items > .swipe { border-top: 1px solid var(--line); }
-  :is(#chars, #personas) .items:not(.gridview) > :last-child { border-bottom: 1px solid var(--line); }
-  :is(#chars, #personas) .items:not(.gridview) .item { border: 0; border-radius: 0; background: var(--bg); padding: 14px 2px; gap: 14px; }
-  :is(#chars, #personas) .items:not(.gridview) .item:active { background: color-mix(in srgb, var(--ink) 5%, var(--bg)); }
-  :is(#chars, #personas) .thumb { border-radius: 6px; }
-  :is(#chars, #personas) .items:not(.gridview):not(.compact) .thumb { width: 74px; }
-  :is(#chars, #personas) .item h3 { margin: 2px 0 5px; font-size: 17px; font-weight: 500; letter-spacing: -.01em; }
-  :is(#chars, #personas) .item p { font-size: 14px; }
-  :is(#chars, #personas) .group { border: 0; border-radius: 0; background: none; overflow: visible; }
-  :is(#chars, #personas) .folder-head > .item { padding: 12px 2px; gap: 14px; background: none; }
-  :is(#chars, #personas) .folder-icon { width: 46px; height: 46px; border-radius: 6px; background: none; border: 1px solid var(--line); }
-  :is(#chars, #personas) .folder-head .info p { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
-  :is(#chars, #personas) .folder-items { border-top: 1px solid var(--line); padding-left: 18px; }
-  :is(#chars, #personas) .folder-items > .swipe:first-child { border-top: 0; }
-  :is(#chars, #personas) .cgroup { border: 0; border-radius: 0; background: none; }
-  :is(#chars, #personas) .cgroup .sublist { border-top: 1px solid var(--line); padding: 0 2px 0 90px; }
-  :is(#chars, #personas) .items.compact .cgroup .sublist { padding-left: 58px; }
-  :is(#chars, #personas) .linkrow .link { padding: 13px 0; font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
-  :is(#chars, #personas) .items.compact .item { padding: 10px 2px; }
-  :is(#chars, #personas) .items.compact .thumb { width: 44px; aspect-ratio: 1; border-radius: 6px; }
-  :is(#chars, #personas) .items.compact .item h3 { margin: 0 0 2px; font-size: 16px; }
-  :is(#chars, #personas) .items.compact .item p { font-size: 13px; }
-  :is(#chars, #personas) .items.compact .folder-icon { width: 44px; height: 44px; }
-  :is(#chars, #personas) .items.gridview { gap: 24px 14px; padding-top: 6px; }
-  :is(#chars, #personas) .items.gridview .swipe { border-radius: 0; overflow: visible; }
-  :is(#chars, #personas) .items.gridview .item { border: 0; border-radius: 0; background: none; padding: 0; gap: 0; }
-  :is(#chars, #personas) .items.gridview .item .thumb { border-radius: 6px; }
-  :is(#chars, #personas) .items.gridview .item .info { padding: 10px 2px 0; }
-  :is(#chars, #personas) .items.gridview .item h3 { margin: 0 0 4px; font-size: 17px; }
-  :is(#chars, #personas) .items.gridview .item p { font-size: 13.5px; }
-  :is(#chars, #personas) .items.gridview > .group { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  :is(#chars, #personas) .items.gridview .folder-head > .item { padding: 10px 2px; }
-  :is(#chars, #personas) .items.gridview .folder-items { border-top: 1px solid var(--line); padding: 14px 0 6px; gap: 24px 14px; }
-  :is(#chars, #personas) .items.gridview .grid-chat { margin-top: 10px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items:not(.gridview) { gap: 0; }
+  :is(#chars, #personas, #lorebooks, #albums) .items:not(.gridview) .swipe { border-radius: 0; }
+  :is(#chars, #personas, #lorebooks, #albums) .items:not(.gridview) > .swipe, :is(#chars, #personas, #lorebooks, #albums) .items:not(.gridview) > .group, :is(#chars, #personas, #lorebooks, #albums) .items:not(.gridview) .folder-items > .swipe { border-top: 1px solid var(--line); }
+  :is(#chars, #personas, #lorebooks, #albums) .items:not(.gridview) > :last-child { border-bottom: 1px solid var(--line); }
+  :is(#chars, #personas, #lorebooks, #albums) .items:not(.gridview) .item { border: 0; border-radius: 0; background: var(--bg); padding: 14px 2px; gap: 14px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items:not(.gridview) .item:active { background: color-mix(in srgb, var(--ink) 5%, var(--bg)); }
+  :is(#chars, #personas, #lorebooks, #albums) .thumb { border-radius: 6px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items:not(.gridview):not(.compact) .thumb { width: 74px; }
+  :is(#chars, #personas, #lorebooks, #albums) .item h3 { margin: 2px 0 5px; font-size: 17px; font-weight: 500; letter-spacing: -.01em; }
+  :is(#chars, #personas, #lorebooks, #albums) .item p { font-size: 14px; }
+  :is(#chars, #personas, #lorebooks, #albums) .group { border: 0; border-radius: 0; background: none; overflow: visible; }
+  :is(#chars, #personas, #lorebooks, #albums) .folder-head > .item { padding: 12px 2px; gap: 14px; background: none; }
+  :is(#chars, #personas, #lorebooks, #albums) .folder-icon { width: 46px; height: 46px; border-radius: 6px; background: none; border: 1px solid var(--line); }
+  :is(#chars, #personas, #lorebooks, #albums) .folder-head .info p { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+  :is(#chars, #personas, #lorebooks, #albums) .folder-items { border-top: 1px solid var(--line); padding-left: 18px; }
+  :is(#chars, #personas, #lorebooks, #albums) .folder-items > .swipe:first-child { border-top: 0; }
+  :is(#chars, #personas, #lorebooks, #albums) .cgroup { border: 0; border-radius: 0; background: none; }
+  :is(#chars, #personas, #lorebooks, #albums) .cgroup .sublist { border-top: 1px solid var(--line); padding: 0 2px 0 90px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.compact .cgroup .sublist { padding-left: 58px; }
+  :is(#chars, #personas, #lorebooks, #albums) .linkrow .link { padding: 13px 0; font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.compact .item { padding: 10px 2px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.compact .thumb { width: 44px; aspect-ratio: 1; border-radius: 6px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.compact .item h3 { margin: 0 0 2px; font-size: 16px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.compact .item p { font-size: 13px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.compact .folder-icon { width: 44px; height: 44px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.gridview { gap: 24px 14px; padding-top: 6px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.gridview .swipe { border-radius: 0; overflow: visible; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.gridview .item { border: 0; border-radius: 0; background: none; padding: 0; gap: 0; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.gridview .item .thumb { border-radius: 6px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.gridview .item .info { padding: 10px 2px 0; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.gridview .item h3 { margin: 0 0 4px; font-size: 17px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.gridview .item p { font-size: 13.5px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.gridview > .group { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  :is(#chars, #personas, #lorebooks, #albums) .items.gridview .folder-head > .item { padding: 10px 2px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.gridview .folder-items { border-top: 1px solid var(--line); padding: 14px 0 6px; gap: 24px 14px; }
+  :is(#chars, #personas, #lorebooks, #albums) .items.gridview .grid-chat { margin-top: 10px; }
+  .lore-intro { margin: -4px 2px 16px; }
+  #lorebooks .items .item .info p, #albums .items .item .info p { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+  #lorebooks .swipe .folder-icon { color: var(--accent-ink); }
+  #albums .items:not(.gridview) .thumb.sm { width: 52px; aspect-ratio: 1; }
+  #albums .items.gridview .thumb.sm { width: 100%; aspect-ratio: 1; }
+  #albums .alb-more { color: var(--ink-soft); }
   #chats .items.compact .sublist { padding-left: 52px; }
   .back { justify-self: start; background: none; border: 0; color: var(--accent-ink); font-size: 17px; padding: 6px 4px; cursor: pointer; }
   .back { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border-radius: 50%; margin-left: -6px; }
@@ -1239,11 +1245,11 @@
 </section>
 
 <section id="lorebooks" class="view" aria-label="Lorebooks">
-  <div class="page-head"><button class="back" data-close="lorebooks" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Lorebooks</h1><span></span></div>
-  <div class="page-body"><div class="page-inner">
-    <div class="create linkrow" style="gap:8px"><button type="button" id="newLore" style="flex:2">+ Create new lorebook</button><button type="button" id="importLore" style="flex:1">Import</button></div>
+  <div class="page-head"><button class="back" data-close="lorebooks" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Lorebooks</h1><span class="head-acts"><button class="act plus" id="loreAdd" type="button" aria-label="New or imported lorebook"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <h2 class="ed-title">Lorebooks</h2>
     <input type="file" id="loreFile" accept=".json,application/json" hidden>
-    <div class="hint" style="margin:0 4px 12px">World info for your stories: places, people, rules. Each entry has keywords; it is only sent to the AI when a keyword comes up in the recent messages, so it doesn't fill up the context. Link a lorebook to a character (in the character editor), to a chat (Chat settings → Prompt), or use it everywhere.</div>
+    <div class="hint lore-intro">World info for your stories: places, people, rules. Each entry has keywords; it is only sent to the AI when a keyword comes up in the recent messages, so it doesn't fill up the context. Link a lorebook to a character (in the character editor), to a chat (Chat settings → Prompt), or use it everywhere.</div>
     <div class="items" id="loreList"></div>
   </div></div>
 </section>
@@ -1267,6 +1273,7 @@
 <section id="albums" class="view" aria-label="Albums">
   <div class="page-head"><button class="back" data-close="albums" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Albums</h1><span class="head-acts"><button class="act vbtn" id="albumView" type="button" aria-label="Grid or list"></button><button class="act plus" id="newAlbum" type="button" aria-label="New album"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <h2 class="ed-title">Albums</h2>
     <div class="items" id="albumList"></div>
   </div></div>
 </section>
@@ -4810,7 +4817,7 @@ const shortWhen = t => {
 // pinned chats sit flush under the pinned search field, whatever height it has on this device
 new ResizeObserver(() => $('chats').style.setProperty('--search-h', $('chatSearch').offsetHeight + 'px')).observe($('chatSearch'));
 // the big "Chats" title gone from view: the bar shows the title instead
-for (const id of ['chats', 'chars', 'personas', 'stories', 'storyEdit', 'storySetup']) $(id).querySelector('.page-body').addEventListener('scroll', e => {
+for (const id of ['chats', 'chars', 'personas', 'lorebooks', 'albums', 'stories', 'storyEdit', 'storySetup']) $(id).querySelector('.page-body').addEventListener('scroll', e => {
   const t = $(id).querySelector('.ed-title').getBoundingClientRect(), top = e.target.getBoundingClientRect().top;
   $(id).classList.toggle('titled', t.bottom < top + 8);
 }, { passive: true });
@@ -6523,6 +6530,7 @@ function renderLoreList() {
   }
   for (const b of lorebooks) if (!b.folder || !fs.some(f => f.id === b.folder)) list.append(loreRow(b));
 }
+const bookSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg>';
 function loreRow(b) {
     const w = document.createElement('div'); w.className = 'swipe';
     const acts = document.createElement('div'); acts.className = 'swipe-acts';
@@ -6532,7 +6540,7 @@ function loreRow(b) {
     rm.onclick = () => { closeSwipe(); deleteLore(b); };
     acts.append(mv, rm);
     const it = document.createElement('button'); it.type = 'button'; it.className = 'item';
-    const ic = document.createElement('div'); ic.className = 'folder-icon'; ic.textContent = '📖';
+    const ic = document.createElement('div'); ic.className = 'folder-icon'; ic.innerHTML = bookSvg;
     const info = document.createElement('div'); info.className = 'info';
     const h = document.createElement('h3'); h.textContent = b.name || 'Untitled';
     const pp = document.createElement('p'); pp.textContent = `${b.entries.length} entr${b.entries.length === 1 ? 'y' : 'ies'} · ${loreUsers(b)}`;
@@ -6548,11 +6556,13 @@ function deleteLore(b) {
   for (const ch of chats) if (ch.lorebooks?.includes(b.id)) ch.lorebooks = ch.lorebooks.filter(x => x !== b.id);
   saveChars(); store.set('chats', chats); renderLoreList(); return true;
 }
-$('newLore').onclick = () => {
+// + at the top: a new lorebook or an imported one
+$('loreAdd').onclick = () => showSheet('', [{ label: 'Create new lorebook', onClick: newLore }, { label: 'Import', onClick: () => $('loreFile').click() }]);
+function newLore() {
   const b = { id: uid(), name: 'New lorebook', global: false, depth: 4, entries: [newEntry()] };
   lorebooks.unshift(b); saveLore(); renderLoreList(); openLore(b.id);
   setTimeout(() => { $('lbName').focus(); $('lbName').select(); }, 350);
-};
+}
 function openLore(id) { loreId = id; renderLore(); $('lorebook').querySelector('.page-body').scrollTop = 0; openView('lorebook'); }
 function renderLore() {
   const b = lorebooks.find(x => x.id === loreId); if (!b) return;
@@ -6665,7 +6675,6 @@ function loreFromJson(j, fallbackName) {
   if (!entries.length) return null;
   return { id: uid(), name: book.name || fallbackName || 'Imported lorebook', global: false, depth: Math.min(20, book.scan_depth || 4), entries };
 }
-$('importLore').onclick = () => $('loreFile').click();
 $('loreFile').onchange = async () => {
   const f = $('loreFile').files[0]; $('loreFile').value = ''; if (!f) return;
   try {
