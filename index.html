@@ -821,6 +821,32 @@
   .msg.me .txt:not(:empty) + figure.gen { margin-top: 8px; }
   .msg.me figure.gen img { max-width: min(100%, 260px); }
   details.edf { border-top: 1px solid var(--line); margin-top: 14px; }
+  /* ---------- The character / persona editor: the picture on top like a cover, the name under it, then thin-lined sections ---------- */
+  #editor .page-inner { padding-top: 14px; }
+  #editor .card { background: none; border: 0; border-radius: 0; padding: 0; }
+  #editor .pick { flex-direction: column; align-items: center; gap: 14px; margin-top: 4px; }
+  #editor .pick .thumb { width: 58%; border-radius: 6px; box-shadow: 0 10px 26px rgba(0,0,0,.3); cursor: pointer; }
+  #editor .pick .btns { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px 18px; }
+  #editor .pick .btns button { border: 0; background: none; padding: 4px 0; color: var(--accent-ink); font: 700 10.5px 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; }
+  #editor .pick .btns button.danger { color: var(--ink-soft); }
+  #editor .pick .btns button[hidden] { display: none; }
+  #editor .card #edName { font-family: 'Fraunces', Georgia, serif; font-size: 30px; text-align: center; border: 0; background: none; padding: 16px 2px 2px; }
+  #editor .card #edChatName { text-align: center; font-size: 14px; color: var(--ink-soft); border: 0; background: none; padding: 2px 2px 6px; }
+  #editor label.f { margin: 18px 2px 2px; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+  #editor .card input[type=text], #editor .card input[type=url], #editor .card textarea { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; padding: 8px 2px 10px; }
+  #editor .card input:focus, #editor .card textarea:focus { border-color: var(--accent-ink); }
+  #editor details.edf { border-top: 0; margin-top: 26px; }
+  #editor details.edf > summary { padding: 0 2px 9px; border-bottom: 1px solid var(--line); font-size: 10.5px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--ink); }
+  #editor details.edf > summary span { display: none; }
+  #editor details.edf[open] > summary { margin-bottom: 6px; }
+  #editor .hint { margin: 8px 2px 0; }
+  #editor .rte { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; padding: 10px 2px; }
+  #editor .rte-bar button, #editor .rte-bar select, #editor .rte-col { border-radius: 6px; background: none; }
+  #editor .actions .btn { border: 0; background: none; padding: 6px 0; color: var(--accent-ink); font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+  #editor .actions .btn.danger { color: #e5484d; }
+  #editor #edCounts { margin-top: 26px !important; padding: 0 2px; color: var(--ink-soft); }
+  #editor .tabs button { border-radius: 4px; background: none; font-size: 10.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+  #editor .tabs button.on { background: none; color: var(--ink); border-color: var(--accent-ink); }
   details.edf > summary { padding: 14px 0 0; font-size: 13px; color: var(--ink-soft); font-weight: 500; }
   details.edf[open] > summary { padding-bottom: 8px; }
   details.edf:not([open]) { padding-bottom: 4px; }
@@ -1606,26 +1632,23 @@
   <div class="page-head"><button class="back" data-close="editor" type="button" aria-label="Cancel"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="edTitle"></h1><button class="act" id="edSave" type="button">Save</button></div>
   <div class="page-body"><div class="page-inner">
     <div class="card">
-      <label class="f">Image</label>
       <div class="pick">
         <div class="thumb" id="edThumb" role="button" aria-label="Upload image">+</div>
         <div class="btns">
-          <button class="btn" type="button" id="edImport">Import</button>
-          <button class="btn" type="button" id="edGenImg">Generate image</button>
-          <button class="btn" type="button" id="edFrame">Frame picture</button>
-          <button class="btn danger" type="button" id="edNoImg">Remove</button>
+          <button type="button" id="edUpload">Upload</button>
+          <button type="button" id="edImport">Import</button>
+          <button type="button" id="edGenImg">Generate</button>
+          <button type="button" id="edFrame">Frame</button>
+          <button type="button" class="danger" id="edNoImg">Remove</button>
         </div>
       </div>
       <input type="file" id="edFile" accept="image/*" hidden>
       <input type="file" id="edCardFile" accept="application/json,application/octet-stream" hidden>
 
-      <label class="f" for="edName">Name</label>
-      <input id="edName" type="text" autocomplete="off">
+      <input id="edName" type="text" autocomplete="off" aria-label="Name">
 
       <div data-for="char">
-        <label class="f" for="edChatName">Chat name <span style="font-weight:400">(optional)</span></label>
-        <input id="edChatName" type="text" autocomplete="off" placeholder="e.g. Wade">
-        <div class="hint">Used in chats instead of the name above, and for {{char}}.</div>
+        <input id="edChatName" type="text" autocomplete="off" placeholder="Chat name (optional)" aria-label="Chat name: used in chats instead of the name above, and for {{char}}">
       </div>
 
       <details class="edf" data-for="char" data-f="desc" open>
@@ -5658,6 +5681,7 @@ function useEdImg(src) {
   $('edNoImg').hidden = $('edFrame').hidden = false;
   openFramer(src, null, fr => { edit.frame = fr; }, edit.kind);
 }
+$('edUpload').onclick = () => $('edThumb').click();
 $('edThumb').onclick = () => {
   if (!albums.some(a => a.images.length)) return $('edFile').click(); // no albums yet: straight to your phone
   showSheet('Picture', [
