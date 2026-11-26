@@ -20,7 +20,9 @@ The title screen lists **Chats**, **Stories**, **Characters**, **Personas**, **L
 - A chat opens at its newest message.
 - While the AI writes, the send button becomes a **stop** button (what's written so far is kept). Enter makes a new line; send with the send button.
 - The screen follows a reply while it's written until you scroll yourself; then it stays where you put it (the ↓ button jumps back down). An error note disappears when you try again or pick another proxy.
-- Under the character's replies: **›** writes another version, **‹ ›** flip between versions; the one showing is the one the AI remembers. Several first messages appear the same way. **Continue** under the newest reply carries on where it stopped.
+- Under the newest reply: **Regenerate** writes another version and **Continue** carries on where it stopped. A reply with several versions shows **‹ 2/3 ›** to flip between them; the one showing is the one the AI remembers. Several first messages appear the same way.
+- Times show as small dividers ("TODAY · 7:48 PM") at the start of a chat and wherever half an hour or more passed, not under every message. The header shows the name with the persona in small capitals under it.
+- Style → Layout → Bubble shape has **Block**: narrow corners, your messages tinted with the accent colour and names in small capitals (with Message bubble and Names on, both sides get it).
 - Long press a message:
   - yours: **Edit** (then Send), **Resend**, **Copy**, **Pin**, **Branch from here**, **Delete**
   - the character's: **Edit** (saved in place), **Rewrite with a prompt** (first message only), **Create image**, **Copy**, **Pin**, **Branch from here**, **Delete**
