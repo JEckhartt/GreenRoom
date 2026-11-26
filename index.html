@@ -481,6 +481,29 @@
   .lb-form .card input[type=number] { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
   .lb-form .entry .btn.danger { border: 0; background: none; padding: 14px 2px 0; color: #e5484d; font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
   .lb-form .lb-more > summary { padding: 13px 2px 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+  /* ---------- Chat settings: underlined tabs, no boxes, thin lines, small-capital labels, fields with only an underline ---------- */
+  #chatset .tabbar { gap: 14px; justify-content: space-between; padding: 12px 14px 0; overflow-x: auto; scrollbar-width: none; }
+  #chatset .tabbar::-webkit-scrollbar { display: none; }
+  #chatset .tabbar button { flex: none; padding: 4px 0 9px; border-radius: 0; background: none; white-space: nowrap; color: var(--ink-soft); font: 600 10.5px 'Inter', system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; border-bottom: 1px solid transparent; margin-bottom: -1px; }
+  #chatset .tabbar button.on { background: none; color: var(--ink); border-bottom-color: var(--accent-ink); }
+  #chatset .card { background: none; border: 0; border-radius: 0; padding: 0 2px; }
+  #chatset .card + .card { margin-top: 0; border-top: 1px solid var(--line); padding-top: 4px; }
+  #chatset .group-title, #chatset details.sec > summary.group-title { color: var(--ink); font-size: 10.5px; letter-spacing: .18em; padding: 16px 2px 12px; }
+  #chatset details.sec { border-bottom: 1px solid var(--line); }
+  #chatset label.f { margin: 16px 0 2px; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+  #chatset .card input[type=text], #chatset .card input[type=url], #chatset .card input[type=password], #chatset .card input[type=number], #chatset .card textarea, #chatset .card select { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; padding: 8px 2px 10px; }
+  #chatset .card input:focus, #chatset .card textarea:focus { border-color: var(--accent-ink); }
+  #chatset .line { padding: 13px 0 12px; }
+  #chatset .seg { padding: 0; gap: 18px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
+  #chatset .seg button { flex: none; padding: 8px 0 9px; border-radius: 0; color: var(--ink-soft); border-bottom: 1px solid transparent; margin-bottom: -1px; font-size: 15px; }
+  #chatset .seg button.on { background: none; color: var(--ink); border-bottom-color: var(--accent-ink); }
+  #chatset .chips button { border-radius: 4px; }
+  #chatset .btn:not(.primary):not(.gm-b) { border: 0; background: none; padding: 8px 0; color: var(--accent-ink); font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+  #chatset .btn.danger { color: #e5484d; }
+  #chatset details.edf { border-top: 1px solid var(--line); }
+  #chatset details.edf > summary { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+  #chatset .pitem > summary .pname { font-size: 15px; }
+  #chatset summary.sub { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
   /* chapters in Edit story fold open one by one */
   .se-ch { border-bottom: 1px solid var(--line); }
   .se-ch > summary { display: flex; align-items: center; gap: 12px; padding: 14px 2px 13px; list-style: none; cursor: pointer; }
