@@ -978,9 +978,10 @@
 
   /* ---------- Chats: editorial, like Home — big title, thin lines instead of cards, small capitals for details ---------- */
   /* the bar's title fades in once the big title has scrolled away; search stays pinned under the bar */
-  #chats .page-head h1, #stories .page-head h1, #storyEdit .page-head h1, #storySetup .page-head h1 { opacity: 0; transition: opacity .25s ease; }
-  #chats.titled .page-head h1, #stories.titled .page-head h1, #storyEdit.titled .page-head h1, #storySetup.titled .page-head h1 { opacity: 1; }
+  #chats .page-head h1, #chars .page-head h1, #stories .page-head h1, #storyEdit .page-head h1, #storySetup .page-head h1 { opacity: 0; transition: opacity .25s ease; }
+  #chats.titled .page-head h1, #chars.titled .page-head h1, #stories.titled .page-head h1, #storyEdit.titled .page-head h1, #storySetup.titled .page-head h1 { opacity: 1; }
   .ed-title { margin: 6px 2px 14px; font-family: 'Inter', system-ui, sans-serif; font-size: 40px; font-weight: 500; letter-spacing: -.035em; line-height: 1; }
+  #chars input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
   #chats input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
   #chats #chatList { margin-top: 6px; }
   #chatList.from-r { animation: tabFromR .22s ease-out; } #chatList.from-l { animation: tabFromL .22s ease-out; }
@@ -1034,6 +1035,44 @@
   #chats .items.compact .group > .item, #chats .items.compact .folder-head > .item { padding: 8px 2px; }
   #chats .items.compact .thumb.sm { width: 36px; font-size: 15px; }
   #chats .items.compact .folder-icon { width: 36px; height: 36px; }
+  /* ---------- Characters: the same editorial look — big title, pinned search, thin lines instead of cards ---------- */
+  #chars #charList { margin-top: 10px; }
+  #chars .items:not(.gridview) { gap: 0; }
+  #chars .items:not(.gridview) .swipe { border-radius: 0; }
+  #chars .items:not(.gridview) > .swipe, #chars .items:not(.gridview) > .group, #chars .items:not(.gridview) .folder-items > .swipe { border-top: 1px solid var(--line); }
+  #chars .items:not(.gridview) > :last-child { border-bottom: 1px solid var(--line); }
+  #chars .items:not(.gridview) .item { border: 0; border-radius: 0; background: var(--bg); padding: 14px 2px; gap: 14px; }
+  #chars .items:not(.gridview) .item:active { background: color-mix(in srgb, var(--ink) 5%, var(--bg)); }
+  #chars .thumb { border-radius: 6px; }
+  #chars .items:not(.gridview):not(.compact) .thumb { width: 74px; }
+  #chars .item h3 { margin: 2px 0 5px; font-size: 17px; font-weight: 500; letter-spacing: -.01em; }
+  #chars .item p { font-size: 14px; }
+  #chars .group { border: 0; border-radius: 0; background: none; overflow: visible; }
+  #chars .folder-head > .item { padding: 12px 2px; gap: 14px; background: none; }
+  #chars .folder-icon { width: 46px; height: 46px; border-radius: 6px; background: none; border: 1px solid var(--line); }
+  #chars .folder-head .info p { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+  #chars .folder-items { border-top: 1px solid var(--line); padding-left: 18px; }
+  #chars .folder-items > .swipe:first-child { border-top: 0; }
+  #chars .cgroup { border: 0; border-radius: 0; background: none; }
+  #chars .cgroup .sublist { border-top: 1px solid var(--line); padding: 0 2px 0 90px; }
+  #chars .items.compact .cgroup .sublist { padding-left: 58px; }
+  #chars .linkrow .link { padding: 13px 0; font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+  #chars .items.compact .item { padding: 10px 2px; }
+  #chars .items.compact .thumb { width: 44px; aspect-ratio: 1; border-radius: 6px; }
+  #chars .items.compact .item h3 { margin: 0 0 2px; font-size: 16px; }
+  #chars .items.compact .item p { font-size: 13px; }
+  #chars .items.compact .folder-icon { width: 44px; height: 44px; }
+  #chars .items.gridview { gap: 24px 14px; padding-top: 6px; }
+  #chars .items.gridview .swipe { border-radius: 0; overflow: visible; }
+  #chars .items.gridview .item { border: 0; border-radius: 0; background: none; padding: 0; gap: 0; }
+  #chars .items.gridview .item .thumb { border-radius: 6px; }
+  #chars .items.gridview .item .info { padding: 10px 2px 0; }
+  #chars .items.gridview .item h3 { margin: 0 0 4px; font-size: 17px; }
+  #chars .items.gridview .item p { font-size: 13.5px; }
+  #chars .items.gridview > .group { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  #chars .items.gridview .folder-head > .item { padding: 10px 2px; }
+  #chars .items.gridview .folder-items { border-top: 1px solid var(--line); padding: 14px 0 6px; gap: 24px 14px; }
+  #chars .items.gridview .grid-chat { margin-top: 10px; }
   #chats .items.compact .sublist { padding-left: 52px; }
   .back { justify-self: start; background: none; border: 0; color: var(--accent-ink); font-size: 17px; padding: 6px 4px; cursor: pointer; }
   .back { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border-radius: 50%; margin-left: -6px; }
@@ -1183,7 +1222,8 @@
 <section id="chars" class="view" aria-label="Characters">
   <div class="page-head"><button class="back" data-close="chars" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Characters</h1><span class="head-acts"><button class="act vbtn" id="charView" type="button" aria-label="Grid or list"></button><button class="act plus" id="charAdd" type="button" aria-label="New character"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
-    <input type="search" class="search" id="charSearch" placeholder="Search characters" autocomplete="off" style="margin-bottom:12px">
+    <h2 class="ed-title">Characters</h2>
+    <input type="search" class="search" id="charSearch" placeholder="Search characters" autocomplete="off">
     <div class="items" id="charList"></div>
   </div></div>
   <div class="selbar" id="charSel" hidden><span></span><button class="btn" type="button" data-act="move">Move</button><button class="btn danger" type="button" data-act="delete">Delete</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
@@ -4769,7 +4809,7 @@ const shortWhen = t => {
 // pinned chats sit flush under the pinned search field, whatever height it has on this device
 new ResizeObserver(() => $('chats').style.setProperty('--search-h', $('chatSearch').offsetHeight + 'px')).observe($('chatSearch'));
 // the big "Chats" title gone from view: the bar shows the title instead
-for (const id of ['chats', 'stories', 'storyEdit', 'storySetup']) $(id).querySelector('.page-body').addEventListener('scroll', e => {
+for (const id of ['chats', 'chars', 'stories', 'storyEdit', 'storySetup']) $(id).querySelector('.page-body').addEventListener('scroll', e => {
   const t = $(id).querySelector('.ed-title').getBoundingClientRect(), top = e.target.getBoundingClientRect().top;
   $(id).classList.toggle('titled', t.bottom < top + 8);
 }, { passive: true });
