@@ -512,6 +512,21 @@
   :is(#chatset, #settings) details.edf > summary { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
   :is(#chatset, #settings) .pitem > summary .pname { font-size: 15px; }
   :is(#chatset, #settings) summary.sub { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+  /* a chat's search, pinned messages and pictures: the same editorial look */
+  #chatimgs input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin: 0; }
+  #chatimgs .group-title { color: var(--ink); font-size: 10.5px; letter-spacing: .18em; padding: 26px 2px 10px; border-bottom: 1px solid var(--line); }
+  #chatimgs .items { gap: 0; }
+  #chatimgs .srow { display: block; width: 100%; padding: 13px 2px 14px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  #chatimgs .srow:active { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+  #chatimgs .srow .who { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+  #chatimgs .srow .snip { font-size: 15px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  #chatimgs .srow mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: inherit; border-radius: 2px; }
+  #chatimgs #ciResults:not(:empty) { margin-bottom: 4px; }
+  #chatimgs #ciResults .hint { padding: 14px 2px; margin: 0 !important; border-bottom: 1px solid var(--line); }
+  #chatimgs .grid { gap: 4px; margin-top: 14px; }
+  #chatimgs .grid button { border-radius: 6px; }
+  #chatimgs .grid .list-empty { padding: 30px 0; }
+  #chatimgs .ci-hint { margin: 12px 2px 30px; }
   /* chapters in Edit story fold open one by one */
   .se-ch { border-bottom: 1px solid var(--line); }
   .se-ch > summary { display: flex; align-items: center; gap: 12px; padding: 14px 2px 13px; list-style: none; cursor: pointer; }
@@ -1066,8 +1081,8 @@
 
   /* ---------- Chats: editorial, like Home — big title, thin lines instead of cards, small capitals for details ---------- */
   /* the bar's title fades in once the big title has scrolled away; search stays pinned under the bar */
-  #chats .page-head h1, #settings .page-head h1, #lorebook .page-head h1, #chars .page-head h1, #personas .page-head h1, #lorebooks .page-head h1, #albums .page-head h1, #stories .page-head h1, #storyEdit .page-head h1, #storySetup .page-head h1 { opacity: 0; transition: opacity .25s ease; }
-  #chats.titled .page-head h1, #settings.titled .page-head h1, #lorebook.titled .page-head h1, #chars.titled .page-head h1, #personas.titled .page-head h1, #lorebooks.titled .page-head h1, #albums.titled .page-head h1, #stories.titled .page-head h1, #storyEdit.titled .page-head h1, #storySetup.titled .page-head h1 { opacity: 1; }
+  #chats .page-head h1, #chatimgs .page-head h1, #settings .page-head h1, #lorebook .page-head h1, #chars .page-head h1, #personas .page-head h1, #lorebooks .page-head h1, #albums .page-head h1, #stories .page-head h1, #storyEdit .page-head h1, #storySetup .page-head h1 { opacity: 0; transition: opacity .25s ease; }
+  #chats.titled .page-head h1, #chatimgs.titled .page-head h1, #settings.titled .page-head h1, #lorebook.titled .page-head h1, #chars.titled .page-head h1, #personas.titled .page-head h1, #lorebooks.titled .page-head h1, #albums.titled .page-head h1, #stories.titled .page-head h1, #storyEdit.titled .page-head h1, #storySetup.titled .page-head h1 { opacity: 1; }
   .ed-title { margin: 6px 2px 14px; font-family: 'Inter', system-ui, sans-serif; font-size: 40px; font-weight: 500; letter-spacing: -.035em; line-height: 1; }
   #chars input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
   #chats input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
@@ -1494,13 +1509,14 @@
 <section id="chatimgs" class="view" aria-label="Images in this chat">
   <div class="page-head"><button class="back" data-close="chatimgs" type="button" aria-label="Chat"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="ciTitle"></h1><span></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <h2 class="ed-title" id="ciBig"></h2>
     <input type="search" class="search" id="ciSearch" placeholder="Search this chat" autocomplete="off">
-    <div class="items" id="ciResults" style="margin-top:8px"></div>
-    <p class="group-title" id="ciPinTitle">Pinned messages</p>
+    <div class="items" id="ciResults"></div>
+    <p class="group-title" id="ciPinTitle">Pinned</p>
     <div class="items" id="ciPins"></div>
-    <p class="group-title">Images in this chat</p>
-    <div class="hint" style="margin:-4px 4px 10px">Tap an image to go to its message; long press for more.</div>
+    <p class="group-title">Pictures</p>
     <div class="grid" id="chatImgGrid"></div>
+    <div class="hint ci-hint">Tap a picture to go to its message; long press for more.</div>
   </div></div>
 </section>
 
@@ -4906,7 +4922,7 @@ const shortWhen = t => {
 // pinned chats sit flush under the pinned search field, whatever height it has on this device
 new ResizeObserver(() => $('chats').style.setProperty('--search-h', $('chatSearch').offsetHeight + 'px')).observe($('chatSearch'));
 // the big "Chats" title gone from view: the bar shows the title instead
-for (const id of ['chats', 'settings', 'chars', 'personas', 'lorebooks', 'albums', 'stories', 'storyEdit', 'storySetup', 'lorebook']) $(id).querySelector('.page-body').addEventListener('scroll', e => {
+for (const id of ['chats', 'chatimgs', 'settings', 'chars', 'personas', 'lorebooks', 'albums', 'stories', 'storyEdit', 'storySetup', 'lorebook']) $(id).querySelector('.page-body').addEventListener('scroll', e => {
   const t = $(id).querySelector('.ed-title, #lbName').getBoundingClientRect(), top = e.target.getBoundingClientRect().top;
   $(id).classList.toggle('titled', t.bottom < top + 8);
 }, { passive: true });
@@ -8280,7 +8296,7 @@ const speaker = (m, c, p, ch) => m.role === 'user' ? (p?.name || ch?.personaName
 function openChatImages() {
   $('ciSearch').value = ''; $('ciResults').innerHTML = '';
   renderPanel();
-  $('ciTitle').textContent = cur ? cn(cur.c) : '';
+  $('ciTitle').textContent = $('ciBig').textContent = cur ? (cur.chat.group?.name || cn(cur.c)) : '';
   $('chatimgs').querySelector('.page-body').scrollTop = 0;
   openView('chatimgs');
 }
