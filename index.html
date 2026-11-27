@@ -10774,7 +10774,18 @@ renderHome();
   const fonts = document.fonts ? Promise.all(["300 40px 'Fraunces'", "400 17px 'Fraunces'", "400 16px 'Inter'"].map(f => document.fonts.load(f).catch(() => {}))) : Promise.resolve();
   Promise.race([fonts, new Promise(r => setTimeout(r, 400))]).then(() => requestAnimationFrame(show));
 })();
-loadMsgs().then(() => { deliverReach(); renderChats(); renderHome(); step('started'); });
+// Once: chats from before versions were settled on reply get settled now. Every reply you already answered keeps
+// the version that was showing; the newest replies after your last message keep theirs (you haven't answered yet)
+function settleOldChats() {
+  if (store.get('mig_settleVersions')) return;
+  for (const ch of chats) {
+    const hist = msgGet(ch.id); let last = -1;
+    for (let i = hist.length - 1; i >= 0; i--) if (hist[i].role === 'user') { last = i; break; }
+    if (last > 0 && lockReplies(hist.slice(0, last))) msgSet(ch.id, hist);
+  }
+  store.set('mig_settleVersions', 1);
+}
+loadMsgs().then(() => { settleOldChats(); deliverReach(); renderChats(); renderHome(); step('started'); });
 if (sessionStorage.getItem('restored')) { sessionStorage.removeItem('restored'); setTimeout(() => toast('Backup restored'), 0); }
 // Clean up the automatic-backup copy an earlier build wrote
 if (FS && store.get('bk.seeded', false)) { FS.rmdir({ path: 'GreenRoom', directory: 'LIBRARY', recursive: true }).catch(() => {}); store.del('bk.seeded'); }
