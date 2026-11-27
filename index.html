@@ -375,6 +375,14 @@
   .sent-info { font-size: 14px; line-height: 1.5; }
   .sent-info b { font-weight: 600; }
   .sent-msg { margin-top: 10px; }
+  .bp-group { display: flex; flex-direction: column; gap: 2px; margin: 22px 2px 2px; }
+  .bp-group span { font: 600 10.5px/1.3 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+  .bp-group small { font-size: 12.5px; color: var(--ink-soft); }
+  .bp-item summary > span { display: flex; flex-direction: column; gap: 2px; }
+  .bp-item summary > span { min-width: 0; }
+  .bp-when { font-weight: 400; font-size: 12.5px; color: var(--ink-soft); white-space: normal !important; }
+  .bp-item pre + pre { border-top: 1px solid var(--line); padding-top: 12px; }
+  .bp-ph { color: var(--accent); }
   .sent-msg summary { display: flex; justify-content: space-between; gap: 10px; cursor: pointer; padding: 12px 0; font-weight: 600; list-style: none; }
   .sent-msg summary::-webkit-details-marker { display: none; }
   .sent-msg summary small { font-weight: 400; color: var(--ink-soft); white-space: nowrap; }
@@ -2181,6 +2189,14 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
     </div>
     </details>
 
+    <details class="sec" data-sec="builtins">
+    <summary class="group-title">Built-in prompts</summary>
+    <div class="card">
+      <div class="hint" style="padding-top:12px;margin-top:0">Every prompt the app writes and sends on its own: around your chats, for pictures, memory, stories, character and lorebook tools.</div>
+      <div class="actions"><button class="btn" type="button" id="bpOpen">See built-in prompts</button></div>
+    </div>
+    </details>
+
     <details class="sec" data-sec="debug">
     <summary class="group-title">Debug</summary>
     <div class="card">
@@ -2346,6 +2362,14 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 <section id="sentView" class="view" aria-label="What was sent">
   <div class="page-head"><button class="back" data-close="sentView" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>What was sent</h1><button class="act" id="sentCopy" type="button">Copy</button></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px"><div id="sentBox"></div></div></div>
+</section>
+
+<section id="builtins" class="view" aria-label="Built-in prompts">
+  <div class="page-head"><button class="back" data-close="builtins" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Built-in prompts</h1><span></span></div>
+  <div class="page-body"><div class="page-inner" style="padding-top:12px">
+    <div class="hint" style="margin:0 2px 6px">Every instruction the app writes itself, around what you write. Read straight from the app's code, so this is exactly what is sent. Colored words are filled in when it's sent: {{char}} is the character's name, {{user}} your persona's name.</div>
+    <div id="bpBox"></div>
+  </div></div>
 </section>
 
 <section id="storyBook" class="view" aria-label="Story">
@@ -9990,6 +10014,182 @@ function lfcReview(job, err) {
   };
   requestAnimationFrame(() => autosizeAll(list));
 }
+
+// ---------- Built-in prompts: every instruction the app writes itself, read from the app's own code ----------
+// Each entry points at where its text starts in this script; the page shows that text exactly as the code has it,
+// with the parts that get filled in (names, your text, the chat…) shown as {{placeholders}}.
+const BUILTIN_PROMPTS = [
+  ['Chat replies', 'Sent with every reply, around your character, persona and chat', [
+    ['Character', 'The character block in the system prompt', ["`--- Character: ${cn(c)}", "`\\n\\nPersonality:\\n${f(c.personality)}", "`\\n\\nScenario:\\n${f(c.scenario)}"]],
+    ['Persona', 'Your persona in the system prompt', ["`--- User: ${p.name}"]],
+    ['World info', 'Lorebook entries that triggered', ["`--- World info"]],
+    ['Memory', "The chat's Memory", ["`--- Memory (things"]],
+    ['Example dialogue', "The character's example dialogue", ["`--- Example dialogue"]],
+    ['Reply length', 'When a maximum reply length is set: in the system prompt and on your last message', ["`--- Reply length", "`\\n\\n[Length: keep"]],
+    ['Forbidden words', 'When forbidden words are set', ["`--- Forbidden words"]],
+    ['Real time', 'When Real time is on: in the system prompt, and a note on each of your messages', ["`--- Real time ---", "`[Time: ${clockText(m.t)}", "' Right after the previous message", "` ${gapText(ms)} after the previous message${was}: the moment", "` ${gapText(ms)} after the previous message${was}: time has passed", "` It is now the next day", "` It is now ${days} days later."]],
+    ['Pictures', 'When the image proxy is on: in the system prompt, and on your message when it asks for a picture', ["'--- Images ---", "'\\n\\n[Note from the app: the user is asking"]],
+    ['Character card reminder', 'On your last message: the short reminder, or the whole card when Repeat character card is on', ["`\\n\\n[Stay true to ${cn(c)}", "`\\n\\n[Character card reminder"]],
+    ["Character's note", "The character's note, a few messages back", ["`[${cn(c)}'s note:"]],
+    ["Author's note", "The chat's author's note", ["`--- Author's note ---"]],
+    ['Recalled moments', 'Vector storage: earlier moments that relate to now', ["`--- Earlier moments from this chat"]],
+    ['Continue', 'Continue under the newest reply', ["'[Continue your last message"]],
+  ]],
+  ['Group chats', 'Only in group chats', [
+    ['Group', 'Who is in the chat (with Join character cards, everyone\'s card)', ["`--- Group chat${g.name", "`\\n\\n--- ${cn(o)} (another character"]],
+    ['Whose turn', 'On the last message: who writes now', ["`[Write the next reply only as"]],
+  ]],
+  ['Openings', 'The first message of a chat', [
+    ['Opening', 'When the AI writes the opening', ["`[Write ${cn(c)}'s opening message"]],
+    ['Group opening', 'When a character writes the opening of a group chat', ["`[Write the opening message of this group"]],
+    ['New opening', 'Rewriting the opening with your direction', ["`[Rewrite ${cn(s.c)}'s opening message"]],
+    ['Opening time', 'With Real time on', ["` It is now ${clockText()} (the real current date and time): let it shape the opening"]],
+  ]],
+  ['On their own', 'Messages the character sends when you are away', [
+    ['Message on their own', 'After you have been away', ["`[Out of character: ${userName(p)} has been away"]],
+  ]],
+  ['Writing help', 'Long press send', [
+    ['Enhance (default)', 'Used when you have not written your own', ["'Rewrite my message as {{user}}"]],
+    ['Write for me (default)', 'Used when you have not written your own', ["\"Write {{user}}'s next message"]],
+    ['Around it', 'How either one is sent', ["`[Out of character. ${task}\\nReply with the rewritten", "`[Out of character. ${task}${original.trim()", "` This is a group chat with ${g.members"]],
+  ]],
+  ['Pictures', 'Describing a picture, and what goes to the image proxy', [
+    ['Picture the character sends', 'When a picture is asked for and the reply has no description', ["'You write prompts for an image generator.", "`${bothAbout(c, p)}\\n\\n${userText ? `${userName(p)} asked:"]],
+    ['Create image', 'Long press a message → Create image', ["`${bothAbout(c, p)}\\n\\n${userText ? `${userName(p)} wrote:"]],
+    ['Who is who', 'Goes with both of the above', ["`Character: ${cn(c)}\\nAbout", "`${userName(p)} (the user's persona)"]],
+    ['Picture you send', 'Generate image from the + menu, matching what you wrote', ["`${userName(p)} is chatting with ${cn(c)}.", "`\\n(The picture is sent by"]],
+    ['To the image proxy', 'Wrapped around every picture description', ["`Style and instructions for this picture", "`Reference ${i + 1} is", "`The reference image is", "`Image to create: "]],
+    ['Reference pictures', 'The profile pictures and the last picture, and what they are for', ["`a picture of ${n}: how", "`the last picture ${cc} sent", "`About ${n}. The reference picture", "`About ${n} (looks and details"]],
+    ['Profile picture', 'Generate image in the character or persona editor', ["`Write a portrait prompt for ${name}", "'Format: a portrait-orientation profile picture"]],
+    ['Story cover', 'The cover of a story', ["`The cover image for the novel", "'\\nFormat: a portrait-orientation book cover"]],
+  ]],
+  ['Memory', 'Summarize in Chat settings → Memory', [
+    ['Summary prompt (example)', 'Put in by Use the example; yours is used when you have one', ["\"You keep {{char}}'s long-term memory"]],
+    ['First summary', 'With an empty memory', ["`The chat so far:\\n\\n${transcriptOf"]],
+    ['Update', 'With a memory already there', ["`Current memory:\\n\\n${prev}"]],
+  ]],
+  ['Stories', 'Turning a chat into a story', [
+    ['Novelist', 'The system prompt', ["'You are a skilled novelist."]],
+    ['Each part', 'One request per part or chapter', ["`You turn a roleplay chat between ${cc} and ${uu} into a novel"]],
+    ['Point of view', 'Filled in above', ["'Third person omniscient", "`First person, as ${who}", "`Third person limited, following"]],
+    ['Title', 'When the story has no title', ["`Give this novel a title."]],
+    ['Description', 'Generate description', ["'You write the text on the back of novels.", "`Write the back-cover description"]],
+  ]],
+  ['Characters', 'Character tools', [
+    ['Create a character', 'From an idea', ["'You design characters for a roleplay chat app.", "`Create a character for a roleplay chat from this idea", "`Reply with only a JSON object (no markdown"]],
+    ['Character template (default)', 'Used when you have not written your own', ["\"Public description:"]],
+    ['Shorten a card', 'When a card is over 2,000 tokens', ["'You edit character cards", "`These three parts of a character card"]],
+    ['Description', 'Generate description in the editor', ["'You write short, inviting introductions", "`Write the description shown on the character list"]],
+    ['Describe a character', 'Long press a message → Describe a character…', ["`From the roleplay chat below, write a description of ${name}"]],
+  ]],
+  ['Lorebooks', 'Lorebook from a chat', [
+    ['Lorebook from a chat', 'One request per part of the chat', ["`You build a lorebook (world info)", "`Entries so far:"]],
+  ]],
+  ['Rules', 'Find and replace', [
+    ['Write a rule', 'Describe what you want and the AI writes the rule', ["'You write find-and-replace rules", "`Write one find-and-replace rule"]],
+  ]],
+];
+// What the filled-in parts are called on the page
+const BP_NAMES = { 'cn(c)': 'char', 'cn(s.c)': 'char', cc: 'char', 'cn(o)': 'other character', 'userName(p)': 'user', 'userName(s.p)': 'user', 'userName(job.p)': 'user', uu: 'user', u: 'user', 'p.name': 'user',
+  'f(c.personality)': 'personality', 'f(c.scenario)': 'scenario', 'f(p.personality)': "persona's description", lore: 'lorebook entries', 'f(memory)': 'memory', 'f(c.examples)': 'example dialogue',
+  'clockText()': 'date and time', 'clockText(m.t)': 'date and time', 'gapText(ms)': 'time passed', was: 'previous message time', gap: 'how much time passed: one of the lines below', days: 'number', "pers || '(none)'": 'personality', note: "author's note", recalled: 'recalled moments',
+  "banned.join('; ')": 'forbidden words', 'Math.max(15, Math.round(maxT * 0.6))': 'word limit', 'fill(c.note.trim(), c, p)': "character's note", 'fill(c.personality, c, p).trim()': 'personality',
+  'g.name': 'group name', "[cn(c), ...others.map(cn)].join(', ')": 'characters', "[...others, userName(p)].join(', ')": 'the others', 'ff(o.personality)': "other character's personality", 'ff(o.examples)': "other character's example dialogue",
+  'openingTime(chat)': 'opening time, with Real time on', 'openingTime(s.chat)': 'opening time, with Real time on', 'm.content': 'current opening', direction: 'your direction',
+  'awayText(mins)': 'how long', 'clockText(Date.now() + mins * 60000)': 'date and time', task: 'enhance or write prompt', 'original.trim()': 'what you typed', original: 'what you typed',
+  "g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn).join(', ')": 'characters',
+  'bothAbout(c, p)': 'who is who', userText: 'your message', replyText: 'the reply', "fill(c.personality || '', c, p).trim() || '(nothing written)'": 'personality', "fill(p.personality, c, p).trim()": "persona's description",
+  'recent.slice(-3000)': 'the chat so far', typed: 'your message', named: 'your direction', 'guide.trim()': 'your image prompt', 'r.label': 'what the reference is', 'list[0].label': 'what the reference is', 'i + 1': 'number', 'prompt.trim()': 'picture description',
+  n: 'name', name: 'name', 'style': 'style', pers: 'personality', desc: 'description', scen: 'scenario', first: 'first message', 'meta.title': 'title', "body.summary || 'see the characters'": 'story summary',
+  prev: 'current memory', 'transcriptOf(rest, s.c, s.p)': 'the chat', people: 'the characters', "fill(c.scenario, c, p).trim()": 'setting', 'povText(meta, cc, uu)': 'point of view', 'meta.parts.length': 'number of parts',
+  'body.summary': 'the story so far', prevEnd: 'end of the previous part', transcript: 'the chat for this part', who: 'name', "st.title || 'Untitled'": 'title', story: 'the story', cc_: '',
+  idea: 'your idea', 'genTemplate()': 'character template', GEN_KEYS: 'JSON keys', 'before.toLocaleString()': 'tokens', 'CARD_MAX.toLocaleString()': '2,000', '(CARD_MAX - 200).toLocaleString()': '1,800',
+  "JSON.stringify({ personality: c.personality || '', scenario: c.scenario || '', examples: ex(c.examples) })": 'the card as JSON', "others.join(' or ')": 'the others', scenes: 'the chat',
+  "names.join(', ')": 'characters', known: 'entries so far', 'k + 1': 'number', 'job.parts.length': 'number of parts', 'job.parts[k]': 'this part of the chat', 'want.trim()': 'your wish',
+  "fill(c.personality || '', c, p)": 'personality' };
+// the source text of the app's main script
+const bpSource = () => [...document.scripts].map(s => s.textContent).find(t => t.includes('const BUILTIN_PROMPTS')) || '';
+// Reads a string or template literal that starts at src[i] (the quote); expressions inside ${…} are kept as source
+function bpLiteral(src, i) {
+  const q = src[i], parts = []; let t = '', k = i + 1;
+  const esc = ch => ({ n: '\n', t: '\t', r: '' }[ch] ?? ch);
+  while (k < src.length) {
+    const ch = src[k];
+    if (ch === '\\') { t += esc(src[k + 1]); k += 2; continue; }
+    if (ch === q) { k++; break; }
+    if (q === '`' && ch === '$' && src[k + 1] === '{') {
+      if (t) parts.push({ t }); t = '';
+      let d = 1, j = k + 2;
+      while (j < src.length && d) {
+        const c2 = src[j];
+        if (c2 === '`' || c2 === "'" || c2 === '"') { j = bpLiteral(src, j).end; continue; }
+        if (c2 === '{') d++; else if (c2 === '}') d--;
+        j++;
+      }
+      parts.push({ e: src.slice(k + 2, j - 1) }); k = j; continue;
+    }
+    t += ch; k++;
+  }
+  if (t) parts.push({ t });
+  return { parts, end: k };
+}
+// The top-level "a ? b : c" of an expression, or null
+function bpTernary(e) {
+  let d = 0, qi = -1;
+  for (let j = 0; j < e.length; j++) {
+    const ch = e[j];
+    if (ch === '`' || ch === "'" || ch === '"') { j = bpLiteral(e, j).end - 1; continue; }
+    if ('([{'.includes(ch)) d++; else if (')]}'.includes(ch)) d--;
+    else if (!d && ch === '?' && e[j + 1] !== '.' && e[j + 1] !== '?' && qi < 0) qi = j;
+    else if (!d && ch === ':' && qi >= 0) return [e.slice(0, qi).trim(), e.slice(qi + 1, j).trim(), e.slice(j + 1).trim()];
+  }
+  return null;
+}
+// The parts of an expression as shown: a literal is shown as text, a choice shows its first branch, anything else is a {{placeholder}}
+function bpExpr(e) {
+  e = e.trim();
+  if (/^[`'"]/.test(e)) { const r = bpLiteral(e, 0); if (r.end >= e.length) return r.parts.flatMap(x => x.e != null ? bpExpr(x.e) : [x]); }
+  const tern = bpTernary(e);
+  if (tern) { const a = tern[1], b = tern[2]; return bpExpr(a === "''" || a === '``' ? b : a); }
+  if (e in BP_NAMES) return BP_NAMES[e] ? [{ ph: BP_NAMES[e] }] : [];
+  return [{ ph: e }];
+}
+// One prompt: its text from the code, as parts
+function bpRead(src, start) {
+  // not the list above itself
+  const a = src.indexOf('const BUILTIN_PROMPTS'), b = src.indexOf('// What the filled-in parts are called');
+  let at = src.indexOf(start);
+  while (at >= a && at < b) at = src.indexOf(start, at + 1);
+  if (at < 0) return null;
+  return bpLiteral(src, at).parts.flatMap(x => x.e != null ? bpExpr(x.e) : [x]);
+}
+function openBuiltins() {
+  const src = bpSource(), box = $('bpBox'); box.innerHTML = '';
+  for (const [group, about, items] of BUILTIN_PROMPTS) {
+    const h = document.createElement('div'); h.className = 'bp-group'; h.innerHTML = `<span>${escHtml(group)}</span><small>${escHtml(about)}</small>`; box.append(h);
+    for (const [name, when, starts] of items) {
+      const d = document.createElement('details'); d.className = 'card sent-msg bp-item'; d.style.padding = '0 16px';
+      const sm = document.createElement('summary'); sm.innerHTML = `<span>${escHtml(name)}<small class="bp-when">${escHtml(when)}</small></span>`;
+      d.append(sm);
+      for (const st of starts) {
+        const parts = bpRead(src, st), pre = document.createElement('pre');
+        if (!parts) { pre.textContent = '(not found)'; d.append(pre); continue; }
+        // the line breaks that join it to what comes before or after aren't shown
+        if (parts[0]?.t != null) parts[0] = { t: parts[0].t.replace(/^\n+/, '') };
+        if (parts.at(-1)?.t != null) parts[parts.length - 1] = { t: parts.at(-1).t.replace(/\n+$/, '') };
+        for (const x of parts) {
+          if (x.ph != null) { const s = document.createElement('span'); s.className = 'bp-ph'; s.textContent = `{{${x.ph}}}`; pre.append(s); }
+          else pre.append(x.t);
+        }
+        d.append(pre);
+      }
+      box.append(d);
+    }
+  }
+  $('builtins').querySelector('.page-body').scrollTop = 0;
+  openView('builtins');
+}
+$('bpOpen').onclick = openBuiltins;
 
 // ---------- What was sent: the exact request behind a reply ----------
 // Replies written since the app was opened are kept exactly (the last 40); older ones are rebuilt from the
