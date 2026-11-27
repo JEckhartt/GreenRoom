@@ -771,6 +771,11 @@
   .who-txt small:empty { display: none; }
   summary .tgt { margin: 0 auto 0 6px; }
   body.kb-open form#composer { padding-bottom: 10px; }
+  /* while the keyboard is up, the chat's header slides away upwards (the status bar strip stays); it comes back when the keyboard goes */
+  #chat > .page-head { max-height: 160px; overflow: hidden; transition: max-height .25s ease, padding-bottom .25s ease, border-color .25s ease; }
+  #chat > .page-head > * { transition: transform .25s ease, opacity .2s ease; }
+  body.kb-open #chat > .page-head { max-height: max(8px, env(safe-area-inset-top)); padding-bottom: 0; border-bottom-color: transparent; }
+  body.kb-open #chat > .page-head > * { transform: translateY(-70%); opacity: 0; pointer-events: none; }
 
   /* ---------- Markdown ---------- */
   .msg.me .txt { display: block; }
@@ -8700,7 +8705,7 @@ async function saveImage(src) {
 
 // ---------- Composer ----------
 const input = $('input');
-// The text box: one row when empty and not in use. Tapped into, it opens: the text across the full width on top,
+// The text box: one row when empty and not in use. Tapped into, it opens (one line to start): the text across the full width on top,
 // + and send underneath where they were, growing upwards to 8 lines (then the earlier lines scroll away).
 // Left with text in it, it shows up to 10 lines, scrolled to where you stopped.
 function fitInput() {
@@ -8709,7 +8714,7 @@ function fitInput() {
   input.style.height = 'auto';
   if (!open) return;
   const cs = getComputedStyle(input), lh = parseFloat(cs.lineHeight) || 21, pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-  input.style.height = Math.max(lh * 2 + pad, Math.min(input.scrollHeight, lh * (focused ? 8 : 10) + pad)) + 'px';
+  input.style.height = Math.max(lh + pad, Math.min(input.scrollHeight, lh * (focused ? 8 : 10) + pad)) + 'px';
   if (!focused || input.selectionEnd === input.value.length) input.scrollTop = input.scrollHeight; // where you stopped / the line you're typing
 }
 input.addEventListener('input', fitInput);
