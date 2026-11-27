@@ -524,6 +524,9 @@
   #chatimgs .grid button { border-radius: 6px; }
   #chatimgs .grid .list-empty { padding: 30px 0; }
   #chatimgs .ci-hint { margin: 12px 2px 30px; }
+  /* every place you can type: a faint grey fill, so it's clear where to write (not the chat box, nor the names that are titles) */
+  :is(input[type=text], input[type=url], input[type=password], input[type=number], input[type=search], textarea, select, .rte):not(#input):not(#edName):not(#edChatName):not(#lbName) { background-color: color-mix(in srgb, var(--ink) 5%, var(--bg)) !important; }
+  :is(.ed-form, #editor, #chatset, #settings, .lb-form, #chats, #chars, #chatimgs) :is(input[type=text], input[type=url], input[type=password], input[type=number], input[type=search], textarea, select, .rte):not(#input):not(#edName):not(#edChatName):not(#lbName) { border-radius: 6px 6px 0 0; padding-left: 10px; padding-right: 10px; }
   /* chapters in Edit story fold open one by one */
   .se-ch { border-bottom: 1px solid var(--line); }
   .se-ch > summary { display: flex; align-items: center; gap: 12px; padding: 14px 2px 13px; list-style: none; cursor: pointer; }
