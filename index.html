@@ -165,7 +165,7 @@
   .field:has(#input:focus) { border-color: var(--accent-ink); }
   form#composer .field.open { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "g g g" "t t t" "p . s"; align-items: end; }
   #inputGrip { display: none; }
-  form#composer .field.open.has-text #inputGrip { display: block; grid-area: g; justify-self: center; width: 60px; height: 18px; margin-bottom: -10px; cursor: ns-resize; touch-action: none; position: relative; }
+  form#composer .field.open.has-text #inputGrip { display: block; grid-area: g; justify-self: center; width: 60px; height: 16px; margin-bottom: -6px; cursor: ns-resize; touch-action: none; position: relative; }
   #inputGrip::after { content: ''; position: absolute; left: 14px; right: 14px; top: 7px; height: 4px; border-radius: 2px; background: var(--line); }
   form#composer .field.open #input { grid-area: t; width: 100%; max-height: none; min-height: 0; padding: 12px 14px 4px; line-height: 21px; overflow-y: auto; }
   form#composer .field.open #plusBtn { grid-area: p; margin-top: 4px; }
@@ -8795,16 +8795,19 @@ function fitInput(e) {
 input.addEventListener('input', fitInput);
 // The handle on top of a box with text in it: drag up for a taller box (almost the whole screen), down for a smaller one
 (() => {
-  const g = $('inputGrip'); let y0 = 0, h0 = 0, on = false;
-  g.addEventListener('pointerdown', e => { on = true; y0 = e.clientY; h0 = input.offsetHeight; g.setPointerCapture(e.pointerId); e.preventDefault(); });
+  const g = $('inputGrip'); let y0 = 0, h0 = 0, on = false, moved = false;
+  g.addEventListener('pointerdown', e => { on = true; moved = false; y0 = e.clientY; h0 = input.offsetHeight; g.setPointerCapture(e.pointerId); e.preventDefault(); });
   g.addEventListener('pointermove', e => {
     if (!on) return;
+    if (!moved && Math.abs(e.clientY - y0) < 10) return; // a tap, or a wobble of the finger, isn't a drag
+    moved = true;
     const cs = getComputedStyle(input), min = (parseFloat(cs.lineHeight) || 21) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
     const max = $('scroller').clientHeight + input.offsetHeight - 60;
     inputH = Math.round(Math.max(min, Math.min(max, h0 + (y0 - e.clientY))));
     input.style.height = inputH + 'px';
   });
-  for (const ev of ['pointerup', 'pointercancel']) g.addEventListener(ev, () => { on = false; });
+  g.addEventListener('pointerup', () => { if (on && !moved) input.focus(); on = false; }); // a tap on the handle works like a tap in the box
+  g.addEventListener('pointercancel', () => { on = false; });
 })();
 input.addEventListener('focus', fitInput);
 input.addEventListener('blur', e => setTimeout(() => fitInput(e), 0));
