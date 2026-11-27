@@ -4310,8 +4310,9 @@ async function send(text, img, forceImage, doc, imgPrompt) {
   if (forceImage) msg.wantsImage = true;
   if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); if (msg.img && imgPrompt) msg.imgPrompt = imgPrompt; }
   if (doc) { msg.file = { name: doc.name, key: 'file_' + uid(), chars: doc.text.length }; await idb.put(msg.file.key, doc.text).catch(() => { delete msg.file; toast('Could not store the file'); }); }
-  lockReplies(hist);
+  const settled = lockReplies(hist);
   hist.push(msg); saveMsgs(s.chat, hist);
+  if (settled && cur?.chat.id === s.chat.id) render(); // the arrows and the other versions go from the screen at once
   const usedOnce = s.chat.authorOnce && !s.chat.authorOff && s.chat.authorNote?.trim();
   for (const b of $('log').querySelectorAll('.alts .cont')) b.remove(); // Continue only under the newest reply
   const mine = addBubble('me', text); mine.dataset.i = hist.length - 1;
@@ -4562,8 +4563,10 @@ function addAltNav(bubble, m, i) {
 }
 // Once you answer, the versions of the replies before it are settled: the one showing stays, the others (and their pictures) go
 function lockReplies(hist) {
+  let changed = false;
   for (const m of hist) {
     if (m.alts) {
+      changed = true;
       const keep = m.alts[m.sel || 0], info = sentLog.get(keep);
       for (const a of m.alts) if (a !== keep && a.img && a.img !== m.img) idb.del(a.img).catch(() => {});
       delete m.alts; delete m.sel;
@@ -4571,6 +4574,7 @@ function lockReplies(hist) {
     }
     delete m.via;
   }
+  return changed;
 }
 // real time on: the opening is told the current date and time, so it fits the moment (morning, late night, weekend…)
 const openingTime = chat => chat?.realTime ? ` It is now ${clockText()} (the real current date and time): let it shape the opening naturally (time of day, day of the week, season) without announcing it.` : '';
