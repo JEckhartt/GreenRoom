@@ -239,12 +239,9 @@
   .gstack .av + .av { margin-left: -10px; }
   .gstack.many .av + .av { margin-left: -15px; }
   #chat.grp .chat-who { max-width: 72vw; gap: 8px; }
-  #boot { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: radial-gradient(120% 80% at 50% 0%, var(--bg-2), var(--bg)); background-color: var(--bg); transition: opacity .4s ease; }
+  /* while the fonts load (a moment): a plain screen in the theme's background colour, then straight to the title screen */
+  #boot { position: fixed; inset: 0; z-index: 200; background: var(--bg); transition: opacity .15s ease; }
   #boot.gone { opacity: 0; pointer-events: none; }
-  #boot .boot-logo { position: relative; width: 92px; height: 92px; border-radius: 30px 30px 30px 8px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 80%, #fff 20%), var(--accent-soft)); box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: bootIn .5s ease both; }
-  #boot .boot-logo i { position: absolute; left: 22%; right: 14%; bottom: 19%; height: 4px; border-radius: 3px; background: var(--accent); box-shadow: 0 0 12px 3px var(--accent); animation: bootGlow 1.4s ease-in-out infinite alternate; }
-  @keyframes bootIn { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
-  @keyframes bootGlow { from { opacity: .55; } to { opacity: 1; } }
   /* Home: editorial — small spaced capitals at the top, the sections as big words near your thumb, thin lines */
   #home { transition: opacity .25s ease; flex: 1; display: flex; flex-direction: column; min-height: 0;
     padding: max(20px, env(safe-area-inset-top)) 0 max(14px, env(safe-area-inset-bottom)); }
@@ -1310,7 +1307,7 @@
 <body data-color="theme">
 <!-- The app's own start screen: the logo in the theme's colours, then it fades into the title screen -->
 <div id="lookProbe" hidden></div>
-<div id="boot" aria-hidden="true"><div class="boot-logo"><i></i></div></div>
+<div id="boot" aria-hidden="true"></div>
 <section id="home" class="booting" aria-label="Green Room">
   <div class="h-top">
     <h1 class="logo">Green Room<span class="deg">°</span></h1>
@@ -10643,16 +10640,14 @@ function renderHome() {
 for (const b of document.querySelectorAll('#home .menu button')) b.addEventListener('click', () => { store.set('home.last', b.dataset.sec); });
 renderHome();
 
-// The title screen shows once its fonts are in (or after at most 1.2 s), so it doesn't jump when they arrive
+// The title screen shows as soon as its fonts are in (they're in the app, so almost at once; at most 0.4 s), so it doesn't jump
 (() => {
-  const t0 = performance.now();
   const show = () => {
     $('home').classList.remove('booting');
-    // the start screen stays at least half a second, then fades away
-    setTimeout(() => { $('boot').classList.add('gone'); setTimeout(() => $('boot').remove(), 500); }, Math.max(0, 500 - (performance.now() - t0)));
+    $('boot').classList.add('gone'); setTimeout(() => $('boot').remove(), 200);
   };
   const fonts = document.fonts ? Promise.all(["300 40px 'Fraunces'", "400 17px 'Fraunces'", "400 16px 'Inter'"].map(f => document.fonts.load(f).catch(() => {}))) : Promise.resolve();
-  Promise.race([fonts, new Promise(r => setTimeout(r, 1200))]).then(() => requestAnimationFrame(show));
+  Promise.race([fonts, new Promise(r => setTimeout(r, 400))]).then(() => requestAnimationFrame(show));
 })();
 loadMsgs().then(() => { deliverReach(); renderChats(); renderHome(); step('started'); });
 if (sessionStorage.getItem('restored')) { sessionStorage.removeItem('restored'); setTimeout(() => toast('Backup restored'), 0); }
