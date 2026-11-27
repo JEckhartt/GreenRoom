@@ -678,6 +678,8 @@
   body[data-spacing=compact] #log { gap: 8px; } body[data-spacing=airy] #log { gap: 32px; }
   body[data-spacing=compact] .preview { gap: 6px; } body[data-spacing=airy] .preview { gap: 22px; }
   body.notime-ai .msg.ai .ts, body.notime-me .msg.me .ts { display: none; }
+  /* All left: the character's time sits at the right, like yours */
+  body[data-sides=left] .msg.ai .alts .ts { margin-left: auto !important; margin-right: 0 !important; order: 9; }
   /* full width: edge to edge (the picture keeps its spot next to it) */
   body.wide-ai :is(#log, #preview) .msg.ai, body.wide-me :is(#log, #preview) .msg.me { align-self: stretch; max-width: none; }
   @keyframes msgFade { from { opacity: 0; } }
