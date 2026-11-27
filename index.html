@@ -530,7 +530,7 @@
   #chatimgs .ci-hint { margin: 12px 2px 30px; }
   /* every place you can type: a faint grey fill, so it's clear where to write (not the chat box, nor the names that are titles) */
   :is(input[type=text], input[type=url], input[type=password], input[type=number], input[type=search], textarea, select, .rte):not(#input):not(#edName):not(#edChatName):not(#lbName) { background-color: color-mix(in srgb, var(--ink) 5%, var(--bg)) !important; }
-  :is(.ed-form, #editor, #chatset, #settings, .lb-form, #chats, #chars, #chatimgs) :is(input[type=text], input[type=url], input[type=password], input[type=number], input[type=search], textarea, select, .rte):not(#input):not(#edName):not(#edChatName):not(#lbName) { border-radius: 6px 6px 0 0; padding-left: 10px; padding-right: 10px; }
+  :is(.ed-form, #editor, #chatset, #settings, .lb-form, #chats, #chars, #personas, #chatimgs) :is(input[type=text], input[type=url], input[type=password], input[type=number], input[type=search], textarea, select, .rte):not(#input):not(#edName):not(#edChatName):not(#lbName) { border-radius: 6px 6px 0 0; padding-left: 10px; padding-right: 10px; }
   /* chapters in Edit story fold open one by one */
   .se-ch { border-bottom: 1px solid var(--line); }
   .se-ch > summary { display: flex; align-items: center; gap: 12px; padding: 14px 2px 13px; list-style: none; cursor: pointer; }
@@ -682,6 +682,12 @@
   body[data-spacing=compact] #log { gap: 8px; } body[data-spacing=airy] #log { gap: 32px; }
   body[data-spacing=compact] .preview { gap: 6px; } body[data-spacing=airy] .preview { gap: 22px; }
   body.notime-ai .msg.ai .ts, body.notime-me .msg.me .ts { display: none; }
+  /* timestamps off: the dividers show the time instead (with timestamps on for either side, they step aside) */
+  .tdiv { display: flex; align-items: center; gap: 12px; margin: 14px 0 6px; font: 600 10px 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); -webkit-text-fill-color: var(--ink-soft); align-self: stretch; }
+  .tdiv::before, .tdiv::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+  body:not(.notime-ai) #log .tdiv, body:not(.notime-me) #log .tdiv { display: none; }
+  /* your message without a bubble keeps the room its time took, so the space between messages stays the same */
+  body.me-nobubble.notime-me #log > .msg.me { margin-bottom: 18px; }
   /* All left: the character's time sits at the right, like yours */
   body[data-sides=left] .msg.ai .alts .ts { margin-left: auto !important; margin-right: 0 !important; order: 9; }
   /* full width: edge to edge (the picture keeps its spot next to it) */
@@ -1095,6 +1101,8 @@
   #chats .page-head h1, #chatimgs .page-head h1, #settings .page-head h1, #lorebook .page-head h1, #chars .page-head h1, #personas .page-head h1, #lorebooks .page-head h1, #albums .page-head h1, #stories .page-head h1, #storyEdit .page-head h1, #storySetup .page-head h1 { opacity: 0; transition: opacity .25s ease; }
   #chats.titled .page-head h1, #chatimgs.titled .page-head h1, #settings.titled .page-head h1, #lorebook.titled .page-head h1, #chars.titled .page-head h1, #personas.titled .page-head h1, #lorebooks.titled .page-head h1, #albums.titled .page-head h1, #stories.titled .page-head h1, #storyEdit.titled .page-head h1, #storySetup.titled .page-head h1 { opacity: 1; }
   .ed-title { margin: 6px 2px 14px; font-family: 'Inter', system-ui, sans-serif; font-size: 40px; font-weight: 500; letter-spacing: -.035em; line-height: 1; }
+  #personas input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
+  #personas #personaList { margin-top: 10px; }
   #chars input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
   #chats input.search { position: sticky; top: 0; z-index: 3; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--bg); padding: 10px 2px; margin-bottom: 0; }
   #chats #chatList { margin-top: 6px; }
@@ -1353,6 +1361,7 @@
   <div class="page-head"><button class="back" data-close="personas" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Personas</h1><span class="head-acts"><button class="act vbtn" id="personaView" type="button" aria-label="Grid or list"></button><button class="act plus" id="newPersona" type="button" aria-label="New persona"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4.5v15M4.5 12h15"/></svg></button></span></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <h2 class="ed-title">Personas</h2>
+    <input type="search" class="search" id="personaSearch" placeholder="Search personas" autocomplete="off">
     <div class="items" id="personaList"></div>
   </div></div>
   <div class="selbar" id="personaSel" hidden><span></span><button class="btn" type="button" data-act="move">Move</button><button class="btn danger" type="button" data-act="delete">Delete</button><button class="btn" type="button" data-act="cancel">Cancel</button></div>
@@ -1417,7 +1426,7 @@
   <div class="page-head">
     <button class="back" data-close="chat" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <button class="chat-who" id="chatWho" type="button" aria-label="Chat settings"><span class="av" id="chatAv"></span><span class="gstack" id="chatAvs" hidden></span><span class="who-txt"><span id="chatName"></span><small id="chatAs"></small></span></button>
-    <button class="act prof-act" id="chatProfile" type="button" aria-label="Character profile"><svg class="prof-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.19 6.26A10 10 0 0 1 6.26 20.19"/><path d="M3.81 17.74A10 10 0 0 1 17.74 3.81"/><circle cx="12" cy="9.4" r="3.5"/><path d="M6.6 18.1c.9-2.3 2.1-3.7 3.3-4.4 1.3.9 2.9.9 4.2 0 1.2.7 2.4 2.1 3.3 4.4"/></svg></button>
+    <button class="act more-act" id="chatMore" type="button" aria-label="View character, export, rename or delete this chat">⋯</button>
   </div>
   <main id="scroller"><div id="log"></div></main>
   <div class="tb-wrap"><button type="button" id="toBottom" aria-label="Scroll to the newest message" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button></div>
@@ -3641,6 +3650,22 @@ function addStamp(el, m) {
   s.textContent = [m.pinned ? 'Pinned' : '', m.t ? stamp(m.t) : ''].filter(Boolean).join(' · ');
   el.append(s);
 }
+// Timestamps off: the time shows as a divider at the start and wherever half an hour or more passed (or a new day began)
+const TIME_GAP = 30 * 60000;
+function dayTime(t) {
+  const d = new Date(t), now = new Date(), y = new Date(now); y.setDate(now.getDate() - 1);
+  const hm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const day = d.toDateString() === now.toDateString() ? 'Today' : d.toDateString() === y.toDateString() ? 'Yesterday'
+    : now - d < 6 * 864e5 ? d.toLocaleDateString([], { weekday: 'long' })
+    : d.toLocaleDateString([], { day: 'numeric', month: 'long', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
+  return `${day} · ${hm}`;
+}
+function timeDivider(m, prev) {
+  if (!m?.t) return;
+  if (prev?.t && m.t - prev.t < TIME_GAP && new Date(m.t).toDateString() === new Date(prev.t).toDateString()) return;
+  const d = document.createElement('div'); d.className = 'tdiv'; const sp = document.createElement('span'); sp.textContent = dayTime(m.t); d.append(sp);
+  $('log').append(d);
+}
 // Folded "Thought for 12s" above a reply (reasoning models)
 function setThink(bubble, text, done, secs) {
   if (cfg.showThinking === false || !text) return;
@@ -3722,6 +3747,7 @@ function renderLog() {
   }
   for (let i = shownFrom; i < history.length; i++) {
     const m = history[i];
+    timeDivider(m, history[i - 1]);
     const b = addBubble(m.role === 'user' ? 'me' : 'ai', m.content, m.role === 'assistant' ? speakerChar(m) : undefined);
     b.dataset.i = i;
     if (m.img) { const f = addFigure(b); idb.get(m.img).then(src => { if (!src) return f.remove(); showImage(f, src); addFold(f, m); }).catch(() => f.remove()); }
@@ -4651,7 +4677,6 @@ function renderChatHead() {
   $('chatAvs').classList.toggle('many', !!g && g.members.length > 3);
   if (g) $('chatAvs').replaceChildren(...groupMembers(g).slice(0, 6).map(m => { const a = document.createElement('span'); a.className = 'av'; setThumb(a, m); return a; }));
   else setThumb($('chatAv'), c);
-  $('chatProfile').hidden = !!g;
   renderGroupBar();
 }
 async function applyChatBg() {
@@ -5119,17 +5144,7 @@ function chatMenu(ch, c) {
   const pn = personaOf(ch)?.name || ch.personaName || 'User';
   showSheet((ch.group ? `${ch.group.name || 'Group chat'} as ${pn}` : `Chat with ${cn(c)} as ${pn}` + (chatLabel(ch) ? ` · ${chatLabel(ch)}` : '')), [
     { label: ch.pinned ? 'Unpin chat' : 'Pin chat', onClick: () => { if (ch.pinned) delete ch.pinned; else ch.pinned = true; store.set('chats', chats); renderChats(); } },
-    { label: 'Rename chat', onClick: () => {
-      if (ch.group) { // a group's name is its title
-        const t = prompt('Group name', ch.group.name || ''); if (t === null || !t.trim()) return;
-        ch.group.name = t.trim().slice(0, 80); delete ch.title;
-        store.set('chats', chats); renderChats(); if (cur?.chat.id === ch.id) renderChatHead(); return;
-      }
-      const t = prompt(`Shown after "as ${pn} ·" (empty: nothing)`, chatLabel(ch));
-      if (t === null) return;
-      ch.title = t.trim().slice(0, 80);
-      store.set('chats', chats); renderChats(); if (cur?.chat.id === ch.id) renderChatHead();
-    } },
+    { label: 'Rename chat', onClick: () => renameChat(ch) },
     { label: 'Move to folder', onClick: () => moveChatToFolder(ch) },
     { label: 'Change persona', onClick: () => pickPersona(c, pid => {
       const np = personas.find(x => x.id === pid);
@@ -5138,8 +5153,24 @@ function chatMenu(ch, c) {
       toast(`This chat is now as ${np?.name || 'no persona'}`);
     }) },
     { label: 'Export', onClick: () => showSheet('Export as', EXPORTS.map(([fmt, name]) => ({ label: name, onClick: () => exportChat(ch, c, fmt) }))) },
-    { label: 'Delete chat', onClick: () => { if (confirm(ch.group ? `Delete the group chat "${ch.group.name || 'Group chat'}"?` : `Delete this chat with ${c.name}?`)) deleteChat(ch.id); } },
+    { label: 'Delete chat', onClick: () => askDeleteChat(ch, c) },
   ]);
+}
+function renameChat(ch) {
+  const pn = personaOf(ch)?.name || ch.personaName || 'User';
+  if (ch.group) { // a group's name is its title
+    const t = prompt('Group name', ch.group.name || ''); if (t === null || !t.trim()) return;
+    ch.group.name = t.trim().slice(0, 80); delete ch.title;
+    store.set('chats', chats); renderChats(); if (cur?.chat.id === ch.id) renderChatHead(); return;
+  }
+  const t = prompt(`Shown after "as ${pn} ·" (empty: nothing)`, chatLabel(ch));
+  if (t === null) return;
+  ch.title = t.trim().slice(0, 80);
+  store.set('chats', chats); renderChats(); if (cur?.chat.id === ch.id) renderChatHead();
+}
+function askDeleteChat(ch, c) {
+  if (!confirm(ch.group ? `Delete the group chat "${ch.group.name || 'Group chat'}"?` : `Delete this chat with ${c.name}?`)) return;
+  deleteChat(ch.id); renderChats(); renderHome(); // an open chat closes with it
 }
 const EXPORTS = [['txt', 'Text (.txt)'], ['md', 'Markdown (.md)'], ['html', 'Web page (.html)'], ['rtf', 'Rich text (.rtf)'], ['json', 'JSON (.json)'], ['jsonl', 'JSON Lines (.jsonl)'], ['csv', 'Spreadsheet (.csv)']];
 const escHtml = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -5251,7 +5282,17 @@ $('chatWho').onclick = () => cur && openChatSettings();
 // Album links (gr://img/<id>) become images on the character card
 const IMG_LINK = /gr:\/\/img\/([A-Za-z0-9_-]+)/g;
 const stripLinks = t => (t || '').replace(IMG_LINK, '').replace(/\n{3,}/g, '\n\n').trim();
-$('chatProfile').onclick = () => cur && openProfile(cur.c.id);
+// ⋯ in the chat header: the character, export, rename, delete
+$('chatMore').onclick = () => {
+  if (!cur) return;
+  const ch = cur.chat, c = cur.c;
+  showSheet('', [
+    ...(ch.group ? [] : [{ label: 'View character', onClick: () => openProfile(c.id) }]),
+    { label: 'Export chat', onClick: () => showSheet('Export as', EXPORTS.map(([fmt, name]) => ({ label: name, onClick: () => exportChat(ch, c, fmt) }))) },
+    { label: 'Rename chat', onClick: () => renameChat(ch) },
+    { label: 'Delete chat', onClick: () => askDeleteChat(ch, c) },
+  ]);
+};
 
 // ---------- Character & persona lists ----------
 const avatarCache = new Map();
@@ -5440,7 +5481,7 @@ for (const [k, id] of [['char', 'charView'], ['persona', 'personaView'], ['album
   syncViewBtn(k);
 }
 function renderList(kind) {
-  const q = kind === 'char' ? charQuery() : '';
+  const q = kind === 'char' ? charQuery() : ($('personaSearch')?.value || '').trim().toLowerCase();
   const items = q ? itemsOf(kind).filter(it => [it.name, it.chatName, it.description, it.personality, it.scenario].some(v => (v || '').toLowerCase().includes(q))) : itemsOf(kind);
   const fs = q ? [] : folders.filter(f => f.kind === kind);
   const list = $(kind === 'char' ? 'charList' : 'personaList');
@@ -5448,7 +5489,7 @@ function renderList(kind) {
   openSwipe = null;
   if (!items.length && !fs.length) {
     const e = document.createElement('div'); e.className = 'list-empty';
-    e.textContent = q ? 'No characters match your search.' : kind === 'char' ? 'No characters yet.' : 'No personas yet.';
+    e.textContent = q ? `No ${kind === 'char' ? 'characters' : 'personas'} match your search.` : kind === 'char' ? 'No characters yet.' : 'No personas yet.';
     list.appendChild(e);
   }
   for (const f of fs) {
@@ -6044,6 +6085,7 @@ async function openSharedFile(url) {
 })();
 
 $('charSearch').addEventListener('input', () => renderList('char'));
+$('personaSearch').addEventListener('input', () => renderList('persona'));
 $('charAdd').onclick = () => showSheet('New character', [
   { label: 'Create new character', onClick: () => openEditor('char') },
   { label: 'Generate', onClick: openGenerator },
@@ -6812,14 +6854,22 @@ async function exportLore(b) {
   catch (e) { if (!(isAbort(e) || /cancel/i.test(e?.message || ''))) toast('Export failed: ' + e.message); }
 }
 // Lorebook chips (character editor / chat settings): tap to link or unlink
+// Lorebooks in use here (tap one to take it off), the ones used everywhere, and + Add lorebook for the rest
 function loreChips(box, selected, onToggle) {
   box.innerHTML = '';
   if (!lorebooks.length) { const h = document.createElement('div'); h.className = 'hint'; h.textContent = 'No lorebooks yet. Create them on the title screen → Lorebooks.'; return box.append(h); }
   for (const b of lorebooks) {
+    if (!b.global && !selected.has(b.id)) continue;
     const btn = document.createElement('button'); btn.type = 'button';
     if (b.global) { btn.className = 'on global'; btn.textContent = `${b.name} (everywhere)`; btn.disabled = true; }
-    else { btn.className = selected.has(b.id) ? 'on' : ''; btn.textContent = b.name || 'Untitled'; btn.onclick = () => { onToggle(b.id); }; }
+    else { btn.className = 'on'; btn.textContent = `${b.name || 'Untitled'} ✕`; btn.setAttribute('aria-label', `Remove ${b.name || 'Untitled'}`); btn.onclick = () => onToggle(b.id); }
     box.append(btn);
+  }
+  const free = lorebooks.filter(b => !b.global && !selected.has(b.id));
+  if (free.length) {
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'add'; add.textContent = '+ Add lorebook';
+    add.onclick = () => showSheet('', free.map(b => ({ label: b.name || 'Untitled', onClick: () => onToggle(b.id) })));
+    box.append(add);
   }
 }
 
@@ -7813,7 +7863,7 @@ function renderCsLore() {
   const fromChar = lorebooks.filter(b => cur.c.lorebooks?.includes(b.id) && !b.global).map(b => b.name);
   const fromPersona = cur.p ? lorebooks.filter(b => cur.p.lorebooks?.includes(b.id) && !b.global).map(b => b.name) : [];
   $('csLoreHint').textContent = (fromChar.length ? `Also used here through ${cn(cur.c)}: ${fromChar.join(', ')}. ` : '')
-    + (fromPersona.length ? `Through your persona ${cur.p.name}: ${fromPersona.join(', ')}. ` : '') + 'Tap to use a lorebook in this chat only.';
+    + (fromPersona.length ? `Through your persona ${cur.p.name}: ${fromPersona.join(', ')}. ` : '') + '+ Add lorebook uses one in this chat only; tap one to take it off.';
 }
 
 // Tabs: tap or swipe sideways
@@ -8316,7 +8366,12 @@ function renderPanel() {
   // pinned messages
   const pins = history.map((m, i) => [m, i]).filter(([m]) => m.pinned);
   $('ciPinTitle').hidden = !pins.length;
-  $('ciPins').replaceChildren(...pins.map(([m, i]) => msgRow(m, i, '', speaker(m, cur.c, cur.p, cur.chat), () => gotoMsg(i))));
+  // tap: go to the message; long press: unpin it
+  $('ciPins').replaceChildren(...pins.map(([m, i]) => {
+    const r = msgRow(m, i, '', speaker(m, cur.c, cur.p, cur.chat), null); r.onclick = null;
+    pressable(r, () => gotoMsg(i), () => { navigator.vibrate?.(12); showSheet('', [{ label: 'Unpin', onClick: () => { delete m.pinned; saveMsgs(cur.chat, history, true); render(); renderPanel(); toast('Unpinned'); } }]); });
+    return r;
+  }));
   // images: every version of every message, with the message they belong to
   const items = [];
   history.forEach((m, i) => { for (const k of imagesOf(m)) items.push({ k, i }); });
