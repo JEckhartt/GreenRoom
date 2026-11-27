@@ -696,6 +696,9 @@
   /* the character's time and your time without a bubble only turn invisible, so every message keeps the same room below it */
   body.notime-ai:not(.ai-bubble) #log .msg.ai .ts, body.me-nobubble.notime-me #log .msg.me .ts { display: inline; visibility: hidden; }
   body.me-nobubble.notime-me #log .msg.me .ts { display: block; }
+  /* spacing dot in use: the number is the real space — no invisible time line under messages */
+  body.own-gap.notime-ai #log .msg.ai .alts .ts, body.own-gap.notime-me #log .msg.me .ts { display: none !important; }
+  body.own-gap.notime-ai #log .msg.ai .alts:not(:has(button:not([hidden]))) { display: none; }
   /* timestamps off: the dividers show the time instead (with timestamps on for either side, they step aside) */
   .tdiv { display: flex; align-items: center; gap: 12px; margin: 14px 0 6px; font: 600 10px 'Inter', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); -webkit-text-fill-color: var(--ink-soft); align-self: stretch; }
   .tdiv::before, .tdiv::after { content: ''; flex: 1; height: 1px; background: var(--line); }
