@@ -691,6 +691,8 @@
   body[data-sides=left][data-bubbleme=tail] .msg.me { border-radius: 18px 18px 18px 4px; }
   body.ai-bubble[data-sides=right][data-bubbleai=tail] .msg.ai { border-radius: 18px 18px 4px 18px; }
   body[data-spacing=compact] #log { gap: 8px; } body[data-spacing=airy] #log { gap: 32px; }
+  /* no bubbles and no times: 28px from the last line to the next name */
+  body.me-nobubble.notime-ai.notime-me:not(.ai-bubble):not([data-spacing=compact]):not([data-spacing=airy]) #log { gap: 10px; }
   body[data-spacing=compact] .preview { gap: 6px; } body[data-spacing=airy] .preview { gap: 22px; }
   body.notime-ai .msg.ai .ts, body.notime-me .msg.me .ts { display: none; }
   /* the character's time and your time without a bubble only turn invisible, so every message keeps the same room below it */
