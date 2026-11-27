@@ -4304,6 +4304,7 @@ async function send(text, img, forceImage, doc, imgPrompt) {
   if (forceImage) msg.wantsImage = true;
   if (img) { msg.img = 'img_' + uid(); await idb.put(msg.img, img).catch(() => { delete msg.img; toast('Could not store the image'); }); if (msg.img && imgPrompt) msg.imgPrompt = imgPrompt; }
   if (doc) { msg.file = { name: doc.name, key: 'file_' + uid(), chars: doc.text.length }; await idb.put(msg.file.key, doc.text).catch(() => { delete msg.file; toast('Could not store the file'); }); }
+  lockReplies(hist);
   hist.push(msg); saveMsgs(s.chat, hist);
   const usedOnce = s.chat.authorOnce && !s.chat.authorOff && s.chat.authorNote?.trim();
   for (const b of $('log').querySelectorAll('.alts .cont')) b.remove(); // Continue only under the newest reply
@@ -4533,6 +4534,7 @@ function addAltNav(bubble, m, i) {
   const lab = document.createElement('span'); lab.textContent = n > 1 ? `${k + 1}/${n}` : '';
   const next = document.createElement('button'); next.type = 'button'; next.textContent = '›';
   next.setAttribute('aria-label', k < n - 1 ? 'Next reply' : 'Write another reply'); next.disabled = busy;
+  if (k === n - 1 && i !== history.length - 1) next.hidden = true; // a new version only of the newest message
   next.onclick = () => { if (busy) return; if (k < n - 1) { selectAlt(m, k + 1); saveMsgs(cur.chat, history, true); render(); } else anotherReply(i, bubble); };
   nav.append(prev, lab, next);
   // Continue: under the newest reply
@@ -4551,8 +4553,18 @@ function addAltNav(bubble, m, i) {
   }
   addStamp(nav, m);
   bubble.append(nav);
-  // a version written with another proxy / prompt (Version with…) says which, under the buttons
-  const via = (m.alts?.[k] || m).via; if (via) { const v = document.createElement('div'); v.className = 'via'; v.textContent = 'Written with ' + via; nav.after(v); }
+}
+// Once you answer, the versions of the replies before it are settled: the one showing stays, the others (and their pictures) go
+function lockReplies(hist) {
+  for (const m of hist) {
+    if (m.alts) {
+      const keep = m.alts[m.sel || 0], info = sentLog.get(keep);
+      for (const a of m.alts) if (a !== keep && a.img && a.img !== m.img) idb.del(a.img).catch(() => {});
+      delete m.alts; delete m.sel;
+      if (info) logSent(m, info); // What was sent still finds it
+    }
+    delete m.via;
+  }
 }
 // real time on: the opening is told the current date and time, so it fits the moment (morning, late night, weekend…)
 const openingTime = chat => chat?.realTime ? ` It is now ${clockText()} (the real current date and time): let it shape the opening naturally (time of day, day of the week, season) without announcing it.` : '';
@@ -8763,18 +8775,19 @@ const input = $('input');
 // The text box: one row when empty and not in use. Tapped into, it opens (one line to start): the text across the full width on top,
 // + and send underneath where they were, growing upwards to 8 lines (then the earlier lines scroll away).
 // Left with text in it, it shows up to 10 lines, scrolled to where you stopped.
-function fitInput() {
+function fitInput(e) {
   const f = input.parentElement, focused = document.activeElement === input, open = focused || !!input.value;
+  const atEnd = input.scrollTop + input.clientHeight >= input.scrollHeight - 24 || e?.type === 'blur' || !f.classList.contains('open');
   f.classList.toggle('open', open);
   input.style.height = 'auto';
   if (!open) return;
   const cs = getComputedStyle(input), lh = parseFloat(cs.lineHeight) || 21, pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
   input.style.height = Math.max(lh + pad, Math.min(input.scrollHeight, lh * (focused ? 8 : 10) + pad)) + 'px';
-  if (!focused || input.selectionEnd === input.value.length) input.scrollTop = input.scrollHeight; // where you stopped / the line you're typing
+  if (atEnd && (!focused || input.selectionEnd === input.value.length)) input.scrollTop = input.scrollHeight; // where you stopped / the line you're typing; scrolled up yourself: it stays
 }
 input.addEventListener('input', fitInput);
 input.addEventListener('focus', fitInput);
-input.addEventListener('blur', () => setTimeout(fitInput, 0));
+input.addEventListener('blur', e => setTimeout(() => fitInput(e), 0));
 // ---------- Writing help: long press the send button ----------
 const HELP_DEFAULTS = {
   enhancePrompt: 'Rewrite my message as {{user}} so it reads better: fix spelling and grammar, make it more vivid and descriptive, keep my meaning, intent and point of view, and keep roughly the same length. Do not add anything {{char}} says or does.',

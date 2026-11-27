@@ -24,7 +24,7 @@ The title screen lists **Chats**, **Stories**, **Characters**, **Personas**, **L
 - **⋯** at the top right of a chat: View character (not in groups), Export chat, Rename chat, Delete chat.
 - With timestamps off (Style → Layout), the time shows as a divider ("TODAY · 7:48 PM") at the start and wherever half an hour or more passed; the space between messages stays the same as with timestamps on.
 - Swipe left in a chat for its search, pinned messages and pictures; long press a pinned message there to unpin it.
-- Under the character's replies: **›** writes another version, **‹ ›** flip between versions; the one showing is the one the AI remembers. Several first messages appear the same way. **Continue** under the newest reply carries on where it stopped.
+- Under the newest reply: **›** writes another version, **‹ ›** flip between versions; the one showing is the one the AI remembers. Once you answer, that choice is final: the other versions (and their pictures) are removed. Several first messages appear the same way. **Continue** under the newest reply carries on where it stopped.
 - Long press a message:
   - yours: **Edit** (then Send), **Resend**, **Copy**, **Pin**, **Branch from here**, **Delete**
   - the character's: **Edit** (saved in place), **Rewrite with a prompt** (first message only), **Create image**, **Copy**, **Pin**, **Branch from here**, **Delete**
