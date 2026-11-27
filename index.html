@@ -163,6 +163,10 @@
   form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 0 10px calc(10px + env(safe-area-inset-bottom)); display: flex; }
   .field { flex: 1; display: flex; align-items: flex-end; border: 1px solid var(--line); border-radius: 22px; background: var(--field); transition: border-color .15s; }
   .field:has(#input:focus) { border-color: var(--accent-ink); }
+  form#composer .field.open { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "t t t" "p . s"; align-items: end; }
+  form#composer .field.open #input { grid-area: t; width: 100%; max-height: none; min-height: 0; padding: 12px 14px 4px; line-height: 21px; overflow-y: auto; }
+  form#composer .field.open #plusBtn { grid-area: p; margin-top: 4px; }
+  form#composer .field.open #send { grid-area: s; margin-top: 4px; }
   #input { flex: 1; min-width: 0; resize: none; max-height: 180px; min-height: 46px; padding: 11px 6px 11px 10px; border: 0; border-radius: 22px; background: none; color: var(--ink); font: inherit; font-size: 15px; font-family: var(--me-font); outline: none; }
   #toolsRow { max-width: 760px; width: 100%; margin: 0 auto; padding: 2px 16px 0; display: flex; align-items: flex-end; gap: 8px; }
   /* in a one-to-one chat the messages stop 2px above the box; with the group's pictures (or an attachment) above it, the spacing stays as before */
@@ -4600,7 +4604,7 @@ function openChat(id) {
   if (cur && cur.chat.id !== id) leaveChat();
   cur = { chat, c, p: personaOf(chat) };
   input.value = chat.draft || ''; clearTimeout(draftTimer); // its unsent text, if any
-  requestAnimationFrame(() => { input.style.height = 'auto'; if (input.value) input.style.height = Math.min(input.scrollHeight, 180) + 'px'; });
+  requestAnimationFrame(fitInput);
   store.set('lastChat', id);
   $('profile').classList.remove('open'); // the chat view sits below the profile
   history = msgGet(id);
@@ -8696,7 +8700,21 @@ async function saveImage(src) {
 
 // ---------- Composer ----------
 const input = $('input');
-input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 180) + 'px'; });
+// The text box: one row when empty and not in use. Tapped into, it opens: the text across the full width on top,
+// + and send underneath where they were, growing upwards to 8 lines (then the earlier lines scroll away).
+// Left with text in it, it shows up to 10 lines, scrolled to where you stopped.
+function fitInput() {
+  const f = input.parentElement, focused = document.activeElement === input, open = focused || !!input.value;
+  f.classList.toggle('open', open);
+  input.style.height = 'auto';
+  if (!open) return;
+  const cs = getComputedStyle(input), lh = parseFloat(cs.lineHeight) || 21, pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  input.style.height = Math.max(lh * 2 + pad, Math.min(input.scrollHeight, lh * (focused ? 8 : 10) + pad)) + 'px';
+  if (!focused || input.selectionEnd === input.value.length) input.scrollTop = input.scrollHeight; // where you stopped / the line you're typing
+}
+input.addEventListener('input', fitInput);
+input.addEventListener('focus', fitInput);
+input.addEventListener('blur', () => setTimeout(fitInput, 0));
 // ---------- Writing help: long press the send button ----------
 const HELP_DEFAULTS = {
   enhancePrompt: 'Rewrite my message as {{user}} so it reads better: fix spelling and grammar, make it more vivid and descriptive, keep my meaning, intent and point of view, and keep roughly the same length. Do not add anything {{char}} says or does.',
@@ -9053,7 +9071,7 @@ $('composer').onsubmit = e => {
   const t = input.value.trim();
   if ((!t && !attached && !attachedDoc) || busy) return;
   const img = attached, doc = attachedDoc, ip = attachedPrompt;
-  input.value = ''; input.style.height = 'auto'; setAttached(null); setDoc(null); clearHelper();
+  input.value = ''; fitInput(); setAttached(null); setDoc(null); clearHelper();
   clearTimeout(draftTimer); if (cur?.chat.draft) { delete cur.chat.draft; store.set('chats', chats); }
   send(t, img, false, doc, ip);
 };

@@ -20,6 +20,7 @@ The title screen lists **Chats**, **Stories**, **Characters**, **Personas**, **L
 - A chat opens at its newest message.
 - While the AI writes, the send button becomes a **stop** button (what's written so far is kept). Enter makes a new line; send with the send button.
 - The screen follows a reply while it's written until you scroll yourself; then it stays where you put it (the ↓ button jumps back down). An error note disappears when you try again or pick another proxy.
+- The text box is one row until you tap it. Then the text gets the full width on top, with **+** and send underneath, and it grows upwards to 8 lines (after that the earlier lines scroll away). Leave it with text in it and it shows up to 10 lines, ending where you stopped; empty, it goes back to one row.
 - Under the character's replies: **›** writes another version, **‹ ›** flip between versions; the one showing is the one the AI remembers. Several first messages appear the same way. **Continue** under the newest reply carries on where it stopped.
 - Long press a message:
   - yours: **Edit** (then Send), **Resend**, **Copy**, **Pin**, **Branch from here**, **Delete**
