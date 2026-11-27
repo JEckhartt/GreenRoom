@@ -163,7 +163,10 @@
   form#composer { max-width: 760px; width: 100%; margin: 0 auto; padding: 0 10px calc(10px + env(safe-area-inset-bottom)); display: flex; }
   .field { flex: 1; display: flex; align-items: flex-end; border: 1px solid var(--line); border-radius: 22px; background: var(--field); transition: border-color .15s; }
   .field:has(#input:focus) { border-color: var(--accent-ink); }
-  form#composer .field.open { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "t t t" "p . s"; align-items: end; }
+  form#composer .field.open { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "g g g" "t t t" "p . s"; align-items: end; }
+  #inputGrip { display: none; }
+  form#composer .field.open.has-text #inputGrip { display: block; grid-area: g; justify-self: center; width: 60px; height: 18px; margin-bottom: -10px; cursor: ns-resize; touch-action: none; position: relative; }
+  #inputGrip::after { content: ''; position: absolute; left: 14px; right: 14px; top: 7px; height: 4px; border-radius: 2px; background: var(--line); }
   form#composer .field.open #input { grid-area: t; width: 100%; max-height: none; min-height: 0; padding: 12px 14px 4px; line-height: 21px; overflow-y: auto; }
   form#composer .field.open #plusBtn { grid-area: p; margin-top: 4px; }
   form#composer .field.open #send { grid-area: s; margin-top: 4px; }
@@ -1479,6 +1482,7 @@
   <input type="file" id="attachDoc" accept=".txt,.md,.markdown,.json,.csv,.tsv,.xml,.html,.htm,.yaml,.yml,.log,.srt,.pdf,text/*,application/pdf,application/json" hidden>
   <form id="composer">
     <div class="field">
+    <span class="grip" id="inputGrip" aria-hidden="true"></span>
     <button id="plusBtn" type="button" aria-label="Add"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1.5v11M1.5 7h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
     <textarea id="input" rows="1" enterkeyhint="enter" placeholder="Say something…" autocomplete="off"></textarea>
     <button id="send" type="submit" aria-label="Send"><svg class="i-send" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg><svg class="i-stop" width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="currentColor"/></svg></button>
@@ -8775,17 +8779,33 @@ const input = $('input');
 // The text box: one row when empty and not in use. Tapped into, it opens (one line to start): the text across the full width on top,
 // + and send underneath where they were, growing upwards to 8 lines (then the earlier lines scroll away).
 // Left with text in it, it shows up to 10 lines, scrolled to where you stopped.
+let inputH = null; // a height you dragged the box to (until it's empty again)
 function fitInput(e) {
   const f = input.parentElement, focused = document.activeElement === input, open = focused || !!input.value;
+  if (!input.value) inputH = null;
+  f.classList.toggle('has-text', !!input.value);
   const atEnd = input.scrollTop + input.clientHeight >= input.scrollHeight - 24 || e?.type === 'blur' || !f.classList.contains('open');
   f.classList.toggle('open', open);
   input.style.height = 'auto';
   if (!open) return;
   const cs = getComputedStyle(input), lh = parseFloat(cs.lineHeight) || 21, pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-  input.style.height = Math.max(lh + pad, Math.min(input.scrollHeight, lh * (focused ? 8 : 10) + pad)) + 'px';
+  input.style.height = (inputH ?? Math.max(lh + pad, Math.min(input.scrollHeight, lh * (focused ? 8 : 10) + pad))) + 'px';
   if (atEnd && (!focused || input.selectionEnd === input.value.length)) input.scrollTop = input.scrollHeight; // where you stopped / the line you're typing; scrolled up yourself: it stays
 }
 input.addEventListener('input', fitInput);
+// The handle on top of a box with text in it: drag up for a taller box (almost the whole screen), down for a smaller one
+(() => {
+  const g = $('inputGrip'); let y0 = 0, h0 = 0, on = false;
+  g.addEventListener('pointerdown', e => { on = true; y0 = e.clientY; h0 = input.offsetHeight; g.setPointerCapture(e.pointerId); e.preventDefault(); });
+  g.addEventListener('pointermove', e => {
+    if (!on) return;
+    const cs = getComputedStyle(input), min = (parseFloat(cs.lineHeight) || 21) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const max = $('scroller').clientHeight + input.offsetHeight - 60;
+    inputH = Math.round(Math.max(min, Math.min(max, h0 + (y0 - e.clientY))));
+    input.style.height = inputH + 'px';
+  });
+  for (const ev of ['pointerup', 'pointercancel']) g.addEventListener(ev, () => { on = false; });
+})();
 input.addEventListener('focus', fitInput);
 input.addEventListener('blur', e => setTimeout(() => fitInput(e), 0));
 // ---------- Writing help: long press the send button ----------
