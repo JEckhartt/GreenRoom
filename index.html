@@ -850,6 +850,9 @@
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
   .chips button { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); font-size: 14px; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chips button.on { background: var(--accent); border-color: var(--accent-ink); color: var(--on-accent); }
+  .chips button.prov-never { text-decoration: line-through; color: var(--ink-soft); opacity: .7; }
+  .prov .prov-chips { margin-top: 6px; }
+  .prov input[type=text] { margin-top: 8px; }
   .chips button.add { border-style: dashed; color: var(--accent-ink); }
   .card input[type=number] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; outline: none; }
 
@@ -4140,6 +4143,7 @@ async function requestImageOnce(prompt, modalities, a = imgApi(), aspect = '') {
   if (!a.url || !a.model) throw new Error('The image proxy has no URL or model filled in.');
   if (IMAGES_API.test(a.url.trim())) throw new Error(IMAGES_API_MSG);
   const body = { model: a.model, messages: [{ role: 'user', content: prompt }], modalities };
+  const route = routeBody(a); if (route) body.provider = route;
   // the picture's shape as a real setting (OpenRouter: image_config.aspect_ratio), not only words in the prompt
   if (aspect) body.image_config = { aspect_ratio: aspect };
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), IMAGE_TIMEOUT);
@@ -4206,7 +4210,15 @@ function proxyFor(kind, chat = cur?.chat) {
   if (kind === 'chat' && turnOverride?.proxyId && chat === turnOverride.chat) { const o = list.find(x => x.id === turnOverride.proxyId); if (o) return o; }
   return list.find(x => x.id === chat?.[k]) || list.find(x => x.id === cfg[k]) || {};
 }
-const clean = pr => ({ url: (pr.url || '').trim(), key: (pr.key || '').trim(), model: (pr.model || '').trim() });
+const clean = pr => ({ url: (pr.url || '').trim(), key: (pr.key || '').trim(), model: (pr.model || '').trim(), route: pr.route });
+// OpenRouter: which providers a proxy may use. "use" = only these, in this order; "never" = skip these
+const isOpenRouter = url => /openrouter\.ai/i.test(url || '');
+function routeBody(a) {
+  const r = a.route; if (!r || !isOpenRouter(a.url)) return null;
+  const use = (r.use || []).map(x => x.tag), never = (r.never || []).map(x => x.tag);
+  if (!use.length && !never.length) return null;
+  return { ...(use.length ? { order: use, allow_fallbacks: !!r.fallback } : {}), ...(never.length ? { ignore: never } : {}) };
+}
 // In the iPhone app every proxy request goes out from iOS itself instead of the web
 // view, so it carries no "came from a web page" label (some services, like LoreBary, block that). The answer
 // streams back piece by piece through the NativeStream plugin and is handed over as a normal Response,
@@ -4296,6 +4308,7 @@ let lastFilter = ''; // set when the last reply was cut off by a filter partway
 async function streamChat(messages, onText, opts = {}) {
   const a = api(opts.chat ?? cur?.chat), g = gen(opts.chat ?? cur?.chat);
   const body = { model: a.model, messages, stream: true, temperature: g.temperature };
+  const route = routeBody(a); if (route) body.provider = route;
   // The AI is asked to stay well under the max length; the hard limit gets room on top so a reply
   // that runs a little long ends naturally instead of being chopped off mid-sentence
   if (!opts.free && g.maxTokens) body.max_tokens = Math.round(g.maxTokens * 1.5) + 50;
@@ -7932,6 +7945,63 @@ function janProxiesFrom(text) {
 // Proxies: a list of collapsible rows, like the prompts. Tap a proxy to use it and open it (tap the open one
 // again to fold it); long press to duplicate. In a chat the default (the one from Settings) can't be changed
 const openProx = new Set();
+// OpenRouter: tap a provider to cycle it: allowed (normal) → Use → Never
+const provCache = {};
+async function providersFor(pr) {
+  const m = (pr.model || '').trim().replace(/:[^/]*$/, ''); if (!m) return [];
+  if (provCache[m]) return provCache[m];
+  const res = await pfetch(pr, `https://openrouter.ai/api/v1/models/${m}/endpoints`, { headers: authHeaders((pr.key || '').trim()) });
+  if (!res.ok) throw new Error(res.status === 404 ? 'OpenRouter doesn\'t know this model' : 'HTTP ' + res.status);
+  const j = await res.json();
+  const list = (j.data?.endpoints || []).map(e => ({ name: e.provider_name || e.name, tag: String(e.tag || '').split('/')[0] || provTag(e.provider_name || e.name || '') })).filter(x => x.name)
+    .filter((x, i, a) => a.findIndex(y => y.tag === x.tag) === i);
+  return (provCache[m] = list);
+}
+const provTag = name => name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+function providerPicker(body, pr) {
+  const wrap = document.createElement('div'); wrap.className = 'prov';
+  const l = document.createElement('label'); l.className = 'f'; l.textContent = 'Providers';
+  const chips = document.createElement('div'); chips.className = 'chips prov-chips';
+  const state = document.createElement('div'); state.className = 'hint';
+  const fb = document.createElement('div'); fb.className = 'line'; fb.innerHTML = '<span>Others when these are unavailable</span>';
+  const fbT = document.createElement('input'); fbT.type = 'checkbox'; fbT.className = 'tgl'; fb.append(fbT);
+  const add = document.createElement('input'); add.type = 'text'; add.placeholder = 'Add a provider by name'; add.setAttribute('autocapitalize', 'off'); add.setAttribute('autocorrect', 'off');
+  wrap.append(l, chips, fb, state, add); body.append(wrap);
+  let known = [];
+  const R = () => pr.route || (pr.route = { use: [], never: [], fallback: false });
+  const save = () => { if (pr.route && !pr.route.use.length && !pr.route.never.length) delete pr.route; saveCfg(); draw(); };
+  const draw = () => {
+    const r = pr.route || { use: [], never: [], fallback: false };
+    const all = [...r.use, ...r.never, ...known].filter((x, i, a) => a.findIndex(y => y.tag === x.tag) === i);
+    chips.innerHTML = '';
+    for (const x of all) {
+      const u = r.use.findIndex(y => y.tag === x.tag), n = r.never.some(y => y.tag === x.tag);
+      const b = document.createElement('button'); b.type = 'button';
+      b.textContent = (u >= 0 && r.use.length > 1 ? `${u + 1}. ` : '') + x.name + (provTag(x.name) !== x.tag ? ` (${x.tag})` : '');
+      if (u >= 0) b.className = 'on'; else if (n) b.className = 'prov-never';
+      b.onclick = () => {
+        const rr = R();
+        if (u >= 0) { rr.use.splice(u, 1); rr.never.push(x); }
+        else if (n) rr.never = rr.never.filter(y => y.tag !== x.tag);
+        else rr.use.push(x);
+        save();
+      };
+      chips.append(b);
+    }
+    fbT.checked = !!r.fallback; fb.hidden = !r.use.length;
+    const names = a => a.map(x => x.name).join(', ');
+    state.textContent = (r.use.length ? `Only ${names(r.use)}${r.use.length > 1 ? ', in that order' : ''}${r.fallback ? ', then any other' : ''}.` : 'Any provider.')
+      + (r.never.length ? ` Never ${names(r.never)}.` : '') + ' Tap a provider: Use → Never → back to normal.';
+  };
+  fbT.onchange = () => { R().fallback = fbT.checked; save(); };
+  add.onchange = () => { const v = add.value.trim(); if (!v) return; const x = { name: v, tag: provTag(v) }; if (!known.some(y => y.tag === x.tag)) known.push(x); add.value = ''; R().use.push(x); save(); };
+  draw();
+  if (pr.model?.trim()) {
+    state.textContent = 'Finding the providers for this model…';
+    providersFor(pr).then(list => { known = list; draw(); if (!list.length) state.textContent += ' OpenRouter lists no providers for this model.'; })
+      .catch(e => { draw(); state.textContent += ` (Could not get the list: ${e.message}. Add them by name.)`; });
+  }
+}
 function renderProxyBox(box, kind, scope) {
   const list = proxyList(kind), k = proxyKey(kind), chat = scope === 'chat' ? cur?.chat : null;
   const selId = chat ? (list.some(x => x.id === chat[k]) ? chat[k] : '') : cfg[k];
@@ -7990,6 +8060,7 @@ function renderProxyBox(box, kind, scope) {
     // a quick check once URL and model are filled in (chat proxies): does it answer, and can it see images?
     if (kind === 'chat' && !locked && ['url', 'model', 'key'].includes(f)) i.onchange = () => { if (pr.url?.trim() && pr.model?.trim()) runProxyTest(pr); };
     if (f === 'name') i.onchange = () => renderProxyBoxes();
+    if (f === 'url' || f === 'model') i.addEventListener('change', () => renderProxyBoxes());
     body.append(l, i);
     return i;
   };
@@ -7998,6 +8069,7 @@ function renderProxyBox(box, kind, scope) {
   const h = document.createElement('div'); h.className = 'hint'; h.innerHTML = PROXY_HINT[kind]; body.append(h);
   field('API key', 'key', 'password', 'sk-or-…');
   field('Model', 'model', 'text', kind === 'img' ? 'google/gemini-2.5-flash-image' : 'anthropic/claude-sonnet-4.5');
+  if (isOpenRouter(pr.url)) providerPicker(body, pr);
   if (kind === 'chat') {
     const st = document.createElement('div'); st.className = 'hint ptest'; st.id = 'ptest-' + pr.id; st.textContent = testNotes[pr.id] || '';
     const tb = document.createElement('button'); tb.type = 'button'; tb.className = 'btn'; tb.textContent = 'Test connection'; tb.onclick = () => runProxyTest(pr);
@@ -8037,7 +8109,7 @@ async function runProxyTest(pr, img = false) {
   show(img ? 'Testing images…' : 'Testing…');
   const content = img ? [{ type: 'text', text: 'What color is this square? Answer with one word.' }, { type: 'image_url', image_url: { url: redSquare() } }] : 'Reply with: OK';
   try {
-    const r = await pfetch(a, endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify({ model: a.model, messages: [{ role: 'user', content }], stream: false }) });
+    const r = await pfetch(a, endpoint(a.url), { method: 'POST', headers: authHeaders(a.key), body: JSON.stringify({ model: a.model, messages: [{ role: 'user', content }], stream: false, ...(routeBody(a) ? { provider: routeBody(a) } : {}) }) });
     if (!r.ok) return show((img ? 'Can\'t see images: ' : 'Doesn\'t work: ') + (await httpError(r)).message.slice(0, 220));
     if (!img) return show('Works.');
     const j = await r.json().catch(() => ({})), m = j.choices?.[0]?.message?.content;
