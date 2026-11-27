@@ -3814,12 +3814,14 @@ async function httpError(res) {
 
 // What the image proxy gets: the pictures, each saying who it shows, the image prompt (Settings or chat),
 // what to make, and the personality texts
+let lastImageSent = null; // the exact text (and reference pictures) of the last image request: kept on the reply for What was sent
 async function generateImage(prompt, refs, guide = '', about = '', aspect = '') {
   const list = (refs?.list || []).filter(r => r.url);
   const names = list.length > 1 ? list.map((r, i) => `Reference ${i + 1} is ${r.label}`).join('\n') : list.length ? `The reference image is ${list[0].label}` : '';
   const ask = prompt.trim() && (list.length ? `Image to create: ${prompt.trim()}\nGenerate what the description asks for, not a copy of a reference image.` : prompt.trim());
   // your Image prompt comes first, marked as the one that wins (style and format)
   const text = [guide.trim() && `Style and instructions for this picture (follow these over anything below):\n${guide.trim()}`, names, ask, about.trim()].filter(Boolean).join('\n\n');
+  lastImageSent = { text, refs: list.map(r => r.label) };
   return requestImage(list.length ? [...list.map(r => ({ type: 'image_url', image_url: { url: r.url } })), { type: 'text', text }] : text, undefined, aspect);
 }
 var IMAGE_TIMEOUT = 180000;
@@ -4254,7 +4256,7 @@ async function attachImage(s, hist, msg, into, bubble, imgPrompt) {
     const src = await generateImage(imgPrompt, { list: r.list }, imagePrompt(s.chat, s.c, s.p), r.about);
     const id = 'img_' + uid();
     await idb.put(id, src).catch(() => {});
-    msg.img = id; msg.imgPrompt = imgPrompt;
+    msg.img = id; msg.imgPrompt = imgPrompt; if (lastImageSent) msg.imgSent = lastImageSent;
     if (into) selectAlt(into, into.sel);
     saveMsgs(s.chat, hist);
     showImage(fig, src); addFold(fig, msg);
@@ -4464,8 +4466,8 @@ function deleteImage(i) {
   const m = history[i]; if (!m?.img || busy) return;
   if (!confirm('Delete this picture?')) return;
   const key = m.img;
-  delete m.img; delete m.imgPrompt;
-  if (m.alts) { const a = m.alts[m.sel || 0]; delete a.img; delete a.imgPrompt; }
+  delete m.img; delete m.imgPrompt; delete m.imgSent;
+  if (m.alts) { const a = m.alts[m.sel || 0]; delete a.img; delete a.imgPrompt; delete a.imgSent; }
   if (!imagesOf(m).includes(key)) idb.del(key).catch(() => {});
   saveMsgs(cur.chat, history, true); render();
 }
@@ -4544,11 +4546,11 @@ async function resendFrom(i, text) {
 }
 
 // ---------- Alternative replies: ‹ › under every reply of the character ----------
-function ensureAlts(m) { if (!m.alts) { m.alts = [{ content: m.content, img: m.img, imgPrompt: m.imgPrompt, thinking: m.thinking, thinkSecs: m.thinkSecs, ...(m.via ? { via: m.via } : {}) }]; m.sel = 0; if (sentLog.has(m)) logSent(m.alts[0], sentLog.get(m)); } }
+function ensureAlts(m) { if (!m.alts) { m.alts = [{ content: m.content, img: m.img, imgPrompt: m.imgPrompt, imgSent: m.imgSent, thinking: m.thinking, thinkSecs: m.thinkSecs, ...(m.via ? { via: m.via } : {}) }]; m.sel = 0; if (sentLog.has(m)) logSent(m.alts[0], sentLog.get(m)); } }
 function selectAlt(m, k) {
   m.sel = k; const a = m.alts[k];
   m.content = a.content;
-  for (const f of ['img', 'imgPrompt', 'thinking', 'thinkSecs', 'via']) { if (a[f]) m[f] = a[f]; else delete m[f]; }
+  for (const f of ['img', 'imgPrompt', 'imgSent', 'thinking', 'thinkSecs', 'via']) { if (a[f]) m[f] = a[f]; else delete m[f]; }
 }
 const imagesOf = m => [m.img, ...(m.alts || []).map(a => a.img)].filter((x, i, arr) => x && arr.indexOf(x) === i);
 function addAltNav(bubble, m, i) {
@@ -8435,8 +8437,8 @@ function renderPanel() {
 }
 function deleteChatImage(i, k) {
   const m = history[i]; if (!m || !confirm('Delete this image from the chat? The message stays.')) return;
-  if (m.img === k) { delete m.img; delete m.imgPrompt; }
-  for (const a of m.alts || []) if (a.img === k) { delete a.img; delete a.imgPrompt; }
+  if (m.img === k) { delete m.img; delete m.imgPrompt; delete m.imgSent; }
+  for (const a of m.alts || []) if (a.img === k) { delete a.img; delete a.imgPrompt; delete a.imgSent; }
   idb.del(k).catch(() => {});
   saveMsgs(cur.chat, history); render(); renderPanel();
 }
@@ -10035,6 +10037,15 @@ async function openSent(i) {
     else if (imagesOn(cur.chat) && cur.chat.autoPics === false) rows += row('Automatic pictures are off: the camera under the reply makes it');
     const ic = document.createElement('div'); ic.className = 'card sent-info'; ic.style.cssText = 'padding:12px 16px;margin-top:10px';
     ic.innerHTML = '<div><b>Image trigger</b></div>' + rows; box.append(ic);
+  }
+  // the prompt that went to the image proxy for this reply's picture
+  if (target.img && (target.imgSent || target.imgPrompt)) {
+    const d = document.createElement('details'); d.className = 'card sent-msg'; d.style.cssText = 'padding:0 16px;margin-top:10px'; d.open = true;
+    const sm = document.createElement('summary'); sm.innerHTML = '<span>Sent to the image proxy</span>';
+    const pre = document.createElement('pre');
+    pre.textContent = target.imgSent ? target.imgSent.text + (target.imgSent.refs.length ? `\n\n[reference pictures: ${target.imgSent.refs.join(', ')}]` : '')
+      : target.imgPrompt + '\n\n(Only the picture description was kept for this older picture; the style and reference pictures that went with it are not known.)';
+    d.append(sm, pre); box.append(d);
   }
   info.messages.forEach((x, k) => {
     const t = textOf(x), d = document.createElement('details'); d.className = 'card sent-msg'; d.style.padding = '0 16px';
