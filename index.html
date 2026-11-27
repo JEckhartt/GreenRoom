@@ -381,8 +381,14 @@
   .bp-item summary > span { display: flex; flex-direction: column; gap: 2px; }
   .bp-item summary > span { min-width: 0; }
   .bp-when { font-weight: 400; font-size: 12.5px; color: var(--ink-soft); white-space: normal !important; }
-  .bp-item pre + pre { border-top: 1px solid var(--line); padding-top: 12px; }
   .bp-ph { color: var(--accent); }
+  .bp-text + .bp-text { border-top: 1px solid var(--line); padding-top: 12px; }
+  .bp-cap { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 6px; }
+  .bp-text textarea { width: 100%; font: 13px/1.5 ui-monospace, Menlo, monospace; margin: 0 0 6px; }
+  .bp-row { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; min-height: 22px; }
+  .bp-edited { font: 600 10.5px/1.3 'Inter', system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-style: normal; margin-bottom: 6px; }
+  .bp-row .bp-edited { margin: 0; }
+  .bp-reset { border: 0; background: none; color: var(--accent); font: 600 14px 'Inter', system-ui, sans-serif; padding: 0; cursor: pointer; }
   .sent-msg summary { display: flex; justify-content: space-between; gap: 10px; cursor: pointer; padding: 12px 0; font-weight: 600; list-style: none; }
   .sent-msg summary::-webkit-details-marker { display: none; }
   .sent-msg summary small { font-weight: 400; color: var(--ink-soft); white-space: nowrap; }
@@ -2365,10 +2371,11 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
 </section>
 
 <section id="builtins" class="view" aria-label="Built-in prompts">
-  <div class="page-head"><button class="back" data-close="builtins" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Built-in prompts</h1><span></span></div>
+  <div class="page-head"><button class="back" data-close="builtins" type="button" aria-label="Back"><svg class="back-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Built-in prompts</h1><button class="act" id="bpEdit" type="button">Edit</button></div>
   <div class="page-body"><div class="page-inner" style="padding-top:12px">
     <div class="hint" style="margin:0 2px 6px">Every instruction the app writes itself, around what you write. Read straight from the app's code, so this is exactly what is sent. Colored words are filled in when it's sent: {{char}} is the character's name, {{user}} your persona's name.</div>
     <div id="bpBox"></div>
+    <button class="btn" type="button" id="bpResetAll" hidden style="width:100%;margin-top:18px"></button>
   </div></div>
 </section>
 
@@ -2567,6 +2574,250 @@ const DEFAULTS = {
   ...LOOK_DEFAULTS,
 };
 let cfg = { ...DEFAULTS, ...store.get('cfg', {}) };
+// ---------- Built-in prompts: every instruction the app writes itself, read from the app's own code ----------
+// Each one is wrapped where it's used: BP('id')`…` / BPS('id', '…'). With no edit they give exactly the text in the code;
+// with an edit (Settings → Built-in prompts) the edited text is used, its {{placeholders}} filled with the same values.
+const bpEdits = () => cfg.bpEdits || {};
+function BPS(id, text) { const o = bpEdits()[id]; return o == null ? text : bpApply(id, o, []); }
+function BP(id) {
+  return (strings, ...vals) => {
+    const o = bpEdits()[id];
+    if (o == null) { let out = strings[0]; for (let i = 0; i < vals.length; i++) out += String(vals[i]) + strings[i + 1]; return out; }
+    return bpApply(id, o, vals);
+  };
+}
+const BUILTIN_PROMPTS = [
+  ["Chat replies", "Sent with every reply, around your character, persona and chat", [
+    ["Character", "The character block in the system prompt", [["chat-replies.character.1", "`--- Character: ${cn(c)}"], ["chat-replies.character.2", "`\\n\\nPersonality:\\n${f(c.personality)}"], ["chat-replies.character.3", "`\\n\\nScenario:\\n${f(c.scenario)}"]]],
+    ["Persona", "Your persona in the system prompt", [["chat-replies.persona", "`--- User: ${p.name}"]]],
+    ["World info", "Lorebook entries that triggered", [["chat-replies.world-info", "`--- World info"]]],
+    ["Memory", "The chat's Memory", [["chat-replies.memory", "`--- Memory (things"]]],
+    ["Example dialogue", "The character's example dialogue", [["chat-replies.example-dialogue", "`--- Example dialogue"]]],
+    ["Reply length", "When a maximum reply length is set: in the system prompt and on your last message", [["chat-replies.reply-length.1", "`--- Reply length"], ["chat-replies.reply-length.2", "`\\n\\n[Length: keep"]]],
+    ["Forbidden words", "When forbidden words are set", [["chat-replies.forbidden-words", "`--- Forbidden words"]]],
+    ["Real time", "When Real time is on: in the system prompt, and a note on each of your messages", [["chat-replies.real-time.1", "`--- Real time ---"], ["chat-replies.real-time.2", "`[Time: ${clockText(m.t)}"], ["chat-replies.real-time.3", "' Right after the previous message"], ["chat-replies.real-time.4", "` ${gapText(ms)} after the previous message${was}: the moment"], ["chat-replies.real-time.5", "` ${gapText(ms)} after the previous message${was}: time has passed"], ["chat-replies.real-time.6", "` It is now the next day"], ["chat-replies.real-time.7", "` It is now ${days} days later."]]],
+    ["Pictures", "When the image proxy is on: in the system prompt, and on your message when it asks for a picture", [["chat-replies.pictures.1", "'--- Images ---"], ["chat-replies.pictures.2", "'\\n\\n[Note from the app: the user is asking"]]],
+    ["Character card reminder", "On your last message: the short reminder, or the whole card when Repeat character card is on", [["chat-replies.character-card-reminder.1", "`\\n\\n[Stay true to ${cn(c)}"], ["chat-replies.character-card-reminder.2", "`\\n\\n[Character card reminder"]]],
+    ["Character's note", "The character's note, a few messages back", [["chat-replies.character-s-note", "`[${cn(c)}'s note:"]]],
+    ["Author's note", "The chat's author's note", [["chat-replies.author-s-note", "`--- Author's note ---"]]],
+    ["Recalled moments", "Vector storage: earlier moments that relate to now", [["chat-replies.recalled-moments", "`--- Earlier moments from this chat"]]],
+    ["Continue", "Continue under the newest reply", [["chat-replies.continue", "'[Continue your last message"]]],
+  ]],
+  ["Group chats", "Only in group chats", [
+    ["Group", "Who is in the chat (with Join character cards, everyone's card)", [["group-chats.group.1", "`--- Group chat${g.name"], ["group-chats.group.2", "`\\n\\n--- ${cn(o)} (another character"]]],
+    ["Whose turn", "On the last message: who writes now", [["group-chats.whose-turn", "`[Write the next reply only as"]]],
+  ]],
+  ["Openings", "The first message of a chat", [
+    ["Opening", "When the AI writes the opening", [["openings.opening", "`[Write ${cn(c)}'s opening message"]]],
+    ["Group opening", "When a character writes the opening of a group chat", [["openings.group-opening", "`[Write the opening message of this group"]]],
+    ["New opening", "Rewriting the opening with your direction", [["openings.new-opening", "`[Rewrite ${cn(s.c)}'s opening message"]]],
+    ["Opening time", "With Real time on", [["openings.opening-time", "` It is now ${clockText()} (the real current date and time): let it shape the opening"]]],
+  ]],
+  ["On their own", "Messages the character sends when you are away", [
+    ["Message on their own", "After you have been away", [["on-their-own.message-on-their-own", "`[Out of character: ${userName(p)} has been away"]]],
+  ]],
+  ["Writing help", "Long press send", [
+    ["Enhance (default)", "Used when you have not written your own", [["writing-help.enhance-default", "'Rewrite my message as {{user}}"]]],
+    ["Write for me (default)", "Used when you have not written your own", [["writing-help.write-for-me-default", "\"Write {{user}}'s next message"]]],
+    ["Around it", "How either one is sent", [["writing-help.around-it.1", "`[Out of character. ${task}\\nReply with the rewritten"], ["writing-help.around-it.2", "`[Out of character. ${task}${original.trim()"], ["writing-help.around-it.3", "` This is a group chat with ${g.members"]]],
+  ]],
+  ["Pictures", "Describing a picture, and what goes to the image proxy", [
+    ["Picture the character sends", "When a picture is asked for and the reply has no description", [["pictures.picture-the-character-sends.1", "'You write prompts for an image generator."], ["pictures.picture-the-character-sends.2", "`${bothAbout(c, p)}\\n\\n${userText ? `${userName(p)} asked:"]]],
+    ["Create image", "Long press a message → Create image", [["pictures.create-image", "`${bothAbout(c, p)}\\n\\n${userText ? `${userName(p)} wrote:"]]],
+    ["Who is who", "Goes with both of the above", [["pictures.who-is-who.1", "`Character: ${cn(c)}\\nAbout"], ["pictures.who-is-who.2", "`${userName(p)} (the user's persona)"]]],
+    ["Picture you send", "Generate image from the + menu, matching what you wrote", [["pictures.picture-you-send.1", "`${userName(p)} is chatting with ${cn(c)}."], ["pictures.picture-you-send.2", "`\\n(The picture is sent by"]]],
+    ["To the image proxy", "Wrapped around every picture description", [["pictures.to-the-image-proxy.1", "`Style and instructions for this picture"], ["pictures.to-the-image-proxy.2", "`Reference ${i + 1} is"], ["pictures.to-the-image-proxy.3", "`The reference image is"], ["pictures.to-the-image-proxy.4", "`Image to create: "]]],
+    ["Reference pictures", "The profile pictures and the last picture, and what they are for", [["pictures.reference-pictures.1", "`a picture of ${n}: how"], ["pictures.reference-pictures.2", "`the last picture ${cc} sent"], ["pictures.reference-pictures.3", "`About ${n}. The reference picture"], ["pictures.reference-pictures.4", "`About ${n} (looks and details"]]],
+    ["Profile picture", "Generate image in the character or persona editor", [["pictures.profile-picture.1", "`Write a portrait prompt for ${name}"], ["pictures.profile-picture.2", "'Format: a portrait-orientation profile picture"], ["pictures.profile-picture.3", "'\\nA character portrait.'"], ["pictures.profile-picture.4", "`\\nStyle: ${style}.`"]]],
+    ["Story cover", "The cover of a story", [["pictures.story-cover.1", "`The cover image for the novel"], ["pictures.story-cover.2", "'\\nFormat: a portrait-orientation book cover"]]],
+  ]],
+  ["Memory", "Summarize in Chat settings → Memory", [
+    ["Summary prompt (example)", "Put in by Use the example; yours is used when you have one", [["memory.summary-prompt-example", "\"You keep {{char}}'s long-term memory"]]],
+    ["First summary", "With an empty memory", [["memory.first-summary", "`The chat so far:\\n\\n${transcriptOf"]]],
+    ["Update", "With a memory already there", [["memory.update", "`Current memory:\\n\\n${prev}"]]],
+  ]],
+  ["Stories", "Turning a chat into a story", [
+    ["Novelist", "The system prompt", [["stories.novelist", "'You are a skilled novelist."]]],
+    ["Each part", "One request per part or chapter", [["stories.each-part", "`You turn a roleplay chat between ${cc} and ${uu} into a novel"]]],
+    ["Point of view", "Filled in above", [["stories.point-of-view.1", "'Third person omniscient"], ["stories.point-of-view.2", "`First person, as ${who}"], ["stories.point-of-view.3", "`Third person limited, following"]]],
+    ["Title", "When the story has no title", [["stories.title", "`Give this novel a title."]]],
+    ["Description", "Generate description", [["stories.description.1", "'You write the text on the back of novels."], ["stories.description.2", "`Write the back-cover description"]]],
+  ]],
+  ["Characters", "Character tools", [
+    ["Create a character", "From an idea", [["characters.create-a-character.1", "'You design characters for a roleplay chat app."], ["characters.create-a-character.2", "`Create a character for a roleplay chat from this idea"], ["characters.create-a-character.3", "`Reply with only a JSON object (no markdown"]]],
+    ["Character template (default)", "Used when you have not written your own", [["characters.character-template-default", "\"Public description:"]]],
+    ["Shorten a card", "When a card is over 2,000 tokens", [["characters.shorten-a-card.1", "'You edit character cards"], ["characters.shorten-a-card.2", "`These three parts of a character card"]]],
+    ["Description", "Generate description in the editor", [["characters.description.1", "'You write short, inviting introductions"], ["characters.description.2", "`Write the description shown on the character list"]]],
+    ["Describe a character", "Long press a message → Describe a character…", [["characters.describe-a-character", "`From the roleplay chat below, write a description of ${name}"]]],
+  ]],
+  ["Lorebooks", "Lorebook from a chat", [
+    ["Lorebook from a chat", "One request per part of the chat", [["lorebooks.lorebook-from-a-chat.1", "`You build a lorebook (world info)"], ["lorebooks.lorebook-from-a-chat.2", "`Entries so far:"]]],
+  ]],
+  ["Rules", "Find and replace", [
+    ["Write a rule", "Describe what you want and the AI writes the rule", [["rules.write-a-rule.1", "'You write find-and-replace rules"], ["rules.write-a-rule.2", "`Write one find-and-replace rule"]]],
+  ]],
+];
+// What the filled-in parts are called on the page
+const BP_NAMES = { 'cn(c)': 'char', 'cn(s.c)': 'char', cc: 'char', 'cn(o)': 'other character', 'userName(p)': 'user', 'userName(s.p)': 'user', 'userName(job.p)': 'user', uu: 'user', u: 'user', 'p.name': 'user',
+  'f(c.personality)': 'personality', 'f(c.scenario)': 'scenario', 'f(p.personality)': "persona's description", lore: 'lorebook entries', 'f(memory)': 'memory', 'f(c.examples)': 'example dialogue',
+  'clockText()': 'date and time', 'clockText(m.t)': 'date and time', 'gapText(ms)': 'time passed', was: 'previous message time', gap: 'how much time passed: one of the lines below', days: 'number', "pers || '(none)'": 'personality', note: "author's note", recalled: 'recalled moments',
+  "banned.join('; ')": 'forbidden words', 'Math.max(15, Math.round(maxT * 0.6))': 'word limit', 'fill(c.note.trim(), c, p)': "character's note", 'fill(c.personality, c, p).trim()': 'personality',
+  'g.name': 'group name', "[cn(c), ...others.map(cn)].join(', ')": 'characters', "[...others, userName(p)].join(', ')": 'the others', 'ff(o.personality)': "other character's personality", 'ff(o.examples)': "other character's example dialogue",
+  'openingTime(chat)': 'opening time, with Real time on', 'openingTime(s.chat)': 'opening time, with Real time on', 'm.content': 'current opening', direction: 'your direction',
+  'awayText(mins)': 'how long', 'clockText(Date.now() + mins * 60000)': 'date and time', task: 'enhance or write prompt', 'original.trim()': 'what you typed', original: 'what you typed',
+  "g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn).join(', ')": 'characters',
+  'bothAbout(c, p)': 'who is who', userText: 'your message', replyText: 'the reply', "fill(c.personality || '', c, p).trim() || '(nothing written)'": 'personality', "fill(p.personality, c, p).trim()": "persona's description",
+  'recent.slice(-3000)': 'the chat so far', typed: 'your message', named: 'your direction', 'guide.trim()': 'your image prompt', 'r.label': 'what the reference is', 'list[0].label': 'what the reference is', 'i + 1': 'number', 'prompt.trim()': 'picture description',
+  n: 'name', name: 'name', 'style': 'style', pers: 'personality', desc: 'description', scen: 'scenario', first: 'first message', 'meta.title': 'title', "body.summary || 'see the characters'": 'story summary',
+  prev: 'current memory', 'transcriptOf(rest, s.c, s.p)': 'the chat', people: 'the characters', "fill(c.scenario, c, p).trim()": 'setting', 'povText(meta, cc, uu)': 'point of view', 'meta.parts.length': 'number of parts',
+  'body.summary': 'the story so far', prevEnd: 'end of the previous part', transcript: 'the chat for this part', who: 'name', "st.title || 'Untitled'": 'title', story: 'the story', cc_: '',
+  idea: 'your idea', 'genTemplate()': 'character template', GEN_KEYS: 'JSON keys', 'before.toLocaleString()': 'tokens', 'CARD_MAX.toLocaleString()': '2,000', '(CARD_MAX - 200).toLocaleString()': '1,800',
+  "JSON.stringify({ personality: c.personality || '', scenario: c.scenario || '', examples: ex(c.examples) })": 'the card as JSON', "others.join(' or ')": 'the others', scenes: 'the chat',
+  "names.join(', ')": 'characters', known: 'entries so far', 'k + 1': 'number', 'job.parts.length': 'number of parts', 'job.parts[k]': 'this part of the chat', 'want.trim()': 'your wish',
+  "fill(c.personality || '', c, p)": 'personality' };
+// the source text of the app's main script
+let bpSrc = null;
+const bpSource = () => bpSrc ?? (bpSrc = [...document.scripts].map(s => s.textContent).find(t => t.includes('const BUILTIN_PROMPTS')) || '');
+// Reads a string or template literal that starts at src[i] (the quote); expressions inside ${…} are kept as source
+function bpLiteral(src, i) {
+  const q = src[i], parts = []; let t = '', k = i + 1;
+  const esc = ch => ({ n: '\n', t: '\t', r: '' }[ch] ?? ch);
+  while (k < src.length) {
+    const ch = src[k];
+    if (ch === '\\') { t += esc(src[k + 1]); k += 2; continue; }
+    if (ch === q) { k++; break; }
+    if (q === '`' && ch === '$' && src[k + 1] === '{') {
+      if (t) parts.push({ t }); t = '';
+      let d = 1, j = k + 2;
+      while (j < src.length && d) {
+        const c2 = src[j];
+        if (c2 === '`' || c2 === "'" || c2 === '"') { j = bpLiteral(src, j).end; continue; }
+        if (c2 === '{') d++; else if (c2 === '}') d--;
+        j++;
+      }
+      parts.push({ e: src.slice(k + 2, j - 1) }); k = j; continue;
+    }
+    t += ch; k++;
+  }
+  if (t) parts.push({ t });
+  return { parts, end: k };
+}
+// The top-level "a ? b : c" of an expression, or null
+function bpTernary(e) {
+  let d = 0, qi = -1;
+  for (let j = 0; j < e.length; j++) {
+    const ch = e[j];
+    if (ch === '`' || ch === "'" || ch === '"') { j = bpLiteral(e, j).end - 1; continue; }
+    if ('([{'.includes(ch)) d++; else if (')]}'.includes(ch)) d--;
+    else if (!d && ch === '?' && e[j + 1] !== '.' && e[j + 1] !== '?' && qi < 0) qi = j;
+    else if (!d && ch === ':' && qi >= 0) return [e.slice(0, qi).trim(), e.slice(qi + 1, j).trim(), e.slice(j + 1).trim()];
+  }
+  return null;
+}
+const bpWrapped = e => e.match(/^BPS?\('([^']+)'/)?.[1] || null;
+// Where an id's default text starts in the code
+function bpStart(src, id) {
+  const cA = src.indexOf('const BUILTIN_PROMPTS'), cB = src.indexOf('// the source text of the app');
+  const find = needle => { let at = src.indexOf(needle); while (at >= cA && at < cB) at = src.indexOf(needle, at + 1); return at; };
+  const entry = BUILTIN_PROMPTS.flatMap(g => g[2].flatMap(it => it[2])).find(([x]) => x === id);
+  if (entry) { const at = find(entry[1]); if (at >= 0) return at; }
+  let at = find(`BP('${id}')\``); if (at >= 0) return at + `BP('${id}')`.length;
+  at = find(`BPS('${id}', `); if (at >= 0) return at + `BPS('${id}', `.length;
+  return -1;
+}
+// An id's default text as parts: text, {{placeholders}} (one per expression) and the optional parts inside it
+const bpCache = new Map();
+function bpParts(id) {
+  if (bpCache.has(id)) return bpCache.get(id);
+  const src = bpSource(), at = bpStart(src, id);
+  if (at < 0 || !/[`'"]/.test(src[at])) { bpCache.set(id, null); return null; }
+  const raw = bpLiteral(src, at).parts, names = new Map(), out = [], subs = [];
+  for (const x of raw) {
+    if (x.e == null) { out.push(x); continue; }
+    const e = x.e.trim(), tern = bpTernary(e);
+    let name, sub = null;
+    if (tern && (bpWrapped(tern[1]) || bpWrapped(tern[2]))) {
+      sub = [bpWrapped(tern[1]), bpWrapped(tern[2])].filter(Boolean);
+      name = (BP_NAMES[tern[0]] || tern[0].replace(/\?\./g, '.').replace(/\(\)/g, '')) + ' part';
+    } else name = e in BP_NAMES ? BP_NAMES[e] : e;
+    // the same name for a different expression gets a number
+    let n = name, k = 2; while (names.has(n) && names.get(n) !== e) n = `${name} ${k++}`;
+    names.set(n, e); out.push({ ph: n, e });
+    if (sub) for (const sid of sub) subs.push({ id: sid, of: n, when: sid.endsWith('b') ? 'when it does not apply' : 'when it applies' });
+  }
+  const r = { parts: out, subs };
+  bpCache.set(id, r); return r;
+}
+// the default text with {{placeholders}}
+const bpDefault = id => (bpParts(id)?.parts || []).map(x => x.ph != null ? `{{${x.ph}}}` : x.t).join('');
+// An edited text with its {{placeholders}} filled by the values the code has at that moment
+function bpApply(id, text, vals) {
+  const P = bpParts(id); if (!P) return text;
+  const at = new Map(); let k = 0;
+  for (const x of P.parts) if (x.ph != null) { if (!at.has(x.ph)) at.set(x.ph, k); k++; }
+  return text.replace(/\{\{([^{}]+)\}\}/g, (m, n) => at.has(n) ? String(vals[at.get(n)] ?? '') : m);
+}
+// ---------- the page ----------
+let bpEditing = false;
+function openBuiltins() { bpEditing = false; bpRender(); $('builtins').querySelector('.page-body').scrollTop = 0; openView('builtins'); }
+function bpRender() {
+  const box = $('bpBox'), E = bpEdits(), open = new Set([...box.querySelectorAll('details[open]')].map(d => d.dataset.k));
+  box.innerHTML = '';
+  $('bpEdit').textContent = bpEditing ? 'Done' : 'Edit';
+  // one text: shown with colored placeholders, or as an editable box
+  const textBlock = (host, id, caption) => {
+    const P = bpParts(id); if (!P) { const pre = document.createElement('pre'); pre.textContent = '(not found)'; host.append(pre); return; }
+    const wrap = document.createElement('div'); wrap.className = 'bp-text';
+    if (caption) { const c = document.createElement('div'); c.className = 'bp-cap'; c.innerHTML = caption; wrap.append(c); }
+    const def = bpDefault(id), lead = def.match(/^\n*/)[0], trail = def.match(/\n*$/)[0], edited = E[id] != null;
+    const shown = (edited ? E[id] : def).replace(/^\n+|\n+$/g, '');
+    if (bpEditing) {
+      const ta = document.createElement('textarea'); ta.value = shown; ta.spellcheck = false;
+      let tm; ta.oninput = () => { autosize(ta); clearTimeout(tm); tm = setTimeout(() => {
+        const v = ta.value.replace(/^\n+|\n+$/g, ''), d = def.replace(/^\n+|\n+$/g, '');
+        cfg.bpEdits = { ...bpEdits() }; if (v === d) delete cfg.bpEdits[id]; else cfg.bpEdits[id] = lead + v + trail;
+        saveCfg(); mark();
+      }, 300); };
+      const row = document.createElement('div'); row.className = 'bp-row';
+      const tag = document.createElement('span'); tag.className = 'bp-edited'; tag.textContent = 'Edited';
+      const reset = document.createElement('button'); reset.type = 'button'; reset.className = 'bp-reset'; reset.textContent = 'Reset';
+      reset.onclick = () => { cfg.bpEdits = { ...bpEdits() }; delete cfg.bpEdits[id]; saveCfg(); ta.value = def.replace(/^\n+|\n+$/g, ''); autosize(ta); mark(); };
+      const mark = () => { const on = bpEdits()[id] != null; tag.hidden = reset.hidden = !on; };
+      row.append(tag, reset); wrap.append(ta, row); host.append(wrap); mark(); requestAnimationFrame(() => autosize(ta));
+    } else {
+      const pre = document.createElement('pre');
+      if (edited) { pre.textContent = shown; pre.classList.add('bp-is-edited'); }
+      else {
+        const parts = P.parts.map(x => ({ ...x })); if (parts[0]?.t != null) parts[0].t = parts[0].t.replace(/^\n+/, ''); if (parts.at(-1)?.t != null) parts.at(-1).t = parts.at(-1).t.replace(/\n+$/, '');
+        for (const x of parts) { if (x.ph != null) { const sp = document.createElement('span'); sp.className = 'bp-ph'; sp.textContent = `{{${x.ph}}}`; pre.append(sp); } else pre.append(x.t); }
+      }
+      if (edited) { const tg = document.createElement('div'); tg.className = 'bp-edited'; tg.textContent = 'Edited'; wrap.append(tg); }
+      wrap.append(pre); host.append(wrap);
+    }
+    // optional parts inside it, each editable on its own
+    for (const sb of P.subs) textBlock(host, sb.id, `<span class="bp-ph">{{${escHtml(sb.of)}}}</span> ${escHtml(sb.when)}:`);
+  };
+  const anyEdit = id => { if (E[id] != null) return true; return (bpParts(id)?.subs || []).some(sb => anyEdit(sb.id)); };
+  for (const [group, about, items] of BUILTIN_PROMPTS) {
+    const h = document.createElement('div'); h.className = 'bp-group'; h.innerHTML = `<span>${escHtml(group)}</span><small>${escHtml(about)}</small>`; box.append(h);
+    for (const [name, when, starts] of items) {
+      const d = document.createElement('details'); d.className = 'card sent-msg bp-item'; d.style.padding = '0 16px'; d.dataset.k = group + name;
+      const sm = document.createElement('summary');
+      sm.innerHTML = `<span>${escHtml(name)}${starts.some(([id]) => anyEdit(id)) ? ' <em class="bp-edited">Edited</em>' : ''}<small class="bp-when">${escHtml(when)}</small></span>`;
+      d.append(sm); d.open = open.has(d.dataset.k);
+      for (const [id] of starts) textBlock(d, id);
+      box.append(d);
+    }
+  }
+  const n = Object.keys(E).length;
+  $('bpResetAll').hidden = !n; $('bpResetAll').textContent = `Reset all ${n} edited`;
+}
+$('bpOpen').onclick = openBuiltins;
+$('bpEdit').onclick = () => {
+  if (!bpEditing && !confirm('Edit the app\'s built-in prompts?\n\nThese are the instructions the app sends with every chat, picture, memory update and story. A change here changes how the AI behaves everywhere, and a mistake can break replies, pictures or stories.\n\nKeep the {{placeholders}}: they are filled in when it is sent. Reset puts the original back.')) return;
+  bpEditing = !bpEditing; bpRender();
+};
+$('bpResetAll').onclick = () => { if (!confirm('Put every built-in prompt back to the original?')) return; delete cfg.bpEdits; saveCfg(); bpRender(); };
 // The chat redesign was undone: its builds switched the timestamps off once; switch them back on
 if (store.get('mig_timeDividers')) { cfg.showTimes = cfg.u_showTimes = true; store.set('cfg', cfg); store.del('mig_timeDividers'); }
 if ('textOnly' in cfg) { if (cfg.textOnly) cfg.genImages = false; delete cfg.textOnly; store.set('cfg', cfg); }
@@ -3121,7 +3372,7 @@ const shortClock = t => { const d = new Date(t); return d.toLocaleDateString('en
 const dayNo = t => { const d = new Date(t); return Math.round(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 864e5); };
 const gapText = ms => { const m = Math.round(ms / 60000); return m < 60 ? `${m} minute${m === 1 ? '' : 's'}` : m < 2880 ? `${Math.round(m / 60)} hour${Math.round(m / 60) === 1 ? '' : 's'}` : `${Math.round(m / 1440)} days`; };
 function timeFor() {
-  return `--- Real time ---\nIt is now ${clockText()}. This is the real current date and time; use it naturally when it matters (time of day, day of the week, season, how late it is), without announcing it.\nEach message from the user carries a [Time: …] note saying how much real time passed since the message before it. Little time passed: the moment simply continues, nobody left. Hours or days passed: the user was away, so react to that naturally (it is later now, things happened in between, you may have missed them).`;
+  return BP('chat-replies.real-time.1')`--- Real time ---\nIt is now ${clockText()}. This is the real current date and time; use it naturally when it matters (time of day, day of the week, season, how late it is), without announcing it.\nEach message from the user carries a [Time: …] note saying how much real time passed since the message before it. Little time passed: the moment simply continues, nobody left. Hours or days passed: the user was away, so react to that naturally (it is later now, things happened in between, you may have missed them).`;
 }
 // How much real time passed before message i, as a note for the AI
 function timeNote(hist, i) {
@@ -3130,14 +3381,14 @@ function timeNote(hist, i) {
   let gap = '';
   if (prev) {
     const ms = m.t - prev.t, days = dayNo(m.t) - dayNo(prev.t), was = ` (${shortClock(prev.t)})`;
-    gap = ms < 2 * 60000 ? ' Right after the previous message: no time has passed.'
-      : ms < 30 * 60000 ? ` ${gapText(ms)} after the previous message${was}: the moment continues.`
-      : ` ${gapText(ms)} after the previous message${was}: time has passed${days === 0 ? ', later the same day' : ''}.`;
+    gap = ms < 2 * 60000 ? BPS('chat-replies.real-time.3', ' Right after the previous message: no time has passed.')
+      : ms < 30 * 60000 ? BP('chat-replies.real-time.4')` ${gapText(ms)} after the previous message${was}: the moment continues.`
+      : BP('chat-replies.real-time.5')` ${gapText(ms)} after the previous message${was}: time has passed${days === 0 ? BPS('chat-replies.real-time.5/3', ', later the same day') : ''}.`;
     // the calendar, not only the hours: a new day is said outright
-    if (days === 1) gap += ` It is now the next day${ms < 3 * 3600e3 ? ' (just past midnight)' : ''}.`;
-    else if (days > 1) gap += ` It is now ${days} days later.`;
+    if (days === 1) gap += BP('chat-replies.real-time.6')` It is now the next day${ms < 3 * 3600e3 ? BPS('chat-replies.real-time.6/1', ' (just past midnight)') : ''}.`;
+    else if (days > 1) gap += BP('chat-replies.real-time.7')` It is now ${days} days later.`;
   }
-  return `[Time: ${clockText(m.t)}.${gap}]`;
+  return BP('chat-replies.real-time.2')`[Time: ${clockText(m.t)}.${gap}]`;
 }
 // ---------- Prompt layout: the parts of a request as blocks, in an order you choose ----------
 // Built-in blocks hold what GreenRoom always sent; "chat" is the messages. Blocks above "chat" go before it (system ones
@@ -3173,25 +3424,25 @@ function blockTexts(c, p, memory, lore, chat = cur?.chat) {
   // a character's own main prompt replaces yours ({{original}} = yours)
   T.main = c.sysPrompt?.trim() ? f(c.sysPrompt.replace(/\{\{\s*original\s*\}\}/gi, () => promptText(chat) || '')) : f(promptText(chat));
   const g = chat?.group;
-  let ch = `--- Character: ${cn(c)} ---\nYou are ${cn(c)}. Stay in character.`;
-  if (f(c.personality)) ch += `\n\nPersonality:\n${f(c.personality)}`;
+  let ch = BP('chat-replies.character.1')`--- Character: ${cn(c)} ---\nYou are ${cn(c)}. Stay in character.`;
+  if (f(c.personality)) ch += BP('chat-replies.character.2')`\n\nPersonality:\n${f(c.personality)}`;
   if (g) {
     const sc = [f(g.scenario), ...g.members.filter(id => g.scenIncl?.includes(id)).map(id => chars.find(x => x.id === id)).filter(Boolean)
       .map(o => { const t = fill((o.scenario || '').trim(), o, p); return t && `${cn(o)}'s scenario:\n${t}`; })].filter(Boolean);
     if (sc.length) ch += `\n\nScenario:\n${sc.join('\n\n')}`;
-  } else if (f(c.scenario)) ch += `\n\nScenario:\n${f(c.scenario)}`;
+  } else if (f(c.scenario)) ch += BP('chat-replies.character.3')`\n\nScenario:\n${f(c.scenario)}`;
   T.char = ch;
   T.group = g ? groupSection(c, p, chat) : '';
-  T.persona = p ? `--- User: ${p.name} ---\nYou are talking with ${p.name}.${f(p.personality) ? `\n\n${f(p.personality)}` : ''}` : '';
-  T.lore = lore ? `--- World info (facts about this story; use when relevant) ---\n${lore}` : '';
-  T.memory = f(memory) ? `--- Memory (things to remember in this chat) ---\n${f(memory)}` : '';
+  T.persona = p ? BP('chat-replies.persona')`--- User: ${p.name} ---\nYou are talking with ${p.name}.${f(p.personality) ? BP('chat-replies.persona/3')`\n\n${f(p.personality)}` : ''}` : '';
+  T.lore = lore ? BP('chat-replies.world-info')`--- World info (facts about this story; use when relevant) ---\n${lore}` : '';
+  T.memory = f(memory) ? BP('chat-replies.memory')`--- Memory (things to remember in this chat) ---\n${f(memory)}` : '';
   const maxT = gen(chat).maxTokens;
-  T.length = maxT ? `--- Reply length (strict) ---\nEvery reply must stay under ${Math.max(15, Math.round(maxT * 0.6))} words. This is a hard limit, also for long scenes: write less, not faster. Always finish your last sentence.` : '';
-  T.examples = f(c.examples) ? `--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}` : '';
+  T.length = maxT ? BP('chat-replies.reply-length.1')`--- Reply length (strict) ---\nEvery reply must stay under ${Math.max(15, Math.round(maxT * 0.6))} words. This is a hard limit, also for long scenes: write less, not faster. Always finish your last sentence.` : '';
+  T.examples = f(c.examples) ? BP('chat-replies.example-dialogue')`--- Example dialogue (style reference only, not part of the conversation) ---\n${f(c.examples)}` : '';
   const banned = String(chat && 'forbidden' in chat ? chat.forbidden : cfg.forbidden || '').split(/[\n,]+/).map(w => w.trim()).filter((w, i, a) => w && a.indexOf(w) === i);
-  T.forbidden = banned.length ? `--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.` : '';
+  T.forbidden = banned.length ? BP('chat-replies.forbidden-words')`--- Forbidden words ---\nNever use any of these words or phrases, in any form, in anything you write: ${banned.join('; ')}.` : '';
   T.time = chat?.realTime ? timeFor() : '';
-  T.images = !imageEnabled(chat) ? '' : ('--- Images ---\nYou can send the user pictures. Only when the latest message from the user explicitly asks you for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never add the tag otherwise, not even when pictures were sent earlier in the chat.');
+  T.images = !imageEnabled(chat) ? '' : (BPS('chat-replies.pictures.1', '--- Images ---\nYou can send the user pictures. Only when the latest message from the user explicitly asks you for a picture, photo, pic, selfie, image or drawing (in any language), reply in character as usual AND end that message with the tag [[image: a detailed description in English of the picture you send]]. The app turns the tag into a real image below your message and hides the tag. Never add the tag otherwise, not even when pictures were sent earlier in the chat.'));
   T.charpost = f(c.postHistory);
   T.recall = ''; T.chat = '';
   return T;
@@ -3421,10 +3672,10 @@ async function buildMessagesInner(c, p, hist, memory, chat = cur?.chat, opts = {
   const maxT = gen(chat).maxTokens;
   // Close to the newest message (where models look most): stay true to the character card, or the whole card again
   const cardNote = lastUser ? ((chat?.cardRepeat ?? cfg.cardRepeat) && fill(c.personality || '', c, p).trim()
-    ? `\n\n[Character card reminder: stay true to ${cn(c)} as described here: personality, way of speaking, habits and reactions.\n${fill(c.personality, c, p).trim()}]`
-    : `\n\n[Stay true to ${cn(c)} as described in the character card: personality, way of speaking, habits and reactions. Don't drift into a generic voice.]`) : '';
-  const note0 = cardNote + (lastUser && wantsImage(hist.at(-1)) ? (imageEnabled(chat) ? IMG_NOTE : '') : '')
-    + (lastUser && maxT ? `\n\n[Length: keep your reply under ${Math.max(15, Math.round(maxT * 0.6))} words.]` : '');
+    ? BP('chat-replies.character-card-reminder.2')`\n\n[Character card reminder: stay true to ${cn(c)} as described here: personality, way of speaking, habits and reactions.\n${fill(c.personality, c, p).trim()}]`
+    : BP('chat-replies.character-card-reminder.1')`\n\n[Stay true to ${cn(c)} as described in the character card: personality, way of speaking, habits and reactions. Don't drift into a generic voice.]`) : '';
+  const note0 = cardNote + (lastUser && wantsImage(hist.at(-1)) ? (imageEnabled(chat) ? BPS('chat-replies.pictures.2', IMG_NOTE) : '') : '')
+    + (lastUser && maxT ? BP('chat-replies.reply-length.2')`\n\n[Length: keep your reply under ${Math.max(15, Math.round(maxT * 0.6))} words.]` : '');
   if (note0) {
     if (Array.isArray(lastUser.content)) lastUser.content = lastUser.content.map(x => x.type === 'text' ? { ...x, text: x.text + note0 } : x);
     else lastUser.content += note0;
@@ -3449,7 +3700,7 @@ async function buildMessagesInner(c, p, hist, memory, chat = cur?.chat, opts = {
   // the system prompt: the system blocks before the chat, in order (an author's note with no message to go on goes just before recalled moments)
   const systemText = () => {
     const items = sysBlocks.map(b => [b.key, textOf(b)]).filter(([, t]) => t);
-    if (note) { const r = items.findIndex(([k]) => k === 'recall'); items.splice(r < 0 || r !== items.length - 1 ? items.length : r, 0, ['note', `--- Author's note ---\n${note}`]); }
+    if (note) { const r = items.findIndex(([k]) => k === 'recall'); items.splice(r < 0 || r !== items.length - 1 ? items.length : r, 0, ['note', BP('chat-replies.author-s-note')`--- Author's note ---\n${note}`]); }
     return items.map(([, t]) => t).join('\n\n');
   };
   const system = { role: 'system', content: systemText() };
@@ -3462,7 +3713,7 @@ async function buildMessagesInner(c, p, hist, memory, chat = cur?.chat, opts = {
   }
   // Character's note: close to the end of the chat, on your message at that depth (or the nearest one above it)
   if (fill(c.note || '', c, p).trim() && msgs.length) {
-    const note = `[${cn(c)}'s note: ${fill(c.note.trim(), c, p)}]`;
+    const note = BP('chat-replies.character-s-note')`[${cn(c)}'s note: ${fill(c.note.trim(), c, p)}]`;
     let k = Math.max(0, msgs.length - (c.noteDepth ?? 4));
     while (k > 0 && msgs[k].role !== 'user') k--;
     const x = msgs[k];
@@ -3478,7 +3729,7 @@ async function buildMessagesInner(c, p, hist, memory, chat = cur?.chat, opts = {
       else x.content = pre + (x.content || '');
     });
     if (opts.nudge !== false) {
-    const nudge = `[Write the next reply only as ${cn(c)}. Do not write for ${userName(p)} or the other characters, and do not start with a name.]`;
+    const nudge = BP('group-chats.whose-turn')`[Write the next reply only as ${cn(c)}. Do not write for ${userName(p)} or the other characters, and do not start with a name.]`;
     const last = msgs.at(-1);
     if (last?.role === 'user') { if (Array.isArray(last.content)) last.content.push({ type: 'text', text: '\n\n' + nudge }); else last.content += '\n\n' + nudge; }
     else msgs.push({ role: 'user', content: !hist.length && chat.group.opening !== false ? groupOpeningAsk(c, p, chat) : nudge });
@@ -3489,7 +3740,7 @@ async function buildMessagesInner(c, p, hist, memory, chat = cur?.chat, opts = {
     try {
       const cutoff = limit ? hist.length - msgs.length : hist.length - 60;
       const recalled = await vecRecall(chat, c, p, hist, cutoff);
-      if (recalled) T.recall = `--- Earlier moments from this chat (from long ago; recalled because they relate to what is happening now) ---\n${recalled}`;
+      if (recalled) T.recall = BP('chat-replies.recalled-moments')`--- Earlier moments from this chat (from long ago; recalled because they relate to what is happening now) ---\n${recalled}`;
     } catch (e) { if (!isAbort(e)) { dbg('error', 'Vector storage: ' + e.message); toast('Vector storage failed: ' + e.message); } }
   }
   system.content = systemText();
@@ -3841,10 +4092,10 @@ async function httpError(res) {
 let lastImageSent = null; // the exact text (and reference pictures) of the last image request: kept on the reply for What was sent
 async function generateImage(prompt, refs, guide = '', about = '', aspect = '') {
   const list = (refs?.list || []).filter(r => r.url);
-  const names = list.length > 1 ? list.map((r, i) => `Reference ${i + 1} is ${r.label}`).join('\n') : list.length ? `The reference image is ${list[0].label}` : '';
-  const ask = prompt.trim() && (list.length ? `Image to create: ${prompt.trim()}\nGenerate what the description asks for, not a copy of a reference image.` : prompt.trim());
+  const names = list.length > 1 ? list.map((r, i) => BP('pictures.to-the-image-proxy.2')`Reference ${i + 1} is ${r.label}`).join('\n') : list.length ? BP('pictures.to-the-image-proxy.3')`The reference image is ${list[0].label}` : '';
+  const ask = prompt.trim() && (list.length ? BP('pictures.to-the-image-proxy.4')`Image to create: ${prompt.trim()}\nGenerate what the description asks for, not a copy of a reference image.` : prompt.trim());
   // your Image prompt comes first, marked as the one that wins (style and format)
-  const text = [guide.trim() && `Style and instructions for this picture (follow these over anything below):\n${guide.trim()}`, names, ask, about.trim()].filter(Boolean).join('\n\n');
+  const text = [guide.trim() && BP('pictures.to-the-image-proxy.1')`Style and instructions for this picture (follow these over anything below):\n${guide.trim()}`, names, ask, about.trim()].filter(Boolean).join('\n\n');
   lastImageSent = { text, refs: list.map(r => r.label) };
   return requestImage(list.length ? [...list.map(r => ({ type: 'image_url', image_url: { url: r.url } })), { type: 'text', text }] : text, undefined, aspect);
 }
@@ -4248,21 +4499,21 @@ async function aiTurn(s, hist, messages, bubble, into) {
 }
 // Asks the chat model for an image-generator prompt for a reply
 // Both people for a picture description: the character and you, each with their own text
-const bothAbout = (c, p) => [`Character: ${cn(c)}\nAbout ${cn(c)}:\n${fill(c.personality || '', c, p).trim() || '(nothing written)'}`,
-  `${userName(p)} (the user's persona)${p?.personality?.trim() ? `\nAbout ${userName(p)}:\n${fill(p.personality, c, p).trim()}` : ''}`].join('\n\n');
+const bothAbout = (c, p) => [BP('pictures.who-is-who.1')`Character: ${cn(c)}\nAbout ${cn(c)}:\n${fill(c.personality || '', c, p).trim() || '(nothing written)'}`,
+  BP('pictures.who-is-who.2')`${userName(p)} (the user's persona)${p?.personality?.trim() ? BP('pictures.who-is-who.2/2')`\nAbout ${userName(p)}:\n${fill(p.personality, c, p).trim()}` : ''}`].join('\n\n');
 // scene = true (Create image on a message): an illustration of that moment, seen from outside, not a photo sent
 async function describeImage(s, userText, replyText, scene = false) {
   const { c, p } = s;
   if (scene) {
     const out = await streamChat([
-      { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-      { role: 'user', content: `${bothAbout(c, p)}\n\n${userText ? `${userName(p)} wrote: "${userText}"\n` : ''}${cn(c)} wrote: "${replyText}"\n\nDescribe a picture of the moment in ${cn(c)}'s message, as a scene seen from the outside (an onlooker's view): not a selfie and not a photo someone takes, unless the message itself is about taking one. Show who is in the scene (name them: ${cn(c)}, ${userName(p)}) and only them, what they are doing, their poses, expressions and clothing, the setting, the lighting and a viewpoint and framing that fit the moment. Do not name an art style, medium or kind of image (no "illustration", "photo", "film still", "painting", "anime"…): the style is set separately.` },
+      { role: 'system', content: BPS('pictures.picture-the-character-sends.1', 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.') },
+      { role: 'user', content: BP('pictures.create-image')`${bothAbout(c, p)}\n\n${userText ? BP('pictures.create-image/2')`${userName(p)} wrote: "${userText}"\n` : ''}${cn(c)} wrote: "${replyText}"\n\nDescribe a picture of the moment in ${cn(c)}'s message, as a scene seen from the outside (an onlooker's view): not a selfie and not a photo someone takes, unless the message itself is about taking one. Show who is in the scene (name them: ${cn(c)}, ${userName(p)}) and only them, what they are doing, their poses, expressions and clothing, the setting, the lighting and a viewpoint and framing that fit the moment. Do not name an art style, medium or kind of image (no "illustration", "photo", "film still", "painting", "anime"…): the style is set separately.` },
     ], () => {}, { free: true });
     return out.replace(TAG, '').trim();
   }
   const out = await streamChat([
     { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-    { role: 'user', content: `${bothAbout(c, p)}\n\n${userText ? `${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), ${userName(p)}, both of them ("us"), but also a pet, food, a place or anything else; only include a person if the picture is of them, and name them (${cn(c)}, ${userName(p)}). Cover subject, appearance, pose, expression, clothing, setting, lighting and framing. Do not name an art style or medium: the style is set separately.` },
+    { role: 'user', content: BP('pictures.picture-the-character-sends.2')`${bothAbout(c, p)}\n\n${userText ? BP('pictures.picture-the-character-sends.2/2')`${userName(p)} asked: "${userText}"\n` : ''}${cn(c)} replied: "${replyText}"\n\nDescribe the picture ${cn(c)} sends now. Show exactly what the message says the picture is of: that may be ${cn(c)} (a selfie), ${userName(p)}, both of them ("us"), but also a pet, food, a place or anything else; only include a person if the picture is of them, and name them (${cn(c)}, ${userName(p)}). Cover subject, appearance, pose, expression, clothing, setting, lighting and framing. Do not name an art style or medium: the style is set separately.` },
   ], () => {}, { free: true });
   return out.replace(TAG, '').trim();
 }
@@ -4302,7 +4553,7 @@ async function continueReply(i) {
   setBusy(true);
   bubble.querySelector('.alts')?.remove(); bubble.querySelector(':scope > .via')?.remove();
   try {
-    const ask = '[Continue your last message exactly where it stopped. Do not repeat anything you already wrote and do not start over; write only what comes next.]';
+    const ask = BPS('chat-replies.continue', '[Continue your last message exactly where it stopped. Do not repeat anything you already wrote and do not start over; write only what comes next.]');
     const messages = [...await buildMessages(s.c, s.p, hist.slice(0, i + 1), s.chat.memory, s.chat, { nudge: false }), { role: 'user', content: ask }];
     clearErrs(); startFollow();
     // follows How new messages appear, like a new reply: live, shown when finished, or faded in word by word
@@ -4622,9 +4873,9 @@ function lockReplies(hist) {
   return changed;
 }
 // real time on: the opening is told the current date and time, so it fits the moment (morning, late night, weekend…)
-const openingTime = chat => chat?.realTime ? ` It is now ${clockText()} (the real current date and time): let it shape the opening naturally (time of day, day of the week, season) without announcing it.` : '';
+const openingTime = chat => chat?.realTime ? BP('openings.opening-time')` It is now ${clockText()} (the real current date and time): let it shape the opening naturally (time of day, day of the week, season) without announcing it.` : '';
 // Openings in a chat follow the selected system prompt (point of view, style); only Generate sets its own rules
-const openingAsk = (c, p, chat = cur?.chat) => `[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? ' and the scenario' : ''}. Reply with the message only.${openingTime(chat)}]`;
+const openingAsk = (c, p, chat = cur?.chat) => BP('openings.opening')`[Write ${cn(c)}'s opening message to start the roleplay with ${userName(p)}. Stay fully in character, based on ${cn(c)}'s personality${c.scenario?.trim() ? BPS('openings.opening/4', ' and the scenario') : ''}. Reply with the message only.${openingTime(chat)}]`;
 // Writes another version of reply i, using only the conversation before it
 async function anotherReply(i, bubble, direction = '', override = null) {
   if (busy || !ready()) return;
@@ -4638,7 +4889,7 @@ async function anotherReply(i, bubble, direction = '', override = null) {
     const messages = i === 0 && s.chat.group && !direction ? await buildMessages(s.c, s.p, [], s.chat.memory)
       : i === 0
       ? [...await buildMessages(s.c, s.p, [], s.chat.memory, s.chat, { nudge: false }), { role: 'user', content: direction
-          ? `[Rewrite ${cn(s.c)}'s opening message to start the roleplay with ${userName(s.p)}. The current version:\n\n${m.content}\n\nWhat to change: ${direction}${openingTime(s.chat)}\n\nStay fully in character. Reply with the new message only.]`
+          ? BP('openings.new-opening')`[Rewrite ${cn(s.c)}'s opening message to start the roleplay with ${userName(s.p)}. The current version:\n\n${m.content}\n\nWhat to change: ${direction}${openingTime(s.chat)}\n\nStay fully in character. Reply with the new message only.]`
           : openingAsk(s.c, s.p) }]
       : await buildMessages(s.c, s.p, hist.slice(0, i), s.chat.memory);
     await aiTurn(s, hist, messages, bubble, m);
@@ -5961,14 +6212,14 @@ $('edGenDesc').onclick = async () => {
   try {
     const name = $('edName').value.trim() || 'the character';
     const out = await streamChat([
-      { role: 'system', content: 'You write short, inviting introductions for characters in a roleplay chat app. Output only the introduction.' },
-      { role: 'user', content: `Write the description shown on the character list for ${name}: 2 to 4 sentences that tell people who ${name} is and make them want to start a chat. Don't reveal everything. Use the name, not {{char}}.
+      { role: 'system', content: BPS('characters.description.1', 'You write short, inviting introductions for characters in a roleplay chat app. Output only the introduction.') },
+      { role: 'user', content: BP('characters.description.2')`Write the description shown on the character list for ${name}: 2 to 4 sentences that tell people who ${name} is and make them want to start a chat. Don't reveal everything. Use the name, not {{char}}.
 
 Personality:
-${pers || '(none)'}${scen ? `
+${pers || '(none)'}${scen ? BP('characters.description.2/4')`
 
 Scenario:
-${scen}` : ''}${first ? `
+${scen}` : ''}${first ? BP('characters.description.2/5')`
 
 First message:
 ${first}` : ''}` },
@@ -6052,15 +6303,15 @@ $('edGenImg').onclick = async () => {
     const name = $('edName').value.trim() || (edit.kind === 'char' ? 'the character' : 'the person');
     const prompt = (await streamChat([
       { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-      { role: 'user', content: `Write a portrait prompt for ${name}. Describe only what can be seen: face, hair, eyes, body, clothing, expression, pose, setting, lighting and ${style ? `this style: ${style}` : 'an art style that fits'}.
+      { role: 'user', content: BP('pictures.profile-picture.1')`Write a portrait prompt for ${name}. Describe only what can be seen: face, hair, eyes, body, clothing, expression, pose, setting, lighting and ${style ? BP('pictures.profile-picture.1/2')`this style: ${style}` : BPS('pictures.profile-picture.1/2b', 'an art style that fits')}.
 
 Personality:
-${pers || '(none)'}${desc ? `
+${pers || '(none)'}${desc ? BP('pictures.profile-picture.1/4')`
 
 Description:
 ${desc}` : ''}` },
     ], () => {}, { free: true })).trim();
-    const src = await generateImage(prompt + (style ? `\nStyle: ${style}.` : '') + '\n' + PROFILE_SHAPE, null, '', '', PROFILE_ASPECT);
+    const src = await generateImage(prompt + (style ? BP('pictures.profile-picture.4')`\nStyle: ${style}.` : '') + '\n' + BPS('pictures.profile-picture.2', PROFILE_SHAPE), null, '', '', PROFILE_ASPECT);
     edit.img = src;
     const th = $('edThumb'); th.style.backgroundImage = `url("${src}")`; th.textContent = ''; $('edNoImg').hidden = $('edFrame').hidden = false; edit.frame = null;
     toast('Image ready. Save to keep it.');
@@ -6159,10 +6410,10 @@ $('charAdd').onclick = () => showSheet('New character', [
 ]);
 // The character template: field headings plus [instructions]; the generator fills it in
 const GEN_TEMPLATE = "Public description:\n\n[3-4 paragraph hook covering: core premise, physical presence, backstory catalyst, current state]\n\n**Personality field:**\n\n>Basic Information\n\nFirst name: \n\nLast name: \n\nAliases: \n\nSpecies: \n\nSex/Gender: \n\nSexuality: \n\nAge: \n\nNationality: \n\nEthnicity: \n\nOccupation: \n\nWealth: \n\n>Physical Description\n\nAppearance: \n\nHair: \n\nEyes: \n\nFacial Features: \n\n[Hands: - only if relevant, delete if not]\n\n[Feet: - only if relevant , delete if not]\n\n[Chest: - only if relevant , delete if not]\n\n[Penis Descriptors: - only if relevant]\n\n[Testicle Descriptors: - only if relevant]\n\n[Anus Descriptors: - only if relevant]\n\n>Speech Patterns\n\nVoice: \n\nAccent: \n\n- [bullet point speech pattern 1]\n- [bullet point speech pattern 2]\n- [etc]\n\n>Outfits\n\n[Category 1]: \n\n[Category 2]: \n\n>Background & Reputation\n\n- [bullet point backstory element 1]\n- [bullet point backstory element 2]\n- [etc - focus on how past shapes current behavior]\n\n>Personality & Behavior\n\n- [bullet point personality trait 1 with behavioral examples]\n- [bullet point personality trait 2 with behavioral examples]\n- [etc - concrete actions, not abstract descriptions]\n\n>Interests\n\n- [bullet point interest 1 - why they do it, what it means]\n- [bullet point interest 2]\n- [etc]\n\n>Kinks\n\n[If applicable - delete entirely if not relevant]\n\n>Sexual Behavior\n\n- [bullet point sexual behavior 1]\n- [bullet point sexual behavior 2]\n- [etc - psychological approach to intimacy, what it means to them]\n\n>NPCs (if relevant, delete section if not)\n\n[NPC Name]:\n- Role: \n- Key traits: \n- Relationship to {{char}}: \n\n[NPC Name]:\n- Role: \n- Key traits: \n- Relationship to {{char}}: \n\n**Scenario field:**\n\n[setting, location details, current situation setup]\n\n**First message field:**\n\n[Opening scene - start mid-action or mid-tension, establish atmosphere through concrete details, end with hook that demands response]\n\n**Example dialogue field:**\n\n{{user}}: \"[question/statement]\"\n\n{{char}}: \"[response that demonstrates speech pattern and personality]\"\n\n{{user}}: \"[question/statement]\"\n\n{{char}}: \"[response]\"\n\n[etc - 10-20 exchanges demonstrating voice, humor, deflection patterns, core beliefs]";
-const genTemplate = () => (cfg.genTemplate ?? GEN_TEMPLATE).trim() || GEN_TEMPLATE;
+const genTemplate = () => (cfg.genTemplate ?? BPS('characters.character-template-default', GEN_TEMPLATE)).trim() || BPS('characters.character-template-default', GEN_TEMPLATE);
 $('genTpl').value = genTemplate();
 $('genTpl').oninput = () => { cfg.genTemplate = $('genTpl').value; saveCfg(); };
-$('genTplReset').onclick = () => { if (!confirm('Put the default template back?')) return; delete cfg.genTemplate; saveCfg(); $('genTpl').value = GEN_TEMPLATE; autosizeAll($('gen')); };
+$('genTplReset').onclick = () => { if (!confirm('Put the default template back?')) return; delete cfg.genTemplate; saveCfg(); $('genTpl').value = BPS('characters.character-template-default', GEN_TEMPLATE); autosizeAll($('gen')); };
 function openGenerator() {
   $('genStatus').textContent = '';
   $('genImg').checked = imageProxyOk(); $('genImg').disabled = !imageProxyOk();
@@ -6188,13 +6439,13 @@ async function fitCardLength(c, chat, onState) {
   const total = () => count([c.personality || '', c.scenario || '', ex(c.examples)].join('\n\n'));
   const before = total(); if (before <= CARD_MAX) return;
   onState?.(`Shortening (${before.toLocaleString()} tokens, the limit is ${CARD_MAX.toLocaleString()})…`);
-  const ask = `These three parts of a character card are ${before.toLocaleString()} tokens together; they must be under ${CARD_MAX.toLocaleString()} (aim for about ${(CARD_MAX - 200).toLocaleString()}). Shorten them: keep every heading, label and bullet-point layout and every important fact, but tighten the wording, merge overlapping points and cut the example dialogue to fewer exchanges if needed. Don't add anything new.
+  const ask = BP('characters.shorten-a-card.2')`These three parts of a character card are ${before.toLocaleString()} tokens together; they must be under ${CARD_MAX.toLocaleString()} (aim for about ${(CARD_MAX - 200).toLocaleString()}). Shorten them: keep every heading, label and bullet-point layout and every important fact, but tighten the wording, merge overlapping points and cut the example dialogue to fewer exchanges if needed. Don't add anything new.
 
 Reply with only a JSON object with the keys "personality", "scenario" and "examples" (line breaks as \\n).
 
 ${JSON.stringify({ personality: c.personality || '', scenario: c.scenario || '', examples: ex(c.examples) })}`;
   try {
-    const out = await streamChat([{ role: 'system', content: 'You edit character cards for a roleplay chat app. You always answer with a single valid JSON object and nothing else.' }, { role: 'user', content: ask }],
+    const out = await streamChat([{ role: 'system', content: BPS('characters.shorten-a-card.1', 'You edit character cards for a roleplay chat app. You always answer with a single valid JSON object and nothing else.') }, { role: 'user', content: ask }],
       () => {}, { ...(chat ? { chat } : {}), free: true, signal: abortCtl?.signal });
     const j = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1));
     if (j.personality) { c.personality = j.personality; c.scenario = j.scenario ?? c.scenario; c.examples = j.examples ?? c.examples; }
@@ -6233,7 +6484,7 @@ $('genGo').onclick = async () => {
   go.disabled = true; setBusy(true);
   try {
     status.textContent = 'Writing the character…';
-    const ask = `Create a character for a roleplay chat from this idea: "${idea}".
+    const ask = BP('characters.create-a-character.2')`Create a character for a roleplay chat from this idea: "${idea}".
 
 Write it by filling in this template. Follow its structure exactly: keep its headings, labels and bullet-point layout, replace every [bracketed instruction] with the real content it asks for, and leave out sections or lines the template says to delete when they don't apply. Use {{char}} for the character and {{user}} for the user where natural.
 
@@ -6244,9 +6495,9 @@ END OF TEMPLATE
 Length: the personality, scenario and example dialogue together must stay between about 1,000 and 2,000 tokens (roughly 750 to 1,500 words). Keep the example dialogue short if that's needed to stay in range; the personality comes first.
 Opening messages: write every first message in third person limited, from {{char}}'s point of view: only what {{char}} sees, hears, thinks and feels; never {{user}}'s thoughts, feelings or actions.
 
-${GEN_KEYS}`;
+${BPS('characters.create-a-character.3', GEN_KEYS)}`;
     const out = await streamChat([
-      { role: 'system', content: 'You design characters for a roleplay chat app. You always answer with a single valid JSON object and nothing else.' },
+      { role: 'system', content: BPS('characters.create-a-character.1', 'You design characters for a roleplay chat app. You always answer with a single valid JSON object and nothing else.') },
       { role: 'user', content: ask },
     ], r => { status.textContent = `Writing the character… (${r.length.toLocaleString()} characters)`; }, { free: true });
     const json = out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1);
@@ -6256,7 +6507,7 @@ ${GEN_KEYS}`;
     let img = null;
     if ($('genImg').checked && imageProxyOk() && (c.appearance || c.personality)) {
       status.textContent = 'Making the picture…';
-      try { img = await generateImage(String(c.appearance || c.personality) + '\nA character portrait.' + (style ? `\nStyle: ${style}.` : '') + '\n' + PROFILE_SHAPE, null, '', '', PROFILE_ASPECT); }
+      try { img = await generateImage(String(c.appearance || c.personality) + BPS('pictures.profile-picture.3', '\nA character portrait.') + (style ? BP('pictures.profile-picture.4')`\nStyle: ${style}.` : '') + '\n' + BPS('pictures.profile-picture.2', PROFILE_SHAPE), null, '', '', PROFILE_ASPECT); }
       catch (e) { if (isAbort(e)) throw e; toast('Picture failed: ' + e.message); }
     }
     $('gen').classList.remove('open');
@@ -7880,7 +8131,7 @@ $('sumPrompt').addEventListener('input', () => { cfg.summaryPrompt = $('sumPromp
 const MEMORY_PROMPT = "You keep {{char}}'s long-term memory of this roleplay with {{user}}. You get the current memory and the newest part of the chat. Return the complete updated memory.\n\nRules:\n- Keep the headings below. Update facts that changed, add what is new, and remove what is no longer true or no longer matters. Never drop something that still matters just to save space.\n- Facts, not prose: short bullet points, third person. Present tense for how things are now, past tense for events.\n- Be specific: names, places, objects, dates, amounts, promises, plans, nicknames, running jokes, and words that were said and still matter.\n- Leave out small talk, blow-by-blow scene detail and anything that will never matter again.\n- Keep the whole memory under about 1,200 words. When it grows, compress older events into fewer lines instead of cutting important ones.\n\n## Right now\nWhere they are, the date and time, what is happening, what was about to happen.\n\n## {{char}} and {{user}}\nTheir relationship as it is now, how it changed, promises and plans, nicknames and inside jokes.\n\n## People\nOne line each: name: who they are, how they relate to {{char}} and {{user}}, where things stand.\n\n## Places and things\nOne line each: places that matter, important objects, gifts, money.\n\n## Story so far\nThe key events in order, one line each; the older, the shorter.\n\n## Recent events\nThe last few scenes in a little more detail (3 to 6 lines). Replace this part completely each time.\n\nOutput only the memory, nothing else.";
 $('sumExample').onclick = () => {
   if ($('sumPrompt').value.trim() && !confirm('Replace your summary prompt with the example?')) return;
-  $('sumPrompt').value = MEMORY_PROMPT;
+  $('sumPrompt').value = BPS('memory.summary-prompt-example', MEMORY_PROMPT);
   $('sumPrompt').dispatchEvent(new Event('input', { bubbles: true }));
 };
 $('sumBtn').onclick = async () => {
@@ -7889,8 +8140,8 @@ $('sumBtn').onclick = async () => {
   const upTo = history.length, before = $('memory').value;
   const prev = (s.chat.memory || '').trim();
   const ask = prev
-    ? `Current memory:\n\n${prev}\n\n---\n\nThe chat since the memory was last updated:\n\n${transcriptOf(rest, s.c, s.p)}\n\n---\n\nUpdate the current memory with what happened since: change what changed, add what's new, keep what still matters. Output the complete updated memory only.`
-    : `The chat so far:\n\n${transcriptOf(rest, s.c, s.p)}\n\n---\n\nWrite the memory. Output the memory only.`;
+    ? BP('memory.update')`Current memory:\n\n${prev}\n\n---\n\nThe chat since the memory was last updated:\n\n${transcriptOf(rest, s.c, s.p)}\n\n---\n\nUpdate the current memory with what happened since: change what changed, add what's new, keep what still matters. Output the complete updated memory only.`
+    : BP('memory.first-summary')`The chat so far:\n\n${transcriptOf(rest, s.c, s.p)}\n\n---\n\nWrite the memory. Output the memory only.`;
   setBusy(true); $('sumBtn').textContent = prev ? 'Updating…' : 'Summarizing…'; syncSummary();
   try {
     const out = await streamChat([{ role: 'system', content: fill(cfg.summaryPrompt, s.c, s.p) }, { role: 'user', content: ask }],
@@ -8307,7 +8558,7 @@ async function queueReachOut(chat) {
   const p = personaOf(chat), mins = reachDelay(chat);
   reachBusy.add(chat.id);
   try {
-    const ask = `[Out of character: ${userName(p)} has been away for ${awayText(mins)} without writing. Write the message ${cn(c)} now sends on their own initiative, like a text message, fully in character: maybe they miss ${userName(p)}, share what they are doing, ask something or pick up the story. Keep it short. Reply with the message only.${chat.realTime ? ` It arrives on ${clockText(Date.now() + mins * 60000)}; fit it to that moment.` : ''}]`;
+    const ask = BP('on-their-own.message-on-their-own')`[Out of character: ${userName(p)} has been away for ${awayText(mins)} without writing. Write the message ${cn(c)} now sends on their own initiative, like a text message, fully in character: maybe they miss ${userName(p)}, share what they are doing, ask something or pick up the story. Keep it short. Reply with the message only.${chat.realTime ? BP('on-their-own.message-on-their-own/5')` It arrives on ${clockText(Date.now() + mins * 60000)}; fit it to that moment.` : ''}]`;
     const messages = [...await buildMessages(c, p, hist, chat.memory, chat), { role: 'user', content: ask }];
     const text = visible(await streamChat(messages, () => {}, { chat }), true).trim();
     if (!text) return;
@@ -8895,8 +9146,8 @@ $('sendMenu').onclick = e => {
   runHelper(act, input.value);
 };
 function openHelpers(focus) {
-  $('hpEnhance').value = cfg.enhancePrompt || HELP_DEFAULTS.enhancePrompt;
-  $('hpWrite').value = cfg.writePrompt || HELP_DEFAULTS.writePrompt;
+  $('hpEnhance').value = cfg.enhancePrompt || BPS('writing-help.enhance-default', HELP_DEFAULTS.enhancePrompt);
+  $('hpWrite').value = cfg.writePrompt || BPS('writing-help.write-for-me-default', HELP_DEFAULTS.writePrompt);
   openView('helpers');
   if (focus) setTimeout(() => $(focus === 'enhancePrompt' ? 'hpEnhance' : 'hpWrite').focus(), 350);
 }
@@ -8910,11 +9161,11 @@ async function runHelper(mode, original) {
   if (mode === 'enhance' && !original.trim()) return toast('Type something to enhance first');
   const s = cur; groupSync(s);
   const { c, p } = s, g = s.chat.group;
-  const task = fill(mode === 'enhance' ? cfg.enhancePrompt || HELP_DEFAULTS.enhancePrompt : cfg.writePrompt || HELP_DEFAULTS.writePrompt, c, p)
-    + (g ? ` This is a group chat with ${g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn).join(', ')}: write nothing any of them say or do.` : '');
+  const task = fill(mode === 'enhance' ? cfg.enhancePrompt || BPS('writing-help.enhance-default', HELP_DEFAULTS.enhancePrompt) : cfg.writePrompt || BPS('writing-help.write-for-me-default', HELP_DEFAULTS.writePrompt), c, p)
+    + (g ? BP('writing-help.around-it.3')` This is a group chat with ${g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn).join(', ')}: write nothing any of them say or do.` : '');
   const ask = mode === 'enhance'
-    ? `[Out of character. ${task}\nReply with the rewritten message only.]\n\n${original}`
-    : `[Out of character. ${task}${original.trim() ? `\nUse this as the idea for the message: ${original.trim()}` : ''}\nReply with ${userName(p)}'s message only.]`;
+    ? BP('writing-help.around-it.1')`[Out of character. ${task}\nReply with the rewritten message only.]\n\n${original}`
+    : BP('writing-help.around-it.2')`[Out of character. ${task}${original.trim() ? BP('writing-help.around-it.2/2')`\nUse this as the idea for the message: ${original.trim()}` : ''}\nReply with ${userName(p)}'s message only.]`;
   helper = { mode, original };
   $('helpBar').hidden = false; $('helpState').textContent = mode === 'enhance' ? 'Enhancing…' : 'Writing…';
   $('helpRetry').disabled = $('helpUndo').disabled = true;
@@ -9084,7 +9335,7 @@ $('giClose').onclick = () => { $('giPanel').hidden = true; document.activeElemen
 // Makes the user's picture
 async function userPicture(s, prompt) {
   const u = userName(s.p), r = await peopleRefs(s);
-  const note = `\n(The picture is sent by ${u}: "me", "I" and "my" mean ${u}; "you" means ${cn(s.c)}.)`;
+  const note = BP('pictures.picture-you-send.2')`\n(The picture is sent by ${u}: "me", "I" and "my" mean ${u}; "you" means ${cn(s.c)}.)`;
   return generateImage(prompt + note, { list: r.list }, imagePrompt(s.chat, s.c, s.p), r.about);
 }
 // The people who can be in a picture: the character and you, each only if the description has them in it.
@@ -9093,14 +9344,14 @@ async function peopleRefs(s, last) {
   const { c, p } = s, u = userName(p), cc = cn(c);
   const card = c.img ? await idb.get(c.img).catch(() => null) : null;
   const mine = p?.img ? await idb.get(p.img).catch(() => null) : null;
-  const who = n => `a picture of ${n}: how ${n} looks (face, hair, body). Only include ${n} if the description has them in it ("us", "we" and "both" count). Do not copy its pose, background or framing.`;
+  const who = n => BP('pictures.reference-pictures.1')`a picture of ${n}: how ${n} looks (face, hair, body). Only include ${n} if the description has them in it ("us", "we" and "both" count). Do not copy its pose, background or framing.`;
   const list = [card && { url: card, label: who(cc) }, mine && { url: mine, label: who(u) },
-    last && { url: last, label: `the last picture ${cc} sent in this chat: if ${cc} is in the image, keep outfit and setting consistent with it (not the face or hair; those come from the profile picture).` }].filter(Boolean);
+    last && { url: last, label: BP('pictures.reference-pictures.2')`the last picture ${cc} sent in this chat: if ${cc} is in the image, keep outfit and setting consistent with it (not the face or hair; those come from the profile picture).` }].filter(Boolean);
   // with a profile picture, the picture decides how someone looks; the text only adds what it doesn't show
   const about = [[cc, fill(c.personality || '', c, p), !!card], [u, fill(p?.personality || '', c, p), !!mine]]
     .filter(([, t]) => t.trim()).map(([n, t, pic]) => (pic
-      ? `About ${n}. The reference picture of ${n} shows how ${n} looks; this text only adds what the picture doesn't show. Where they disagree (face, hair, body, age, skin), follow the picture:`
-      : `About ${n} (looks and details; follow this whenever they appear):`) + `\n${t.trim()}`).join('\n\n');
+      ? BP('pictures.reference-pictures.3')`About ${n}. The reference picture of ${n} shows how ${n} looks; this text only adds what the picture doesn't show. Where they disagree (face, hair, body, age, skin), follow the picture:`
+      : BP('pictures.reference-pictures.4')`About ${n} (looks and details; follow this whenever they appear):`) + `\n${t.trim()}`).join('\n\n');
   return { list, about };
 }
 let giBusy = false;
@@ -9120,7 +9371,7 @@ $('giGo').onclick = async () => {
       const recent = transcriptOf(history.slice(-6), c, p);
       prompt = (await streamChat([
         { role: 'system', content: 'You write prompts for an image generator. Output only the prompt: one paragraph in English, no quotes, no preamble.' },
-        { role: 'user', content: `${userName(p)} is chatting with ${cn(c)}.\n\n${bothAbout(c, p)}\n\nThe chat so far (most recent part):\n${recent.slice(-3000)}\n\n${userName(p)} is about to send this message with a picture:\n"${typed}"${extra ? `\n\nExtra direction for the picture: ${named}` : ''}\n\nDescribe the picture ${userName(p)} sends with that message, so it fits the message and the moment. Only include ${userName(p)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing. Do not name an art style or medium: the style is set separately.` },
+        { role: 'user', content: BP('pictures.picture-you-send.1')`${userName(p)} is chatting with ${cn(c)}.\n\n${bothAbout(c, p)}\n\nThe chat so far (most recent part):\n${recent.slice(-3000)}\n\n${userName(p)} is about to send this message with a picture:\n"${typed}"${extra ? BP('pictures.picture-you-send.1/7')`\n\nExtra direction for the picture: ${named}` : ''}\n\nDescribe the picture ${userName(p)} sends with that message, so it fits the message and the moment. Only include ${userName(p)} if the picture is of them. Cover subject, appearance, pose, expression, clothing, setting, lighting and framing. Do not name an art style or medium: the style is set separately.` },
       ], () => {}, { free: true, signal: giCtl.signal })).replace(TAG, '').trim();
     }
     const src = await userPicture(s, prompt);
@@ -9421,9 +9672,9 @@ function storyParts(msgs, chapters) {
 }
 function povText(meta, cc, uu) {
   const who = meta.who === 'user' ? uu : cc;
-  if (meta.pov === 'omni') return 'Third person omniscient: the narrator knows everything and can show the thoughts and feelings of every character.';
-  if (meta.pov === 'first') return `First person, as ${who}: "I" is ${who}. Only what ${who} sees, hears, thinks and feels; everyone else only as ${who} perceives them.`;
-  return `Third person limited, following ${who}: only ${who}'s thoughts and feelings; everyone else only as ${who} perceives them.`;
+  if (meta.pov === 'omni') return BPS('stories.point-of-view.1', 'Third person omniscient: the narrator knows everything and can show the thoughts and feelings of every character.');
+  if (meta.pov === 'first') return BP('stories.point-of-view.2')`First person, as ${who}: "I" is ${who}. Only what ${who} sees, hears, thinks and feels; everyone else only as ${who} perceives them.`;
+  return BP('stories.point-of-view.3')`Third person limited, following ${who}: only ${who}'s thoughts and feelings; everyone else only as ${who} perceives them.`;
 }
 
 $('ssGo').onclick = () => {
@@ -9466,29 +9717,29 @@ async function writeStory(id) {
       const transcript = msgs.slice(a, b).map(m => `${m.who}: ${m.text}`).join('\n\n');
       // the last paragraphs written so far, so the next part picks up seamlessly
       const prevText = body.chapters.at(-1)?.text || '', prevEnd = prevText.length > 2200 ? '…' + prevText.slice(-2200).replace(/^[^\n]*\n/, '') : prevText;
-      const ask = `You turn a roleplay chat between ${cc} and ${uu} into a novel, part by part. This is part ${i + 1} of ${meta.parts.length}.
+      const ask = BP('stories.each-part')`You turn a roleplay chat between ${cc} and ${uu} into a novel, part by part. This is part ${i + 1} of ${meta.parts.length}.
 
 The characters:
 ${people}
-${c.scenario?.trim() ? `\nThe setting:\n${fill(c.scenario, c, p).trim()}\n` : ''}
+${c.scenario?.trim() ? BP('stories.each-part/6')`\nThe setting:\n${fill(c.scenario, c, p).trim()}\n` : ''}
 Point of view: ${povText(meta, cc, uu)}
 
 Keep every character true to their personality as described above: their voice and way of speaking, their habits and quirks, how they think, feel and react. Dialogue should sound like each of them, not like the narrator.
 
-${body.summary ? `The story so far (for continuity; do not retell it):\n${body.summary}` : 'This is the beginning of the story.'}
-${prevEnd ? `\nHow the previous part ended (continue seamlessly from here in the same voice; do not repeat it):\n${prevEnd}\n` : ''}
+${body.summary ? BP('stories.each-part/8')`The story so far (for continuity; do not retell it):\n${body.summary}` : BPS('stories.each-part/8b', 'This is the beginning of the story.')}
+${prevEnd ? BP('stories.each-part/9')`\nHow the previous part ended (continue seamlessly from here in the same voice; do not repeat it):\n${prevEnd}\n` : ''}
 
 The chat for this part:
 ${transcript}
 
-Write this part of the chat as ${chap ? 'one chapter' : many ? 'the next part' : 'the whole story'} of the novel. Keep every event and the meaning of what is said; turn the chat into real prose with natural dialogue, description, action and thoughts (within the point of view), in the past tense. Leave out anything out of character (OOC remarks, instructions to the AI). Do not mention a chat, a roleplay or an AI. Do not add events that are not in the chat and do not go beyond this part.${many && i < meta.parts.length - 1 ? ' End where this part ends; the story continues afterwards.' : ''}
+Write this part of the chat as ${chap ? BPS('stories.each-part/11', 'one chapter') : many ? 'the next part' : 'the whole story'} of the novel. Keep every event and the meaning of what is said; turn the chat into real prose with natural dialogue, description, action and thoughts (within the point of view), in the past tense. Leave out anything out of character (OOC remarks, instructions to the AI). Do not mention a chat, a roleplay or an AI. Do not add events that are not in the chat and do not go beyond this part.${many && i < meta.parts.length - 1 ? BPS('stories.each-part/12', ' End where this part ends; the story continues afterwards.') : ''}
 
 Answer in exactly this form:
-${chap ? 'TITLE: a short chapter title\n\n' : ''}the text${chap ? ' of the chapter' : ''}
+${chap ? BPS('stories.each-part/13', 'TITLE: a short chapter title\n\n') : ''}the text${chap ? BPS('stories.each-part/14', ' of the chapter') : ''}
 
 SUMMARY: ten to fifteen sentences about everything that has happened in the story so far, including this part: the main events in order, where things stand now, and the names of side characters, places and important objects, so the next part stays consistent.`;
       const out = await streamChat([
-        { role: 'system', content: 'You are a skilled novelist. You turn roleplay chats into polished, immersive fiction, faithful to what happened.' },
+        { role: 'system', content: BPS('stories.novelist', 'You are a skilled novelist. You turn roleplay chats into polished, immersive fiction, faithful to what happened.') },
         { role: 'user', content: ask },
       ], r => { storyLive.chars = r.length; liveUpdate(); }, opts);
       storyLive.times.push(Date.now() - storyLive.partStart);
@@ -9506,7 +9757,7 @@ SUMMARY: ten to fifteen sentences about everything that has happened in the stor
     }
     if (!meta.title) {
       meta.status = 'naming'; storyLive.step = 'naming'; renderStories();
-      const t = await streamChat([{ role: 'user', content: `Give this novel a title. The story:\n${body.summary}\n\nThe main characters are ${cc} and ${uu}. Reply with the title only, no quotes.` }], () => {}, opts);
+      const t = await streamChat([{ role: 'user', content: BP('stories.title')`Give this novel a title. The story:\n${body.summary}\n\nThe main characters are ${cc} and ${uu}. Reply with the title only, no quotes.` }], () => {}, opts);
       meta.title = t.replace(/["“”*#]/g, '').split('\n')[0].trim().slice(0, 90) || `${cc}`;
     }
     if (meta.describe && !meta.description) {
@@ -9543,8 +9794,8 @@ async function newStoryCover(st, style) {
 }
 async function makeStoryCover(meta, s, body) {
   const r = await peopleRefs(s);
-  const prompt = `The cover image for the novel "${meta.title}"${meta.style ? ', in exactly the style given above' : ''}. Story: ${body.summary || 'see the characters'}\nShow a striking scene or the main character${s.p ? 's' : ''} in a way that captures the mood of the story, composed as a book cover with space near the top for a title${meta.style ? ' (the style decides the look: a photo style means a real photograph, not a drawing)' : ''}. Do not write any text, letters or title on the image.`;
-  const src = await generateImage(prompt + '\nFormat: a portrait-orientation book cover with a 2:3 aspect ratio.', { list: r.list }, meta.style ? `Style: ${meta.style}` : '', r.about, '2:3');
+  const prompt = BP('pictures.story-cover.1')`The cover image for the novel "${meta.title}"${meta.style ? BPS('pictures.story-cover.1/2', ', in exactly the style given above') : ''}. Story: ${body.summary || 'see the characters'}\nShow a striking scene or the main character${s.p ? BPS('pictures.story-cover.1/4', 's') : ''} in a way that captures the mood of the story, composed as a book cover with space near the top for a title${meta.style ? BPS('pictures.story-cover.1/5', ' (the style decides the look: a photo style means a real photograph, not a drawing)') : ''}. Do not write any text, letters or title on the image.`;
+  const src = await generateImage(prompt + BPS('pictures.story-cover.2', '\nFormat: a portrait-orientation book cover with a 2:3 aspect ratio.'), { list: r.list }, meta.style ? `Style: ${meta.style}` : '', r.about, '2:3');
   await idb.put('cover_' + meta.id, src);
 }
 
@@ -9622,8 +9873,8 @@ let bookId = null;
 async function storyBlurb(st, body, opts) {
   const story = body?.summary || (body?.chapters || []).map(c => c.text).join('\n\n').slice(0, 12000);
   const out = await streamChat([
-    { role: 'system', content: 'You write the text on the back of novels. Output only that text.' },
-    { role: 'user', content: `Write the back-cover description of the novel "${st.title || 'Untitled'}": 3 to 5 sentences that set up the characters and the situation and make people want to read it. No spoilers, don't reveal the ending, no quotes around it.\n\nThe story:\n${story}` },
+    { role: 'system', content: BPS('stories.description.1', 'You write the text on the back of novels. Output only that text.') },
+    { role: 'user', content: BP('stories.description.2')`Write the back-cover description of the novel "${st.title || 'Untitled'}": 3 to 5 sentences that set up the characters and the situation and make people want to read it. No spoilers, don't reveal the ending, no quotes around it.\n\nThe story:\n${story}` },
   ], () => {}, opts);
   return out.replace(/^["“]|["”]$/g, '').trim();
 }
@@ -9855,7 +10106,7 @@ $('ruleDescribe').onclick = async () => {
   if (!want?.trim() || busy || !ready()) return;
   setBusy(true); toast('Writing the rule…');
   try {
-    const out = await streamChat([{ role: 'system', content: 'You write find-and-replace rules for a roleplay chat app. You always answer with a single valid JSON object and nothing else.' }, { role: 'user', content: `Write one find-and-replace rule for this wish: "${want.trim()}"
+    const out = await streamChat([{ role: 'system', content: BPS('rules.write-a-rule.1', 'You write find-and-replace rules for a roleplay chat app. You always answer with a single valid JSON object and nothing else.') }, { role: 'user', content: BP('rules.write-a-rule.2')`Write one find-and-replace rule for this wish: "${want.trim()}"
 
 The rule runs on chat messages (roleplay prose with *actions in asterisks* and "dialogue in quotes"). Use plain text (regex false) when an exact phrase is enough; otherwise a JavaScript regular expression without slashes or flags (it is applied with the g flag, case-insensitive). Make sure it doesn't match more than intended.
 
@@ -9888,7 +10139,7 @@ async function npcDescribe(name) {
   const others = [...(s.chat.group ? groupMembers(s.chat.group).map(cn) : [cn(s.c)]), userName(s.p)];
   setBusy(true); toast(`Describing ${name} from ${hits.length} messages…`);
   try {
-    const ask = `From the roleplay chat below, write a description of ${name} as one paragraph of 5 to 8 sentences, to be used as the idea for a new character card.
+    const ask = BP('characters.describe-a-character')`From the roleplay chat below, write a description of ${name} as one paragraph of 5 to 8 sentences, to be used as the idea for a new character card.
 
 Describe only ${name} as a person: looks and build, age, clothing, voice and way of speaking, personality, habits, job or role, likes and dislikes, and anything else the chat shows about who ${name} is. Where the chat says nothing, leave it out rather than invent it.
 Do not mention ${others.join(' or ')}, their relationship with ${name}, or what happened in the story. Write it in the third person, present tense. Output only the paragraph.
@@ -9932,7 +10183,7 @@ $('npcCopy').onclick = () => navigator.clipboard?.writeText(npcText).then(() => 
 function lfcAsk(job, k) {
   const names = job.chat.group ? job.chat.group.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn) : [cn(job.c)];
   const known = job.entries.length ? job.entries.map(e => `- ${e.title} [${e.keys}]: ${e.content}`).join('\n') : '(none yet)';
-  const sys = `You build a lorebook (world info) for a roleplay chat between ${names.join(', ')} and ${userName(job.p)}. A lorebook entry is sent to the AI only when one of its keywords appears in the chat, so it must hold the facts needed to write about that thing correctly.
+  const sys = BP('lorebooks.lorebook-from-a-chat.1')`You build a lorebook (world info) for a roleplay chat between ${names.join(', ')} and ${userName(job.p)}. A lorebook entry is sent to the AI only when one of its keywords appears in the chat, so it must hold the facts needed to write about that thing correctly.
 
 Make entries for: side characters (anyone other than ${names.join(', ')} and ${userName(job.p)}), places, important objects, groups, events that are referred to later, and running jokes or nicknames. Do not make entries for ${names.join(', ')} or ${userName(job.p)} themselves (they have their own cards); facts about them belong inside the entries they relate to. Skip anything trivial that never matters again.
 
@@ -9944,7 +10195,7 @@ Each entry:
 - "kind": "person", "place" or "thing".
 
 Answer with a JSON array only, no other text: [{"title": "...", "kind": "person", "keys": ["...", "..."], "content": "..."}]. Include only entries that are new or that this part changes; for a changed entry use exactly the same title and give the full updated content. If this part adds nothing, answer [].`;
-  const user = `Entries so far:\n${known}\n\nPart ${k + 1} of ${job.parts.length} of the chat:\n\n${job.parts[k]}`;
+  const user = BP('lorebooks.lorebook-from-a-chat.2')`Entries so far:\n${known}\n\nPart ${k + 1} of ${job.parts.length} of the chat:\n\n${job.parts[k]}`;
   return [{ role: 'system', content: sys }, { role: 'user', content: user }];
 }
 function lfcParse(text) {
@@ -10015,181 +10266,6 @@ function lfcReview(job, err) {
   requestAnimationFrame(() => autosizeAll(list));
 }
 
-// ---------- Built-in prompts: every instruction the app writes itself, read from the app's own code ----------
-// Each entry points at where its text starts in this script; the page shows that text exactly as the code has it,
-// with the parts that get filled in (names, your text, the chat…) shown as {{placeholders}}.
-const BUILTIN_PROMPTS = [
-  ['Chat replies', 'Sent with every reply, around your character, persona and chat', [
-    ['Character', 'The character block in the system prompt', ["`--- Character: ${cn(c)}", "`\\n\\nPersonality:\\n${f(c.personality)}", "`\\n\\nScenario:\\n${f(c.scenario)}"]],
-    ['Persona', 'Your persona in the system prompt', ["`--- User: ${p.name}"]],
-    ['World info', 'Lorebook entries that triggered', ["`--- World info"]],
-    ['Memory', "The chat's Memory", ["`--- Memory (things"]],
-    ['Example dialogue', "The character's example dialogue", ["`--- Example dialogue"]],
-    ['Reply length', 'When a maximum reply length is set: in the system prompt and on your last message', ["`--- Reply length", "`\\n\\n[Length: keep"]],
-    ['Forbidden words', 'When forbidden words are set', ["`--- Forbidden words"]],
-    ['Real time', 'When Real time is on: in the system prompt, and a note on each of your messages', ["`--- Real time ---", "`[Time: ${clockText(m.t)}", "' Right after the previous message", "` ${gapText(ms)} after the previous message${was}: the moment", "` ${gapText(ms)} after the previous message${was}: time has passed", "` It is now the next day", "` It is now ${days} days later."]],
-    ['Pictures', 'When the image proxy is on: in the system prompt, and on your message when it asks for a picture', ["'--- Images ---", "'\\n\\n[Note from the app: the user is asking"]],
-    ['Character card reminder', 'On your last message: the short reminder, or the whole card when Repeat character card is on', ["`\\n\\n[Stay true to ${cn(c)}", "`\\n\\n[Character card reminder"]],
-    ["Character's note", "The character's note, a few messages back", ["`[${cn(c)}'s note:"]],
-    ["Author's note", "The chat's author's note", ["`--- Author's note ---"]],
-    ['Recalled moments', 'Vector storage: earlier moments that relate to now', ["`--- Earlier moments from this chat"]],
-    ['Continue', 'Continue under the newest reply', ["'[Continue your last message"]],
-  ]],
-  ['Group chats', 'Only in group chats', [
-    ['Group', 'Who is in the chat (with Join character cards, everyone\'s card)', ["`--- Group chat${g.name", "`\\n\\n--- ${cn(o)} (another character"]],
-    ['Whose turn', 'On the last message: who writes now', ["`[Write the next reply only as"]],
-  ]],
-  ['Openings', 'The first message of a chat', [
-    ['Opening', 'When the AI writes the opening', ["`[Write ${cn(c)}'s opening message"]],
-    ['Group opening', 'When a character writes the opening of a group chat', ["`[Write the opening message of this group"]],
-    ['New opening', 'Rewriting the opening with your direction', ["`[Rewrite ${cn(s.c)}'s opening message"]],
-    ['Opening time', 'With Real time on', ["` It is now ${clockText()} (the real current date and time): let it shape the opening"]],
-  ]],
-  ['On their own', 'Messages the character sends when you are away', [
-    ['Message on their own', 'After you have been away', ["`[Out of character: ${userName(p)} has been away"]],
-  ]],
-  ['Writing help', 'Long press send', [
-    ['Enhance (default)', 'Used when you have not written your own', ["'Rewrite my message as {{user}}"]],
-    ['Write for me (default)', 'Used when you have not written your own', ["\"Write {{user}}'s next message"]],
-    ['Around it', 'How either one is sent', ["`[Out of character. ${task}\\nReply with the rewritten", "`[Out of character. ${task}${original.trim()", "` This is a group chat with ${g.members"]],
-  ]],
-  ['Pictures', 'Describing a picture, and what goes to the image proxy', [
-    ['Picture the character sends', 'When a picture is asked for and the reply has no description', ["'You write prompts for an image generator.", "`${bothAbout(c, p)}\\n\\n${userText ? `${userName(p)} asked:"]],
-    ['Create image', 'Long press a message → Create image', ["`${bothAbout(c, p)}\\n\\n${userText ? `${userName(p)} wrote:"]],
-    ['Who is who', 'Goes with both of the above', ["`Character: ${cn(c)}\\nAbout", "`${userName(p)} (the user's persona)"]],
-    ['Picture you send', 'Generate image from the + menu, matching what you wrote', ["`${userName(p)} is chatting with ${cn(c)}.", "`\\n(The picture is sent by"]],
-    ['To the image proxy', 'Wrapped around every picture description', ["`Style and instructions for this picture", "`Reference ${i + 1} is", "`The reference image is", "`Image to create: "]],
-    ['Reference pictures', 'The profile pictures and the last picture, and what they are for', ["`a picture of ${n}: how", "`the last picture ${cc} sent", "`About ${n}. The reference picture", "`About ${n} (looks and details"]],
-    ['Profile picture', 'Generate image in the character or persona editor', ["`Write a portrait prompt for ${name}", "'Format: a portrait-orientation profile picture"]],
-    ['Story cover', 'The cover of a story', ["`The cover image for the novel", "'\\nFormat: a portrait-orientation book cover"]],
-  ]],
-  ['Memory', 'Summarize in Chat settings → Memory', [
-    ['Summary prompt (example)', 'Put in by Use the example; yours is used when you have one', ["\"You keep {{char}}'s long-term memory"]],
-    ['First summary', 'With an empty memory', ["`The chat so far:\\n\\n${transcriptOf"]],
-    ['Update', 'With a memory already there', ["`Current memory:\\n\\n${prev}"]],
-  ]],
-  ['Stories', 'Turning a chat into a story', [
-    ['Novelist', 'The system prompt', ["'You are a skilled novelist."]],
-    ['Each part', 'One request per part or chapter', ["`You turn a roleplay chat between ${cc} and ${uu} into a novel"]],
-    ['Point of view', 'Filled in above', ["'Third person omniscient", "`First person, as ${who}", "`Third person limited, following"]],
-    ['Title', 'When the story has no title', ["`Give this novel a title."]],
-    ['Description', 'Generate description', ["'You write the text on the back of novels.", "`Write the back-cover description"]],
-  ]],
-  ['Characters', 'Character tools', [
-    ['Create a character', 'From an idea', ["'You design characters for a roleplay chat app.", "`Create a character for a roleplay chat from this idea", "`Reply with only a JSON object (no markdown"]],
-    ['Character template (default)', 'Used when you have not written your own', ["\"Public description:"]],
-    ['Shorten a card', 'When a card is over 2,000 tokens', ["'You edit character cards", "`These three parts of a character card"]],
-    ['Description', 'Generate description in the editor', ["'You write short, inviting introductions", "`Write the description shown on the character list"]],
-    ['Describe a character', 'Long press a message → Describe a character…', ["`From the roleplay chat below, write a description of ${name}"]],
-  ]],
-  ['Lorebooks', 'Lorebook from a chat', [
-    ['Lorebook from a chat', 'One request per part of the chat', ["`You build a lorebook (world info)", "`Entries so far:"]],
-  ]],
-  ['Rules', 'Find and replace', [
-    ['Write a rule', 'Describe what you want and the AI writes the rule', ["'You write find-and-replace rules", "`Write one find-and-replace rule"]],
-  ]],
-];
-// What the filled-in parts are called on the page
-const BP_NAMES = { 'cn(c)': 'char', 'cn(s.c)': 'char', cc: 'char', 'cn(o)': 'other character', 'userName(p)': 'user', 'userName(s.p)': 'user', 'userName(job.p)': 'user', uu: 'user', u: 'user', 'p.name': 'user',
-  'f(c.personality)': 'personality', 'f(c.scenario)': 'scenario', 'f(p.personality)': "persona's description", lore: 'lorebook entries', 'f(memory)': 'memory', 'f(c.examples)': 'example dialogue',
-  'clockText()': 'date and time', 'clockText(m.t)': 'date and time', 'gapText(ms)': 'time passed', was: 'previous message time', gap: 'how much time passed: one of the lines below', days: 'number', "pers || '(none)'": 'personality', note: "author's note", recalled: 'recalled moments',
-  "banned.join('; ')": 'forbidden words', 'Math.max(15, Math.round(maxT * 0.6))': 'word limit', 'fill(c.note.trim(), c, p)': "character's note", 'fill(c.personality, c, p).trim()': 'personality',
-  'g.name': 'group name', "[cn(c), ...others.map(cn)].join(', ')": 'characters', "[...others, userName(p)].join(', ')": 'the others', 'ff(o.personality)': "other character's personality", 'ff(o.examples)': "other character's example dialogue",
-  'openingTime(chat)': 'opening time, with Real time on', 'openingTime(s.chat)': 'opening time, with Real time on', 'm.content': 'current opening', direction: 'your direction',
-  'awayText(mins)': 'how long', 'clockText(Date.now() + mins * 60000)': 'date and time', task: 'enhance or write prompt', 'original.trim()': 'what you typed', original: 'what you typed',
-  "g.members.map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn).join(', ')": 'characters',
-  'bothAbout(c, p)': 'who is who', userText: 'your message', replyText: 'the reply', "fill(c.personality || '', c, p).trim() || '(nothing written)'": 'personality', "fill(p.personality, c, p).trim()": "persona's description",
-  'recent.slice(-3000)': 'the chat so far', typed: 'your message', named: 'your direction', 'guide.trim()': 'your image prompt', 'r.label': 'what the reference is', 'list[0].label': 'what the reference is', 'i + 1': 'number', 'prompt.trim()': 'picture description',
-  n: 'name', name: 'name', 'style': 'style', pers: 'personality', desc: 'description', scen: 'scenario', first: 'first message', 'meta.title': 'title', "body.summary || 'see the characters'": 'story summary',
-  prev: 'current memory', 'transcriptOf(rest, s.c, s.p)': 'the chat', people: 'the characters', "fill(c.scenario, c, p).trim()": 'setting', 'povText(meta, cc, uu)': 'point of view', 'meta.parts.length': 'number of parts',
-  'body.summary': 'the story so far', prevEnd: 'end of the previous part', transcript: 'the chat for this part', who: 'name', "st.title || 'Untitled'": 'title', story: 'the story', cc_: '',
-  idea: 'your idea', 'genTemplate()': 'character template', GEN_KEYS: 'JSON keys', 'before.toLocaleString()': 'tokens', 'CARD_MAX.toLocaleString()': '2,000', '(CARD_MAX - 200).toLocaleString()': '1,800',
-  "JSON.stringify({ personality: c.personality || '', scenario: c.scenario || '', examples: ex(c.examples) })": 'the card as JSON', "others.join(' or ')": 'the others', scenes: 'the chat',
-  "names.join(', ')": 'characters', known: 'entries so far', 'k + 1': 'number', 'job.parts.length': 'number of parts', 'job.parts[k]': 'this part of the chat', 'want.trim()': 'your wish',
-  "fill(c.personality || '', c, p)": 'personality' };
-// the source text of the app's main script
-const bpSource = () => [...document.scripts].map(s => s.textContent).find(t => t.includes('const BUILTIN_PROMPTS')) || '';
-// Reads a string or template literal that starts at src[i] (the quote); expressions inside ${…} are kept as source
-function bpLiteral(src, i) {
-  const q = src[i], parts = []; let t = '', k = i + 1;
-  const esc = ch => ({ n: '\n', t: '\t', r: '' }[ch] ?? ch);
-  while (k < src.length) {
-    const ch = src[k];
-    if (ch === '\\') { t += esc(src[k + 1]); k += 2; continue; }
-    if (ch === q) { k++; break; }
-    if (q === '`' && ch === '$' && src[k + 1] === '{') {
-      if (t) parts.push({ t }); t = '';
-      let d = 1, j = k + 2;
-      while (j < src.length && d) {
-        const c2 = src[j];
-        if (c2 === '`' || c2 === "'" || c2 === '"') { j = bpLiteral(src, j).end; continue; }
-        if (c2 === '{') d++; else if (c2 === '}') d--;
-        j++;
-      }
-      parts.push({ e: src.slice(k + 2, j - 1) }); k = j; continue;
-    }
-    t += ch; k++;
-  }
-  if (t) parts.push({ t });
-  return { parts, end: k };
-}
-// The top-level "a ? b : c" of an expression, or null
-function bpTernary(e) {
-  let d = 0, qi = -1;
-  for (let j = 0; j < e.length; j++) {
-    const ch = e[j];
-    if (ch === '`' || ch === "'" || ch === '"') { j = bpLiteral(e, j).end - 1; continue; }
-    if ('([{'.includes(ch)) d++; else if (')]}'.includes(ch)) d--;
-    else if (!d && ch === '?' && e[j + 1] !== '.' && e[j + 1] !== '?' && qi < 0) qi = j;
-    else if (!d && ch === ':' && qi >= 0) return [e.slice(0, qi).trim(), e.slice(qi + 1, j).trim(), e.slice(j + 1).trim()];
-  }
-  return null;
-}
-// The parts of an expression as shown: a literal is shown as text, a choice shows its first branch, anything else is a {{placeholder}}
-function bpExpr(e) {
-  e = e.trim();
-  if (/^[`'"]/.test(e)) { const r = bpLiteral(e, 0); if (r.end >= e.length) return r.parts.flatMap(x => x.e != null ? bpExpr(x.e) : [x]); }
-  const tern = bpTernary(e);
-  if (tern) { const a = tern[1], b = tern[2]; return bpExpr(a === "''" || a === '``' ? b : a); }
-  if (e in BP_NAMES) return BP_NAMES[e] ? [{ ph: BP_NAMES[e] }] : [];
-  return [{ ph: e }];
-}
-// One prompt: its text from the code, as parts
-function bpRead(src, start) {
-  // not the list above itself
-  const a = src.indexOf('const BUILTIN_PROMPTS'), b = src.indexOf('// What the filled-in parts are called');
-  let at = src.indexOf(start);
-  while (at >= a && at < b) at = src.indexOf(start, at + 1);
-  if (at < 0) return null;
-  return bpLiteral(src, at).parts.flatMap(x => x.e != null ? bpExpr(x.e) : [x]);
-}
-function openBuiltins() {
-  const src = bpSource(), box = $('bpBox'); box.innerHTML = '';
-  for (const [group, about, items] of BUILTIN_PROMPTS) {
-    const h = document.createElement('div'); h.className = 'bp-group'; h.innerHTML = `<span>${escHtml(group)}</span><small>${escHtml(about)}</small>`; box.append(h);
-    for (const [name, when, starts] of items) {
-      const d = document.createElement('details'); d.className = 'card sent-msg bp-item'; d.style.padding = '0 16px';
-      const sm = document.createElement('summary'); sm.innerHTML = `<span>${escHtml(name)}<small class="bp-when">${escHtml(when)}</small></span>`;
-      d.append(sm);
-      for (const st of starts) {
-        const parts = bpRead(src, st), pre = document.createElement('pre');
-        if (!parts) { pre.textContent = '(not found)'; d.append(pre); continue; }
-        // the line breaks that join it to what comes before or after aren't shown
-        if (parts[0]?.t != null) parts[0] = { t: parts[0].t.replace(/^\n+/, '') };
-        if (parts.at(-1)?.t != null) parts[parts.length - 1] = { t: parts.at(-1).t.replace(/\n+$/, '') };
-        for (const x of parts) {
-          if (x.ph != null) { const s = document.createElement('span'); s.className = 'bp-ph'; s.textContent = `{{${x.ph}}}`; pre.append(s); }
-          else pre.append(x.t);
-        }
-        d.append(pre);
-      }
-      box.append(d);
-    }
-  }
-  $('builtins').querySelector('.page-body').scrollTop = 0;
-  openView('builtins');
-}
-$('bpOpen').onclick = openBuiltins;
 
 // ---------- What was sent: the exact request behind a reply ----------
 // Replies written since the app was opened are kept exactly (the last 40); older ones are rebuilt from the
@@ -10560,11 +10636,11 @@ const stripName = (t, c) => { for (const n of [cn(c), c.name]) { const r = dropN
 function groupSection(c, p, chat) {
   const g = chat.group, f = t => fill((t || '').trim(), c, p);
   const others = g.members.filter(id => id !== c.id).map(id => chars.find(x => x.id === id)).filter(Boolean);
-  let out = `--- Group chat${g.name ? `: ${g.name}` : ''} ---\nThis is a group chat between ${[cn(c), ...others.map(cn)].join(', ')} and ${userName(p)}. You are ${cn(c)} and write only ${cn(c)}'s replies; the others write their own. Messages start with the name of who wrote them.`;
+  let out = BP('group-chats.group.1')`--- Group chat${g.name ? BP('group-chats.group.1/1')`: ${g.name}` : ''} ---\nThis is a group chat between ${[cn(c), ...others.map(cn)].join(', ')} and ${userName(p)}. You are ${cn(c)} and write only ${cn(c)}'s replies; the others write their own. Messages start with the name of who wrote them.`;
   if (g.mode === 'join') for (const o of others) {
     if (g.joinMuted === 'exclude' && isMuted(g, o.id)) continue;
     const ff = t => fill((t || '').trim(), o, p);
-    out += `\n\n--- ${cn(o)} (another character in this chat) ---${ff(o.personality) ? `\n${ff(o.personality)}` : ''}${ff(o.examples) ? `\n\nExample dialogue:\n${ff(o.examples)}` : ''}`;
+    out += BP('group-chats.group.2')`\n\n--- ${cn(o)} (another character in this chat) ---${ff(o.personality) ? BP('group-chats.group.2/2')`\n${ff(o.personality)}` : ''}${ff(o.examples) ? BP('group-chats.group.2/3')`\n\nExample dialogue:\n${ff(o.examples)}` : ''}`;
   }
   return out;
 }
@@ -10599,7 +10675,7 @@ function pickSpeakers(chat, hist) {
 }
 const groupOpeningAsk = (c, p, chat) => {
   const others = chat.group.members.filter(id => id !== c.id).map(id => chars.find(x => x.id === id)).filter(Boolean).map(cn);
-  return `[Write the opening message of this group roleplay as ${cn(c)}, with ${[...others, userName(p)].join(', ')} present. Set the scene from the scenario. You may describe the place and what the others are doing, but don't write their dialogue or ${userName(p)}'s. Stay fully in character. Reply with the message only.${openingTime(chat)}]`;
+  return BP('openings.group-opening')`[Write the opening message of this group roleplay as ${cn(c)}, with ${[...others, userName(p)].join(', ')} present. Set the scene from the scenario. You may describe the place and what the others are doing, but don't write their dialogue or ${userName(p)}'s. Stay fully in character. Reply with the message only.${openingTime(chat)}]`;
 };
 // Writes replies one after another (each with its own card); stops on Stop or an error
 async function groupRun(s, hist, ids) {
