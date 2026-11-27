@@ -3318,29 +3318,35 @@ let lastLayoutInfo = null;
 // last few are sent in full to keep requests small, older ones become a short note.
 const SEND_IMAGES = 4;
 // Does a message ask the character for a picture? (English + Dutch)
-const IMG_WORD = /\b(pics?|pictures?|photos?|selfies?|images?|drawings?|draw|sketch|portrait|snapshot|foto'?s?|fotootjes?|selfie|afbeelding(en)?|plaatjes?|tekening(en)?|teken)\b/i;
-const IMG_VERB = /\b(send|show|share|take|snap|draw|make|give|want|wanna|need|get|got|have|love|like|asks?|asking|request|how about|what about|time|please|pls|plz|stuur|stuurt|maak|teken|geef|wil|mag)\b|\?|\b(can|could|would|will) (you|i)\b|\b(wanna|want to|would love to|let me) see\b|\b(mag ik|kun je|kan je|wil je|laat)\b/i;
-// a clear ask wins over "your selfie" / "that pic"
-const IMG_STRONG = /\b(send|show|share|take|snap|please|pls|plz|stuur)\b/i;
-// talking about photos in general is not a request: "I love taking photos"
-const IMG_HOBBY = /\b(taking|took|posting|posted|editing|nemen|maken van)\s+(pics|photos|pictures|selfies|foto'?s)\b|\bphotography\b|\bfotografie\b/i;
-const IMG_LOOK = /what do you look like|show (me )?(yourself|you|your face)|can i see you|let me see you|hoe zie je eruit|laat (je|jezelf|me je) (eens )?zien|mag ik je zien|wil je zien/i;
-// "pic?", "selfie pls", "foto?" on their own also count
-const IMG_SHORT = /^\s*(another|one more|a|een|nog een)?\s*(pics?|pictures?|photos?|selfies?|foto'?s?|fotootjes?)\s*(pls|please|plz|graag|\?|!)*\s*$/i;
-// talking about a picture that was already sent is not a request
-const IMG_PAST = /\b(sent|showed|shared|took|that|this|the|your|my|old|nice|cute|great|love|liked?|mooie?|leuke?)\s+(pics?|pictures?|photos?|selfies?|images?|foto'?s?)\b/i;
-const IMG_MORE = /\b(another|one more|nog een|again|opnieuw)\b/i;
-const asksForImage = t => !!t && (IMG_LOOK.test(t) || IMG_SHORT.test(t) || (IMG_WORD.test(t) && IMG_VERB.test(t) && !IMG_HOBBY.test(t) && (!IMG_PAST.test(t) || IMG_MORE.test(t) || IMG_STRONG.test(t))));
-const wantsImage = m => !!m && m.role === 'user' && (m.wantsImage || asksForImage(m.content));
-// The character says it sends a picture right now: "here's a pic of…", "*sends you a selfie*", "*snaps a photo and sends it*"
+// Only clear requests count: "send me a pic", "selfie?", "can I see a photo of you", "what do you look like".
+// Story words on their own ("the image of…", "draw the curtains", "please") never do.
 const PIC = String.raw`(pics?|pictures?|photos?|selfies?|snapshots?|images?|foto'?s?|fotootjes?|selfie)`;
+const DRAWN = String.raw`(drawings?|sketch(es)?|portraits?|tekening(en)?|plaatjes?)`;
+const IMG_ASKS = [
+  // send / show / share / snap / take / make / draw / give / get + me/us + a pic (also "send another pic", "show me your selfie")
+  new RegExp(String.raw`\b(send|show|share|snap|take|make|draw|give|get)\b( me| us)?( a| an| another| one more| some| your| a quick| a new| nog)?( \w+){0,2} (${PIC}|${DRAWN})\b`, 'i'),
+  // can I see / get / have a pic, I want to see a selfie
+  new RegExp(String.raw`\b(can|could|may) i (see|get|have)\b[^.!?\n]{0,20}\b${PIC}\b|\b(want|wanna|would love|like) (to )?see\b[^.!?\n]{0,20}\b${PIC}\b`, 'i'),
+  // a short message that is just the ask: "pic?", "selfie pls", "another one, send it"
+  /^\s*(another|one more|a|een|nog een)?\s*(pics?|pictures?|photos?|selfies?|foto'?s?|fotootjes?)\s*(pls|please|plz|graag|\?|!)*\s*$/i,
+  /what do you look like|hoe zie je eruit/i,
+  // Dutch: stuur me een foto, mag ik een foto, kun je een foto maken
+  new RegExp(String.raw`\b(stuur|maak|teken|geef)\b( me| mij| eens)?( een| nog een| je)?( \w+){0,2} (foto'?s?|fotootjes?|selfie|tekening|plaatjes?)\b|\b(mag ik|kun je|kan je|wil je)\b[^.!?\n]{0,30}\b(foto'?s?|fotootjes?|selfie|tekening)\b`, 'i'),
+];
+// the requested phrase, or '' (shown in What was sent under Image trigger)
+const imgAskMatch = t => { if (!t) return ''; for (const re of IMG_ASKS) { const m = t.match(re); if (m) return m[0].trim(); } return ''; };
+const asksForImage = t => !!imgAskMatch(t);
+const wantsImage = m => !!m && m.role === 'user' && (m.wantsImage || asksForImage(m.content));
+// The character says it sends you a picture right now: "*sends you a selfie*", "sending you a pic", "here's a pic of me",
+// "*snaps a selfie and sends it*". A picture in the story ("here is a picture of the artifact", "takes a picture off the wall") doesn't.
 const SENDS_IMG = new RegExp([
-  String.raw`\b(here'?s|here is|here are|heres|sending you|sent you|just sent|i'?m sending|attached( is)?|hier is|hier zijn|ik stuur( je)?)\b[^.!?\n]{0,25}\b${PIC}\b`,
-  String.raw`\*[^*\n]{0,80}\b(sends?|texts?|attaches?|shares?|stuurt|deelt)\b[^*\n]{0,60}\b${PIC}\b[^*\n]{0,80}\*`,
-  String.raw`\*[^*\n]{0,80}\b(snaps?|takes?)\b[^*\n]{0,40}\b${PIC}\b[^*\n]{0,40}\b(sends?|texts?|shares?|stuurt)\b[^*\n]{0,60}\*`,
-  String.raw`\*[^*\n]{0,40}\b(shows?|holds? up)\b[^*\n]{0,15}\b(you|u|je)\b[^*\n]{0,25}\b${PIC}\b[^*\n]{0,60}\*`,
+  String.raw`\b(sending you|sent you|just sent( you)?|i'?m sending( you)?|ik stuur( je)?)\b[^.!?\n]{0,25}\b${PIC}\b`,
+  String.raw`\b(here'?s|here is|heres|hier is)\b( a| an| another| my| one more| a quick| a new| een)?( \w+)? ${PIC} (of (me|my|myself|us|our)|for you|van (mij|me|mijn)|voor je)\b`,
+  String.raw`\*[^*\n]{0,80}\b(sends?|texts?|attaches?|stuurt)\b( you| u| je| him| her)( a| an| another| one more| some| een)?( \w+){0,2} ${PIC}\b[^*\n]{0,80}\*`,
+  String.raw`\*[^*\n]{0,80}\b(snaps?|takes?)\b( a| an| another| een)?( quick)? ${PIC}( of [^*\n]{0,40})? and (sends?|texts?|stuurt)\b[^*\n]{0,60}\*`,
 ].join('|'), 'i');
-const replySendsImage = t => !!t && SENDS_IMG.test(t);
+const imgSendMatch = t => (t && t.match(SENDS_IMG)?.[0].trim()) || '';
+const replySendsImage = t => !!imgSendMatch(t);
 const IMG_NOTE = '\n\n[Note from the app: the user is asking for a picture. Reply in character and end your message with [[image: detailed English description of the picture]].]';
 async function buildMessages(c, p, hist, memory, chat = cur?.chat, opts = {}) {
   macroWrite = opts.vec !== false; // a real request (What was sent rebuilds with vec:false and changes nothing)
@@ -10015,6 +10021,20 @@ async function openSent(i) {
     const lc = document.createElement('div'); lc.className = 'card sent-info'; lc.style.cssText = 'padding:12px 16px;margin-top:10px';
     lc.innerHTML = `<div><b>Lorebook entries</b></div>` + (info.lore.length ? info.lore.map(h => `<div style="margin-top:4px">${escHtml(h.title)} <span style="color:var(--ink-soft)">· ${h.skipped ? `left out: ${escHtml(h.skipped === true ? 'lorebook budget full' : h.skipped)}` : h.sticky ? escHtml(h.where) : h.key ? `“${escHtml(h.key)}” in ${escHtml(h.where)}` : 'always on'} · ${escHtml(h.book || '')}</span></div>`).join('') : '<div class="hint" style="margin-top:4px">None triggered.</div>');
     box.append(lc);
+  }
+  // Image trigger: why this reply did or didn't come with a picture
+  {
+    const prev = history[i - 1], ask = prev?.role === 'user' ? imgAskMatch(prev.content) : '', sends = imgSendMatch(target.content);
+    const row = (a, b) => `<div style="margin-top:4px">${escHtml(a)}${b ? ` <span style="color:var(--ink-soft)">· ${escHtml(b)}</span>` : ''}</div>`;
+    let rows = '';
+    if (!imagesOn(cur.chat)) rows += row('Pictures are off in this chat');
+    if (prev?.role === 'user' && prev.wantsImage) rows += row('You asked with the + menu');
+    if (ask) rows += row('Your message asked for one', `"${ask}"`);
+    if (sends) rows += row(`${cn(speakerChar(m, cur.c))} says they send one`, `"${sends}"`);
+    if (!rows) rows = row('Nothing triggered a picture');
+    else if (imagesOn(cur.chat) && cur.chat.autoPics === false) rows += row('Automatic pictures are off: the camera under the reply makes it');
+    const ic = document.createElement('div'); ic.className = 'card sent-info'; ic.style.cssText = 'padding:12px 16px;margin-top:10px';
+    ic.innerHTML = '<div><b>Image trigger</b></div>' + rows; box.append(ic);
   }
   info.messages.forEach((x, k) => {
     const t = textOf(x), d = document.createElement('details'); d.className = 'card sent-msg'; d.style.padding = '0 16px';
