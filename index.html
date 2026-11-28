@@ -4621,7 +4621,7 @@ async function imageForReply(i, again = false, scene = true) {
   if (!imageEnabled()) return toast('No image proxy is active (Settings → Image proxy)');
   const s = cur, hist = history, m = hist[i]; if (!m) return;
   const bubble = [...$('log').querySelectorAll('.msg.ai')].find(b => +b.dataset.i === i); if (!bubble) return;
-  setBusy(true);
+  setBusy(true, true);
   try {
     // a picture the character announced (pendingImg) stays as it is; otherwise Create image illustrates the moment
     const prompt = (again && m.imgPrompt) || m.pendingImg || await describeImage(s, hist[i - 1]?.role === 'user' ? hist[i - 1].content : '', m.content, scene);
