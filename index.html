@@ -9657,13 +9657,13 @@ $('scroller').addEventListener('scroll', syncToBottom, { passive: true });
   const row = $('toolsRow'), chat = $('chat');
   const sync = () => {
     // it floats only on its own: with the author's note, a picture to send or the writing-help bar open, it sits below them as before
-    const on = !$('grpBar').hidden && $('anPanel').hidden && $('giPanel').hidden && $('helpBar').hidden, h = on ? row.offsetHeight : 0, atEnd = nearBottom();
+    const on = (!$('grpBar').hidden || [...$('chipsRow').children].some(x => !x.hidden)) && $('anPanel').hidden && $('giPanel').hidden && $('helpBar').hidden, h = on ? row.offsetHeight : 0, atEnd = nearBottom();
     row.classList.toggle('float', on); chat.classList.toggle('tools-float', on);
     chat.style.setProperty('--tools-h', h + 'px'); row.style.setProperty('--tools-h', h + 'px');
     if (atEnd) scrollDown();
   };
   new ResizeObserver(sync).observe(row);
-  for (const id of ['grpBar', 'anPanel', 'giPanel', 'helpBar']) new MutationObserver(sync).observe($(id), { attributes: true, attributeFilter: ['hidden'] });
+  for (const id of ['grpBar', 'anPanel', 'giPanel', 'helpBar', 'chipsRow']) new MutationObserver(sync).observe($(id), { attributes: true, subtree: id === 'chipsRow', attributeFilter: ['hidden'] });
 }
 new ResizeObserver(syncToBottom).observe($('log'));
 new ResizeObserver(syncToBottom).observe($('scroller'));
