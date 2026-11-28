@@ -8011,6 +8011,7 @@ function providerPicker(body, pr) {
   const fb = document.createElement('div'); fb.className = 'line'; fb.innerHTML = '<span>Others when these are unavailable</span>';
   const fbT = document.createElement('input'); fbT.type = 'checkbox'; fbT.className = 'tgl'; fb.append(fbT);
   const add = document.createElement('input'); add.type = 'text'; add.placeholder = 'Add a provider by name'; add.setAttribute('autocapitalize', 'off'); add.setAttribute('autocorrect', 'off');
+  add.hidden = true; // only when OpenRouter's list can't be had
   wrap.append(l, chips, fb, state, add); body.append(wrap);
   let known = [];
   const R = () => pr.route || (pr.route = { use: [], never: [], fallback: false });
@@ -8043,8 +8044,8 @@ function providerPicker(body, pr) {
   draw();
   if (pr.model?.trim()) {
     state.textContent = 'Finding the providers for this model…';
-    providersFor(pr).then(list => { known = list; draw(); if (!list.length) state.textContent += ' OpenRouter lists no providers for this model.'; })
-      .catch(e => { draw(); state.textContent += ` (Could not get the list: ${e.message}. Add them by name.)`; });
+    providersFor(pr).then(list => { known = list; draw(); if (!list.length) { add.hidden = false; state.textContent += ' OpenRouter lists no providers for this model.'; } })
+      .catch(e => { add.hidden = false; draw(); state.textContent += ` (Could not get the list: ${e.message}. Add them by name.)`; });
   }
 }
 function renderProxyBox(box, kind, scope) {
