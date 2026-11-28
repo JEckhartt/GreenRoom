@@ -8964,6 +8964,12 @@ let kbFollow = true;
 for (const ev of ['pointerdown', 'focus']) $('input').addEventListener(ev, () => { if (!document.body.classList.contains('kb-open')) kbFollow = nearBottom(); });
 function setKb(h) {
   h = Math.max(0, Math.round(h || 0));
+  // closing: at the end of the chat before, still at the end after (while the header and the box settle)
+  if (!h && document.body.classList.contains('kb-open') && nearBottom()) {
+    let off = false; $('scroller').addEventListener('touchstart', () => { off = true; }, { once: true, passive: true }); // your own scrolling wins
+    const until = performance.now() + 500, keep = () => { if (off) return; scrollDown(); if (performance.now() < until) requestAnimationFrame(keep); };
+    requestAnimationFrame(keep);
+  }
   document.documentElement.style.setProperty('--kb', h + 'px');
   document.body.classList.toggle('kb-open', h > 0);
   if (h > 0) setTimeout(() => {
