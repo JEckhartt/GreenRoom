@@ -1154,6 +1154,8 @@
   #chats .items { gap: 0; }
   #chats .items > .group { border: 0; border-radius: 0; background: none; border-top: 1px solid var(--line); overflow: visible; }
   #chats .items > .group:last-child { border-bottom: 1px solid var(--line); }
+  /* sticky searches stay square: rounded corners let what scrolls under them show through */
+  :is(#chats, #chars, #personas, #chatimgs) input.search { border-radius: 0 !important; }
   #chats .pins { position: sticky; top: calc(var(--search-h, 41px) - 1px); z-index: 2; background: var(--bg); }
   #chats .pin-rows { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .25s ease; }
   #chats .pin-rows > * { min-height: 0; overflow: hidden; }
