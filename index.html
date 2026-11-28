@@ -8540,7 +8540,7 @@ function renderStyles() {
       row.append(dot, b, more); box.append(row);
     }
     const hint = document.createElement('div'); hint.className = 'hint';
-    hint.textContent = list.length ? 'Tap a style to use it' + (scope === 'chat' ? ' in this chat (Global switches off)' : '') + '. ⋯ for more options.' : 'No saved styles yet.';
+    hint.textContent = list.length ? '' : 'No saved styles yet.'; hint.hidden = !!list.length;
     const add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.textContent = '+ Save current style';
     add.onclick = () => {
       const name = prompt('Name for this style', `Style ${list.length + 1}`)?.trim(); if (!name) return;
