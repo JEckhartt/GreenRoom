@@ -188,6 +188,11 @@
   form#composer.rest #plusBtn svg { transform: scale(.9); }
   form#composer.rest #send { width: 28px; height: 28px; margin: 0 5px 5px 0; }
   form#composer.rest #send svg { width: 16px; height: 16px; }
+  /* the persona you're chatting as, next to +: only while the box is tapped into or has text */
+  #personaPill { display: none; }
+  form#composer .field.open #personaPill { grid-area: 3 / 2 / 4 / 3; justify-self: start; align-self: center; display: flex; align-items: center; gap: 7px; max-width: 100%; height: 30px; margin: 4px 0 0 8px; padding: 0 12px 0 3px; border-radius: 999px; border: .5px solid var(--accent); background: var(--field); color: var(--ink); font: 500 13.5px 'Inter', system-ui, sans-serif; white-space: nowrap; cursor: pointer; }
+  #personaPill .av { width: 24px; height: 24px; flex: none; border-radius: 50%; font-size: 11px; }
+  #personaPill .pp-name { overflow: hidden; text-overflow: ellipsis; }
   #toolsRow { max-width: 760px; width: 100%; margin: 0 auto; padding: 2px 16px 0; display: flex; align-items: flex-end; gap: 8px; }
   /* in a one-to-one chat the messages stop 2px above the box; with the group's pictures (or an attachment) above it, the spacing stays as before */
   #toolsRow:has(> #grpBar:not([hidden]), #chipsRow > :not([hidden])) { padding: 6px 16px 4px; }
@@ -1529,6 +1534,7 @@
     <div class="field">
     <span class="grip" id="inputGrip" aria-hidden="true"></span>
     <button id="plusBtn" type="button" aria-label="Add"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1.5v11M1.5 7h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+    <button id="personaPill" type="button" aria-label="Change persona"><span class="av"></span><span class="pp-name"></span></button>
     <textarea id="input" rows="1" enterkeyhint="enter" placeholder="Say something…" autocomplete="off"></textarea>
     <button id="send" type="submit" aria-label="Send"><svg class="i-send" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg><svg class="i-stop" width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="currentColor"/></svg></button>
     </div>
@@ -5019,6 +5025,7 @@ function startChat() {
 }
 function renderChatHead() {
   const { chat, c, p } = cur;
+  syncPersonaPill();
   if (chat.group && chat.title) { chat.group.name = chat.title; delete chat.title; store.set('chats', chats); }
   const pn = p?.name || chat.personaName, g = chat.group;
   $('chatName').textContent = g ? (g.name || 'Group chat') : cn(c);
@@ -5227,6 +5234,24 @@ function pickPersona(c, then = null) {
   none.onclick = () => { hideSheet(); go(''); };
   box.append(none);
 }
+// the pill in the text box: picture and name of the persona this chat is as; tap to change it
+function syncPersonaPill() {
+  if (!cur) return;
+  const p = cur.p, name = p?.name || cur.chat.personaName || 'No persona';
+  setThumb($('personaPill').querySelector('.av'), p || { name });
+  $('personaPill').querySelector('.pp-name').textContent = name;
+}
+$('personaPill').addEventListener('pointerdown', e => e.preventDefault()); // the box stays as it is while tapping
+$('personaPill').onclick = () => {
+  if (!cur) return;
+  const { chat: ch, c } = cur; input.blur();
+  pickPersona(c, pid => {
+    const np = personas.find(x => x.id === pid);
+    ch.personaId = np?.id || ''; ch.personaName = np?.name || '';
+    saveChats(); if (cur?.chat.id === ch.id) { cur.p = personaOf(ch); renderChatHead(); render(); }
+    toast(`This chat is now as ${np?.name || 'no persona'}`);
+  });
+};
 function pickChar(title, then, descs) {
   if (!chars.length) return toast('Make a character first');
   showSheet(title, [...chars].sort((a, b) => a.name.localeCompare(b.name)).map(c => ({ label: c.name, av: c, ...(descs ? { desc: htmlToText(c.description || '').trim() } : {}), onClick: () => then(c) })));
