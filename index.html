@@ -4310,8 +4310,9 @@ function ready() {
 // While the AI writes, the send button is a stop button; abortCtl cancels the running request
 let abortCtl = null, giCtl = null; // giCtl: the picture you're making to send (its square stops it)
 const isAbort = e => e?.name === 'AbortError';
-function setBusy(on) {
-  busy = on; $('chatAv').classList.toggle('live', on);
+// live: the character is writing (their picture pulses); writing help, summaries and the like don't pulse it
+function setBusy(on, live = false) {
+  busy = on; $('chatAv').classList.toggle('live', on && live);
   abortCtl = on ? new AbortController() : null;
   $('send').classList.toggle('stop', on); $('send').disabled = false;
   $('send').setAttribute('aria-label', on ? 'Stop' : 'Send');
@@ -4589,7 +4590,7 @@ async function continueReply(i) {
     const sep = !t || /\s$/.test(before) || /^[\s,.;:!?)\]…]/.test(t) ? '' : ' ';
     return before + sep + t;
   };
-  setBusy(true);
+  setBusy(true, true);
   bubble.querySelector('.alts')?.remove(); bubble.querySelector(':scope > .via')?.remove();
   try {
     const ask = BPS('chat-replies.continue', '[Continue your last message exactly where it stopped. Do not repeat anything you already wrote and do not start over; write only what comes next.]');
@@ -4638,7 +4639,7 @@ async function send(text, img, forceImage, doc, imgPrompt) {
   if (!ready()) return;
   step(`send (chat has ${history.length} messages)`);
   const s = cur, hist = history;
-  setBusy(true);
+  setBusy(true, true);
   clearErrs();
   text = applyRules(text, s.chat, 'me', 'both');
   const msg = { role: 'user', content: text, t: Date.now() };
@@ -4851,7 +4852,7 @@ async function resendFrom(i, text) {
   for (const m of hist.splice(i + 1)) for (const k of imagesOf(m)) idb.del(k).catch(() => {});
   hist[i].content = text;
   saveMsgs(s.chat, hist); render(); scrollDown();
-  setBusy(true);
+  setBusy(true, true);
   if (s.chat.group) { try { await groupRun(s, hist, pickSpeakers(s.chat, hist)); } finally { setBusy(false); if (cur?.chat.id === s.chat.id) render(); } return; }
   const bubble = addBubble('ai', '');
   try { await aiTurn(s, hist, await buildMessages(s.c, s.p, hist, s.chat.memory), bubble); }
@@ -4921,7 +4922,7 @@ async function anotherReply(i, bubble, direction = '', override = null) {
   const s = cur, hist = history, m = hist[i]; if (!m) return;
   if (s.chat.group) s.c = speakerChar(m, s.c);
   turnOverride = override ? { chat: s.chat, ...override } : null;
-  setBusy(true);
+  setBusy(true, true);
   bubble.querySelector('.alts')?.remove(); bubble.querySelector(':scope > .via')?.remove(); bubble.querySelector('figure')?.remove();
   setText(bubble, '');
   try {
@@ -4939,7 +4940,7 @@ async function anotherReply(i, bubble, direction = '', override = null) {
 async function writeOpening() {
   if (!ready()) return;
   const s = cur, hist = history, { c, p } = s;
-  setBusy(true); render();
+  setBusy(true, true); render();
   const bubble = addBubble('ai', '');
   try { await aiTurn(s, hist, [...await buildMessages(c, p, [], s.chat.memory), { role: 'user', content: openingAsk(c, p) }], bubble); }
   catch (e) { bubble.remove(); if (cur?.chat.id === s.chat.id) { render(); if (!isAbort(e)) addBubble('err', 'Could not write an opening: ' + e.message); } }
@@ -10855,7 +10856,7 @@ function groupAuto(s) {
   groupAutoTimer = setTimeout(async () => {
     if (cur?.chat.id !== s.chat.id || !s.chat.group.auto || busy || $('input').value.trim() || document.hidden) return;
     const ids = pickSpeakers(s.chat, history); if (!ids.length) return;
-    setBusy(true);
+    setBusy(true, true);
     try { await groupRun(s, history, ids); } finally { setBusy(false); }
     groupAuto(s);
   }, 5000);
@@ -10867,7 +10868,7 @@ $('input').addEventListener('input', () => {
 // Force talk: tap a member (also when muted); long press: mute or unmute
 async function forceTalk(id) {
   if (busy || !cur?.chat.group || !ready()) return;
-  const s = cur; setBusy(true); clearTimeout(groupAutoTimer);
+  const s = cur; setBusy(true, true); clearTimeout(groupAutoTimer);
   try { await groupRun(s, history, [id]); } finally { setBusy(false); if (cur?.chat.id === s.chat.id && !history.length) render(); }
   groupAuto(s);
 }
