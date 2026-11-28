@@ -182,6 +182,9 @@
   #toolsRow { max-width: 760px; width: 100%; margin: 0 auto; padding: 2px 16px 0; display: flex; align-items: flex-end; gap: 8px; }
   /* in a one-to-one chat the messages stop 2px above the box; with the group's pictures (or an attachment) above it, the spacing stays as before */
   #toolsRow:has(> #grpBar:not([hidden]), #chipsRow > :not([hidden])) { padding: 6px 16px 4px; }
+  /* group chats: the row of pictures and Auto floats over the chat, which scrolls on behind it; at the end the last message stays above it */
+  #toolsRow.float { position: relative; z-index: 2; margin-top: calc(-1 * var(--tools-h, 0px)); }
+  #chat.tools-float #log { padding-bottom: calc(20px + var(--tools-h, 0px)); }
   #chipsRow { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
   #attachPv { position: relative; width: 56px; height: 56px; border-radius: 12px; background: var(--accent-soft) center / cover no-repeat; border: 1px solid var(--line); }
   #attachPv button, .fchip button { width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(30,30,30,.85); color: #fff; font-size: 11px; cursor: pointer; flex: none; }
@@ -323,6 +326,7 @@
   #grpBar button.muted .av { filter: grayscale(1); }
   #grpBar button.talking .av { box-shadow: 0 0 0 2px var(--accent); }
   #grpBar .gb-heads .auto { flex: none; font: inherit; font-size: 12px; color: var(--accent-ink); border: 1px solid var(--line); border-radius: 999px; padding: 0 10px; height: 32px; border-radius: 999px; }
+  #toolsRow.float #grpBar .gb-heads .auto:not(.on) { background: var(--field); }
   #grpBar .gb-heads .auto.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   .gn-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
   .gn-item { display: flex; align-items: center; gap: 10px; padding: 6px 4px; background: none; border: 0; border-radius: 10px; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
@@ -9593,6 +9597,18 @@ $('floatPic').querySelector('button').onclick = () => { $('floatPic').hidden = t
 // Down arrow: shows when you're away from the newest message (also while a reply grows below), gone at the bottom
 const syncToBottom = () => { $('toBottom').hidden = nearBottom(); };
 $('scroller').addEventListener('scroll', syncToBottom, { passive: true });
+// the floating row's height is kept as --tools-h, so the chat leaves exactly that much room at its end
+{
+  const row = $('toolsRow'), chat = $('chat');
+  const sync = () => {
+    const on = !$('grpBar').hidden, h = on ? row.offsetHeight : 0, atEnd = nearBottom();
+    row.classList.toggle('float', on); chat.classList.toggle('tools-float', on);
+    chat.style.setProperty('--tools-h', h + 'px'); row.style.setProperty('--tools-h', h + 'px');
+    if (atEnd) scrollDown();
+  };
+  new ResizeObserver(sync).observe(row);
+  new MutationObserver(sync).observe($('grpBar'), { attributes: true, attributeFilter: ['hidden'] });
+}
 new ResizeObserver(syncToBottom).observe($('log'));
 new ResizeObserver(syncToBottom).observe($('scroller'));
 $('toBottom').onclick = () => { const sc = $('scroller'); if (busy) { following = true; holdFollow = false; } sc.scrollTo({ top: sc.scrollHeight, behavior: 'smooth' }); };
