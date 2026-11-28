@@ -8534,13 +8534,13 @@ function renderStyles() {
       const dot = document.createElement('button'); dot.type = 'button'; dot.className = 'pdot' + (inUse ? ' on' : ''); dot.setAttribute('aria-label', 'Use this style');
       dot.onclick = () => applyStyle(st, scope);
       const b = document.createElement('button'); b.type = 'button'; b.className = 'sname'; b.textContent = st.name + (inUse ? ' · in use' : '');
-      b.onclick = () => styleMenu(st, scope);
+      b.onclick = () => applyStyle(st, scope); // the name uses the style, like the dot; options are behind ⋯
       const more = document.createElement('button'); more.type = 'button'; more.className = 'smore'; more.textContent = '⋯'; more.setAttribute('aria-label', 'Style options');
       more.onclick = () => styleMenu(st, scope);
       row.append(dot, b, more); box.append(row);
     }
     const hint = document.createElement('div'); hint.className = 'hint';
-    hint.textContent = list.length ? 'Tap the dot to use a style' + (scope === 'chat' ? ' in this chat (Global switches off)' : '') + '. Tap a name for more options.' : 'No saved styles yet.';
+    hint.textContent = list.length ? 'Tap a style to use it' + (scope === 'chat' ? ' in this chat (Global switches off)' : '') + '. ⋯ for more options.' : 'No saved styles yet.';
     const add = document.createElement('button'); add.type = 'button'; add.className = 'btn'; add.textContent = '+ Save current style';
     add.onclick = () => {
       const name = prompt('Name for this style', `Style ${list.length + 1}`)?.trim(); if (!name) return;
