@@ -96,7 +96,7 @@
   #gapPop output { font: 600 12px 'Inter', system-ui, sans-serif; color: var(--ink); font-variant-numeric: tabular-nums; }
   #gapRange { writing-mode: vertical-lr; direction: rtl; width: 28px; height: 200px; margin: 0; accent-color: var(--accent); }
   .msg { max-width: 85%; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .msg.me { align-self: flex-end; background: var(--bubble-me); padding: 10px 14px; border-radius: 18px 18px 4px 18px; border: 1px solid var(--line); font-family: var(--me-font); }
+  .msg.me { align-self: flex-end; background: color-mix(in srgb, var(--bubble-me) calc(100% - var(--see-me, 0) * 1%), transparent); padding: 10px 14px; border-radius: 18px 18px 4px 18px; border: 1px solid var(--line); font-family: var(--me-font); }
   .msg.ai { align-self: flex-start; }
   .msg.ai .txt {
     display: block; font-family: var(--ai-font); font-size: var(--fs); font-weight: var(--fw);
@@ -126,7 +126,7 @@
     color: transparent; -webkit-text-fill-color: transparent; text-decoration-color: var(--c1);
   }
   body.glow .msg.ai .txt { text-shadow: 0 0 16px color-mix(in srgb, var(--glowc) 55%, transparent); }
-  body.ai-bubble .msg.ai { background: var(--bubble-me); border: 1px solid var(--line); padding: 10px 14px; border-radius: 18px 18px 18px 4px; }
+  body.ai-bubble .msg.ai { background: color-mix(in srgb, var(--bubble-me) calc(100% - var(--see-ai, 0) * 1%), transparent); border: 1px solid var(--line); padding: 10px 14px; border-radius: 18px 18px 18px 4px; }
   .msg.err { align-self: center; color: var(--accent-ink); font-size: 14px; max-width: 92%; white-space: pre-wrap; overflow-wrap: anywhere;
     -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
   .empty .open-start { margin-top: 18px; padding: 12px 34px; border: 0; background: var(--accent); color: var(--on-accent); font-family: var(--me-font); font-size: 16px; font-weight: 600; }
@@ -2067,6 +2067,9 @@ Short variables: {{.x}} = {{getvar::x}} · {{.x = on}} · {{.x += 1}} · {{.x++}
         <button type="button" data-v="tail">Tail</button>
         <button type="button" data-v="sharp">Sharp</button>
       </div>
+      <div class="line"><span>See-through <span class="tgt" style="color:var(--ink-soft)"></span></span><output data-out="bubbleSee"></output></div>
+      <input type="range" data-k="bubbleSee" min="0" max="90" step="5">
+      <div class="hint">How much of the chat background shows through the bubble. 0% is solid.</div>
       </div>
       <div class="line"><span>Full width <span class="tgt" style="color:var(--ink-soft)"></span></span><input type="checkbox" class="tgl" data-k="wide"></div>
       <div class="hint" style="margin-top:2px">The message fills the screen from side to side, with or without a bubble.</div>
@@ -2560,7 +2563,7 @@ const store = {
 const LOOK_DEFAULTS = {
   theme: 'original', accent: '', aiBubble: false,
   showNames: false, nameMode: 'theme', nameC: '#d9553b', showAvatars: false, avShape: 'circle', chatHead: true,
-  bubbleShape: 'tail', showTimes: true, wide: false, u_wide: false, u_aiBubble: true,
+  bubbleShape: 'tail', bubbleSee: 0, u_bubbleSee: 0, showTimes: true, wide: false, u_wide: false, u_aiBubble: true,
   u_showNames: false, u_nameMode: 'theme', u_nameC: '#3d63f5', u_showAvatars: false, u_avShape: 'circle', u_bubbleShape: 'tail', u_showTimes: true,
   sides: 'default', spacing: 'normal', sideMargin: 12, anim: 'slide',
   aiFont: 'Fraunces', meFont: 'Inter',
@@ -3095,6 +3098,7 @@ function applyLook(force = false) {
     L[pre + 'nameMode'] === 'custom' ? s.setProperty('--name-' + side, L[pre + 'nameC']) : s.removeProperty('--name-' + side);
   }
   s.setProperty('--side-m', (L.sideMargin ?? 12) + 'px');
+  s.setProperty('--see-ai', String(L.bubbleSee || 0)); s.setProperty('--see-me', String(L.u_bubbleSee || 0));
   B.dataset.sides = L.sides || 'default'; B.dataset.spacing = L.spacing || 'normal'; B.dataset.anim = L.anim || 'slide';
   s.setProperty('--u-fs', L.u_fs + 'px');
   s.setProperty('--u-fw', L.u_fw);
@@ -8282,7 +8286,7 @@ function setLookCtx(ctx) {
 
 // ---------- Settings page ----------
 // The text-style controls edit either the AI's or the user's text; user keys are stored with a u_ prefix
-const STYLE_KEYS = ['aiBubble', 'wide', 'showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'showTimes', 'fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
+const STYLE_KEYS = ['aiBubble', 'wide', 'showNames', 'nameMode', 'nameC', 'showAvatars', 'avShape', 'bubbleShape', 'bubbleSee', 'showTimes', 'fs', 'fw', 'lh', 'ls', 'glow', 'colorMode', 'c1', 'c2', 'angle', ...MD_ELS.flatMap(m => [m.key + 'On', m.key + 'Color'])];
 let styleTarget = 'ai';
 const sk = k => styleTarget === 'me' && STYLE_KEYS.includes(k) ? 'u_' + k : k;
 const fontKey = () => styleTarget === 'me' ? 'meFont' : 'aiFont';
@@ -8303,7 +8307,7 @@ function syncControls() {
     else if (document.activeElement !== el) el.value = v ?? '';
   }
   const g = k => L[sk(k)];
-  const outs = { fs: g('fs') + 'px', fw: g('fw'), lh: (+g('lh')).toFixed(2), ls: (+g('ls')).toFixed(2) + 'em', angle: g('angle') + '°', sideMargin: (g('sideMargin') ?? 12) + 'px' };
+  const outs = { fs: g('fs') + 'px', fw: g('fw'), lh: (+g('lh')).toFixed(2), ls: (+g('ls')).toFixed(2) + 'em', angle: g('angle') + '°', sideMargin: (g('sideMargin') ?? 12) + 'px', bubbleSee: (g('bubbleSee') || 0) + '%' };
   for (const o of document.querySelectorAll('[data-out]')) o.textContent = outs[o.dataset.out];
   const fontMixed = styleTarget === 'both' && L.aiFont !== L.meFont;
   for (const b of $('fonts').children) b.classList.toggle('on', !fontMixed && b.dataset.font === L[fontKey()]);
